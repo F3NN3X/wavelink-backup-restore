@@ -1,0 +1,113 @@
+---
+title: "Wave Link Backup — Documentation Index"
+status: published
+created: 2026-08-16
+updated: 2026-08-16
+tags: [meta, index]
+---
+
+# Wave Link Backup — Documentation Index
+
+**Start here.**
+
+Wave Link Backup snapshots and restores Elgato Wave Link's mixer configuration. Wave Link
+keeps about **three days** of its own rolling copies; a configuration that breaks over a long
+weekend is unrecoverable by the time anyone notices. This app is the safety net: configured
+once, then ignored until the day it saves someone's rig.
+
+The whole payload is **one 43 KB JSON file**, and the entire backup set is about **470 KB** —
+small enough to keep one snapshot per distinct content hash, indefinitely, forever.
+
+---
+
+## The three documents that matter most
+
+| Document | What it is |
+|---|---|
+| **[SPEC.md](SPEC.md)** | The build specification. Where the settings live, what's inside them, the restore sequence, the validation traps, the VST3 tiering. **The authority on what to build.** Read its Provenance section before treating any number as a constant. |
+| **[operations/design/design-handoff.md](operations/design/design-handoff.md)** | The complete visual and interaction design — tokens, four screens, states, copy. High fidelity: colours, type, spacing and wording are final. |
+| **[dev-phases/README.md](dev-phases/README.md)** | What is left to build, phase by phase, with entry and exit criteria. |
+
+Everything else in this folder explains *why*, records *what bit us*, or tracks *what
+happened*. See [README.md](README.md) for how the system is organised and how to add to it.
+
+---
+
+## Current state
+
+**Phase 0 — Foundation.** No application code exists yet. The specification, the design and
+this documentation system are complete; the fork has been read and audited but not taken.
+
+See [dev-phases/phase-0-foundation.md](dev-phases/phase-0-foundation.md) for what closes this
+phase.
+
+---
+
+## Decisions
+
+The shape of the project in eight records. Read `ADR-001` and `ADR-002` first — the rest
+follow from them.
+
+| ADR | Decision |
+|---|---|
+| [ADR-001](decisions/ADR-001-csharp-over-rust.md) | C# / .NET over Rust |
+| [ADR-002](decisions/ADR-002-fork-wavelinksettingsutility.md) | Fork `voltybat/WaveLinkSettingsUtility` rather than write fresh |
+| [ADR-003](decisions/ADR-003-backup-store-outside-localstate.md) | The backup store lives outside `LocalState`, identified by manifest |
+| [ADR-004](decisions/ADR-004-core-library-thin-shells.md) | A headless core library with thin WPF and CLI shells |
+| [ADR-005](decisions/ADR-005-wpf-for-the-gui.md) | WPF over WinUI 3, Avalonia and WinForms |
+| [ADR-006](decisions/ADR-006-vst3-four-tier-capture.md) | Four independently switchable VST3 tiers; capture what is referenced, not what is installed |
+| [ADR-007](decisions/ADR-007-hash-dedup-and-file-watching.md) | Content-hash dedup and a file watcher, not a schedule |
+| [ADR-008](decisions/ADR-008-windows-only-scope.md) | Windows-only, and say so out loud |
+
+---
+
+## Gotchas
+
+Eight ways this goes wrong. Titled by symptom, because that is what you will be searching
+for at the time.
+
+| Symptom | Gotcha |
+|---|---|
+| The backup tool runs, reports success, and protects nothing | [backup-succeeds-but-protects-nothing.md](knowledge-base/gotchas/backup-succeeds-but-protects-nothing.md) |
+| The file parses fine but Wave Link resets to defaults | [file-parses-but-wave-link-resets.md](knowledge-base/gotchas/file-parses-but-wave-link-resets.md) |
+| Restoring the newest backup restores the broken config | [newest-backup-is-the-broken-one.md](knowledge-base/gotchas/newest-backup-is-the-broken-one.md) |
+| Every snapshot differs from the last, and diffs are useless | [every-snapshot-differs-with-no-real-change.md](knowledge-base/gotchas/every-snapshot-differs-with-no-real-change.md) |
+| The restore writes cleanly, then the old settings come back | [restored-settings-revert-seconds-later.md](knowledge-base/gotchas/restored-settings-revert-seconds-later.md) |
+| The plugin is restored but refuses to run | [restored-plugin-demands-a-licence.md](knowledge-base/gotchas/restored-plugin-demands-a-licence.md) |
+| A plugin backs up as zero bytes | [vst3-backs-up-as-nothing.md](knowledge-base/gotchas/vst3-backs-up-as-nothing.md) |
+| Someone else's backup produces dead channels | [restored-backup-has-dead-channels.md](knowledge-base/gotchas/restored-backup-has-dead-channels.md) |
+
+---
+
+## Recipes
+
+| Recipe | When |
+|---|---|
+| [Restore a settings file safely](knowledge-base/recipes/restore-a-settings-file-safely.md) | Every restore. The order is load-bearing at every step. |
+
+---
+
+## Audits
+
+| Audit | Subject |
+|---|---|
+| [2026-08-15 — voltybat/WaveLinkSettingsUtility](audits/2026-08-15-voltybat-wavelinksettingsutility.md) | The upstream we are forking: what to take, what to fix first |
+
+---
+
+## Sessions
+
+| Date | Session |
+|---|---|
+| 2026-08-16 | [Documentation scaffold](sessions/2026-08-16-documentation-scaffold.md) |
+
+---
+
+## The rest
+
+- [glossary.md](glossary.md) — the words this project uses precisely. "Backup" alone means
+  three different things; start here if a document reads oddly.
+- [technical-debt.md](technical-debt.md) — inherited defects and unverified assumptions.
+- [documentation-stats.md](documentation-stats.md) — the tally and the cross-reference index.
+- [templates.md](templates.md) — copy from here when adding a document.
+- [archive/](archive/) — superseded documents.

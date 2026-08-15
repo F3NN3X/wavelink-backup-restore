@@ -1,0 +1,77 @@
+## Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]64/
+publish/
+artifacts/
+*.dll
+*.exe
+*.pdb
+
+## Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.userosscache
+*.sln.docstates
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+## Test + coverage
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.trx
+BenchmarkDotNet.Artifacts/
+
+## NuGet
+*.nupkg
+*.snupkg
+packages/
+!packages/build/
+.nuget/
+
+## MSIX / ClickOnce packaging
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+*.cer
+*.pfx
+*.snk
+
+## OS
+[Tt]humbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+## ---------------------------------------------------------------
+## Project-specific — never commit real user data
+##
+## Wave Link settings files embed audio-hardware serial numbers and
+## absolute paths containing the Windows username. Test fixtures must
+## be hand-redacted and named *.sample.json to
+## ---------------------------------------------------------------
+Settings.json
+Settings.json.backup-*
+Settings.auto.*.json
+*.vst3
+WaveLinkBackup/
+**/TestData/real/
+local.runsettings
+*.local.json
