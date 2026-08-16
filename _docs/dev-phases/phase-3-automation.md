@@ -9,7 +9,13 @@ tags: [dev-phase]
 
 # Phase 3 — Automation: watcher, dedup, retention
 
-**Status:** Not started — **next**.
+**Status:** ✅ **Complete — 2026-08-16.** 235 tests green, 84.9% line / 81.8% branch, every
+`Automation/` component at 100% line. [technical-debt.md](../technical-debt.md) §1.4 closed.
+See the [session note](../sessions/2026-08-16-phase-3-automation-build.md).
+
+> **The constraint held:** the full suite runs in about a second. No test waits on a policy
+> interval, because `AutoBackupPolicy` is pure and the coordinator owns no timer.
+
 **Entry criteria:** phase 2 complete. ✅ 2026-08-16.
 **Exit criteria:** the app can run unattended for a week, capture every distinct
 configuration, store no duplicates, and prune correctly — never touching a manual or

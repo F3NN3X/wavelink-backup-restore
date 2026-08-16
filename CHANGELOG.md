@@ -22,8 +22,54 @@ heading here.
 
 ## [Unreleased]
 
-Nothing yet. Phase 3 — the watcher, dedup and retention — is planned in
-[dev-phases/phase-3-automation.md](_docs/dev-phases/phase-3-automation.md).
+Nothing yet. Phase 4 — the CLI — is planned in
+[dev-phases/phase-4-cli.md](_docs/dev-phases/phase-4-cli.md).
+
+---
+
+## [0.3.0] — 2026-08-16
+
+**Phase 3: it backs up on its own.** The release that makes this a different product from the
+tool it was forked from — everything before it, a person could have done by hand.
+
+Still no user interface, and **nothing calls the watcher in production yet**: the host is a
+shell, and the shell arrives in phase 4.
+
+**235 tests passing, 84.9% line / 81.8% branch. The whole suite runs in about a second.**
+
+### Added
+
+- **`Automation/`** — the watcher, and the rules about when to use it.
+  - `AutoBackupPolicy` — a **pure** function of three timestamps: ~60s debounce after the last
+    write, at most one automatic snapshot an hour. Every timing case is an instant test.
+  - `AutoBackupCoordinator` — wires watcher to policy to service. **Owns no timer**; the host
+    calls `Tick()`, which is what keeps the timing tests instantaneous.
+  - `BackupService` — manual and automatic capture, with dedup and its exception in one place.
+  - `SnapshotRetention` — pure. Prunes automatic snapshots to a keep count, default 30.
+  - `FileSystemSettingsWatcher` — filters on `LastWrite`, `CreationTime` **and** `FileName`,
+    because Wave Link's atomic-save *replaces* the file rather than writing through it. A
+    `LastWrite`-only filter would miss exactly the saves that matter most.
+  - `BackupSettings` — store path, auto-backup toggle, keep count.
+- **Capture on shutdown**, ignoring the debounce and rate limit. The original incident happened
+  during an update, while the app was restarting.
+
+### Behaviour worth knowing
+
+- **A manual backup is never deduplicated.** You pressed a button; a new row appears. Automatic
+  captures *are* deduplicated, because Wave Link rewrites its settings on every launch with
+  near-identical bytes.
+- **A skipped duplicate does not restart the hourly limit.** Otherwise a launch-time rewrite
+  would mask a real change made moments later.
+- **Backups you took yourself are never deleted**, at any keep count — nor are pre-restore
+  backups.
+- A dropped watcher event is a latency problem, not data loss: the next write, shutdown or
+  launch reconciles by content hash.
+
+### Verified
+
+- The four claims in the Settings dialog's copy — *"waits a minute"*, *"at most one an hour"*,
+  *"keep the last 30"*, *"backups you took yourself are never deleted"* — all match the
+  implemented constants. Two are pinned directly by a test named for it.
 
 ---
 

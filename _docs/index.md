@@ -35,22 +35,23 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phases 0–2 are complete (2026-08-16). Phase 3 is next.**
+**Phases 0–3 are complete (2026-08-16). Phase 4 is next.**
 
-`WaveLinkBackup.Core` can now find, validate and fingerprint your settings, **write and restore
-snapshots**, and verify a restore from the log. **186 tests, 83.0% line coverage.** The CLI and
-WPF shells are still stubs.
+`WaveLinkBackup.Core` is functionally complete for tier 1: it finds, validates and fingerprints
+your settings, writes and restores snapshots, watches for changes, deduplicates and prunes.
+**235 tests, 84.9% line coverage, and the whole suite runs in about a second.**
 
-**The critical inherited defect is fixed** — snapshots live outside `LocalState`, so an MSIX
-package reset no longer destroys them along with the thing you wanted to recover from.
+**Both of the project's founding problems are solved.** Snapshots survive an MSIX package reset
+([[ADR-003]]), and backups now happen on their own rather than only when asked ([[ADR-007]]).
 
-What is missing is *automatic*: nothing watches the settings file yet, so every backup has to
-be asked for. That is [phase 3](dev-phases/phase-3-automation.md).
+What is missing is a **caller**. Nothing in production invokes any of it — `Tick()` has never
+run outside a test, because the host is a shell and there is no shell yet. That is
+[phase 4](dev-phases/phase-4-cli.md).
 
 | | |
 |---|---|
-| What shipped | [Phase 2 session note](sessions/2026-08-16-phase-2-store-build.md) · [CHANGELOG](../CHANGELOG.md) |
-| What is next | [Phase 3](dev-phases/phase-3-automation.md) |
+| What shipped | [Phase 3 session note](sessions/2026-08-16-phase-3-automation-build.md) · [CHANGELOG](../CHANGELOG.md) |
+| What is next | [Phase 4 — the CLI](dev-phases/phase-4-cli.md) |
 | How Core is shaped | [Phase 1](plans/2026-08-16-phase-1-core-design.md) · [Phase 2](plans/2026-08-16-phase-2-store-design.md) designs |
 
 > **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three
@@ -135,6 +136,7 @@ Extracted from shipped code, each naming its real callers.
 
 | Date | Session |
 |---|---|
+| 2026-08-16 | [Phase 3 — it now backs up on its own](sessions/2026-08-16-phase-3-automation-build.md) |
 | 2026-08-16 | [Phase 2 — the critical inherited defect is fixed](sessions/2026-08-16-phase-2-store-build.md) |
 | 2026-08-16 | [Phase 1 — Core built, 93 tests green](sessions/2026-08-16-phase-1-core-build.md) |
 | 2026-08-16 | [Phase-1 probe — three documented decisions overturned](sessions/2026-08-16-phase-1-probe.md) |

@@ -76,7 +76,19 @@ rejects outright — passes upstream validation unnoticed.
 phase 1. **Blocked on** the unverified assumption in §2.1 below.
 **See:** [[file-parses-but-wave-link-resets]].
 
-### 1.4 It is a manual tool, not a safety net
+### 1.4 ~~It is a manual tool, not a safety net~~ — **CLOSED 2026-08-16 (phase 3)**
+
+> The watcher, debounce, rate limit, dedup and retention all ship. Upstream's gap — backups
+> happening only when invoked — is the reason this project exists, and it is now filled.
+> `AutoBackupPolicy` is pure, so the whole suite still runs in about a second.
+>
+> **Nothing calls it in production yet**, because the host is a shell and there is no shell.
+> Phase 4's `watch` verb is the first real caller. Tracked there, not here — this is not debt,
+> it is an unwired feature.
+>
+> Original entry retained below.
+
+#### Original entry
 
 Backups happen only when invoked. No watcher, no schedule, no dedup — so repeated runs write
 identical copies.

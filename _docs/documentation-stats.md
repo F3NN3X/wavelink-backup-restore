@@ -29,10 +29,10 @@ Update this file **in the same commit** as the document it counts. See
 | Patterns | 4 |
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
-| Sessions | 4 |
+| Sessions | 5 |
 | Plans | 2 |
-| Dev-phase documents | 5 (of 8 phases; 3 remain sketched in the index) |
-| **Tests** | **186 passing, 83.0% line / 81.2% branch** |
+| Dev-phase documents | 6 (of 8 phases; 2 remain sketched in the index) |
+| **Tests** | **235 passing, 84.9% line / 81.8% branch** |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
@@ -44,6 +44,36 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### v0.3.0 — Phase 3: automation (2026-08-16)
+
+**Added**
+
+- **Session note** — [phase 3 automation build](sessions/2026-08-16-phase-3-automation-build.md).
+- **`dev-phases/phase-4-cli.md`** — phase 4 detailed.
+
+**Resolved**
+
+- **[technical-debt.md](technical-debt.md) §1.4** — upstream being a manual tool rather than a
+  safety net. Struck through, original retained. This was never a *defect* upstream; it was the
+  gap this project exists to fill, and it is now filled.
+
+**A documented exemption withdrawn**
+
+- `FileSystemSettingsWatcher` was briefly left untested on the reasoning that excuses
+  `WaveLinkProcess` at 5% coverage. That reasoning does not transfer — closing a user's Wave
+  Link to test a shutdown is unacceptable, but *watching a temp directory is harmless*. The
+  session note records it as "laziness wearing a principle's clothes", because the distinction
+  is worth keeping sharp: an exemption is only legitimate while the thing it protects is real.
+  One of the resulting tests found that a `LastWrite`-only filter would have been a bug.
+
+**Still no new patterns.** Phases 2 and 3 both applied the four from phase 1. The set has
+stopped growing, which is the expected shape — patterns come from novelty, and the last two
+phases were composition.
+
+**Counts moved:** sessions 4 → 5 · dev-phase docs 5 → 6 · tests 186 → 235.
+
+---
 
 ### v0.2.0 — Phase 2: the snapshot store (2026-08-16)
 

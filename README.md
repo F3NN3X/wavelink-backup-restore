@@ -6,11 +6,11 @@
 > the Windows MSIX package layout, Core Audio COM and NTFS atomic replace. See
 > [ADR-008](_docs/decisions/ADR-008-windows-only-scope.md).
 
-> **Status: pre-alpha, v0.2.0. Nothing is installable yet.**
-> `WaveLinkBackup.Core` can find your settings, validate them, fingerprint them, **write and
-> restore snapshots**, and confirm a restore from Wave Link's log — 186 tests, 83% coverage.
-> What it cannot do is notice on its own: every backup has to be asked for, in code. The
-> watcher is phase 3, and the CLI and window are still stubs.
+> **Status: pre-alpha, v0.3.0. Nothing is installable yet.**
+> `WaveLinkBackup.Core` does everything described below for settings backups: finds them,
+> validates them, snapshots and restores them, watches for changes, deduplicates and prunes —
+> 235 tests, 85% coverage. What it lacks is a way to *run* it. The CLI and the window are still
+> stubs, so nothing calls any of this outside a test. That's [phase 4](_docs/dev-phases/phase-4-cli.md).
 
 ---
 
@@ -82,10 +82,11 @@ C# / .NET 10. A headless core library with two thin shells, so the backup logic 
 and can run without a window.
 
 ```
-src/WaveLinkBackup.Core     class library                                       ✅ phases 1–2
+src/WaveLinkBackup.Core     class library                                       ✅ phases 1–3
   Analysis/                 pure — validation, fingerprint, log parsing
   Discovery/ Io/ Process/   finding, reading and safely replacing settings
   Snapshots/ Restore/       the store, the guard, the restore sequence
+  Automation/               watcher, debounce, dedup, retention
 src/WaveLinkBackup.Cli      thin shell — scriptable, unattended                 stub, phase 4
 src/WaveLinkBackup.App      thin shell — WPF, the four designed screens         stub, phase 5
 third_party/                vendored upstream snapshot, excluded from the build

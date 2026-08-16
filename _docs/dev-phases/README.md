@@ -28,8 +28,8 @@ right.
 | **0** | Foundation | ✅ Complete | [phase-0-foundation.md](phase-0-foundation.md) |
 | **1** | Core: discovery, validation, safe write | ✅ Complete — 93 tests, 81.2% | [phase-1-core.md](phase-1-core.md) |
 | **2** | Snapshot store | ✅ Complete — 186 tests, 83.0% | [phase-2-store.md](phase-2-store.md) · [design](../plans/2026-08-16-phase-2-store-design.md) |
-| **3** | Automation: watcher, dedup, retention | **Next** | [phase-3-automation.md](phase-3-automation.md) |
-| 4 | CLI shell | Not started | sketched below |
+| **3** | Automation: watcher, dedup, retention | ✅ Complete — 235 tests, 84.9% | [phase-3-automation.md](phase-3-automation.md) |
+| **4** | CLI shell | **Next** | [phase-4-cli.md](phase-4-cli.md) |
 | 5 | WPF shell | Not started | sketched below |
 | 6 | Plugin tiers | Not started | sketched below |
 | 7 | Release | Not started | sketched below |
@@ -105,17 +105,21 @@ store no duplicates, and prune correctly.
 
 ## Phase 4 — CLI shell
 
-**Depends on:** phase 3.
+**Depends on:** phase 3. ✅ **Planned in detail** — [phase-4-cli.md](phase-4-cli.md).
 
-A thin shell over Core: back up, list, restore, prune, validate. The `--settings-path` escape
-hatch for the multiple-package and non-MSIX cases
+A thin shell over Core: back up, list, restore, rename, delete, verify, prune, watch. The
+`--settings-path` escape hatch for the multiple-package and non-MSIX cases
 ([technical-debt.md](../technical-debt.md) §2.2).
 
-Small, and it earns its place twice over — it makes the app scriptable, and it makes phases
-2–3 testable end-to-end without a GUI.
+Small, and it earns its place three times over — it makes the app scriptable, it makes phases
+2–3 testable end-to-end without a GUI, and it is the **only AOT-eligible artifact**, since WPF
+does not support NativeAOT.
 
-**Exits when** every Core capability is reachable from the command line and the CLI is used as
-the integration-test driver.
+It is also where Core finally gets a caller: `Tick()` and `CaptureOnShutdown()` have never run
+outside a test.
+
+**Exits when** every Core capability is reachable from the command line, the CLI drives the
+integration tests, and a published single file runs on a machine without the SDK.
 
 ---
 
