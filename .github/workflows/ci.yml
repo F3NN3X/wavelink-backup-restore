@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    # Windows-only by design (ADR-008). Every dependency here - MSIX package layout,
+    # NTFS atomic replace, shell activation - is Windows.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore WaveLinkBackup.slnx
+
+      # Guard 1 of 3 runs here, inside the build: WaveLinkBackup.Core fails to compile if it
+      # resolves anything from the Windows Desktop ref pack. The other two are source scans
+      # in SourceGuardTests and run with the suite below.
+      - name: Build
+        run: dotnet build WaveLinkBackup.slnx -c Release --no-restore
+
+      # RealInstallTests skip here - there is no Wave Link on a CI runner, which is exactly
+      # why the file-lock rule is enforced by a source scan rather than left to runtime.
+      - name: Test
+        run: dotnet test WaveLinkBackup.slnx -c Release --no-build --verbosity normal

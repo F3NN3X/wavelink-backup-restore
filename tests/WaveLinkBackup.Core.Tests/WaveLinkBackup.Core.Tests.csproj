@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>WaveLinkBackup.Core.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/WaveLinkBackup.Core/WaveLinkBackup.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    Guards 2 and 3 are source scans (see SourceGuardTests). They need the Core source
+    directory at test time; passing it as assembly metadata beats walking up from the
+    output directory and guessing.
+  -->
+  <ItemGroup>
+    <AssemblyMetadata Include="CoreSourceRoot"
+                      Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../src/WaveLinkBackup.Core'))" />
+  </ItemGroup>
+
+</Project>

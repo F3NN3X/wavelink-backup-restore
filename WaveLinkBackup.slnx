@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WaveLinkBackup.Core/WaveLinkBackup.Core.csproj" />
+    <Project Path="src/WaveLinkBackup.Cli/WaveLinkBackup.Cli.csproj" />
+    <Project Path="src/WaveLinkBackup.App/WaveLinkBackup.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WaveLinkBackup.Core.Tests/WaveLinkBackup.Core.Tests.csproj" />
+  </Folder>
+</Solution>

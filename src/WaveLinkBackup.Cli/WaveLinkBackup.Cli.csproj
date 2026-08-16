@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>WaveLinkBackup.Cli</RootNamespace>
+    <AssemblyName>wlbackup</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!--
+      Deliberately self-contained. Upstream sets SelfContained=false in its csproj and then
+      overrides it to true in its release workflow, so a local publish produces a different
+      artifact from CI's. Audit finding 5. Stating it here means the csproj and the pipeline
+      cannot disagree.
+    -->
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../WaveLinkBackup.Core/WaveLinkBackup.Core.csproj" />
+  </ItemGroup>
+
+</Project>

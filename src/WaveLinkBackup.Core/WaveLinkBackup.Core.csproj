@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      net10.0, NOT net10.0-windows, unlike every other project here.
+
+      Core is Windows-only in behaviour (ADR-008) but needs nothing from the Windows
+      Desktop ref pack: MSIX paths are strings, shell activation goes through Process,
+      and file access is BCL. Targeting net10.0-windows silently pulls WindowsBase in,
+      which the headless guard below correctly rejected the first time it ran.
+
+      Revisit when Core Audio COM interop lands (endpoint inspection, not phase 1) - at
+      which point this becomes a deliberate change with a reason, not a default.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>WaveLinkBackup.Core</RootNamespace>
+    <AssemblyName>WaveLinkBackup.Core</AssemblyName>
+    <!--
+      Headless by contract (ADR-004). No UI, no console. Enforced below rather than
+      by intention: an accidental reference is invisible until AOT or the test host
+      fails, phases later.
+    -->
+    <UseWPF>false</UseWPF>
+    <UseWindowsForms>false</UseWindowsForms>
+    <!-- Keeps NativeAOT open for the CLI (technical-debt.md 2.4). -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <!--
+    Guard 1 of 3. The other two are source scans and live in the test project, because they
+    are assertions about source text and are themselves worth testing.
+
+    Match on the ref PACK, not on assembly names. WindowsBase.dll and System.Windows.dll
+    also exist in Microsoft.NETCore.App.Ref as legacy type-forwarding shims - they are
+    present in every .NET application and mean nothing. Guarding by filename produced a
+    false positive the first time this ran. Microsoft.WindowsDesktop.App appearing in the
+    graph is the real signal that WPF or WinForms has been pulled in.
+  -->
+  <Target Name="GuardNoDesktopFramework" AfterTargets="ResolveAssemblyReferences">
+    <Error
+      Condition="$([System.String]::Copy('%(ReferencePath.FullPath)').Contains('Microsoft.WindowsDesktop.App'))"
+      Text="WaveLinkBackup.Core must stay headless (ADR-004) but resolved %(ReferencePath.Filename) from the Windows Desktop ref pack. The watcher runs without a window and the CLI must stay AOT-eligible; move whatever needs this into a shell project." />
+  </Target>
+
+</Project>
