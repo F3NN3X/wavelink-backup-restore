@@ -186,6 +186,24 @@ evaporates and the answer there is forced.
 
 **Phase:** 7, but cheap to check earlier and worth doing before the §1.5 decision is framed.
 
+> **Partially answered 2026-08-16 (phase 4) — and the part that matters is still open.**
+>
+> A NativeAOT publish of `wlbackup` **succeeds**, produces a **3.2 MB** binary (against 70.2 MB
+> self-contained), and that binary runs correctly against a real Wave Link install. The IL
+> compiler emitted **zero trim/AOT warnings**, so nothing in `Core` or `Cli` is
+> AOT-incompatible today.
+>
+> **But this does not answer the question this entry asks.** `WindowsAudioEndpointInspector`
+> has not been ported — there is no `[ComImport]` in the codebase — so the interop that
+> prompted the doubt was never exercised. When endpoint inspection lands, re-run this and
+> expect it to be the interesting case.
+>
+> **Build requirement worth knowing:** the AOT link step invokes `vswhere.exe` unqualified and
+> fails with a misleading `MSB3073 ... exited with code 123` if it is not on `PATH`, even
+> though the MSVC toolset is installed. Adding
+> `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer` to `PATH` fixes it. CI's
+> `windows-latest` image has this wired already.
+
 > **Related signal, 2026-08-16.** The phase-1 probe ran as a .NET 10 file-based app, which
 > defaults to trimming-friendly settings, and reflection-based `JsonSerializer` threw
 > `InvalidOperationException: Reflection-based serialization has been disabled`. That is not a

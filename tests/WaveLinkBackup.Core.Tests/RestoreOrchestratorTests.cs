@@ -211,7 +211,7 @@ public sealed class RestoreOrchestratorTests
         var orchestrator = new RestoreOrchestrator(
             fs, process, store, new SettingsWriter(fs, process), new SettingsReader(fs));
 
-        var live = new SettingsInspector(fs).Inspect(@"D:\rescued\Settings.json").Value;
+        var live = SettingsInspector.For(fs, LocalAppData).Inspect(@"D:\rescued\Settings.json").Value;
         var bytes = Encoding.UTF8.GetBytes(Healthy);
         var good = store.Write(bytes, SettingsAnalysis.Analyse(bytes).Value, SnapshotTrigger.Manual, "g").Value;
 

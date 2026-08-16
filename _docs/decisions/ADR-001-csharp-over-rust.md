@@ -50,6 +50,23 @@ Rust in detail:
 
 Rust wins exactly one row, and it is binary size on a utility nobody will notice the size of.
 
+> **Measured 2026-08-16, phase 4 — that one row is now roughly a tie.**
+> The sizes above were estimates. Actual figures for `wlbackup`:
+>
+> | Publish mode | Size |
+> |---|---|
+> | Self-contained, single file | **70.2 MB** — the estimate was right |
+> | **NativeAOT** | **3.2 MB** — the estimate of 10–15 MB was 3–5× too pessimistic |
+>
+> 3.2 MB sits inside the 2–5 MB range this table credited to Rust. It does not change the
+> decision — that turned on lossless JSON with duplicate keys, not on size — but the honest
+> record is that the trade-off was less lopsided than written.
+>
+> **Caveat, and it is the important one:** this measures the code as it exists, which contains
+> **no COM interop**. `[ComImport]` under AOT — the actual open question in
+> [technical-debt.md](../technical-debt.md) §2.4 — is still unanswered, because endpoint
+> inspection has not been ported. Do not read 3.2 MB as "AOT is settled".
+
 ## Consequences
 
 **This enables:** forking `voltybat/WaveLinkSettingsUtility` ([[ADR-002]]) rather than

@@ -6,12 +6,16 @@
     <AssemblyName>wlbackup</AssemblyName>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <!--
-      Deliberately self-contained. Upstream sets SelfContained=false in its csproj and then
-      overrides it to true in its release workflow, so a local publish produces a different
-      artifact from CI's. Audit finding 5. Stating it here means the csproj and the pipeline
-      cannot disagree.
+      Deliberately self-contained AT PUBLISH TIME. Upstream sets SelfContained=false in its
+      csproj and then overrides it to true in its release workflow, so a local publish produces
+      a different artifact from CI's (audit finding 5). Stating it here means the csproj and
+      the pipeline cannot disagree.
+
+      PublishSelfContained rather than SelfContained: the latter applies to ordinary builds
+      too, and a non-self-contained test project cannot reference a self-contained executable
+      (NETSDK1151). This gets the same shipped artifact without making the CLI untestable.
     -->
-    <SelfContained>true</SelfContained>
+    <PublishSelfContained>true</PublishSelfContained>
     <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 

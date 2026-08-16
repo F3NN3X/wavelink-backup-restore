@@ -6,5 +6,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WaveLinkBackup.Core.Tests/WaveLinkBackup.Core.Tests.csproj" />
+    <Project Path="tests/WaveLinkBackup.Cli.Tests/WaveLinkBackup.Cli.Tests.csproj" />
   </Folder>
 </Solution>

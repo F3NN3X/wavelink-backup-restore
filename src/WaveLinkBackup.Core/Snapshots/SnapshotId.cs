@@ -28,11 +28,11 @@ public static class SnapshotId
     /// </summary>
     public static string WithSuffix(string id, int attempt) => $"{id}-{attempt}";
 
-    /// <summary>
-    /// Cheap sanity check that a directory name looks like ours. NOT a security boundary -
-    /// SnapshotGuard verifying the manifest and its hashes is what actually protects a
-    /// restore. This exists only to skip obviously unrelated directories while listing.
-    /// </summary>
-    public static bool LooksLikeSnapshotId(string name) =>
-        name.Length >= 17 && name[4] == '-' && name[7] == '-' && name[10] == 'T';
+    // A LooksLikeSnapshotId(string) helper lived here for three phases and never acquired a
+    // caller: SnapshotStore.List filters on "does this directory contain a manifest we can
+    // read", which is both cheaper to reason about and authoritative in a way a name pattern
+    // can never be. Deleted in phase 4 rather than carried a fourth time.
+    //
+    // If something ever does need to recognise an id by shape - a repair tool scanning a
+    // half-deleted store, say - write it then, against that requirement.
 }

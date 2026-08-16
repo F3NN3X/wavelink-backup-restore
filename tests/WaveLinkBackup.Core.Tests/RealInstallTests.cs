@@ -1,4 +1,5 @@
 using WaveLinkBackup.Core.Abstractions;
+using WaveLinkBackup.Core.Discovery;
 using WaveLinkBackup.Core.Io;
 using WaveLinkBackup.Core.Process;
 
@@ -20,7 +21,7 @@ public sealed class RealInstallTests
 
     private static SettingsInspection? Inspect()
     {
-        var result = new SettingsInspector(Real).Inspect();
+        var result = SettingsInspector.For(Real, SettingsLocator.SystemLocalAppData).Inspect();
         if (!result.IsSuccess) Assert.Skip($"Wave Link not usable here: {result.Error!.Message}");
         return result.Value;
     }

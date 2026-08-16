@@ -19,10 +19,17 @@ public sealed record CaptureResult(Snapshot? Snapshot, bool SkippedAsDuplicate)
 /// Taking backups, and forgetting old ones. The one place the dedup rule and its exception
 /// both live, so they cannot drift apart.
 /// </summary>
+/// <param name="explicitSettingsPath">
+/// Passed through to every inspection. Non-null when the user supplied --settings-path,
+/// which bypasses discovery entirely - the escape hatch for a machine where we cannot find
+/// the install (technical-debt.md 2.2). Threaded here rather than resolved at construction
+/// so the whole service honours it, including the watcher's captures.
+/// </param>
 public sealed class BackupService(
     SettingsInspector inspector,
     SnapshotStore store,
-    int keepCount = SnapshotRetention.DefaultKeepCount)
+    int keepCount = SnapshotRetention.DefaultKeepCount,
+    string? explicitSettingsPath = null)
 {
     /// <summary>
     /// A backup the user asked for. NEVER deduplicated.
@@ -34,7 +41,7 @@ public sealed class BackupService(
     /// </summary>
     public Result<Snapshot> BackUpNow(string displayName, string notes = "")
     {
-        var live = inspector.Inspect();
+        var live = inspector.Inspect(explicitSettingsPath);
         if (!live.IsSuccess) return live.Propagate<Snapshot>();
 
         var written = store.Write(
@@ -49,7 +56,7 @@ public sealed class BackupService(
     /// </summary>
     public Result<CaptureResult> CaptureAutomatic(string displayName = "Auto")
     {
-        var live = inspector.Inspect();
+        var live = inspector.Inspect(explicitSettingsPath);
         if (!live.IsSuccess) return live.Propagate<CaptureResult>();
 
         // Compare against the NEWEST snapshot, not against all of them. Wave Link cycling

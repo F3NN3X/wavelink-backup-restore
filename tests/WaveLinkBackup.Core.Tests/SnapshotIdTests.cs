@@ -34,21 +34,6 @@ public sealed class SnapshotIdTests
         Assert.Equal("2026-08-15T2307-a3f81c-2", SnapshotId.WithSuffix("2026-08-15T2307-a3f81c", 2));
     }
 
-    [Theory]
-    [InlineData("2026-08-15T2307-a3f81c", true)]
-    [InlineData("2026-08-15T2307-a3f81c-2", true)]
-    [InlineData("random-folder", false)]
-    [InlineData("2026_08_15T2307-a3f81c", false)]
-    [InlineData("2026-08-15X2307-a3f81c", false)]
-    [InlineData("short", false)]
-    [InlineData("", false)]
-    public void Obviously_unrelated_directory_names_are_recognised_as_such(string name, bool looksLike)
-    {
-        // Only a cheap filter for listing. SnapshotGuard verifying the manifest and its
-        // hashes is what actually protects a restore.
-        Assert.Equal(looksLike, SnapshotId.LooksLikeSnapshotId(name));
-    }
-
     [Fact]
     public void Ids_from_successive_minutes_sort_chronologically_as_text()
     {

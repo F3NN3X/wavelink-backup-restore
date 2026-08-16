@@ -19,10 +19,13 @@ public sealed record SettingsInspection(
 /// </summary>
 public sealed class SettingsInspector(SettingsLocator locator, SettingsReader reader)
 {
-    public SettingsInspector(IFileSystem fileSystem)
-        : this(new SettingsLocator(fileSystem), new SettingsReader(fileSystem))
-    {
-    }
+    /// <summary>
+    /// Builds one against a given LocalAppData. Named rather than a constructor overload so
+    /// that the environment dependency is visible at every call site — see
+    /// <see cref="SettingsLocator.SystemLocalAppData"/> for why that matters.
+    /// </summary>
+    public static SettingsInspector For(IFileSystem fileSystem, string localAppDataPath) =>
+        new(new SettingsLocator(fileSystem, localAppDataPath), new SettingsReader(fileSystem));
 
     public Result<SettingsInspection> Inspect(string? explicitSettingsPath = null)
     {

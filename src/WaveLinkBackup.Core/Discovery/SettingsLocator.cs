@@ -18,11 +18,21 @@ public sealed class SettingsLocator(IFileSystem fileSystem, string localAppDataP
 {
     private const string PackageGlob = "Elgato.WaveLink_*";
 
-    /// <summary>Resolves from the real environment. Never composes a %LOCALAPPDATA% string.</summary>
-    public SettingsLocator(IFileSystem fileSystem)
-        : this(fileSystem, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))
-    {
-    }
+    /// <summary>
+    /// The real machine's LocalAppData. Call this at the composition root and pass the result
+    /// in; there is deliberately NO constructor that reads it for you.
+    ///
+    /// There used to be, and it cost two debugging sessions: a convenience overload that
+    /// silently reaches into the environment looks identical at the call site to one that does
+    /// not, so tests wired against a fake filesystem quietly consulted the developer's real
+    /// machine and reported "Wave Link not found". Making the dependency explicit makes the
+    /// mistake unrepresentable.
+    ///
+    /// Uses GetFolderPath rather than a composed string - %LOCALAPPDATA% is redirected on some
+    /// corporate and OneDrive setups.
+    /// </summary>
+    public static string SystemLocalAppData =>
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
     /// <param name="explicitSettingsPath">
     /// Bypasses discovery entirely when supplied. Diverges from upstream, which requires the
