@@ -71,17 +71,33 @@ identical copies.
 exists to fill**, and the reason forking rather than just using it is justified.
 **Resolution:** [[ADR-007]]. Due in phase 3.
 
-### 1.5 Runtime dependency
+### 1.6 `WavelinkSEService` is never closed — **NEW, found at intake 2026-08-16**
 
-The csproj sets `PublishSingleFile` with `SelfContained=false`, so the .NET 10 runtime must be
-installed despite the single-file output. A user who downloads one `.exe` and double-clicks it
-gets an error, not an app.
+`ProcessControl.FindGuiProcess` only ever looks for `Elgato.WaveLink`. `WavelinkSEService` is
+never enumerated, closed or verified — so upstream's "verified exited" assertion can pass with
+half of Wave Link still running, and a write can still race the service's flush. `SPEC.md` §4
+is explicit that both must close.
 
-**Severity:** moderate — it is a first-run experience problem, which is the worst kind to have.
-**Decision owed, not yet made:** self-contained (~70 MB), framework-dependent (small, requires
-runtime), or NativeAOT (~10–15 MB, CLI only — WPF does not support it, and `[ComImport]`
-interop needs verification under AOT). Due in phase 7; the NativeAOT option is preserved by
-[[ADR-004]] and must not be foreclosed earlier.
+**Severity:** moderate, and it undermines the one guarantee that shutdown sequence exists to
+give.
+**Status in our port:** **fixed.** `WaveLinkProcess.ProcessNames` covers both, and
+`WaveLinkStillRunning` reports which are up. Recorded as audit finding 6; **worth offering
+upstream.**
+
+### 1.5 ~~Runtime dependency~~ — **RESOLVED 2026-08-16. The finding was incomplete.**
+
+The csproj does set `PublishSingleFile` with `SelfContained=false` — the audit read it
+correctly. Upstream's README also claims the tool needs no installed runtime. **Both are
+true:** `.github/workflows/release.yml` passes `--self-contained true`, overriding the csproj
+at publish time. The audit had simply never read the release workflow.
+
+**The real issue, which is smaller:** the csproj and the release pipeline disagree, so a local
+`dotnet publish` produces a *different artifact* from CI's — framework-dependent rather than
+self-contained. A hidden dependency on a CI flag.
+
+**Our position:** `WaveLinkBackup.Cli` sets `SelfContained=true` in the csproj, so the two
+cannot disagree. The NativeAOT option remains open and unforeclosed ([[ADR-004]]); §2.4 still
+gates it. **No debt carried forward.**
 
 ---
 
@@ -114,11 +130,15 @@ ever install as conventional Win32 is untested. If they do, discovery returns "n
 the app is simply useless to those users — with no diagnostic that says why.
 
 **Check:** the release-channel installer, and whatever Elgato ships for managed deployment.
-**Mitigation regardless:** discovery failure must offer a manual `--settings-path` /
-"Choose the settings file…" escape rather than dead-ending. The empty state already reserves
-the place for this message; **the amber not-found variant is not designed** — see
-[design-handoff.md](operations/design/design-handoff.md) *Gaps*.
-**Phase:** 1 for the escape hatch, 5 for its UI.
+**Mitigation: DONE in phase 1.** `SettingsLocator.Locate(explicitSettingsPath)` **bypasses
+discovery entirely** — unlike upstream, which requires the override to match a discovered
+`Elgato.WaveLink_*` candidate and so cannot help a non-MSIX user at all. Covered by
+`SettingsLocatorTests.An_explicit_path_bypasses_discovery_entirely`. `SettingsLocation.CanRelaunch`
+is false for such a path, so callers can say "restored, but you will need to start Wave Link
+yourself" rather than failing obscurely.
+**Still open:** whether such installs exist, and **the amber not-found UI variant is not
+designed** — see [design-handoff.md](operations/design/design-handoff.md) *Gaps*.
+**Phase:** 5 for the UI.
 
 ### 2.3 Whether the VST3 bundle path works
 

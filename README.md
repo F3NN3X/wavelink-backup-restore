@@ -6,8 +6,11 @@
 > the Windows MSIX package layout, Core Audio COM and NTFS atomic replace. See
 > [ADR-008](_docs/decisions/ADR-008-windows-only-scope.md).
 
-> **Status: pre-alpha. There is no application code yet.** The specification, the design and
-> the documentation are complete; the build has not started. Nothing here is installable.
+> **Status: pre-alpha, v0.1.0. Nothing is installable yet.**
+> `WaveLinkBackup.Core` — the library everything else calls — is built and tested (93 tests,
+> 81% coverage). It can find your settings, validate them, fingerprint them and replace them
+> safely. It **cannot yet store a backup**: the snapshot store is phase 2. The CLI and the
+> window are stubs.
 
 ---
 
@@ -73,16 +76,22 @@ Everything lives in [`_docs/`](_docs/). Start at [`_docs/index.md`](_docs/index.
 | [`_docs/knowledge-base/gotchas/`](_docs/knowledge-base/gotchas/) | Eight ways this goes wrong, titled by symptom. |
 | [`_docs/technical-debt.md`](_docs/technical-debt.md) | The honest list, including assumptions nobody has checked. |
 
-## Planned architecture
+## Architecture
 
 C# / .NET 10. A headless core library with two thin shells, so the backup logic stays testable
 and can run without a window.
 
 ```
-src/WaveLinkBackup.Core     class library — discovery, validation, store, watcher
-src/WaveLinkBackup.Cli      thin shell — scriptable, unattended
-src/WaveLinkBackup.App      thin shell — WPF, the four designed screens
+src/WaveLinkBackup.Core     class library — discovery, validation, safe write   ✅ phase 1
+src/WaveLinkBackup.Cli      thin shell — scriptable, unattended                 stub, phase 4
+src/WaveLinkBackup.App      thin shell — WPF, the four designed screens         stub, phase 5
+third_party/                vendored upstream snapshot, excluded from the build
 ```
+
+`Core` is split so that everything which *can* be pure *is* — validation, the health
+fingerprint, log parsing — with all IO behind two seams. The pure half cannot write a file
+even by accident, which is how "a backup tool must not modify what it is backing up" becomes a
+property of the type system rather than a rule to remember.
 
 The reasoning is in [ADR-001](_docs/decisions/ADR-001-csharp-over-rust.md) (language),
 [ADR-004](_docs/decisions/ADR-004-core-library-thin-shells.md) (this split) and
@@ -90,7 +99,16 @@ The reasoning is in [ADR-001](_docs/decisions/ADR-001-csharp-over-rust.md) (lang
 
 ## Building
 
-Nothing to build yet. When there is, it will be `dotnet build` against .NET 10 on Windows.
+Requires the .NET 10 SDK on Windows.
+
+```
+dotnet build WaveLinkBackup.slnx
+dotnet test  WaveLinkBackup.slnx
+```
+
+Seven tests read your real Wave Link configuration if one is installed, and **skip when it is
+not** — so the suite is green either way. None of them write, close Wave Link, or touch your
+live settings.
 
 ---
 

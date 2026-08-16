@@ -25,9 +25,9 @@ right.
 
 | Phase | Name | Status | Detail |
 |---|---|---|---|
-| **0** | Foundation | **In progress** | [phase-0-foundation.md](phase-0-foundation.md) |
-| **1** | Core: discovery, validation, safe write | Not started | [phase-1-core.md](phase-1-core.md) |
-| 2 | Snapshot store | Not started | sketched below |
+| **0** | Foundation | ✅ Complete | [phase-0-foundation.md](phase-0-foundation.md) |
+| **1** | Core: discovery, validation, safe write | ✅ Complete — 93 tests, 81.2% | [phase-1-core.md](phase-1-core.md) |
+| **2** | Snapshot store | **Next** | [phase-2-store.md](phase-2-store.md) · [design](../plans/2026-08-16-phase-2-store-design.md) |
 | 3 | Automation: watcher, dedup, retention | Not started | sketched below |
 | 4 | CLI shell | Not started | sketched below |
 | 5 | WPF shell | Not started | sketched below |
@@ -66,14 +66,18 @@ tests through the seam interfaces.
 
 ## Phase 2 — Snapshot store
 
-**Depends on:** phase 1.
+**Depends on:** phase 1. ✅ **Planned in detail** —
+[phase-2-store.md](phase-2-store.md) and
+[the design](../plans/2026-08-16-phase-2-store-design.md).
 
 The store from [[ADR-003]]: snapshots outside `LocalState`, identity in `manifest.json`,
 machine-generated directory names, free-text display names. Restore reads from it. The
-pre-restore snapshot becomes automatic and unconditional.
+pre-restore snapshot becomes automatic and unconditional. `IClock` arrives here, because
+snapshot timestamps are the first thing that genuinely needs it.
 
-This is where upstream's critical finding is resolved, and `NewBackupPath`, `ManagedBackups`
-and `ValidateManagedPath` are replaced together rather than one at a time.
+This is where upstream's critical finding is resolved, and the filename regex, the backup
+path and the managed-backup enumeration are replaced **together** — changing one alone leaves
+restore refusing its own files.
 
 **Exits when** a snapshot can be written, listed, renamed, restored and deleted; every
 restore takes a pre-restore snapshot first; and the manifest-hash guard refuses a directory we

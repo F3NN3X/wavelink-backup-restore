@@ -5,6 +5,14 @@ All notable changes to Wave Link Backup are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+**Pre-1.0, so the minor number carries breaking changes.** One release per completed phase of
+[the roadmap](_docs/dev-phases/README.md): `0.1.0` is phase 1, `0.2.0` phase 2, and so on.
+`1.0.0` is the first public release, which is gated on the privacy work rather than on feature
+completeness — see the release checklist at the bottom.
+
+The version in `Directory.Build.props` is the source of truth and matches the newest release
+heading here.
+
 > **This is the engineering changelog** — what shipped, per version, broad enough to become
 > release notes. The documentation ecosystem has its own delta log in
 > [`_docs/documentation-stats.md`](_docs/documentation-stats.md) → *Recent additions*. Same
@@ -14,57 +22,95 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [Unreleased]
 
-Pre-alpha. **No application code exists yet.** Phase 0 of
-[the roadmap](_docs/dev-phases/README.md) is in progress.
+Nothing yet. Phase 2 — the snapshot store — is planned in
+[dev-phases/phase-2-store.md](_docs/dev-phases/phase-2-store.md).
+
+---
+
+## [0.1.0] — 2026-08-16
+
+**Phase 1: `WaveLinkBackup.Core`.** The library everything else will call. No user-facing
+application yet — the CLI and WPF shells are stubs that exist to prove the reference graph.
+
+**93 tests passing, 81.2% line / 81.8% branch coverage.**
 
 ### Added
 
-- Documentation system under `_docs/` — 8 ADRs, 8 gotchas, 1 recipe, 1 upstream audit, an
-  8-phase roadmap with phases 0 and 1 detailed, a glossary, and a technical-debt register.
-  Seeded from `SPEC.md` and the design handoff.
-- Root `README.md` and this file.
-- `.gitignore`, including project-specific rules that refuse to commit real Wave Link settings
-  files, VST3 binaries or a backup store — those files embed hardware serial numbers and the
-  Windows username.
-- `LICENSE` — MIT, carrying upstream's copyright line verbatim alongside ours, with an
-  Attribution section naming which components each notice covers.
+- **`WaveLinkBackup.Core`** — settings discovery, validation, health fingerprinting, safe
+  replacement and log verification, in a functional-core shape: everything that can be pure is
+  pure, and all IO sits behind two seams.
+  - `Analysis/` — pure, no IO, no constructors. Duplicate-key scanning, the health
+    fingerprint, log verification. 96–100% covered.
+  - `Discovery/SettingsLocator` — globs `Elgato.WaveLink_*`, requires `Settings.json` to
+    exist, refuses to guess between multiple installs, and never looks at `%APPDATA%`.
+  - `Io/` — shared-mode reads, retry-once on a torn read, atomic replace with a rollback copy.
+  - `Process/WaveLinkProcess` — graceful close, kill on timeout, then **verify**; covers both
+    `Elgato.WaveLink` and `WavelinkSEService`.
+  - `Results/` — `Result<T>` for expected failures, exceptions reserved for bugs.
+- **Four-project solution** per [ADR-004](_docs/decisions/ADR-004-core-library-thin-shells.md):
+  `Core`, `Cli`, `App`, `Core.Tests`. `Core` targets `net10.0` and needs nothing from the
+  Windows Desktop ref pack.
+- **Three guards.** An MSBuild target failing the build if `Core` resolves anything from
+  `Microsoft.WindowsDesktop.App`, plus source-scan tests banning `File.ReadAllBytes` and
+  reflection-based `JsonSerializer` in `Core`. Each catches a bug that surfaces far from where
+  it is introduced; the file-lock one cannot be caught at runtime in CI at all.
+- **CI** on `windows-latest`: restore, build, test.
+- **Vendored upstream snapshot** at
+  [`211a18c4`](https://github.com/voltybat/WaveLinkSettingsUtility/commit/211a18c4af4da9c05ad8d08de6e50740ccaa933f)
+  in `third_party/`, verbatim and excluded from the build, for attribution and audit. Its own
+  suite was verified green (40 tests) at that commit before vendoring.
+- **`LICENSE`** — MIT, carrying upstream's copyright line verbatim alongside ours.
+- Seven read-only integration tests against a real Wave Link install, skipped when absent.
 
-### Changed
+### Fixed relative to upstream
 
-- `design_handoff_wave_link_backup/` moved to `_docs/operations/design/`; its `README.md`
-  renamed `design-handoff.md`.
-- `_docs/README-temp.md` consumed into `_docs/README.md` and archived.
+- **`WavelinkSEService` is now closed too.** Upstream only ever looks for `Elgato.WaveLink`, so
+  its "verified exited" check can pass with half of Wave Link running and a write can still
+  race the service's flush. Audit finding 6; worth offering back.
+- **Reads use `FileShare.ReadWrite | FileShare.Delete`.** `Settings.json` is locked while Wave
+  Link runs, so `File.ReadAllBytes` — upstream's call — fails on most captures.
+- **`--settings-path` bypasses discovery entirely.** Upstream requires the override to match a
+  discovered `Elgato.WaveLink_*` candidate, which cannot help a user whose install is not
+  found.
+- **Duplicate-key detection**, absent upstream, built on `JsonDocument` because it is the only
+  API that survives both duplicate forms.
 
-### Not yet done in phase 0
+### Not changed, after measurement
 
-- Fork intake from
-  [voltybat/WaveLinkSettingsUtility](https://github.com/voltybat/WaveLinkSettingsUtility) at
-  `main` (pushed 2026-07-19). The exact upstream commit will be recorded here on merge, so
-  [the audit](_docs/audits/2026-08-15-voltybat-wavelinksettingsutility.md) can be re-run
-  against a known base.
-- The four-project solution layout, and CI enforcing that `WaveLinkBackup.Core` cannot
-  reference `PresentationFramework` or `System.Console`.
+- **The JSON encoder.** A previous finding recommended `UnsafeRelaxedJsonEscaping`. Measured
+  against the live file, Wave Link writes with the **default** encoder and a default round-trip
+  reproduces its 43,052 bytes exactly. Applying the "fix" would have broken dedup. Withdrawn.
+
+---
+
+## [0.0.2] — 2026-08-16
+
+Documentation only. A probe against a live Wave Link install answered one open question and
+invalidated two documented decisions; corrections were applied at source rather than noted and
+worked around. See
+[`_docs/sessions/2026-08-16-phase-1-probe.md`](_docs/sessions/2026-08-16-phase-1-probe.md).
+
+## [0.0.1] — 2026-08-16
+
+Documentation only. The `_docs/` system, seeded from `SPEC.md` and the design handoff: 8 ADRs,
+8 gotchas, a recipe, an upstream audit, an 8-phase roadmap, a glossary and a technical-debt
+register. Root `README.md`, `CHANGELOG.md` and `.gitignore`.
 
 ---
 
 ## Release checklist
 
-Not a version. A gate, recorded here because the first release is the moment it stops being
-optional.
-
-Before any public release:
+A gate, not a version. Before any public `1.0.0`:
 
 - [ ] **Redacting "copy diagnostics" action.** Settings files contain hardware serial numbers
       and the Windows username, and users attach backups to bug reports without thinking about
       it. This gates going public rather than following it — see
       [`technical-debt.md`](_docs/technical-debt.md) §6.
-- [ ] **Packaging decision made deliberately** — self-contained, framework-dependent, or
-      NativeAOT for the CLI. Upstream ships `PublishSingleFile` with `SelfContained=false`, so
-      a user who downloads one `.exe` and double-clicks it currently gets an error.
-- [ ] **MIT attribution** preserved for upstream, in `LICENSE` and `README.md`.
-- [ ] **Windows-only stated above the fold** in `README.md`.
+- [x] **Packaging decided deliberately.** `WaveLinkBackup.Cli` sets `SelfContained=true` in the
+      csproj, so a local publish and CI cannot produce different artifacts.
+- [x] **MIT attribution** preserved for upstream, in `LICENSE` and `README.md`.
+- [x] **Windows-only stated above the fold** in `README.md`.
 - [ ] **The VST3 bundle path covered by a fixture test.** It cannot be exercised by the
-      author's machine and will silently capture nothing if wrong.
+      author's machine and will silently capture nothing if wrong. Phase 6.
 
-<!-- Add the [Unreleased] compare link here once the repository has a remote. -->
-
+<!-- Add the [Unreleased] / version compare links here once the repository has a remote. -->

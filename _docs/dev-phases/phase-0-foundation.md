@@ -8,10 +8,17 @@ tags: [dev-phase]
 
 # Phase 0 — Foundation
 
-**Status:** In progress
+**Status:** ✅ **Complete — 2026-08-16.**
 **Entry criteria:** a specification and a design. Both exist.
 **Exit criteria:** the three-project solution builds green in CI, with upstream's code merged
 and **its tests passing unchanged**.
+
+> **The exit criterion was met in a different form, deliberately.** Intake was chosen as a
+> *vendored snapshot excluded from the build* ([VENDOR.md](../../third_party/WaveLinkSettingsUtility/VENDOR.md)),
+> so there is no upstream csproj in our solution to run. Upstream's suite was instead run in
+> the clone **at the vendored SHA `211a18c4`, before vendoring: 40 tests green**. That proves
+> the same thing — the snapshot is sound and any later failure is ours — without keeping a
+> second solution alive forever. Recorded here rather than quietly reinterpreted.
 
 ## Why this phase exists
 
@@ -65,17 +72,19 @@ See the [session note](../sessions/2026-08-16-documentation-scaffold.md).
       > breach, and the window between "we declared this a fork" and "the code actually
       > landed" is exactly where that gets forgotten.
 
-### Fork intake
+### Fork intake — done
 
-- [ ] Merge `voltybat/WaveLinkSettingsUtility` at `main` (2026-07-19), history preserved.
-- [ ] Confirm its tests pass **unchanged**. A failure here is intake done wrong, not a bug
-      found — investigate before touching anything.
-- [ ] Record the exact upstream commit in `CHANGELOG.md`, so the audit can be re-run against a
-      known base.
+- [x] Vendored `voltybat/WaveLinkSettingsUtility` at `211a18c4af4da9c05ad8d08de6e50740ccaa933f`
+      (2026-07-18) into `third_party/`, verbatim and excluded from the build.
+- [x] Ran its tests at that SHA before vendoring: **40 passed, 0 failed**.
+- [x] Recorded the commit in `CHANGELOG.md` and
+      [VENDOR.md](../../third_party/WaveLinkSettingsUtility/VENDOR.md), so the audit can be
+      re-run against a known base.
+- [x] Resolved audit finding 5 and found finding 6 in the process.
 
-**Change nothing.** The five known defects ([audit](../audits/2026-08-15-voltybat-wavelinksettingsutility.md))
-are already written down and assigned to phases. Fixing one during intake conflates "we moved
-the code" with "we changed the code" in the same diff.
+**Nothing upstream was changed.** The snapshot is byte-identical to the source; the port lives
+separately in `src/`, so "we moved the code" and "we changed the code" are different commits
+and different directories.
 
 ### Solution layout
 
@@ -89,20 +98,19 @@ WaveLinkBackup.sln
     └── WaveLinkBackup.Core.Tests/
 ```
 
-- [ ] Upstream's logic lands in `Core`; its entry point becomes `Cli`.
-- [ ] `App` is a WPF stub — window opens, nothing more. It exists to prove the reference
-      graph, not to do anything.
-- [ ] **Enforce in the csproj** that `Core` cannot reference `PresentationFramework` or
-      `System.Console`. Intention is not enforcement, and an accidental reference is invisible
-      until AOT or the test host fails much later.
+- [x] Upstream's behaviour is ported into `Core`; `Cli` is a stub until phase 4.
+- [x] `App` is a WPF stub — window opens, nothing more. It exists to prove the reference
+      graph and to give the headless guard something real to guard against.
+- [x] **Enforced in the csproj**: `GuardNoDesktopFramework` fails the build if `Core` resolves
+      anything from `Microsoft.WindowsDesktop.App`. **Verified to fire** by temporarily
+      enabling `UseWPF`. `Core` also targets `net10.0` rather than `net10.0-windows`, so the
+      desktop ref pack is not in reach at all.
 
-### CI
+### CI — done
 
-- [ ] Build all four projects.
-- [ ] Run `Core.Tests`.
-- [ ] Fail the build on a forbidden reference from `Core`.
-
-Windows runner only ([[ADR-008]]).
+- [x] Builds all four projects on `windows-latest` ([[ADR-008]]).
+- [x] Runs `Core.Tests`. `RealInstallTests` skip there, by design.
+- [x] Guard 1 fails the build inside compilation; guards 2 and 3 are source-scan tests.
 
 ## Risks
 

@@ -35,11 +35,19 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phase 0 — Foundation.** No application code exists yet. The specification, the design, the
-documentation system and `LICENSE` are done; the fork has been read and audited but not taken.
+**Phases 0 and 1 are complete (2026-08-16). Phase 2 is next.**
 
-See [dev-phases/phase-0-foundation.md](dev-phases/phase-0-foundation.md) for what closes this
-phase.
+`WaveLinkBackup.Core` ships: discovery, validation, health fingerprinting, safe replacement and
+log verification. **93 tests, 81.2% line coverage.** The CLI and WPF shells are stubs.
+
+There is no snapshot store yet — nothing can actually back anything up until phase 2, which is
+[planned in detail](plans/2026-08-16-phase-2-store-design.md).
+
+| | |
+|---|---|
+| What shipped | [Phase 1 session note](sessions/2026-08-16-phase-1-core-build.md) · [CHANGELOG](../CHANGELOG.md) |
+| What is next | [Phase 2](dev-phases/phase-2-store.md) · [its design](plans/2026-08-16-phase-2-store-design.md) |
+| How Core is shaped | [Phase 1 design](plans/2026-08-16-phase-1-core-design.md) |
 
 > **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three
 > of its claims were measured against a live install on 2026-08-16 and did not survive — most
@@ -93,11 +101,23 @@ for at the time.
 
 ---
 
+## Patterns
+
+Extracted from shipped code, each naming its real callers.
+
+| Pattern | What it makes impossible |
+|---|---|
+| [pure-analysis-core.md](knowledge-base/patterns/pure-analysis-core.md) | Re-serializing the file you are backing up |
+| [named-method-seams.md](knowledge-base/patterns/named-method-seams.md) | Choosing the wrong file share mode |
+| [preconditions-inside-the-operation.md](knowledge-base/patterns/preconditions-inside-the-operation.md) | Writing while Wave Link is still exiting |
+| [guards-that-can-fail.md](knowledge-base/patterns/guards-that-can-fail.md) | A guard that silently never matches |
+
 ## Plans
 
 | Plan | Status |
 |---|---|
-| [Phase 1 Core — Design](plans/2026-08-16-phase-1-core-design.md) | **In review** — the shape of `WaveLinkBackup.Core`, its two seams, error model, pipeline and TDD order |
+| [Phase 1 Core — Design](plans/2026-08-16-phase-1-core-design.md) | **Implemented** — the shape of `WaveLinkBackup.Core`, with an *as built* delta |
+| [Phase 2 Snapshot Store — Design](plans/2026-08-16-phase-2-store-design.md) | **In review** — store layout, manifest, the guard, the assembled restore sequence |
 
 ## Audits
 

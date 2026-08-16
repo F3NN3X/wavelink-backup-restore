@@ -26,24 +26,65 @@ Update this file **in the same commit** as the document it counts. See
 |---|---|
 | ADRs | 8 |
 | Gotchas | 9 |
-| Patterns | 0 |
+| Patterns | 4 |
 | Recipes | 1 |
-| Audits | 1 |
-| Sessions | 2 |
-| Dev-phase documents | 3 (of 8 phases; 5 remain sketched in the index) |
-| Tests | 0 |
+| Audits | 1 (6 findings) |
+| Sessions | 3 |
+| Plans | 2 |
+| Dev-phase documents | 4 (of 8 phases; 4 remain sketched in the index) |
+| **Tests** | **93 passing, 81.2% line / 81.8% branch** |
 
-**Patterns is deliberately zero.** No production code exists, and a pattern is extracted from
-shipping code with named callers. The folder does not exist yet either — see
-[README.md](README.md) → *Folders deliberately absent*.
+**Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
+in [README.md](README.md). Each names its real callers and the test holding it down; none was
+written before the code it describes.
 
-**Tests is deliberately zero and will not stay that way.** The upstream we are forking carries
-~30 KB of tests against 60 KB of code; inheriting that ratio is an explicit goal, not an
-aspiration ([[ADR-004]]).
+**Tests.** Upstream carries 40 against ~48 KB of source. Phase 1 ships 93 against a smaller
+Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ---
 
 ## Recent additions
+
+### v0.1.0 — Phase 1: Core (2026-08-16)
+
+The first release with code in it. The documentation delta is mostly *promotion*: claims that
+were read became claims that are tested.
+
+**Added**
+
+- **`knowledge-base/patterns/` — created, with 4 patterns.** The trigger in `README.md` was
+  "the first line of production code ships", and it did. [[pure-analysis-core]],
+  [[named-method-seams]], [[preconditions-inside-the-operation]], [[guards-that-can-fail]].
+- **Session note** — [phase 1 Core build](sessions/2026-08-16-phase-1-core-build.md).
+- **`plans/` gained a second document** — the [phase 2 design](plans/2026-08-16-phase-2-store-design.md).
+- **`dev-phases/phase-2-store.md`** — phase 2 detailed, per the "current or next phase" rule.
+- **`third_party/WaveLinkSettingsUtility/VENDOR.md`** — the vendored snapshot's record: SHA,
+  baseline, what was ported, and seven deliberate divergences.
+
+**Resolved**
+
+- **Audit finding 5** — not wrong, *incomplete*. The release workflow overrides the csproj, so
+  the README and the project file never contradicted each other. Method failure named in the
+  audit: a claim about what users receive was answered from one build file.
+- **`technical-debt.md` §1.5** — closed, no debt carried forward.
+- **§2.2 mitigated** — `--settings-path` now bypasses discovery entirely, unlike upstream's.
+
+**Added to the debt register**
+
+- **§1.6 / audit finding 6** — upstream never closes `WavelinkSEService`, so its
+  "verified exited" check can pass with half of Wave Link running. Fixed in our port; worth
+  offering back.
+
+**Promoted from claim to test**
+
+- [[capture-fails-while-wave-link-is-running]] — now pinned by
+  `RealInstallTests.The_naive_read_fails_while_Wave_Link_is_running`, which asserts the naive
+  call throws against the live file.
+
+**Counts moved:** patterns 0 → 4 · sessions 2 → 3 · plans 1 → 2 · dev-phase docs 3 → 4 ·
+tests 0 → 93. Audit findings 5 → 6, of which 2 did not survive contact with a running system.
+
+---
 
 ### v0.0.2 — Probe corrections (2026-08-16)
 

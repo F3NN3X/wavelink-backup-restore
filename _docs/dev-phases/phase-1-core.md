@@ -8,7 +8,11 @@ tags: [dev-phase]
 
 # Phase 1 — Core: discovery, validation, safe write
 
-**Status:** Not started
+**Status:** ✅ **Complete — 2026-08-16.** 93 tests green, 81.2% line / 81.8% branch coverage,
+Release build clean. See the
+[session note](../sessions/2026-08-16-phase-1-core-build.md) and the
+[design, with its as-built delta](../plans/2026-08-16-phase-1-core-design.md).
+
 **Entry criteria:** phase 0 complete — the solution builds, upstream's tests pass unchanged.
 **Exit criteria:** a settings file can be discovered, validated, fingerprinted and atomically
 replaced with Wave Link's exit verified beforehand; every path is covered by tests through the

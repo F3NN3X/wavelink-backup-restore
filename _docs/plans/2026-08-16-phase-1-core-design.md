@@ -1,6 +1,6 @@
 ---
 title: "Phase 1 Core — Design"
-status: review
+status: published
 created: 2026-08-16
 updated: 2026-08-16
 related_adrs: [ADR-001, ADR-002, ADR-004]
@@ -9,8 +9,31 @@ tags: [plan, design, core]
 
 # Phase 1 Core — Design
 
-**Status:** awaiting review. Supersedes nothing; implements
-[phase-1-core.md](../dev-phases/phase-1-core.md).
+**Status:** **implemented 2026-08-16.** 93 tests green, 81.2% line coverage.
+
+> **Kept in `plans/` rather than archived.** The folder guide says an executed plan becomes a
+> session note or moves to `archive/`. This one stays: it is not a superseded intention, it is
+> the accurate description of shipped architecture, and archiving it would put the only
+> explanation of Core's shape behind a status that says "ignore me". The *As built* section
+> below records where the code diverged. The session note is
+> [2026-08-16-phase-1-core-build.md](../sessions/2026-08-16-phase-1-core-build.md).
+
+## As built — where the code diverged from this document
+
+Three deltas, all discovered during implementation:
+
+1. **`Core` targets `net10.0`, not `net10.0-windows`.** Not specified here; the headless guard
+   rejected the Windows Desktop ref pack on its first run and was right to. Core is
+   Windows-only in behaviour but uses no Windows-only API surface.
+2. **The headless guard matches the ref pack, not assembly names.** The first version matched
+   `WindowsBase` / `System.Windows` by filename and produced a false positive — both ship in
+   `Microsoft.NETCore.App.Ref` as type-forwarding shims present in every .NET app.
+3. **`IWaveLinkProcess` covers both processes explicitly**, and `RunningProcessNames` is part
+   of the interface rather than an implementation detail — it is what `WaveLinkStillRunning`
+   reports to the user. Upstream covers only `Elgato.WaveLink` (audit finding 6).
+
+Everything else shipped as described, including the two-seam decision, the `Result` split,
+retry-once, and the write precondition.
 
 `WaveLinkBackup.Core` is the library everything else calls. The snapshot store, the watcher,
 both shells and every plugin tier sit on four capabilities: **find the file**, **decide

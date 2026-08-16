@@ -147,17 +147,42 @@ identical copies of a file Wave Link rewrites on every launch.
 this app exists to fill**, and the substantive justification for forking rather than simply
 using it. Resolution: [[ADR-007]]. **Phase 3.**
 
-### 5 · Runtime dependency
+### 5 · ~~Runtime dependency~~ — **RESOLVED 2026-08-16. The finding was incomplete, not wrong.**
 
-The csproj sets `PublishSingleFile` with `SelfContained=false`, so the .NET 10 runtime must be
-installed despite the single-file output. A user who downloads one `.exe` and double-clicks it
-gets an error rather than an app.
+The csproj does set `PublishSingleFile` with `SelfContained=false` — read correctly. But
+`.github/workflows/release.yml` publishes with `--self-contained true`, overriding it. **The
+shipped artifact needs no runtime; the csproj alone would suggest otherwise.** The README and
+the csproj never actually contradicted each other; the audit had only read one of them.
 
-**Severity:** moderate — a first-run experience problem, which is the worst kind.
-**Decision owed, not made:** self-contained (~70 MB) / framework-dependent / NativeAOT
-(~10–15 MB, CLI only — WPF does not support AOT, and `[ComImport]` interop under AOT needs
-verification). [[ADR-004]] preserves the AOT option by keeping the CLI in its own project.
-**Phase 7.**
+**Method failure worth naming:** the finding was about what *users receive*, and it was
+answered by reading the project file rather than the release pipeline. Build configuration is
+not a single file.
+
+**Residual issue, much smaller:** csproj and pipeline disagree, so a local `dotnet publish`
+yields a different artifact from CI's. **Our position:** `WaveLinkBackup.Cli` sets
+`SelfContained=true` in the csproj so they cannot. **No action owed upstream** beyond
+optionally suggesting the same.
+
+### 6 · `WavelinkSEService` is never closed — **NEW, found at intake 2026-08-16**
+
+`ProcessControl.FindGuiProcess`:
+
+```csharp
+Process.GetProcessesByName("Elgato.WaveLink").FirstOrDefault()
+```
+
+Only the GUI process. `WavelinkSEService` is never enumerated, closed, or checked — so the
+`if (process.IsRunning) throw` assertion repeated at five call sites can pass **with half of
+Wave Link still running**, and a write can still race the service's flush. `SPEC.md` §4 is
+explicit that both must close.
+
+`FirstOrDefault()` is a second, smaller gap: multiple GUI processes would leave the rest alive.
+
+**Severity:** moderate. It undermines the one guarantee the shutdown sequence exists to give,
+and it is invisible — the sequence looks correct and reports success.
+**Fixed here:** `WaveLinkProcess` covers both names and returns `WaveLinkStillRunning` naming
+whichever survived. Covered by `WaveLinkProcessTests` and `SettingsWriterTests`.
+**Worth offering upstream** — small, self-contained, and strictly a correctness fix.
 
 ---
 
@@ -170,13 +195,13 @@ verification). [[ADR-004]] preserves the AOT option by keeping the CLI in its ow
 | 3 | No duplicate-key detection | **High** | `JsonDocument` walk | 1 |
 | 3b | `JsonNode.Parse` throws on exact duplicates | Low | Catch, report as malformed | 1 |
 | 4 | Manual only — no watcher or dedup | By design | [[ADR-007]] | 3 |
-| 5 | Runtime dependency despite single-file | Moderate | **Claim disputed** — verify at intake | 7 |
+| 5 | ~~Runtime dependency~~ | ~~Moderate~~ **Resolved** | Release workflow overrides the csproj | — |
+| 6 | `WavelinkSEService` never closed | Moderate | **Fixed in phase 1**; offer upstream | 1 ✅ |
 
-> **Finding 5 needs re-checking.** The audit read `PublishSingleFile` with
-> `SelfContained=false` off the csproj. Upstream's README states the tool "requires neither
-> administrator access nor a separately installed .NET runtime" — which contradicts it. Either
-> the README overclaims, the csproj changed after 2026-07-19, or the audit misread. Resolve
-> during fork intake and correct whichever is wrong.
+**Scorecard after phase 1.** Of six findings: one critical and still open (finding 1, which is
+phase 2's whole reason for existing), one withdrawn as wrong, one resolved as incomplete, two
+fixed, one by-design. **Two of the five original findings did not survive contact with a
+running system** — both of them the ones marked *read, not reproduced*.
 
 Ongoing status lives in [technical-debt.md](../technical-debt.md) §1. When a finding is
 resolved, record the resolution **here as well** — this audit is the reconciliation point if
