@@ -24,15 +24,15 @@ Update this file **in the same commit** as the document it counts. See
 
 | Artifact | Count |
 |---|---|
-| ADRs | 8 |
+| ADRs | 9 |
 | Gotchas | 9 |
 | Patterns | 4 |
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
-| Sessions | 5 |
+| Sessions | 6 |
 | Plans | 2 |
-| Dev-phase documents | 6 (of 8 phases; 2 remain sketched in the index) |
-| **Tests** | **235 passing, 84.9% line / 81.8% branch** |
+| Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
+| **Tests** | **308 passing** — Core 84.8% line / 81.6% branch · CLI 83.6% / 81.6% |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
@@ -44,6 +44,35 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### v0.4.0 — Phase 4: the CLI (2026-08-16)
+
+**Added**
+
+- **[[ADR-009]]** — hand-rolled command-line parsing. The first ADR since the scaffold, and it
+  exists because a reader seeing a hand-written parser will reasonably ask why no library.
+- **Session note** — [phase 4 CLI build](sessions/2026-08-16-phase-4-cli-build.md).
+- **`dev-phases/phase-5-wpf.md`** — including an explicit list of what the GUI needs that
+  **Core does not have yet** (search, settings persistence, disk-free, a hosted watcher),
+  because those are the items that will feel like "just UI work" and are not.
+
+**Corrected by measurement**
+
+- **[[ADR-001]]** — NativeAOT produces a **3.2 MB** binary, not the 10–15 MB estimated. The
+  table credited Rust with 2–5 MB as the one row it won; that row is now roughly a tie. The
+  decision is unchanged (it turned on lossless JSON, not size) and the estimate is corrected
+  rather than left standing. Third time a measurement has overturned something written down.
+
+**Partially resolved, and said so**
+
+- **[technical-debt.md](technical-debt.md) §2.4** — AOT compiles clean with zero trim
+  warnings, **but there is no `[ComImport]` in the codebase**, so the interop that prompted
+  the doubt was never exercised. Recorded as *partially answered*; claiming closure would have
+  been the more satisfying lie.
+
+**Counts moved:** ADRs 8 → 9 · sessions 5 → 6 · dev-phase docs 6 → 7 · tests 235 → 308.
+
+---
 
 ### v0.3.0 — Phase 3: automation (2026-08-16)
 

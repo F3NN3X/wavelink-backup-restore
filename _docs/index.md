@@ -35,23 +35,27 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phases 0–3 are complete (2026-08-16). Phase 4 is next.**
+**Phases 0–4 are complete (2026-08-16). Phase 5 is next.**
 
-`WaveLinkBackup.Core` is functionally complete for tier 1: it finds, validates and fingerprints
-your settings, writes and restores snapshots, watches for changes, deduplicates and prunes.
-**235 tests, 84.9% line coverage, and the whole suite runs in about a second.**
+**There is a working program.** `wlbackup` backs up, lists, restores, renames, deletes,
+verifies, prunes and watches — reaching everything Core does. **308 tests**; Core at 84.8% line
+coverage, the CLI at 83.6%.
 
-**Both of the project's founding problems are solved.** Snapshots survive an MSIX package reset
-([[ADR-003]]), and backups now happen on their own rather than only when asked ([[ADR-007]]).
+**All three founding problems are solved.** Snapshots survive an MSIX package reset
+([[ADR-003]]), backups happen on their own ([[ADR-007]]), and there is now something to run
+([[ADR-004]]).
 
-What is missing is a **caller**. Nothing in production invokes any of it — `Tick()` has never
-run outside a test, because the host is a shell and there is no shell yet. That is
-[phase 4](dev-phases/phase-4-cli.md).
+Published as a **3.2 MB NativeAOT binary**, verified against a real install.
+
+What is missing is a **window**. The whole promise is *configured once, then ignored* — and a
+person who must remember to run `wlbackup watch` has the same problem upstream's users have.
+That is [phase 5](dev-phases/phase-5-wpf.md), the biggest phase, carrying six undesigned
+surfaces.
 
 | | |
 |---|---|
-| What shipped | [Phase 3 session note](sessions/2026-08-16-phase-3-automation-build.md) · [CHANGELOG](../CHANGELOG.md) |
-| What is next | [Phase 4 — the CLI](dev-phases/phase-4-cli.md) |
+| What shipped | [Phase 4 session note](sessions/2026-08-16-phase-4-cli-build.md) · [CHANGELOG](../CHANGELOG.md) |
+| What is next | [Phase 5 — the WPF shell](dev-phases/phase-5-wpf.md) |
 | How Core is shaped | [Phase 1](plans/2026-08-16-phase-1-core-design.md) · [Phase 2](plans/2026-08-16-phase-2-store-design.md) designs |
 
 > **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three
@@ -76,6 +80,7 @@ follow from them.
 | [ADR-006](decisions/ADR-006-vst3-four-tier-capture.md) | Four independently switchable VST3 tiers; capture what is referenced, not what is installed |
 | [ADR-007](decisions/ADR-007-hash-dedup-and-file-watching.md) | Content-hash dedup and a file watcher, not a schedule |
 | [ADR-008](decisions/ADR-008-windows-only-scope.md) | Windows-only, and say so out loud |
+| [ADR-009](decisions/ADR-009-hand-rolled-cli-parsing.md) | Hand-rolled command-line parsing, no dependency |
 
 ---
 
@@ -136,6 +141,7 @@ Extracted from shipped code, each naming its real callers.
 
 | Date | Session |
 |---|---|
+| 2026-08-16 | [Phase 4 — Core gets a caller, and AOT lands at 3.2 MB](sessions/2026-08-16-phase-4-cli-build.md) |
 | 2026-08-16 | [Phase 3 — it now backs up on its own](sessions/2026-08-16-phase-3-automation-build.md) |
 | 2026-08-16 | [Phase 2 — the critical inherited defect is fixed](sessions/2026-08-16-phase-2-store-build.md) |
 | 2026-08-16 | [Phase 1 — Core built, 93 tests green](sessions/2026-08-16-phase-1-core-build.md) |

@@ -6,11 +6,11 @@
 > the Windows MSIX package layout, Core Audio COM and NTFS atomic replace. See
 > [ADR-008](_docs/decisions/ADR-008-windows-only-scope.md).
 
-> **Status: pre-alpha, v0.3.0. Nothing is installable yet.**
-> `WaveLinkBackup.Core` does everything described below for settings backups: finds them,
-> validates them, snapshots and restores them, watches for changes, deduplicates and prunes —
-> 235 tests, 85% coverage. What it lacks is a way to *run* it. The CLI and the window are still
-> stubs, so nothing calls any of this outside a test. That's [phase 4](_docs/dev-phases/phase-4-cli.md).
+> **Status: pre-alpha, v0.4.0. There is a working command-line tool; there is no window yet.**
+> `wlbackup` does everything described below for settings backups — 308 tests, ~84% coverage,
+> and it publishes as a 3.2 MB single binary. The GUI is [phase 5](_docs/dev-phases/phase-5-wpf.md),
+> and until it exists you have to remember to run the tool, which is most of the problem this
+> project set out to solve.
 
 ---
 
@@ -72,8 +72,9 @@ Everything lives in [`_docs/`](_docs/). Start at [`_docs/index.md`](_docs/index.
 | [`_docs/SPEC.md`](_docs/SPEC.md) | The build specification — where the settings live, what is inside them, the restore sequence, the validation traps. The authority on *what* to build. |
 | [`_docs/operations/design/design-handoff.md`](_docs/operations/design/design-handoff.md) | The complete visual and interaction design: tokens, four screens, states, copy. |
 | [`_docs/dev-phases/`](_docs/dev-phases/README.md) | What is left to build, phase by phase. |
-| [`_docs/decisions/`](_docs/decisions/) | Why it is built this way — 8 ADRs. |
-| [`_docs/knowledge-base/gotchas/`](_docs/knowledge-base/gotchas/) | Eight ways this goes wrong, titled by symptom. |
+| [`_docs/decisions/`](_docs/decisions/) | Why it is built this way — 9 ADRs. |
+| [`_docs/knowledge-base/gotchas/`](_docs/knowledge-base/gotchas/) | Nine ways this goes wrong, titled by symptom. |
+| [`_docs/knowledge-base/patterns/`](_docs/knowledge-base/patterns/) | Four shapes that work here, each naming its callers. |
 | [`_docs/technical-debt.md`](_docs/technical-debt.md) | The honest list, including assumptions nobody has checked. |
 
 ## Architecture
@@ -87,7 +88,7 @@ src/WaveLinkBackup.Core     class library                                       
   Discovery/ Io/ Process/   finding, reading and safely replacing settings
   Snapshots/ Restore/       the store, the guard, the restore sequence
   Automation/               watcher, debounce, dedup, retention
-src/WaveLinkBackup.Cli      thin shell — scriptable, unattended                 stub, phase 4
+src/WaveLinkBackup.Cli      wlbackup — eight verbs, scriptable, AOT-able        ✅ phase 4
 src/WaveLinkBackup.App      thin shell — WPF, the four designed screens         stub, phase 5
 third_party/                vendored upstream snapshot, excluded from the build
 ```
@@ -101,6 +102,20 @@ The reasoning is in [ADR-001](_docs/decisions/ADR-001-csharp-over-rust.md) (lang
 [ADR-004](_docs/decisions/ADR-004-core-library-thin-shells.md) (this split) and
 [ADR-005](_docs/decisions/ADR-005-wpf-for-the-gui.md) (the UI framework).
 
+## Using it
+
+```
+wlbackup backup --name "Before 3.3 beta"    # take one now
+wlbackup list                               # what you have
+wlbackup restore <id>                       # shows what changes, then asks
+wlbackup watch                              # back up on its own until Ctrl+C
+wlbackup help                               # everything else
+```
+
+Backups you take yourself are never deleted automatically, and neither are the ones taken
+just before a restore. `--json` gives machine-readable output; every failure has its own exit
+code so scripts can branch.
+
 ## Building
 
 Requires the .NET 10 SDK on Windows.
@@ -108,7 +123,14 @@ Requires the .NET 10 SDK on Windows.
 ```
 dotnet build WaveLinkBackup.slnx
 dotnet test  WaveLinkBackup.slnx
+
+dotnet publish src/WaveLinkBackup.Cli -c Release                      # 70 MB single file
+dotnet publish src/WaveLinkBackup.Cli -c Release -p:PublishAot=true   # 3.2 MB native
 ```
+
+The AOT build needs the MSVC toolchain, and its link step calls `vswhere.exe` unqualified — if
+it fails with `MSB3073 ... exited with code 123`, add
+`%ProgramFiles(x86)%\Microsoft Visual Studio\Installer` to `PATH`.
 
 Seven tests read your real Wave Link configuration if one is installed, and **skip when it is
 not** — so the suite is green either way. None of them write, close Wave Link, or touch your

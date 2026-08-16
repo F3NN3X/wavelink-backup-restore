@@ -29,8 +29,8 @@ right.
 | **1** | Core: discovery, validation, safe write | ✅ Complete — 93 tests, 81.2% | [phase-1-core.md](phase-1-core.md) |
 | **2** | Snapshot store | ✅ Complete — 186 tests, 83.0% | [phase-2-store.md](phase-2-store.md) · [design](../plans/2026-08-16-phase-2-store-design.md) |
 | **3** | Automation: watcher, dedup, retention | ✅ Complete — 235 tests, 84.9% | [phase-3-automation.md](phase-3-automation.md) |
-| **4** | CLI shell | **Next** | [phase-4-cli.md](phase-4-cli.md) |
-| 5 | WPF shell | Not started | sketched below |
+| **4** | CLI shell | ✅ Complete — 308 tests, AOT 3.2 MB | [phase-4-cli.md](phase-4-cli.md) |
+| **5** | WPF shell | **Next** | [phase-5-wpf.md](phase-5-wpf.md) |
 | 6 | Plugin tiers | Not started | sketched below |
 | 7 | Release | Not started | sketched below |
 
@@ -125,7 +125,8 @@ integration tests, and a published single file runs on a machine without the SDK
 
 ## Phase 5 — WPF shell
 
-**Depends on:** phase 4. **The biggest phase.**
+**Depends on:** phase 4. ✅ **Planned in detail** — [phase-5-wpf.md](phase-5-wpf.md).
+**The biggest phase.**
 
 The four designed screens at the handoff's fidelity: main list, restore confirmation,
 settings, first run. Brush resources per theme, live OS theme following, OS accent bound to

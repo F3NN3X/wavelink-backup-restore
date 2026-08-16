@@ -22,8 +22,55 @@ heading here.
 
 ## [Unreleased]
 
-Nothing yet. Phase 4 — the CLI — is planned in
-[dev-phases/phase-4-cli.md](_docs/dev-phases/phase-4-cli.md).
+Nothing yet. Phase 5 — the WPF shell — is planned in
+[dev-phases/phase-5-wpf.md](_docs/dev-phases/phase-5-wpf.md).
+
+---
+
+## [0.4.0] — 2026-08-16
+
+**Phase 4: the CLI.** The first release you can actually run. `wlbackup` reaches every
+capability the previous three phases built — which until now had no caller outside a test.
+
+**308 tests passing.** Core 84.8% line / 81.6% branch; CLI 83.6% / 81.6%.
+
+### Added
+
+- **`wlbackup`** — eight verbs: `backup`, `list`, `restore`, `rename`, `delete`, `verify`,
+  `prune`, `watch`.
+  - `restore` prints what would change and **asks first**. `--yes` skips the question;
+    a redirected stdin never counts as an answer.
+  - `watch` backs up automatically until Ctrl+C, then takes one last backup on the way out.
+  - `--json` for scripts, `--store` for a custom location, `--settings-path` for a Wave Link
+    we cannot find on our own.
+  - Distinct exit codes per failure, mapped from Core's error types, so scripts can branch.
+- **Output never includes a device ID.** They embed hardware serial numbers; the list shows
+  friendly channel names, which is what a person recognises anyway.
+
+### Verified
+
+- **NativeAOT works: a 3.2 MB single binary**, against 70.2 MB self-contained, with zero
+  trim warnings — and it runs correctly against a real Wave Link install.
+  [ADR-001](_docs/decisions/ADR-001-csharp-over-rust.md) estimated 10–15 MB and treated small
+  binaries as the one thing Rust would have done better; that gap is now roughly closed, and
+  the ADR records the measurement.
+- The published single-file build discovers the package, writes a real backup, and lists it.
+
+### Changed
+
+- `SettingsInspector(IFileSystem)` **removed.** It resolved `%LOCALAPPDATA%` from the real
+  environment, so tests wired against a fake filesystem quietly consulted the developer's
+  machine — the same bug, twice. Replaced with `SettingsInspector.For(fileSystem, path)` and
+  an explicit `SettingsLocator.SystemLocalAppData`.
+- `BackupService` accepts an explicit settings path, so `--settings-path` reaches every verb
+  rather than only `restore`.
+- `SnapshotId.LooksLikeSnapshotId` **deleted** — three phases without a caller.
+
+### Still open
+
+- **`[ComImport]` under NativeAOT is not answered.** There is no COM interop in the codebase
+  yet, so the AOT result above measures code that lacks the risky part. See
+  [`technical-debt.md`](_docs/technical-debt.md) §2.4.
 
 ---
 
