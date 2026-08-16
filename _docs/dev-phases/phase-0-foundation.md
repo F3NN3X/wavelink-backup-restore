@@ -55,7 +55,15 @@ See the [session note](../sessions/2026-08-16-documentation-scaffold.md).
 - [x] Root `README.md` — **Windows-only above the fold** ([[ADR-008]]), upstream attribution.
 - [x] `CHANGELOG.md` — engineering changelog, distinct in voice from
       [documentation-stats.md](../documentation-stats.md).
-- [ ] `LICENSE` — MIT, preserving upstream's copyright notice alongside ours.
+- [x] `LICENSE` — MIT, carrying upstream's copyright line verbatim
+      (`Copyright (c) 2026 WaveLinkSettingsUtility contributors`, fetched from their LICENSE
+      rather than reconstructed) alongside ours, plus an Attribution section naming which
+      components each covers.
+
+      > **Written before the code it attributes.** Upstream's notice is in place ahead of the
+      > merge, deliberately: over-attributing costs nothing, under-attributing is a licence
+      > breach, and the window between "we declared this a fork" and "the code actually
+      > landed" is exactly where that gets forgotten.
 
 ### Fork intake
 

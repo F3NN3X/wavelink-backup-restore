@@ -26,6 +26,8 @@ Pre-alpha. **No application code exists yet.** Phase 0 of
 - `.gitignore`, including project-specific rules that refuse to commit real Wave Link settings
   files, VST3 binaries or a backup store — those files embed hardware serial numbers and the
   Windows username.
+- `LICENSE` — MIT, carrying upstream's copyright line verbatim alongside ours, with an
+  Attribution section naming which components each notice covers.
 
 ### Changed
 
@@ -35,7 +37,6 @@ Pre-alpha. **No application code exists yet.** Phase 0 of
 
 ### Not yet done in phase 0
 
-- `LICENSE` — MIT, preserving upstream's copyright notice.
 - Fork intake from
   [voltybat/WaveLinkSettingsUtility](https://github.com/voltybat/WaveLinkSettingsUtility) at
   `main` (pushed 2026-07-19). The exact upstream commit will be recorded here on merge, so
