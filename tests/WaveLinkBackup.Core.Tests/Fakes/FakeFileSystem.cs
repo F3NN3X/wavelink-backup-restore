@@ -24,6 +24,9 @@ public sealed class FakeFileSystem : IFileSystem
 
     public List<(string Source, string Destination, string Backup)> Replacements { get; } = [];
 
+    /// <summary>Models an unwritable store location — a read-only drive, or a denied path.</summary>
+    public bool FailDirectoryCreation { get; init; }
+
     public FakeFileSystem AddFile(string path, string content) => AddFile(path, Encoding.UTF8.GetBytes(content));
 
     public FakeFileSystem AddFile(string path, byte[] content)
@@ -83,6 +86,33 @@ public sealed class FakeFileSystem : IFileSystem
     }
 
     public string ReadSharedText(string path) => Encoding.UTF8.GetString(ReadSharedBytes(path));
+
+    public void CreateDirectory(string path)
+    {
+        if (FailDirectoryCreation) throw new UnauthorizedAccessException($"Access to '{path}' is denied.");
+
+        for (var dir = path; !string.IsNullOrEmpty(dir); dir = Path.GetDirectoryName(dir))
+        {
+            directories.Add(dir);
+        }
+    }
+
+    public void DeleteDirectory(string path)
+    {
+        var prefix = path.TrimEnd('\\') + "\\";
+
+        foreach (var file in files.Keys.Where(f => f.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            files.Remove(file);
+        }
+
+        foreach (var dir in directories.Where(d =>
+                     string.Equals(d, path, StringComparison.OrdinalIgnoreCase) ||
+                     d.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            directories.Remove(dir);
+        }
+    }
 
     public void WriteBytes(string path, byte[] bytes) => AddFile(path, bytes);
 

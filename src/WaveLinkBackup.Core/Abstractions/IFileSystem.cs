@@ -30,6 +30,12 @@ public interface IFileSystem
     /// <summary><see cref="ReadSharedBytes"/> as UTF-8 text. Used for log files.</summary>
     string ReadSharedText(string path);
 
+    /// <summary>Creates the directory and any missing parents. No-op if it exists.</summary>
+    void CreateDirectory(string path);
+
+    /// <summary>Deletes a directory and everything in it.</summary>
+    void DeleteDirectory(string path);
+
     void WriteBytes(string path, byte[] bytes);
 
     /// <summary>Atomic on NTFS, and produces the rollback copy in the same operation.</summary>

@@ -41,3 +41,44 @@ public sealed record WaveLinkStillRunning(IReadOnlyList<string> ProcessNames)
 /// <summary>The write itself failed. The target is unchanged - <c>File.Replace</c> is atomic.</summary>
 public sealed record WriteFailed(string Reason)
     : CoreError($"The settings file could not be replaced: {Reason}");
+
+// ---------------------------------------------------------------------------------------
+// Snapshot store (phase 2)
+// ---------------------------------------------------------------------------------------
+
+/// <summary>manifest.json could not be understood at all.</summary>
+public sealed record MalformedManifest(string Detail)
+    : CoreError($"This backup's manifest is unreadable: {Detail}");
+
+/// <summary>
+/// Written by a newer version of Wave Link Backup. Rejected outright rather than partially
+/// read - understanding some fields of a format we do not know is how a store gets quietly
+/// corrupted by an older build.
+/// </summary>
+public sealed record UnsupportedSnapshotSchema(int Found, int Supported)
+    : CoreError($"This backup was made by a newer version of Wave Link Backup " +
+                $"(format {Found}; this version understands {Supported}). Update to restore it.");
+
+/// <summary>
+/// The directory is not a snapshot we wrote. Replaces upstream's filename regex: the
+/// assertion is about contents, not about a name, so custom names and locations stay
+/// possible while a mistyped path still cannot write arbitrary bytes into a config file.
+/// </summary>
+public sealed record NotASnapshot(string Path, string Reason)
+    : CoreError($"That folder is not a Wave Link Backup: {Reason}");
+
+/// <summary>
+/// The snapshot's recorded hashes no longer match its files - corrupted after it was
+/// written, by a failed sync, a bad disk, or an edit. Something the filename regex could
+/// never have caught.
+/// </summary>
+public sealed record SnapshotCorrupted(string Path, string Detail)
+    : CoreError($"This backup is damaged and was not restored: {Detail}");
+
+/// <summary>No snapshot with that id in the store.</summary>
+public sealed record SnapshotNotFound(string Id)
+    : CoreError($"No backup with id '{Id}' was found.");
+
+/// <summary>The store directory could not be created, read or written.</summary>
+public sealed record StoreUnavailable(string Path, string Reason)
+    : CoreError($"The backup folder could not be used: {Reason}");

@@ -14,7 +14,22 @@ public sealed record ValidationReport(IReadOnlyList<DuplicateKeyFinding> Duplica
     public bool HasCaseInsensitiveDuplicateKeys => DuplicateKeys.Count > 0;
 }
 
-public sealed record SettingsAnalysisResult(ValidationReport Report, HealthFingerprint Fingerprint);
+/// <param name="WaveLinkVersion">
+/// From <c>Update.LastUpdateVersion</c>, e.g. "3.3.0.4108". Null when absent.
+///
+/// This is the version that last wrote the file, which is exactly the question worth
+/// recording: when a restore fails, the first thing to know is whether the config is bad or
+/// the validator changed. 3.3.0.4108 Beta rejected a file 3.2.9 accepted.
+///
+/// Read from the settings file rather than from the installed package because the package
+/// install directory (C:\Program Files\WindowsApps) is not readable without elevation -
+/// verified 2026-08-16 - and because WinRT PackageManager would force a Windows-only target
+/// framework on a library that otherwise needs none.
+/// </param>
+public sealed record SettingsAnalysisResult(
+    ValidationReport Report,
+    HealthFingerprint Fingerprint,
+    string? WaveLinkVersion);
 
 /// <summary>
 /// The pure heart of Core: bytes in, records out. No IO, no seams, no async, no state.
@@ -68,7 +83,8 @@ public static class SettingsAnalysis
 
             return new SettingsAnalysisResult(
                 new ValidationReport(findings),
-                Fingerprint(inputs, bytes));
+                Fingerprint(inputs, bytes),
+                ReadWaveLinkVersion(document.RootElement));
         }
     }
 
@@ -113,6 +129,15 @@ public static class SettingsAnalysis
         !string.IsNullOrWhiteSpace(name.GetString())
             ? name.GetString()!
             : input.Name;
+
+    private static string? ReadWaveLinkVersion(JsonElement root) =>
+        root.TryGetProperty("Update", out var update)
+        && update.ValueKind == JsonValueKind.Object
+        && update.TryGetProperty("LastUpdateVersion", out var version)
+        && version.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(version.GetString())
+            ? version.GetString()
+            : null;
 
     private static bool TryGetInputSettings(JsonElement root, out JsonElement inputs)
     {

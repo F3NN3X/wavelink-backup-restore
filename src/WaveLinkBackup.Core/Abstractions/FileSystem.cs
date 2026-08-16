@@ -38,6 +38,13 @@ public sealed class FileSystem : IFileSystem
     public string ReadSharedText(string path) =>
         System.Text.Encoding.UTF8.GetString(ReadSharedBytes(path));
 
+    public void CreateDirectory(string path) => Directory.CreateDirectory(path);
+
+    public void DeleteDirectory(string path)
+    {
+        if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+    }
+
     public void WriteBytes(string path, byte[] bytes) => File.WriteAllBytes(path, bytes);
 
     public void Replace(string source, string destination, string backup) =>
