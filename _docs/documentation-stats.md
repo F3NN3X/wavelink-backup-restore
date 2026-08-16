@@ -73,6 +73,25 @@ phases were composition.
 
 **Counts moved:** sessions 4 → 5 · dev-phase docs 5 → 6 · tests 186 → 235.
 
+**Corpus audit (same day, after the release)**
+
+A pass over `_docs/` against its own README turned up three stale claims, all created by
+`patterns/` coming into existence and nothing updating the document that said it had not:
+
+- the directory-structure block omitted `patterns/`;
+- *Folders deliberately absent* still listed it;
+- the `patterns/` folder guide still opened with "Not yet created".
+
+Fixed, and the absent-folders entry is kept as a **note that its trigger fired** rather than
+deleted — a mechanism that demonstrably worked is worth more as evidence than as a blank space,
+and the two remaining rows are the same bet.
+
+Also added: three topics to the cross-reference index (**the snapshot store**, **automatic
+capture**, **keeping the corpus honest**), which had not moved since v0.0.1 despite three
+phases of work; and a *Words the code uses precisely* section to the glossary covering the
+vocabulary phases 1–3 introduced — expected failure, finding, pure, seam, guard, tick,
+debounce, rate limit, prunable, schema version, as built.
+
 ---
 
 ### v0.2.0 — Phase 2: the snapshot store (2026-08-16)
@@ -255,8 +274,49 @@ The part that looks obvious and fails.
 | `SPEC.md` §4 | The sequence, and verification from the log |
 | [[restore-a-settings-file-safely]] | The recipe, with the reason attached to each ordering constraint |
 | [[restored-settings-revert-seconds-later]] | The flush race |
+| [[preconditions-inside-the-operation]] | Why the write refuses rather than trusting the caller |
+| `Restore/RestoreOrchestrator.cs` | The assembled sequence (phase 2) |
 | [design-handoff.md](operations/design/design-handoff.md) Screen 2 | The confirmation dialog, and the automatic pre-restore snapshot |
 | [glossary.md](glossary.md) | Verified exited, atomic write, shell AppID, pre-restore snapshot |
+
+### The snapshot store
+
+Where backups live, and why not where upstream put them.
+
+| Artifact | Contribution |
+|---|---|
+| [[ADR-003]] | The decision: outside `LocalState`, identity in `manifest.json` |
+| [Phase 2 design](plans/2026-08-16-phase-2-store-design.md) | Layout, manifest schema, the guard |
+| [technical-debt.md](technical-debt.md) §1.1 | The inherited defect, struck through with its reasoning kept |
+| [Audit](audits/2026-08-15-voltybat-wavelinksettingsutility.md) finding 1 | What upstream does and why it cannot be kept |
+| [[newest-backup-is-the-broken-one]] | Why the list ranks by content, not by date |
+| [glossary.md](glossary.md) | Snapshot, managed backup, trigger, dedup key, backup store |
+
+### Automatic capture
+
+The phase that made this a different product from the tool it was forked from.
+
+| Artifact | Contribution |
+|---|---|
+| [[ADR-007]] | Watch don't poll; dedup by hash; never prune what the user named |
+| [phase-3-automation.md](dev-phases/phase-3-automation.md) | The plan, and the no-real-time constraint |
+| `SPEC.md` §2, §6 | Retention measurements and the design target |
+| [design-handoff.md](operations/design/design-handoff.md) Screen 3 | **Copy that is a specification** — the debounce and rate limit are quoted to users |
+| [technical-debt.md](technical-debt.md) §1.4 | The gap this filled, struck through |
+| [[capture-fails-while-wave-link-is-running]] | Why the watcher's reads must be shared-mode |
+
+### Keeping the corpus honest
+
+This project's most distinctive practice, and it spans nearly everything.
+
+| Artifact | Contribution |
+|---|---|
+| [README.md](README.md) | The `Provenance` rule for gotchas, and the "state provenance" best practice |
+| `SPEC.md` Provenance + Corrections | The example the rule is modelled on, and three claims it later caught |
+| [[guards-that-can-fail]] | The same idea in code: a guard nobody has watched reject something is a guess |
+| [Audit](audits/2026-08-15-voltybat-wavelinksettingsutility.md) | Two of five findings did not survive a running system — both marked *read, not reproduced* |
+| [[every-snapshot-differs-with-no-real-change]] | A gotcha rewritten when its cause turned out to be inverted |
+| [Probe session](sessions/2026-08-16-phase-1-probe.md) | Where the discipline paid for itself |
 
 ### VST3 capture
 

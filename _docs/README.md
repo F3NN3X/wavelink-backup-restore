@@ -35,7 +35,8 @@ _docs/
 ├── decisions/               # Architecture Decision Records (ADRs)
 ├── dev-phases/              # what is left to build, phase by phase
 ├── knowledge-base/
-│   └── gotchas/             # mistakes made and fixed, so they are not repeated
+│   ├── gotchas/             # mistakes made and fixed, so they are not repeated
+│   ├── patterns/            # proven solutions, extracted from shipping code
 │   └── recipes/             # step-by-step guides
 ├── operations/
 │   └── design/              # the design handoff: tokens, screens, prototype
@@ -44,7 +45,7 @@ _docs/
 ├── README.md                # this file — instructions only, no running totals
 ├── index.md                 # the landing page: start here
 ├── SPEC.md                  # the build specification — the authority on *what*
-├── templates.md             # ADR · gotcha · pattern · recipe · session templates
+├── templates.md             # ADR · gotcha · pattern · recipe · session · dev-phase templates
 ├── glossary.md              # the vocabulary this project uses precisely
 ├── technical-debt.md        # the honest list
 └── documentation-stats.md   # the living tally + cross-reference index
@@ -57,9 +58,13 @@ not here yet, and each has a trigger that creates it:
 
 | Folder | Create it when |
 |---|---|
-| `knowledge-base/patterns/` | The first line of production code ships. A pattern is extracted from working code with named callers — before that it is a theory, and the place for theories is `SPEC.md` or an ADR. |
 | `operations/runbooks/` | There is a running system to operate — realistically, the first release. |
 | `operations/diagrams/` | A diagram earns its keep over prose. |
+
+> `knowledge-base/patterns/` **was** on this list. Its trigger — *"the first line of production
+> code ships"* — fired on 2026-08-16 with phase 1, and it now holds four patterns. Kept as a
+> note rather than deleted, because a trigger that actually fired is evidence the mechanism
+> works, and the two remaining rows are the same bet.
 
 > No docs-site generator is wired up — this is a WPF repository and nothing would consume
 > `meta.json`. Frontmatter is kept anyway: it is what makes the corpus greppable, and it
@@ -117,9 +122,14 @@ the body, not only in the frontmatter.
 
 #### `patterns/` — proven solutions
 
-Not yet created; see *Folders deliberately absent*. Shapes that work in this codebase.
-**Only proven ones** — extract them from code that ships, never from an intention. Name the
-actual callers; a pattern with no callers is a theory. Link the test that holds it down.
+Shapes that work in this codebase. **Only proven ones** — extract them from code that ships,
+never from an intention. Name the actual callers; a pattern with no callers is a theory. Link
+the test that holds it down.
+
+> **Expect this folder to stop growing, and do not treat that as neglect.** Patterns come from
+> novelty. Phase 1 produced four; phases 2 and 3 produced none, because both were composition
+> of what already existed. Adding a fifth to keep the number moving would be documenting an
+> intention, which is the one thing this folder exists to exclude.
 
 #### `gotchas/` — mistakes to avoid
 

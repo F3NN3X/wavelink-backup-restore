@@ -166,3 +166,60 @@ is only possible because of them.
 (`Plugin.vst3\Contents\x86_64-win\Plugin.vst3`) rather than a file. Permitted by the VST3
 spec and increasingly shipped that way. Test for directory and recurse. See
 [[vst3-backs-up-as-nothing]].
+
+---
+
+## Words the code uses precisely
+
+Added as the codebase acquired them. Each is a term where the ordinary programming meaning is
+close enough to mislead.
+
+**Expected failure** — something that can go wrong in normal operation and must be *rendered*:
+Wave Link not installed, a malformed file, a snapshot that no longer matches its hashes. These
+return a `Result`. Distinct from a **bug**, which throws. The split exists because a GUI has to
+show every expected failure as a message, and catch-and-hope at each UI boundary is how error
+handling rots. See [[preconditions-inside-the-operation]].
+
+**Finding** — something validation *noticed*, not something that failed. A settings file with
+duplicate keys analyses **successfully** and reports a finding; only a file that cannot be
+understood at all is an error. This is what makes "a suspect snapshot is still restorable" a
+property of the design rather than a rule to remember.
+
+**Pure**, in this codebase, means more than "no side effects": no constructor, no injected
+dependency, no `async`, and no reference to a seam. `Analysis/` and the automation policy are
+pure in this sense, which is why they *cannot* write a file and why their tests need no setup.
+See [[pure-analysis-core]].
+
+**Seam** — an interface that exists so a test can substitute reality. There are three, and the
+count is deliberate: `IFileSystem`, `IWaveLinkProcess`, `IClock`. `IClock` was **deferred to
+phase 2** because phase 1 had no test that would have exercised it — a seam with no test is
+decoration.
+
+**Guard** — a rule enforced by the build rather than by intention. Three exist: one MSBuild
+target (Core must not resolve the Windows Desktop ref pack) and two source scans (no
+`File.ReadAllBytes`, no reflection-based `JsonSerializer`). Each was *verified to fail* before
+being trusted. See [[guards-that-can-fail]].
+
+**Tick** — one evaluation of whether an automatic snapshot is due. Cheap: it compares three
+timestamps and usually returns immediately. `AutoBackupCoordinator` **owns no timer** — the
+host calls `Tick()`, which is what keeps every timing test instantaneous.
+
+**Debounce** — the ~60s wait after the *last* write before capturing. A burst of writes
+restarts it, so touching five faders is one snapshot rather than five.
+
+**Rate limit** — at most one *automatic* snapshot per hour. A **manual** backup is never rate
+limited and never deduplicated: the user pressed a button, and the new row appearing is the
+only confirmation the design gives them.
+
+**Prunable** — an automatic snapshot, and only an automatic snapshot. Manual and pre-restore
+snapshots are never pruned at any keep count, including zero. The rule lives in
+`SnapshotManifest.IsPrunable` and is consulted rather than re-derived.
+
+**Schema version** — `manifest.json`'s compatibility marker. A manifest from a *newer* version
+is refused with a readable message, never partially read: understanding some fields of a format
+you do not know is how a store gets quietly corrupted by an older build. Older versions are
+accepted — rejection is forward-only.
+
+**As built** — a section appended to an executed design recording where the code diverged from
+it. Both shipped designs have one. It exists so a plan can stay accurate without being rewritten
+into a description of what happened, which would destroy the record of what was intended.
