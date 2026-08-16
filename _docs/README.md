@@ -39,6 +39,7 @@ _docs/
 │   └── recipes/             # step-by-step guides
 ├── operations/
 │   └── design/              # the design handoff: tokens, screens, prototype
+├── plans/                   # designs and implementation plans, written before the work
 ├── sessions/                # structured session notes
 ├── README.md                # this file — instructions only, no running totals
 ├── index.md                 # the landing page: start here
@@ -57,7 +58,6 @@ not here yet, and each has a trigger that creates it:
 | Folder | Create it when |
 |---|---|
 | `knowledge-base/patterns/` | The first line of production code ships. A pattern is extracted from working code with named callers — before that it is a theory, and the place for theories is `SPEC.md` or an ADR. |
-| `plans/` | The first implementation plan is written, which is the architectural brainstorm for the core library. |
 | `operations/runbooks/` | There is a running system to operate — realistically, the first release. |
 | `operations/diagrams/` | A diagram earns its keep over prose. |
 
@@ -177,7 +177,11 @@ slug, never by a suffix number.
 
 ---
 
-### `audits/`, `archive/`
+### `plans/`, `audits/`, `archive/`
+
+**`plans/`** — designs and implementation plans, written *before* the work. A plan that was
+executed either becomes a session note or moves to `archive/`. Naming:
+`YYYY-MM-DD-<topic>-design.md` / `-plan.md`.
 
 **`audits/`** — systematic passes over something, with findings. The upstream fork gets one
 of these; when its findings are resolved here, record the resolution in the audit so the two

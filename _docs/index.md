@@ -93,6 +93,12 @@ for at the time.
 
 ---
 
+## Plans
+
+| Plan | Status |
+|---|---|
+| [Phase 1 Core — Design](plans/2026-08-16-phase-1-core-design.md) | **In review** — the shape of `WaveLinkBackup.Core`, its two seams, error model, pipeline and TDD order |
+
 ## Audits
 
 | Audit | Subject |
