@@ -35,19 +35,23 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phases 0 and 1 are complete (2026-08-16). Phase 2 is next.**
+**Phases 0–2 are complete (2026-08-16). Phase 3 is next.**
 
-`WaveLinkBackup.Core` ships: discovery, validation, health fingerprinting, safe replacement and
-log verification. **93 tests, 81.2% line coverage.** The CLI and WPF shells are stubs.
+`WaveLinkBackup.Core` can now find, validate and fingerprint your settings, **write and restore
+snapshots**, and verify a restore from the log. **186 tests, 83.0% line coverage.** The CLI and
+WPF shells are still stubs.
 
-There is no snapshot store yet — nothing can actually back anything up until phase 2, which is
-[planned in detail](plans/2026-08-16-phase-2-store-design.md).
+**The critical inherited defect is fixed** — snapshots live outside `LocalState`, so an MSIX
+package reset no longer destroys them along with the thing you wanted to recover from.
+
+What is missing is *automatic*: nothing watches the settings file yet, so every backup has to
+be asked for. That is [phase 3](dev-phases/phase-3-automation.md).
 
 | | |
 |---|---|
-| What shipped | [Phase 1 session note](sessions/2026-08-16-phase-1-core-build.md) · [CHANGELOG](../CHANGELOG.md) |
-| What is next | [Phase 2](dev-phases/phase-2-store.md) · [its design](plans/2026-08-16-phase-2-store-design.md) |
-| How Core is shaped | [Phase 1 design](plans/2026-08-16-phase-1-core-design.md) |
+| What shipped | [Phase 2 session note](sessions/2026-08-16-phase-2-store-build.md) · [CHANGELOG](../CHANGELOG.md) |
+| What is next | [Phase 3](dev-phases/phase-3-automation.md) |
+| How Core is shaped | [Phase 1](plans/2026-08-16-phase-1-core-design.md) · [Phase 2](plans/2026-08-16-phase-2-store-design.md) designs |
 
 > **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three
 > of its claims were measured against a live install on 2026-08-16 and did not survive — most
@@ -117,7 +121,7 @@ Extracted from shipped code, each naming its real callers.
 | Plan | Status |
 |---|---|
 | [Phase 1 Core — Design](plans/2026-08-16-phase-1-core-design.md) | **Implemented** — the shape of `WaveLinkBackup.Core`, with an *as built* delta |
-| [Phase 2 Snapshot Store — Design](plans/2026-08-16-phase-2-store-design.md) | **In review** — store layout, manifest, the guard, the assembled restore sequence |
+| [Phase 2 Snapshot Store — Design](plans/2026-08-16-phase-2-store-design.md) | **Implemented** — store layout, manifest, the guard, the restore sequence |
 
 ## Audits
 
@@ -131,6 +135,8 @@ Extracted from shipped code, each naming its real callers.
 
 | Date | Session |
 |---|---|
+| 2026-08-16 | [Phase 2 — the critical inherited defect is fixed](sessions/2026-08-16-phase-2-store-build.md) |
+| 2026-08-16 | [Phase 1 — Core built, 93 tests green](sessions/2026-08-16-phase-1-core-build.md) |
 | 2026-08-16 | [Phase-1 probe — three documented decisions overturned](sessions/2026-08-16-phase-1-probe.md) |
 | 2026-08-16 | [Documentation scaffold](sessions/2026-08-16-documentation-scaffold.md) |
 

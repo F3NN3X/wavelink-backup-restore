@@ -26,18 +26,32 @@ Be blunt. A debt list that flatters the project is useless.
 Five defects, read directly off upstream source at `main` (pushed 2026-07-19). Full findings
 in the [audit](audits/2026-08-15-voltybat-wavelinksettingsutility.md).
 
-### 1.1 Backups are written inside `LocalState` — **must fix before anything else**
+### 1.1 ~~Backups are written inside `LocalState`~~ — **FIXED 2026-08-16 (phase 2)**
+
+> Snapshots now live outside `LocalState`, in a user-chosen store defaulting to
+> `%LOCALAPPDATA%\WaveLinkBackup`. Identity moved from the filename to `manifest.json`, and
+> `SnapshotGuard` replaced `ValidateManagedPath` — all three entangled pieces changed
+> together, as required.
+>
+> **Pinned by** `SnapshotStoreTests.A_snapshot_survives_deleting_the_entire_LocalState_directory`,
+> which deletes the whole directory and then verifies the snapshot still restores.
+>
+> The original text is kept below because it explains why the store is shaped the way it is,
+> and that reasoning is still load-bearing.
+
+#### Original entry
 
 `NewBackupPath` writes `Settings.json.backup-<ts>` beside `Settings.json`, and
 `ManagedBackups` only enumerates that directory. Resetting or uninstalling the MSIX package
 deletes `LocalState` wholesale — every backup with it. A backup tool whose backups are
 destroyed by the exact event you would want to recover from.
 
-**Severity:** critical. This is the single change the fork must make.
-**Entangled with:** `ValidateManagedPath`, which currently *enforces* that location, and the
-filename regex that defines what counts as a managed backup. Fixing one without the others
-leaves restore refusing its own files.
-**Resolution:** [[ADR-003]]. Due in phase 2.
+**Severity:** ~~critical~~ — **resolved**. This was the single change the fork existed to make.
+**Entangled with:** `ValidateManagedPath`, which enforced that location, and the filename
+regex defining what counted as a managed backup. Fixing one without the others would have left
+restore refusing its own files — so all three were replaced in one change.
+**Resolution:** [[ADR-003]], shipped in phase 2. The replacement guard also catches
+post-write corruption, which the filename check never could.
 
 ### 1.2 ~~`Serialize` uses the default JSON encoder~~ — **NOT DEBT. Withdrawn 2026-08-16.**
 

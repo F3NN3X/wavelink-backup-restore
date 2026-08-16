@@ -22,8 +22,59 @@ heading here.
 
 ## [Unreleased]
 
-Nothing yet. Phase 2 — the snapshot store — is planned in
-[dev-phases/phase-2-store.md](_docs/dev-phases/phase-2-store.md).
+Nothing yet. Phase 3 — the watcher, dedup and retention — is planned in
+[dev-phases/phase-3-automation.md](_docs/dev-phases/phase-3-automation.md).
+
+---
+
+## [0.2.0] — 2026-08-16
+
+**Phase 2: the snapshot store.** Backups can now be written, listed, renamed, restored and
+deleted. Still no automatic capture and still no user interface — every backup has to be asked
+for, in code.
+
+**186 tests passing, 83.0% line / 81.2% branch coverage.**
+
+### Fixed
+
+- **Backups no longer live inside `LocalState`.** This is the defect the fork existed to fix:
+  upstream writes them beside `Settings.json`, inside the MSIX package directory, which
+  resetting or uninstalling Wave Link deletes wholesale — destroying every backup along with
+  the thing you wanted to recover from. Pinned by a test that deletes the entire `LocalState`
+  directory and then verifies the snapshot still restores.
+  ([`technical-debt.md`](_docs/technical-debt.md) §1.1, audit finding 1.)
+
+### Added
+
+- **`Snapshots/`** — the store, outside `LocalState`, defaulting to
+  `%LOCALAPPDATA%\WaveLinkBackup`.
+  - `manifest.json` holds identity, so **renaming is a metadata write** — no directory moves,
+    nothing sanitised, and a backup called `Mic chain 3/4"` is just a string. Upstream's
+    filename regex blocked custom names, custom locations and a cheap rename at once.
+  - `SnapshotGuard` replaces `ValidateManagedPath`: it asserts *"we wrote this and it still
+    matches its hashes"* rather than *"this filename fits a pattern"*. Same protection against
+    a mistyped path, **plus** detection of a backup corrupted after it was written — by a
+    failed sync, a bad disk, or a hand edit.
+  - `schemaVersion` from the first write. A manifest from a newer version is refused with a
+    readable message, never partially read.
+- **`Restore/`** — the assembled sequence: verify, plan, **pre-restore snapshot**, close both
+  processes, write, relaunch, confirm from the log.
+  - The pre-restore snapshot is **unconditional and has no parameter to skip it**. It is what
+    makes the destructive button safe to press.
+  - `RestorePlan` is pure and computes the restore dialog's *now vs. after* table, so phase 5
+    renders rather than calculates.
+- **`waveLinkVersion` in every snapshot** — read from `Settings.json`'s
+  `Update.LastUpdateVersion`, and from the log banner including the `(Beta)` channel marker.
+  When a restore fails, the first question is whether the config is bad or the validator
+  changed.
+- **`IClock`** — the third seam, added now because snapshot timestamps are the first thing
+  that genuinely needs it.
+
+### Changed
+
+- `IFileSystem` gains `CreateDirectory` and `DeleteDirectory`.
+- `SettingsAnalysisResult` carries `WaveLinkVersion`; `RestoreVerdict` carries `Version` and
+  `Channel`.
 
 ---
 

@@ -48,7 +48,23 @@ finding 4 below, and also the reason this project exists rather than a pull requ
 
 ## Findings
 
-### 1 · Backups live inside `LocalState` — critical, structural
+### 1 · ~~Backups live inside `LocalState`~~ — **RESOLVED 2026-08-16 (phase 2)**
+
+> Fixed as designed in [[ADR-003]]. All three entangled pieces — `NewBackupPath`,
+> `ManagedBackups` and `ValidateManagedPath` — were replaced together by `SnapshotStore` and
+> `SnapshotGuard`.
+>
+> **One thing exceeded the design.** Moving the guard from the *filename* to the *contents*
+> was expected to be a lateral trade: same safety, fewer constraints. It is strictly better —
+> verifying recorded hashes against disk also catches a snapshot corrupted **after** it was
+> written, by a failed sync, a bad disk, or a hand edit. A filename cannot express that.
+>
+> **Worth offering upstream?** No — this is a different storage model, not a patch. It is the
+> reason forking rather than contributing was the right call ([[ADR-002]]).
+>
+> Original finding retained below.
+
+#### Original finding
 
 `NewBackupPath` writes `Settings.json.backup-<ts>` beside `Settings.json`. `ManagedBackups`
 enumerates only that directory. `ValidateManagedPath` **enforces** that location.
@@ -190,7 +206,7 @@ whichever survived. Covered by `WaveLinkProcessTests` and `SettingsWriterTests`.
 
 | # | Finding | Severity | Resolution | Phase |
 |---|---|---|---|---|
-| 1 | Backups inside `LocalState` | **Critical** | [[ADR-003]] | 2 |
+| 1 | ~~Backups inside `LocalState`~~ | ~~**Critical**~~ **Fixed** | [[ADR-003]] — store + guard replaced together | 2 ✅ |
 | 2 | ~~Default JSON encoder mangles base64~~ | ~~Low~~ **Withdrawn** | None — upstream is correct | — |
 | 3 | No duplicate-key detection | **High** | `JsonDocument` walk | 1 |
 | 3b | `JsonNode.Parse` throws on exact duplicates | Low | Catch, report as malformed | 1 |
@@ -198,10 +214,13 @@ whichever survived. Covered by `WaveLinkProcessTests` and `SettingsWriterTests`.
 | 5 | ~~Runtime dependency~~ | ~~Moderate~~ **Resolved** | Release workflow overrides the csproj | — |
 | 6 | `WavelinkSEService` never closed | Moderate | **Fixed in phase 1**; offer upstream | 1 ✅ |
 
-**Scorecard after phase 1.** Of six findings: one critical and still open (finding 1, which is
-phase 2's whole reason for existing), one withdrawn as wrong, one resolved as incomplete, two
-fixed, one by-design. **Two of the five original findings did not survive contact with a
-running system** — both of them the ones marked *read, not reproduced*.
+**Scorecard after phase 2.** Of six findings: **three fixed** (1, 3, 6), one withdrawn as
+wrong (2), one resolved as incomplete (5), one by-design and answered by building a different
+product (4). Nothing remains open.
+
+**Two of the five original findings did not survive contact with a running system** — both of
+them the ones marked *read, not reproduced*. That is the whole argument for the provenance
+labels, and it is now a measured claim rather than a stylistic preference.
 
 Ongoing status lives in [technical-debt.md](../technical-debt.md) §1. When a finding is
 resolved, record the resolution **here as well** — this audit is the reconciliation point if

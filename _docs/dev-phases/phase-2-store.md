@@ -9,7 +9,11 @@ tags: [dev-phase]
 
 # Phase 2 — Snapshot store
 
-**Status:** Not started — **next**.
+**Status:** ✅ **Complete — 2026-08-16.** 186 tests green, 83.0% line / 81.2% branch.
+[technical-debt.md](../technical-debt.md) §1.1 — the critical inherited defect — is closed.
+See the [session note](../sessions/2026-08-16-phase-2-store-build.md) and the
+[design, with its as-built delta](../plans/2026-08-16-phase-2-store-design.md).
+
 **Entry criteria:** phase 1 complete. ✅ 2026-08-16.
 **Exit criteria:** a snapshot can be written, listed, renamed, restored and deleted; every
 restore takes a pre-restore snapshot first, automatically; and the manifest-hash guard refuses

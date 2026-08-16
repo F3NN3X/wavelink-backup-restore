@@ -1,6 +1,6 @@
 ---
 title: "Phase 2 Snapshot Store — Design"
-status: review
+status: published
 created: 2026-08-16
 updated: 2026-08-16
 related_adrs: [ADR-003, ADR-004]
@@ -9,8 +9,26 @@ tags: [plan, design, store]
 
 # Phase 2 Snapshot Store — Design
 
-**Status:** awaiting review. Implements
-[dev-phases/phase-2-store.md](../dev-phases/phase-2-store.md).
+**Status:** **implemented 2026-08-16.** 186 tests green, 83.0% line / 81.2% branch.
+Session note: [2026-08-16-phase-2-store-build.md](../sessions/2026-08-16-phase-2-store-build.md).
+
+## As built — where the code diverged from this document
+
+1. **`waveLinkVersion` does not come from the package manifest.** This document said it did.
+   It is in `Settings.json` as `Update.LastUpdateVersion`, so extraction is **pure** and costs
+   no IO. The alternative would have been WinRT `PackageManager`, forcing `net10.0-windows` on
+   a library that needs none — and `C:\Program Files\WindowsApps` turned out to be unreadable
+   without elevation anyway. `LogAnalysis` additionally recovers the version *and the `(Beta)`
+   channel* from the log's startup banner, which is what `SPEC.md` §5 actually cares about.
+2. **`List()` does not verify hashes.** Reading every manifest is cheap; rehashing the whole
+   store on every window open is not. Verification is a restore-time concern, and
+   `SnapshotGuard` is called there.
+3. **One unreadable snapshot is skipped rather than failing the listing.** Not specified here.
+   The moment a user needs the list is the worst possible moment to refuse to produce one.
+4. **Settings are written before the manifest**, so an interrupted write leaves a directory the
+   guard rejects rather than one it half-accepts.
+
+Everything else shipped as described.
 
 Phase 1 built the primitives: find the file, decide whether it is any good, describe it,
 replace it safely. Phase 2 gives them somewhere to put things, and assembles the one sequence

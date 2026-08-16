@@ -29,10 +29,10 @@ Update this file **in the same commit** as the document it counts. See
 | Patterns | 4 |
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
-| Sessions | 3 |
+| Sessions | 4 |
 | Plans | 2 |
-| Dev-phase documents | 4 (of 8 phases; 4 remain sketched in the index) |
-| **Tests** | **93 passing, 81.2% line / 81.8% branch** |
+| Dev-phase documents | 5 (of 8 phases; 3 remain sketched in the index) |
+| **Tests** | **186 passing, 83.0% line / 81.2% branch** |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
@@ -44,6 +44,41 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### v0.2.0 — Phase 2: the snapshot store (2026-08-16)
+
+The release that closes the project's founding defect. The doc delta is small and mostly
+consists of striking things through — which is the point.
+
+**Added**
+
+- **Session note** — [phase 2 store build](sessions/2026-08-16-phase-2-store-build.md).
+- **`dev-phases/phase-3-automation.md`** — phase 3 detailed, per the "current or next phase"
+  rule.
+
+**Resolved**
+
+- **[technical-debt.md](technical-debt.md) §1.1 and audit finding 1 — the critical defect.**
+  Struck through, original text retained, because the reasoning still explains why the store is
+  shaped the way it is.
+- **The audit now has nothing open.** Six findings: three fixed, one withdrawn as wrong, one
+  resolved as incomplete, one answered by building a different product.
+
+**Corrected by measurement, again**
+
+- The phase 2 design said `waveLinkVersion` "needs reading from the package manifest". Probing
+  first showed `C:\Program Files\WindowsApps` is unreadable without elevation, and that the
+  version is already in `Settings.json`. Recorded as an *as built* delta rather than silently
+  implemented differently.
+
+**No new patterns.** Phase 2 applied the four from phase 1 rather than producing new ones,
+which is what a pattern set is for. Writing a fifth to have a fifth would be documenting an
+intention.
+
+**Counts moved:** sessions 3 → 4 · dev-phase docs 4 → 5 · tests 93 → 186. Audit open findings
+1 → 0.
+
+---
 
 ### v0.1.0 — Phase 1: Core (2026-08-16)
 

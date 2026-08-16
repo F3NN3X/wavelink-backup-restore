@@ -27,8 +27,8 @@ right.
 |---|---|---|---|
 | **0** | Foundation | ✅ Complete | [phase-0-foundation.md](phase-0-foundation.md) |
 | **1** | Core: discovery, validation, safe write | ✅ Complete — 93 tests, 81.2% | [phase-1-core.md](phase-1-core.md) |
-| **2** | Snapshot store | **Next** | [phase-2-store.md](phase-2-store.md) · [design](../plans/2026-08-16-phase-2-store-design.md) |
-| 3 | Automation: watcher, dedup, retention | Not started | sketched below |
+| **2** | Snapshot store | ✅ Complete — 186 tests, 83.0% | [phase-2-store.md](phase-2-store.md) · [design](../plans/2026-08-16-phase-2-store-design.md) |
+| **3** | Automation: watcher, dedup, retention | **Next** | [phase-3-automation.md](phase-3-automation.md) |
 | 4 | CLI shell | Not started | sketched below |
 | 5 | WPF shell | Not started | sketched below |
 | 6 | Plugin tiers | Not started | sketched below |
@@ -87,13 +87,16 @@ did not write.
 
 ## Phase 3 — Automation: watcher, dedup, retention
 
-**Depends on:** phase 2.
+**Depends on:** phase 2. ✅ **Planned in detail** —
+[phase-3-automation.md](phase-3-automation.md).
 
 [[ADR-007]] made real. `FileSystemWatcher` on `LocalState`, ~60s debounce, at most one
-automatic snapshot per hour, dedup by `settingsSha256`, capture on shutdown, prune to the
-configured count — **never pruning manual or pre-restore snapshots**.
+automatic snapshot per hour, dedup by `settingsSha256` (recorded in phase 2, consulted here
+for the first time), capture on shutdown, prune to the configured count — **never pruning
+manual or pre-restore snapshots**.
 
-This is the phase that turns the fork into a different product.
+This is the phase that turns the fork into a different product. Everything before it, a person
+could do by hand.
 
 **Exits when** the app can run unattended for a week, capture every distinct configuration,
 store no duplicates, and prune correctly.
