@@ -39,19 +39,17 @@ filename regex that defines what counts as a managed backup. Fixing one without 
 leaves restore refusing its own files.
 **Resolution:** [[ADR-003]]. Due in phase 2.
 
-### 1.2 `Serialize` uses the default JSON encoder
+### 1.2 ~~`Serialize` uses the default JSON encoder~~ — **NOT DEBT. Withdrawn 2026-08-16.**
 
-`JsonSerializer.SerializeToUtf8Bytes(root, new JsonSerializerOptions { WriteIndented = true })`
-sets no `Encoder`, so the default escapes `+` and `/` to `\uXXXX`. Those characters are
-everywhere in the base64 `ParameterState` inside `AudioPluginConfigurations`.
+Measured against the live file: **Wave Link writes with the default encoder**, and upstream's
+call reproduces its output byte for byte (43,052 → 43,052, identical). Setting
+`UnsafeRelaxedJsonEscaping` as previously planned would have shrunk the file by 1,411 bytes
+and made every snapshot differ from the app's own output — causing the churn this entry
+existed to prevent.
 
-Output stays valid and Wave Link accepts it, which is exactly why this survives unnoticed —
-the cost is that every save rewrites bytes it never intended to touch, and diffs between
-snapshots become useless.
-
-**Severity:** low impact, trivial fix, high annoyance if it ships.
-**Fix:** set `JavaScriptEncoder.UnsafeRelaxedJsonEscaping`. Due in phase 1.
-**See:** [[every-snapshot-differs-with-no-real-change]].
+**No action. Do not "fix" the encoder.** Kept here, struck through rather than deleted, so the
+idea is not re-derived from the spec body and re-adopted.
+**See:** [[every-snapshot-differs-with-no-real-change]] and the audit's withdrawn finding 2.
 
 ### 1.3 No duplicate-key detection
 
@@ -92,14 +90,22 @@ interop needs verification under AOT). Due in phase 7; the NativeAOT option is p
 Things the design rests on that **nobody has checked**. Each one, if wrong, invalidates real
 work — so each has a cheap check attached and an owner phase.
 
-### 2.1 Whether `JsonNode.Parse` collapses duplicate keys
+### 2.1 ~~Whether `JsonNode.Parse` collapses duplicate keys~~ — **ANSWERED 2026-08-16**
 
-Both answers cost something and they are opposite: if it collapses, a round-trip **silently
-drops data**; if it does not, duplicates **survive into the written file** and the app rejects
-it. The upstream's edit path uses `JsonNode`, so this is load-bearing for any repair feature.
+The question was mis-framed; neither offered answer was right. It depends on the kind of
+duplicate:
 
-**Check:** parse a hand-written fixture with `{"A":1,"a":2}` and inspect. Ten minutes.
-**Blocks:** §1.3. **Phase:** 1.
+| Input | `JsonDocument` | `JsonNode.Parse` |
+|---|---|---|
+| `{"A":1,"a":2}` — case-insensitive, *the actual defect* | preserves both | **preserves both**, round-trips intact |
+| `{"A":1,"A":2}` — exact duplicate | preserves both; `GetProperty` returns the **last** | **throws `ArgumentException`** |
+
+**No silent data loss** — the feared outcome is not real. §1.3's fix proceeds unchanged.
+
+**New, smaller debt this uncovered:** any `JsonNode.Parse` of an untrusted settings file can
+throw `ArgumentException` from a dictionary insert. Unhandled, the user sees "An item with the
+same key has already been added. Key: A" instead of "this settings file is malformed". Catch
+and translate. **Phase:** 1.
 
 ### 2.2 Whether non-MSIX Wave Link installs exist
 
@@ -133,6 +139,15 @@ and `[ComImport]` need care. If it does not survive, the NativeAOT CLI option in
 evaporates and the answer there is forced.
 
 **Phase:** 7, but cheap to check earlier and worth doing before the §1.5 decision is framed.
+
+> **Related signal, 2026-08-16.** The phase-1 probe ran as a .NET 10 file-based app, which
+> defaults to trimming-friendly settings, and reflection-based `JsonSerializer` threw
+> `InvalidOperationException: Reflection-based serialization has been disabled`. That is not a
+> product bug — but it is the same constraint AOT imposes. **`Core` should avoid
+> reflection-based serialization regardless of the AOT decision**, using `JsonDocument`,
+> `JsonNode` and `Utf8JsonWriter` (all reflection-free) rather than
+> `JsonSerializer.Serialize<T>`. Doing that from the start keeps §1.5's NativeAOT option open
+> at no cost; discovering it in phase 7 would mean rewriting the manifest layer.
 
 ---
 

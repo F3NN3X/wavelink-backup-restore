@@ -51,18 +51,18 @@ premise.
 
 ## Work
 
-### 1 · Settle the `JsonNode.Parse` question first
+### 1 · ~~Settle the `JsonNode.Parse` question~~ — **DONE 2026-08-16**
 
-**Ten minutes, and it blocks the design of everything below it.** Parse a fixture containing
-`{"A":1,"a":2}` with `JsonNode.Parse` and inspect the result.
+Answered by probe before this phase started; see
+[the session note](../sessions/2026-08-16-phase-1-probe.md). The question was mis-framed —
+behaviour depends on the kind of duplicate:
 
-- **If it collapses duplicates**, upstream's edit path silently drops data, and no `JsonNode`
-  round-trip may ever touch a real settings file.
-- **If it does not**, duplicates survive into the written file and Wave Link rejects it.
+| Input | `JsonDocument` | `JsonNode.Parse` |
+|---|---|---|
+| `{"A":1,"a":2}` — case-insensitive, *the defect* | preserves both | **preserves both** |
+| `{"A":1,"A":2}` — exact duplicate | preserves both; `GetProperty` returns the **last** | **throws `ArgumentException`** |
 
-Opposite failures, both bad, and the code reads identically either way. Record the answer in
-[technical-debt.md](../technical-debt.md) §2.1 and in a test that fails if the behaviour ever
-changes.
+**Carry both into tests**, so a future runtime change is caught rather than assumed.
 
 ### 2 · Discovery
 
@@ -95,7 +95,14 @@ Three checks, in increasing order of what they catch:
    grouping names with `StringComparer.OrdinalIgnoreCase`.
 
 Check 3 is upstream finding 3 and the original incident ([[file-parses-but-wave-link-resets]]).
-It must use `JsonDocument` specifically — `JsonNode` and `ConvertFrom-Json` cannot see it.
+It must use `JsonDocument` specifically — `JsonNode` preserves such duplicates silently and
+round-trips them straight back into a file Wave Link will reject, and `ConvertFrom-Json`
+collapses them.
+
+**Plus finding 3b:** wrap any `JsonNode.Parse` of an untrusted settings file in a `try`. Exact
+duplicates throw `ArgumentException` from a dictionary insert, and unhandled the user sees
+*"An item with the same key has already been added. Key: A"* instead of *"this settings file
+is malformed"*. Translate it.
 
 Validation **reports**; it never modifies. A file that fails check 3 is flagged suspect, not
 rejected: a suspect snapshot may be the only one there is.
@@ -110,18 +117,46 @@ capture, and sufficient to distinguish a real configuration from a collapsed one
 the fingerprint and a *comparison against a previous fingerprint*; it must not expose a
 `bool IsHealthy` computed against a constant.
 
-### 5 · Byte-faithful reads, and upstream finding 2
+### 5 · Byte-faithful reads
 
 **Capture is a byte copy.** Hash the source bytes, write the source bytes — no parse, no
 serialize. Parsing exists for validation and the fingerprint, and its output is metadata,
 never a file.
 
-Where a rewrite is genuinely needed later, `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` is
-mandatory, or `+` and `/` in every `ParameterState` get rewritten
-([[every-snapshot-differs-with-no-real-change]]).
+> **Do not set `UnsafeRelaxedJsonEscaping`.** Upstream finding 2 recommended it and was
+> **withdrawn 2026-08-16**: Wave Link writes with the *default* encoder, so applying the
+> "fix" makes our output differ from the app's by 1,411 bytes and breaks dedup — the exact
+> problem it was meant to solve. Where a rewrite is genuinely needed later, match Wave Link:
+> default encoder, `WriteIndented = true`, verified byte-identical against an unmodified
+> source. See [[every-snapshot-differs-with-no-real-change]].
 
-**Test:** a fixture with `+` and `/` in a `ParameterState`, asserting captured bytes are
-identical to source bytes. One line, and it would have caught upstream's defect on day one.
+**Also: no reflection-based `JsonSerializer` anywhere in `Core`.** Use `JsonDocument`,
+`JsonNode` and `Utf8JsonWriter`. This keeps the NativeAOT option open at no cost
+([technical-debt.md](../technical-debt.md) §2.4).
+
+**Test:** a fixture with `+` inside a `ParameterState`, asserting captured bytes are identical
+to source bytes.
+
+### 5b · Shared-mode reads — one seam, no exceptions
+
+`Settings.json` is **locked while Wave Link runs**, which is when most captures happen.
+`File.ReadAllBytes` fails with "being used by another process"
+([[capture-fails-while-wave-link-is-running]]).
+
+Exactly one function reads settings bytes:
+
+```csharp
+using var fs = new FileStream(path, FileMode.Open, FileAccess.Read,
+                              FileShare.ReadWrite | FileShare.Delete);
+```
+
+`File.ReadAllBytes` and `File.ReadAllText` must not appear in `Core` against this path. A
+source scan in CI is crude and catches the reintroduction — which CI otherwise cannot, since
+Wave Link will not be running there.
+
+A single read is **not atomic** against Wave Link's own save, so a capture can catch a torn
+file. Treat a parse failure on a freshly-read file as "retry once", distinct from "this
+config is broken".
 
 ### 6 · Process lifecycle
 

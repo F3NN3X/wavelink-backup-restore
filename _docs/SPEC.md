@@ -16,6 +16,40 @@ inspection on a real machine on 2026-08-15. Where something is a *recommendation
 rather than a *finding*, it says so. Provenance notes are at the bottom — read them
 before treating any number as a constant.
 
+> ## ⚠ Corrections — measured 2026-08-16
+>
+> The spec body below is left **unedited**, as the record of what was believed on 2026-08-15.
+> These three points were tested against the live `Settings.json` a day later and did not
+> survive. Where the body and this block disagree, **this block is right.**
+>
+> **1 · §5 and §7·2 — the `UnsafeRelaxedJsonEscaping` recommendation is inverted. Do not
+> apply it.** Wave Link writes its own file with `System.Text.Json`'s **default** encoder and
+> `WriteIndented`; a default round-trip reproduces it byte for byte (43,052 → 43,052,
+> identical). The relaxed encoder *un-escapes* what Wave Link deliberately wrote, shrinking
+> the file to 41,641 bytes and making every snapshot differ from the app's own output —
+> causing the exact diff churn the recommendation was meant to prevent. Upstream's default
+> encoder is therefore **correct as written**, and audit finding 2 is downgraded to a
+> non-issue. The default escapes only `+` (to its six-character JSON escape for U+002B); it
+> does **not** escape `/`, contrary to the body.
+> See [[every-snapshot-differs-with-no-real-change]].
+>
+> **2 · §7·3 — the `JsonNode` duplicate-key question is answered, and it was mis-framed.**
+> Neither option was right. `JsonNode.Parse` **preserves** case-insensitive duplicates
+> (`{"A":1,"a":2}` → both survive, round-tripping intact) and **throws `ArgumentException`**
+> on exact duplicates (`{"A":1,"A":2}`). `JsonDocument` preserves both forms, with
+> `GetProperty` returning the last. So there is no silent data loss — but any edit path needs
+> to catch that exception rather than let a dictionary error propagate.
+> See [[file-parses-but-wave-link-resets]].
+>
+> **3 · Missing from §1 and §4 — `Settings.json` is locked while Wave Link runs.**
+> `File.ReadAllBytes` fails with "being used by another process" on every capture taken while
+> the app is open, which is most of them. Reads must specify
+> `FileShare.ReadWrite | FileShare.Delete`. Not a transient write window — it is the app's
+> steady state. See [[capture-fails-while-wave-link-is-running]].
+>
+> The live file was re-checked at the same time and remains clean: 5 inputs, no duplicate
+> keys, 43,052 bytes.
+
 | | |
 |---|---|
 | **Package family** | `Elgato.WaveLink_g54w8ztgkx496` |

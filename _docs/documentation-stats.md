@@ -25,11 +25,11 @@ Update this file **in the same commit** as the document it counts. See
 | Artifact | Count |
 |---|---|
 | ADRs | 8 |
-| Gotchas | 8 |
+| Gotchas | 9 |
 | Patterns | 0 |
 | Recipes | 1 |
 | Audits | 1 |
-| Sessions | 1 |
+| Sessions | 2 |
 | Dev-phase documents | 3 (of 8 phases; 5 remain sketched in the index) |
 | Tests | 0 |
 
@@ -44,6 +44,44 @@ aspiration ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### v0.0.2 — Probe corrections (2026-08-16)
+
+A ten-minute probe run before designing phase 1 answered one open question and **invalidated
+two documented decisions**. The doc-ecosystem effect is mostly *subtractive*, which is unusual
+enough to note.
+
+**Added**
+
+- Gotcha 9 — [[capture-fails-while-wave-link-is-running]]. `Settings.json` is locked while
+  Wave Link runs; `File.ReadAllBytes` fails on most captures. Not in `SPEC.md` at all.
+- Session note — [phase-1 probe](sessions/2026-08-16-phase-1-probe.md).
+- `LICENSE` at the repo root (MIT, upstream's copyright line verbatim).
+- A **Corrections block** at the top of `SPEC.md`. The body is left unedited on purpose: it is
+  the record of what was believed on 2026-08-15, and rewriting it would destroy the thing that
+  makes the corrections legible.
+
+**Withdrawn**
+
+- **Audit finding 2 (JSON encoder)** — struck through, not deleted, in the audit,
+  `technical-debt.md` §1.2 and `SPEC.md`. Wave Link writes with the *default* encoder;
+  the recommended `UnsafeRelaxedJsonEscaping` would have caused the churn it was meant to
+  prevent. A wrong recommendation that merely disappears gets re-derived by the next reader.
+
+**Resolved**
+
+- `technical-debt.md` §2.1 (`JsonNode.Parse` duplicates) — answered, and the question was
+  mis-framed. New sub-finding 3b recorded instead.
+
+**Rewritten**
+
+- [[every-snapshot-differs-with-no-real-change]] — same symptom, opposite cause. The
+  superseded version's `Provenance: read, not reproduced` line is what made this catchable.
+
+**Counts moved:** gotchas 8 → 9 · sessions 1 → 2. Audit findings: 5 → 4 actionable, plus one
+new sub-finding and one disputed.
+
+---
 
 ### v0.0.1 — Documentation scaffold (2026-08-16)
 

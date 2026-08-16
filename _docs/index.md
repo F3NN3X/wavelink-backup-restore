@@ -35,11 +35,16 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phase 0 — Foundation.** No application code exists yet. The specification, the design and
-this documentation system are complete; the fork has been read and audited but not taken.
+**Phase 0 — Foundation.** No application code exists yet. The specification, the design, the
+documentation system and `LICENSE` are done; the fork has been read and audited but not taken.
 
 See [dev-phases/phase-0-foundation.md](dev-phases/phase-0-foundation.md) for what closes this
 phase.
+
+> **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three
+> of its claims were measured against a live install on 2026-08-16 and did not survive — most
+> importantly the JSON encoder recommendation in §5 and §7·2, which is **inverted** and would
+> cause the problem it describes. The spec body is left deliberately unedited.
 
 ---
 
@@ -63,7 +68,7 @@ follow from them.
 
 ## Gotchas
 
-Eight ways this goes wrong. Titled by symptom, because that is what you will be searching
+Nine ways this goes wrong. Titled by symptom, because that is what you will be searching
 for at the time.
 
 | Symptom | Gotcha |
@@ -72,6 +77,7 @@ for at the time.
 | The file parses fine but Wave Link resets to defaults | [file-parses-but-wave-link-resets.md](knowledge-base/gotchas/file-parses-but-wave-link-resets.md) |
 | Restoring the newest backup restores the broken config | [newest-backup-is-the-broken-one.md](knowledge-base/gotchas/newest-backup-is-the-broken-one.md) |
 | Every snapshot differs from the last, and diffs are useless | [every-snapshot-differs-with-no-real-change.md](knowledge-base/gotchas/every-snapshot-differs-with-no-real-change.md) |
+| Capture fails with "being used by another process" | [capture-fails-while-wave-link-is-running.md](knowledge-base/gotchas/capture-fails-while-wave-link-is-running.md) |
 | The restore writes cleanly, then the old settings come back | [restored-settings-revert-seconds-later.md](knowledge-base/gotchas/restored-settings-revert-seconds-later.md) |
 | The plugin is restored but refuses to run | [restored-plugin-demands-a-licence.md](knowledge-base/gotchas/restored-plugin-demands-a-licence.md) |
 | A plugin backs up as zero bytes | [vst3-backs-up-as-nothing.md](knowledge-base/gotchas/vst3-backs-up-as-nothing.md) |
@@ -99,6 +105,7 @@ for at the time.
 
 | Date | Session |
 |---|---|
+| 2026-08-16 | [Phase-1 probe — three documented decisions overturned](sessions/2026-08-16-phase-1-probe.md) |
 | 2026-08-16 | [Documentation scaffold](sessions/2026-08-16-documentation-scaffold.md) |
 
 ---

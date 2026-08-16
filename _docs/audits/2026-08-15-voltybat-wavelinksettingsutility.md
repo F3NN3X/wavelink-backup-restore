@@ -10,9 +10,14 @@ tags: [audit, upstream]
 # Audit: `voltybat/WaveLinkSettingsUtility`
 
 **Audited:** 2026-08-15 · **Subject:** `main`, pushed 2026-07-19 · **Licence:** MIT
-**Method:** source read directly, **not** inferred from the README. Nothing below was
-reproduced at runtime — every finding is a reading of code. Two are flagged where that
-distinction changes what you should do.
+**Method:** source read directly, **not** inferred from the README. Nothing was reproduced at
+runtime — every finding was a reading of code.
+
+> **Partially re-verified 2026-08-16.** Findings 2 and 3 were tested against a live
+> `Settings.json`. **Finding 2 was wrong and is withdrawn**; its proposed fix would have caused
+> the problem it described. Finding 3's open question is answered, and was mis-framed. One
+> claim in finding 5 is now in doubt — upstream's README contradicts it. The unreproduced
+> findings are the ones that failed, which is the whole argument for the provenance labels.
 
 **Verdict: fork it.** ~60 KB of source with ~30 KB of tests, solving several problems that are
 tedious to get right and boring to get wrong. Five defects, one of them critical and structural.
@@ -62,23 +67,49 @@ refusing its own files, because the regex no longer matches. All three change to
 the guard becomes "this directory contains a manifest we wrote whose hashes match".
 **Phase 2.**
 
-### 2 · `Serialize` uses the default JSON encoder
+### 2 · ~~`Serialize` uses the default JSON encoder~~ — **WITHDRAWN 2026-08-16**
+
+> **This finding was wrong, and the fix it proposed would have caused the problem it
+> described.** Retained rather than deleted, because the reasoning is a trap a future reader
+> will fall into independently.
+
+**What was claimed.** Upstream writes:
 
 ```csharp
 JsonSerializer.SerializeToUtf8Bytes(root, new JsonSerializerOptions { WriteIndented = true });
 ```
 
-No `Encoder` set, so the default escapes `+` and `/` to `\uXXXX`. Those characters are
-everywhere in the base64 `ParameterState` inside `AudioPluginConfigurations`.
+No `Encoder` is set, so the default escapes `+` in the base64 `ParameterState` values inside
+`AudioPluginConfigurations`. The audit concluded that every save therefore rewrites bytes it
+never intended to touch, making snapshot diffs useless, and recommended
+`JavaScriptEncoder.UnsafeRelaxedJsonEscaping`.
 
-Output stays valid and Wave Link accepts it — which is why this survives unnoticed. The cost
-is that every save rewrites bytes it never intended to touch, and diffs between snapshots
-become useless.
+**What is actually true**, measured against the live `Settings.json` on 2026-08-16:
 
-**Severity:** low impact, two-line fix, high annoyance if it ships.
-**Fix:** `Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping`. **Phase 1.**
-**Worth offering upstream** — it is small, self-contained and benefits them equally.
+```
+original file                          43,052 bytes
+round-trip, default encoder            43,052 bytes   identical = True
+round-trip, UnsafeRelaxedJsonEscaping   41,641 bytes   identical = False
+```
+
+**Wave Link itself writes with the default encoder.** Its file already contains those escapes.
+Upstream's call reproduces Wave Link's output byte for byte — including indentation — and is
+**correct as written**. Applying the recommended fix would have un-escaped 13 sequences,
+shrunk the file by 1,411 bytes, and made every snapshot differ from the app's own output:
+precisely the churn the finding was worried about.
+
+Two secondary errors in the original claim: the default escapes only `+` (not `/`), and
+"everywhere" overstates it — 13 occurrences in a 43 KB file with an 11-effect chain.
+
+**Severity:** none. No action. **Do not offer this upstream.**
+**Where this leaves the real rule:** capture copies bytes and never re-serializes at all, which
+was always the correct design and is now better supported.
 See [[every-snapshot-differs-with-no-real-change]].
+
+**Why the audit got it wrong:** the finding was read off source and reasoned about from the
+`System.Text.Json` documentation, never executed against a real file — and the missing step
+was checking what the *other* program's serializer does. A claim about round-trip fidelity is
+a claim about two serializers agreeing, and only one of them was examined.
 
 ### 3 · No duplicate-key detection
 
@@ -88,16 +119,24 @@ which Wave Link's own `SettingsJsonNormalizer` rejects outright, resetting to de
 
 **Severity:** high. It is the original incident ([[file-parses-but-wave-link-resets]]).
 
-> **Open question, and it must be settled empirically before relying on either answer.**
-> Upstream's edit path uses `JsonNode.Parse`. Does it collapse duplicates?
+> **~~Open question~~ — ANSWERED 2026-08-16, and it was mis-framed.** The question was whether
+> `JsonNode.Parse` collapses duplicates. Neither offered answer was right: **it depends on
+> which kind of duplicate.**
 >
-> - **If it collapses them:** a round-trip **silently drops data**.
-> - **If it does not:** duplicates **survive into the written file** and the app rejects it.
+> | Input | `JsonDocument` | `JsonNode.Parse` |
+> |---|---|---|
+> | `{"A":1,"a":2}` — case-insensitive, *the actual defect* | preserves both | **preserves both**, round-trips intact |
+> | `{"A":1,"A":2}` — exact duplicate | preserves both; `GetProperty` returns the **last** | **throws `ArgumentException`** |
 >
-> Opposite failures, both bad, and the code reads the same either way. Ten-minute check with a
-> `{"A":1,"a":2}` fixture. Tracked in [technical-debt.md](../technical-debt.md) §2.1.
+> **No silent data loss either way** — which was the feared outcome, and it is not real. But
+> upstream's edit path will **hard-crash** on a file with exact duplicates, surfacing a
+> dictionary's `ArgumentException` rather than "this settings file is malformed". That is a
+> new, smaller finding this question uncovered.
 
-**Fix regardless of that answer:** add the `JsonDocument` tree walk. **Phase 1.**
+**Fix, unchanged by that answer:** add the `JsonDocument` tree walk, since `JsonNode`'s
+preservation of case-insensitive duplicates means they reach the written file and Wave Link
+rejects it. **Additionally** catch `ArgumentException` around any `JsonNode.Parse` of an
+untrusted settings file. **Phase 1.**
 
 ### 4 · It is a manual tool, not a safety net
 
@@ -127,10 +166,17 @@ verification). [[ADR-004]] preserves the AOT option by keeping the CLI in its ow
 | # | Finding | Severity | Resolution | Phase |
 |---|---|---|---|---|
 | 1 | Backups inside `LocalState` | **Critical** | [[ADR-003]] | 2 |
-| 2 | Default JSON encoder mangles base64 | Low | Set `UnsafeRelaxedJsonEscaping` | 1 |
-| 3 | No duplicate-key detection | **High** | `JsonDocument` walk; §2.1 first | 1 |
+| 2 | ~~Default JSON encoder mangles base64~~ | ~~Low~~ **Withdrawn** | None — upstream is correct | — |
+| 3 | No duplicate-key detection | **High** | `JsonDocument` walk | 1 |
+| 3b | `JsonNode.Parse` throws on exact duplicates | Low | Catch, report as malformed | 1 |
 | 4 | Manual only — no watcher or dedup | By design | [[ADR-007]] | 3 |
-| 5 | Runtime dependency despite single-file | Moderate | Open | 7 |
+| 5 | Runtime dependency despite single-file | Moderate | **Claim disputed** — verify at intake | 7 |
+
+> **Finding 5 needs re-checking.** The audit read `PublishSingleFile` with
+> `SelfContained=false` off the csproj. Upstream's README states the tool "requires neither
+> administrator access nor a separately installed .NET runtime" — which contradicts it. Either
+> the README overclaims, the csproj changed after 2026-07-19, or the audit misread. Resolve
+> during fork intake and correct whichever is wrong.
 
 Ongoing status lives in [technical-debt.md](../technical-debt.md) §1. When a finding is
 resolved, record the resolution **here as well** — this audit is the reconciliation point if
@@ -138,9 +184,12 @@ the two codebases are ever compared.
 
 ## Obligations
 
-MIT requires attribution. Preserve the licence and copyright notice, name the upstream in the
-root `README.md`, and offer findings 2 and 3 back as patches — both are small, self-contained
-and improve upstream without changing what it is.
+MIT requires attribution. Preserve the licence and copyright notice, and name the upstream in
+the root `README.md`. **Done** — `LICENSE` carries their copyright line verbatim.
+
+**Offer finding 3 back** as a patch: it is small, self-contained, and improves upstream without
+changing what it is. **Do not offer finding 2** — it was withdrawn, and the patch would have
+introduced a bug.
 
 ## References
 
