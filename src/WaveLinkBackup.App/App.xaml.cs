@@ -16,6 +16,7 @@ using WaveLinkBackup.Core.Abstractions;
 using WaveLinkBackup.Core.Automation;
 using WaveLinkBackup.Core.Discovery;
 using WaveLinkBackup.Core.Io;
+using WaveLinkBackup.Core.Process;
 using WaveLinkBackup.Core.Snapshots;
 
 namespace WaveLinkBackup.App;
@@ -45,6 +46,7 @@ public partial class App : Application
     private BackupHost? host;
     private BackupService? service;
     private SnapshotStore? store;
+    private IWaveLinkProcess? waveLinkProcess;
     private TaskbarIcon? tray;
     private ContextMenu? trayMenu;
     private System.Drawing.Icon? trayIcon;
@@ -113,7 +115,7 @@ public partial class App : Application
 
         settings = arguments.ApplyTo(settingsRepository.Read());
 
-        (host, service, store) = Compose(fileSystem, settings);
+        (host, service, store, waveLinkProcess) = Compose(fileSystem, settings);
         host.AutoBackupEnabled = settings.AutoBackupEnabled;
         host.Start();
 
@@ -145,8 +147,8 @@ public partial class App : Application
         RefreshTray();
     }
 
-    private static (BackupHost Host, BackupService Service, SnapshotStore Store) Compose(
-        IFileSystem fileSystem, BackupSettings settings)
+    private static (BackupHost Host, BackupService Service, SnapshotStore Store, IWaveLinkProcess WaveLinkProcess)
+        Compose(IFileSystem fileSystem, BackupSettings settings)
     {
         var clock = new SystemClock();
         var inspector = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData);
@@ -166,7 +168,7 @@ public partial class App : Application
         var coordinator = new AutoBackupCoordinator(
             new FileSystemSettingsWatcher(watchPath), service, clock);
 
-        return (new BackupHost(coordinator, clock), service, store);
+        return (new BackupHost(coordinator, clock), service, store, new WaveLinkProcess());
     }
 
     private TaskbarIcon BuildTray()
