@@ -464,6 +464,26 @@ its own rule violation; nothing had been built against it, so the correction cos
 **Not closed:** Windows high-contrast mode, and item 6. See §7 for the four decisions that
 outdated shipped code.
 
+### 4.7 There is no icon set — **open, 2026-08-17**
+
+`README.md` §icons says the prototype's glyphs are *"hand-drawn monoline SVG stand-ins in the
+Lucide idiom (1.75px stroke, 24px grid). Substitute the codebase's real icon set at the same
+weight and size."*
+
+**There is no real icon set.** `operations/design/assets/` holds two F3NN3X marks and nothing
+else, and the design names eleven Lucide glyphs it expects to exist — `shield-check`,
+`download`, `rotate-ccw`, `pencil`, `trash-2`, `search`, `settings`, `folder`,
+`alert-triangle`, `check-circle`, `chevron-down`.
+
+This surfaces first in the tray, whose four states are shield + check / down arrow /
+exclamation / slash, and which cannot ship as four `.ico` files because `11-high-contrast.md`
+requires the icon to follow the *system* contrast. Plan 2 therefore draws the shield to the
+24px grid and renders it at runtime.
+
+**The deferred part is the asset, not the mechanism.** The renderer takes geometry and a
+colour; substituting real Lucide path data is a data change. Recorded because a hand-drawn
+stand-in that works is exactly the kind of thing that quietly becomes permanent.
+
 ---
 
 ## 5 · Numbers that are not constants
