@@ -147,6 +147,82 @@ public sealed class MainWindowTemplateTests
         Assert.True(unknown.Length == 0, $"Not theme brushes: {string.Join(", ", unknown)}");
     }
 
+    // 10b fix: each date group's Rows is now hosted by a real ListBox (Selector), not a
+    // hand-placed ListBoxItem per row in a plain ItemsControl - that is what gives arrow-key
+    // selection movement and Selector.SelectedItem back. ItemContainerStyle is what makes
+    // WlRowTemplate (RowStyles.xaml) generate the actual row containers.
+    [Fact]
+    public void The_row_list_is_a_real_ListBox_using_the_row_template_as_its_container_style()
+    {
+        var xaml = MainWindowXaml();
+
+        Assert.Contains("<ListBox ItemsSource=\"{Binding Rows}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("ItemContainerStyle=\"{StaticResource WlRowTemplate}\"", xaml, StringComparison.Ordinal);
+    }
+
+    // The exact binding the fix brief specifies - reaching the shared ShellViewModel.List.Selected
+    // from inside the group DataTemplate's own DataContext (a Row, then a DateGroup) via the
+    // window's own DataContext, two-way so a click OR an arrow-key move writes back through it.
+    [Fact]
+    public void The_row_lists_SelectedItem_is_two_way_bound_to_the_shared_selection()
+    {
+        Assert.Contains(
+            "SelectedItem=\"{Binding DataContext.List.Selected, "
+                + "RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}\"",
+            MainWindowXaml(), StringComparison.Ordinal);
+    }
+
+    // "No border, no background, no focus rectangle of its own - the row template owns the whole
+    // visual." A regression here would show a second, ListBox-drawn selection/focus chrome
+    // wrapped around WlRowTemplate's own.
+    [Fact]
+    public void The_row_list_carries_none_of_its_own_default_chrome()
+    {
+        var listBoxTag = Regex.Match(
+            MainWindowXaml(), "<ListBox ItemsSource=\"\\{Binding Rows\\}\".*?>", RegexOptions.Singleline).Value;
+
+        Assert.Contains("BorderThickness=\"0\"", listBoxTag, StringComparison.Ordinal);
+        Assert.Contains("Background=\"Transparent\"", listBoxTag, StringComparison.Ordinal);
+        Assert.Contains("FocusVisualStyle=\"{x:Null}\"", listBoxTag, StringComparison.Ordinal);
+    }
+
+    // Per-row virtualization, restored: a VirtualizingStackPanel inside the ListBox itself (one
+    // per group, alongside GroupsHost's own group-level VirtualizingStackPanel), with
+    // CanContentScroll left True so the panel keeps hooking up as a real IScrollInfo provider
+    // rather than measuring every row unconditionally.
+    [Fact]
+    public void The_row_list_virtualizes_with_content_scrolling_enabled()
+    {
+        var xaml = MainWindowXaml();
+
+        Assert.Equal(2, Regex.Matches(xaml, "<VirtualizingStackPanel />").Count);
+        Assert.Contains("ScrollViewer.CanContentScroll=\"True\"", xaml, StringComparison.Ordinal);
+    }
+
+    // The old hand-placed structure (task-10b-report.md's own documented deviation) is gone, not
+    // just superseded - a leftover bare ListBoxItem or the manual click handler would mean the fix
+    // was layered on top of the old approach rather than replacing it.
+    [Fact]
+    public void The_hand_placed_row_and_its_click_handler_are_gone()
+    {
+        Assert.DoesNotContain("<ListBoxItem", MainWindowXaml(), StringComparison.Ordinal);
+        Assert.DoesNotContain("PreviewMouseLeftButtonDown", MainWindowXaml(), StringComparison.Ordinal);
+        Assert.DoesNotContain("Row_PreviewMouseLeftButtonDown", MainWindowCodeBehind(), StringComparison.Ordinal);
+    }
+
+    // The selected-row expansion moved into WlRowTemplate (RowStyles.xaml) - it must not still be
+    // sitting in MainWindow.xaml as well, which would mean it renders twice or the move never
+    // actually happened.
+    [Fact]
+    public void The_selected_row_expansion_no_longer_lives_in_MainWindow_xaml()
+    {
+        var xaml = MainWindowXaml();
+
+        Assert.DoesNotContain("DamagedSentence", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("DamagedDetail", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("DetailFileName", xaml, StringComparison.Ordinal);
+    }
+
     // The four ListState-driven regions the brief's Step 4 asks for. A source-text check rather
     // than a rendered-visibility check (that is MainWindowListStateTests' job) - this one just
     // proves each state is actually WIRED to something, not left out by a typo in the Value.

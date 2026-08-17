@@ -317,9 +317,19 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
+                    <!--
+                      RowSurface now wraps TWO stacked children instead of one: the row's own
+                      content Grid, and the selected-row expansion below it (10b fix). Both share
+                      RowSurface's own Padding="20,15" (left/right 20, top/bottom 15) since they
+                      are siblings inside the SAME Border - which is exactly "a second Grid.Row
+                      inside the same WlCard block" the brief asks for, now that the expansion
+                      lives here instead of being a separate Border bolted on beside a hand-placed
+                      ListBoxItem in MainWindow.xaml.
+                    -->
                     <Border x:Name="RowSurface" Background="Transparent" BorderBrush="Transparent"
                             BorderThickness="3,0,0,0" Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
+                        <StackPanel>
                         <Grid VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" MinWidth="200" SharedSizeGroup="WlColName" />
@@ -491,6 +501,73 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Style="{StaticResource WlBodyText}" Foreground="{DynamicResource WlMuted}" />
                         </Grid>
+
+                        <!--
+                          The selected-row expansion. Collapsed by default; the plain
+                          IsSelected="True" Trigger below (declared where it already lives, among
+                          the health/selection triggers - no NEW trigger, just one more Setter on
+                          an existing one) flips it to Visible. DamagedBlock, likewise, is
+                          Collapsed by default and is flipped to Visible by an extra Setter on the
+                          existing IsDamaged DataTrigger below - safe to fire regardless of
+                          selection, since Visibility="Collapsed" on ExpansionRow itself already
+                          removes DamagedBlock from layout and rendering whenever the row is not
+                          selected.
+
+                          Margin="0,8,0,0": only a top gap between the row's own content and the
+                          expansion is added here - left/right/bottom all reuse RowSurface's own
+                          inherited Padding="20,15" rather than re-adding the brief's literal
+                          Padding="0,0,20,16" on top of it. That literal number assumed a
+                          padding-less ambient container (the expansion used to be a separate
+                          Border, a sibling of the hand-placed ListBoxItem, with no ambient inset
+                          of its own); inside RowSurface it would double the right inset to 40px
+                          and misalign the left edge with the row's own 20px-inset content, the
+                          same problem task-10b-report.md already flagged when it chose left=20
+                          over the brief's literal left=0. Bottom ends up 15px (RowSurface's own),
+                          a single pixel short of the brief's 16 - not worth a bespoke value for.
+                        -->
+                        <Grid x:Name="ExpansionRow" Visibility="Collapsed" Margin="0,8,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- A damaged selected row additionally shows the sentence and the
+                                 manifest-vs-actual readout above the detail line (02). -->
+                            <StackPanel x:Name="DamagedBlock" Grid.Row="0" Margin="0,0,0,8"
+                                        Visibility="Collapsed">
+                                <TextBlock Text="{Binding DamagedSentence}"
+                                           Style="{StaticResource WlBodyText}"
+                                           Foreground="{DynamicResource WlText}"
+                                           MaxWidth="660" HorizontalAlignment="Left"
+                                           Margin="0,0,0,8" />
+                                <TextBlock Text="{Binding DamagedDetail}"
+                                           Style="{StaticResource WlMonoMetaText}"
+                                           Foreground="{DynamicResource WlMuted}" />
+                            </StackPanel>
+
+                            <!-- DetailLine on the left, DetailFileName right-aligned at 75%
+                                 opacity, a 1px hairline filling the middle (brief, Step 4). -->
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="{Binding DetailLine}"
+                                           Style="{StaticResource WlMonoMetaText}"
+                                           Foreground="{DynamicResource WlMuted}"
+                                           VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Height="1" Margin="12,0"
+                                        VerticalAlignment="Center"
+                                        Background="{DynamicResource WlLine}" />
+                                <TextBlock Grid.Column="2" Text="{Binding DetailFileName}"
+                                           Style="{StaticResource WlMonoMetaText}"
+                                           Foreground="{DynamicResource WlMuted}"
+                                           Opacity="0.75" VerticalAlignment="Center" />
+                            </Grid>
+                        </Grid>
+                        </StackPanel>
                     </Border>
 
                     <ControlTemplate.Triggers>
@@ -502,6 +579,10 @@
                             <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlCard}" />
                             <Setter TargetName="RowSurface" Property="BorderBrush" Value="{DynamicResource WlAccent}" />
                             <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlStrong}" />
+                            <!-- 10b fix: the expansion shows only on the selected row - this is
+                                 the container's own real IsSelected (a Selector-managed DP once a
+                                 real ListBox generates this container), not a data-bound copy. -->
+                            <Setter TargetName="ExpansionRow" Property="Visibility" Value="Visible" />
                         </Trigger>
 
                         <!-- Health outranks selection - declared after IsSelected so it wins when both are true. -->
@@ -517,6 +598,10 @@
                             <Setter TargetName="TakenDateText" Property="Foreground" Value="{DynamicResource WlMuted}" />
                             <Setter TargetName="TakenDateText" Property="Opacity" Value="0.7" />
                             <Setter TargetName="MetaText" Property="Opacity" Value="0.8" />
+                            <!-- 10b fix: safe to fire regardless of selection - ExpansionRow
+                                 stays Collapsed (and DamagedBlock along with it, being nested
+                                 inside it) on every row that is not selected. -->
+                            <Setter TargetName="DamagedBlock" Property="Visibility" Value="Visible" />
                         </DataTrigger>
 
                         <!--

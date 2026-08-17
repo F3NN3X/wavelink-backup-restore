@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Interop;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Theming;
@@ -54,19 +53,6 @@ public partial class MainWindow : Window
         // decision and high contrast withdraws the backdrop entirely.
         SourceInitialized += (_, _) => ApplyChrome();
         systemTheme.Changed += OnSystemThemeChanged;
-    }
-
-    /// <summary>
-    /// A row's click. WlRowTemplate's ListBoxItem is hand-placed rather than ListBox-generated
-    /// (see MainWindow.xaml's own comment on the row DataTemplate), so nothing gives it the
-    /// usual Selector click-to-select behaviour - this is that behaviour, routed through
-    /// List.Selected so every dependent (ShellViewModel's Can* properties, the bottom bar, the
-    /// expansion) updates the same way a real Selector's SelectedItem binding would have driven
-    /// it.
-    /// </summary>
-    private void Row_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (((FrameworkElement)sender).DataContext is SnapshotRowViewModel row) shell.List.Selected = row;
     }
 
     /// <summary>

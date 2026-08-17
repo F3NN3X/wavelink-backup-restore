@@ -285,6 +285,70 @@ public sealed class RowTemplateTests
             $"2px on all four sides is a rule the design does not use: {string.Join(", ", offenders)}");
     }
 
+    // 10b fix: the selected-row expansion moved OUT of MainWindow.xaml's hand-placed sibling
+    // Border and INTO WlRowTemplate itself - "a second Grid.Row inside the same WlCard block,
+    // visible only when IsSelected" (the fix brief, quoting the original 10b brief). Reverting
+    // that move (putting the expansion back in MainWindow.xaml) would make this fail.
+    //
+    // Reads the raw source rather than going through the Style() helper: WlRowTemplate has
+    // several nested Style blocks of its own (the CONTENTS-badge test above hits the same thing),
+    // so Style()'s non-greedy match would stop at the first nested </Style> long before reaching
+    // ExpansionRow, which is declared after all of them.
+    [Fact]
+    public void The_selected_row_expansion_lives_inside_the_row_template()
+    {
+        var template = RowStyles();
+
+        Assert.Contains("x:Name=\"ExpansionRow\"", template, StringComparison.Ordinal);
+        Assert.Contains("Binding DetailLine", template, StringComparison.Ordinal);
+        Assert.Contains("Binding DetailFileName", template, StringComparison.Ordinal);
+        Assert.Contains("Binding DamagedSentence", template, StringComparison.Ordinal);
+        Assert.Contains("Binding DamagedDetail", template, StringComparison.Ordinal);
+
+        // Collapsed by default, and shown only by a Setter added to the EXISTING
+        // Trigger Property="IsSelected" - not a new trigger, and not a Binding-driven Visibility
+        // on the element itself (which would sidestep the "no new trigger" constraint the other
+        // way, by not using a trigger at all).
+        var expansionIndex = template.IndexOf("x:Name=\"ExpansionRow\"", StringComparison.Ordinal);
+        var expansionTag = template[expansionIndex..template.IndexOf('>', expansionIndex)];
+        Assert.Contains("Visibility=\"Collapsed\"", expansionTag, StringComparison.Ordinal);
+
+        var isSelectedTriggerIndex = template.IndexOf(
+            "<Trigger Property=\"IsSelected\" Value=\"True\">", StringComparison.Ordinal);
+        Assert.True(isSelectedTriggerIndex >= 0, "The plain IsSelected trigger is gone or reworded.");
+        var isSelectedTriggerEnd = template.IndexOf("</Trigger>", isSelectedTriggerIndex, StringComparison.Ordinal);
+        var isSelectedTrigger = template[isSelectedTriggerIndex..isSelectedTriggerEnd];
+        Assert.Contains(
+            "TargetName=\"ExpansionRow\" Property=\"Visibility\" Value=\"Visible\"",
+            isSelectedTrigger, StringComparison.Ordinal);
+    }
+
+    // 10b fix: WlRowTemplate's trigger ORDER took three review rounds to get right (see the
+    // selected+high-contrast tests above) and the fix brief is explicit that restoring native
+    // list selection must not disturb it. This does not re-check every trigger's position (the
+    // two tests above already do that in full) - it only proves no trigger was inserted ahead of
+    // the last one, which is the shape a careless "add a new IsSelected trigger for the
+    // expansion" fix would have taken instead of reusing the existing one.
+    [Fact]
+    public void The_selected_plus_high_contrast_trigger_is_still_the_last_trigger_declared()
+    {
+        var template = RowStyles();
+
+        var triggersSectionIndex = template.IndexOf("<ControlTemplate.Triggers>", StringComparison.Ordinal);
+        var triggersSectionEnd = template.IndexOf("</ControlTemplate.Triggers>", StringComparison.Ordinal);
+        Assert.True(triggersSectionIndex >= 0 && triggersSectionEnd >= 0,
+            "ControlTemplate.Triggers section is gone or renamed.");
+
+        var lastMultiTriggerStart = template.LastIndexOf(
+            "<MultiDataTrigger>", triggersSectionEnd, StringComparison.Ordinal);
+        Assert.True(lastMultiTriggerStart > triggersSectionIndex);
+
+        var lastTrigger = template[lastMultiTriggerStart..triggersSectionEnd];
+        Assert.Contains("Path=IsSelected", lastTrigger, StringComparison.Ordinal);
+        Assert.Contains("IsHighContrast", lastTrigger, StringComparison.Ordinal);
+        Assert.Contains("WlAccent", lastTrigger, StringComparison.Ordinal);
+    }
+
     // Every brush in the row must be one of the 22 theme keys. The colour-literal guard catches
     // a #RRGGBB; this catches a slot bound to WlLine instead of WlOk, which is a perfectly legal
     // colour and completely wrong.

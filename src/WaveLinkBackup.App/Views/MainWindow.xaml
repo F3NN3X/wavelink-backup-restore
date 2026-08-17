@@ -250,9 +250,16 @@
               ItemsControl over Groups rather than a flat ListBox with GroupStyle - there is no
               flat row collection to hand a CollectionView, and building one here would mean
               re-deriving the TODAY/YESTERDAY grouping this ItemsControl's own data already
-              carries. See MainWindow.xaml.cs / the task report for why each row below is a
-              hand-placed ListBoxItem rather than a ListBox.SelectedItem binding, and what that
-              costs.
+              carries.
+
+              Each group's own Rows is now a real ListBox (10b fix), not a hand-placed
+              ListBoxItem per row - the expansion moved INTO WlRowTemplate (RowStyles.xaml) so
+              nothing stops this from being a genuine Selector any more. One ListBox per group is
+              expected: every one of them two-way binds the SAME List.Selected, so selecting a row
+              in one group is what clears the others (Selector.SelectedItem, set to a value that
+              is not among a DIFFERENT ListBox's own Items, deselects that ListBox's own current
+              container without throwing or needing any code-behind to sync them - verified by
+              MainWindowSelectionTests.Selecting_a_row_in_one_group_clears_the_others_container).
             -->
             <ScrollViewer x:Name="ListScrollViewer" VerticalScrollBarVisibility="Auto"
                           CanContentScroll="True">
@@ -285,86 +292,37 @@
                                                     Style="{StaticResource WlColumnHeaderTrackedText}"
                                                     Foreground="{DynamicResource WlMuted}" />
 
-                                <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
-                                    <ItemsControl.ItemsPanel>
+                                <!--
+                                  ItemContainerStyle="{StaticResource WlRowTemplate}" is what makes
+                                  this a real Selector: WPF generates one ListBoxItem per Row
+                                  through that style, so native container-generation, arrow-key
+                                  selection movement and Selector.SelectedItem all come free -
+                                  nothing a hand-placed ListBoxItem could offer. No border, no
+                                  background, no focus rectangle of its own: WlRowTemplate's own
+                                  ControlTemplate owns the entire visual, including the row's
+                                  selected-state fill - the ListBox itself should show nothing of
+                                  its own.
+
+                                  SelectedItem binds through the WINDOW's DataContext rather than
+                                  this DataTemplate's own (which is the Row, then the Group) -
+                                  List.Selected lives on the shared ShellViewModel, reached the
+                                  same way the row template's own IsHighContrast checks already
+                                  reach it (RelativeSource AncestorType=Window).
+                                -->
+                                <ListBox ItemsSource="{Binding Rows}"
+                                         ItemContainerStyle="{StaticResource WlRowTemplate}"
+                                         SelectedItem="{Binding DataContext.List.Selected, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                         BorderThickness="0" Background="Transparent" Padding="0"
+                                         FocusVisualStyle="{x:Null}"
+                                         ScrollViewer.CanContentScroll="True"
+                                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel />
+                                            <VirtualizingStackPanel />
                                         </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel>
-                                                <!--
-                                                  The row. A bare ListBoxItem, not ListBox-hosted:
-                                                  WlRowTemplate's ControlTemplate has no
-                                                  ContentPresenter (it draws every cell directly
-                                                  against {Binding}), so nothing an ItemTemplate
-                                                  supplies would ever render through it, and that
-                                                  is exactly the seam the expansion below needs -
-                                                  a sibling element in the SAME row of the SAME
-                                                  StackPanel, which a real per-group ListBox
-                                                  cannot offer without either editing
-                                                  RowStyles.xaml or losing correct interleaving
-                                                  under multi-row groups. IsSelected binds
-                                                  ONE-WAY from the row's own already-correct
-                                                  property (SnapshotListViewModel.Selected's
-                                                  setter is the single place that flips it); the
-                                                  Click handler is what pushes a NEW selection
-                                                  back the other way, through List.Selected.
-                                                -->
-                                                <ListBoxItem Style="{StaticResource WlRowTemplate}"
-                                                             IsSelected="{Binding IsSelected, Mode=OneWay}"
-                                                             PreviewMouseLeftButtonDown="Row_PreviewMouseLeftButtonDown" />
-
-                                                <!--
-                                                  The selected-row expansion. Visible only when
-                                                  IsSelected - which, since only one row's
-                                                  IsSelected is ever true (enforced by
-                                                  SnapshotListViewModel.Selected's setter), is
-                                                  also what makes "one row expands at a time" true
-                                                  with no extra state here.
-                                                -->
-                                                <Border Background="{DynamicResource WlCard}"
-                                                        Padding="20,0,20,16"
-                                                        Visibility="{Binding IsSelected, Converter={StaticResource WlBoolToVisibility}}">
-                                                    <StackPanel>
-                                                        <StackPanel Margin="0,0,0,8"
-                                                                    Visibility="{Binding IsDamaged, Converter={StaticResource WlBoolToVisibility}}">
-                                                            <TextBlock Text="{Binding DamagedSentence}"
-                                                                       Style="{StaticResource WlBodyText}"
-                                                                       Foreground="{DynamicResource WlText}"
-                                                                       MaxWidth="660" HorizontalAlignment="Left"
-                                                                       Margin="0,0,0,8" />
-                                                            <TextBlock Text="{Binding DamagedDetail}"
-                                                                       Style="{StaticResource WlMonoMetaText}"
-                                                                       Foreground="{DynamicResource WlMuted}" />
-                                                        </StackPanel>
-
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="Auto" />
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-
-                                                            <TextBlock Grid.Column="0" Text="{Binding DetailLine}"
-                                                                       Style="{StaticResource WlMonoMetaText}"
-                                                                       Foreground="{DynamicResource WlMuted}"
-                                                                       VerticalAlignment="Center" />
-                                                            <Border Grid.Column="1" Height="1" Margin="12,0"
-                                                                    VerticalAlignment="Center"
-                                                                    Background="{DynamicResource WlLine}" />
-                                                            <TextBlock Grid.Column="2" Text="{Binding DetailFileName}"
-                                                                       Style="{StaticResource WlMonoMetaText}"
-                                                                       Foreground="{DynamicResource WlMuted}"
-                                                                       Opacity="0.75" VerticalAlignment="Center" />
-                                                        </Grid>
-                                                    </StackPanel>
-                                                </Border>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                    </ListBox.ItemsPanel>
+                                </ListBox>
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
