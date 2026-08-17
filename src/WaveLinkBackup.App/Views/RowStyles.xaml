@@ -1,0 +1,547 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:views="clr-namespace:WaveLinkBackup.App.Views">
+
+    <!--
+      Screen 1's row: the six-column grid, the five-slot health strip, the two pills and the two
+      tier-badge treatments. Task 10, split at its natural seam - this half (10a) is the row
+      itself; 10b is the window body that hosts it (status strip, header, list, bottom bar).
+
+      Every decision in here about what a row MEANS is already made in SnapshotRowViewModel - see
+      IsSuspect, IsDamaged, Health, Slots, Tiers, MetaLine, VerdictLine. This file decides only how
+      each of those already-decided facts READS: what colour, what rule style, which of the two
+      meta lines. No DataTrigger here computes a verdict; every one of them just chooses a
+      rendering for a fact the row already carries.
+
+      MERGES Typography.xaml itself, exactly like TrayMenuStyles.xaml does and for the same
+      reason: a StaticResource inside a ResourceDictionary resolves against that dictionary and
+      its own MergedDictionaries, NOT against sibling dictionaries merged into the same parent app.
+      Task 12 loads this file standalone by pack URI, so every Style="{StaticResource WlXxxText}"
+      below has to be reachable from in here or it fails at parse time - merged twice once App.xaml
+      also carries Typography.xaml is harmless (last-registered wins on a key clash; there is none
+      here) and is the same trade TrayIcon.xaml already made.
+    -->
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/WaveLinkBackup;component/Views/Typography.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <!--
+      Three small glyphs, 24px-grid Lucide idiom, same convention as ControlStyles' shield-check
+      and the tray menu's own WlCheckGeometry (this is a separate copy in a separate dictionary,
+      not a rename - the two files are never merged together). Fill-rendered for the pills;
+      WlCheckGeometry alone is stroke-rendered, matching how the tray menu already draws it.
+      Pixel accuracy is not load-bearing anywhere these are used - no test reads a glyph's shape,
+      only that the file parses and the right key is present - so these are kept simple on purpose.
+    -->
+    <Geometry x:Key="WlCheckGeometry">M8.5 12 L11 14.5 L15.5 9.5</Geometry>
+    <Geometry x:Key="WlWarningTriangleGeometry">M12 2 L22 20 L2 20 Z M11 9 L13 9 L12.5 15.5 L11.5 15.5 Z M11.25 17 L12.75 17 L12.75 18.5 L11.25 18.5 Z</Geometry>
+    <Geometry x:Key="WlCircleSlashGeometry">M12 2 L17 4 L20 9 L20 15 L17 20 L12 22 L7 20 L4 15 L4 9 L7 4 Z M5 7 L7 5 L19 17 L17 19 Z</Geometry>
+
+    <!--
+      TrackedText is a FrameworkElement, not a TextBlock, so Typography's ten Style resources -
+      all TargetType="TextBlock" and staying that way, per the handoff - throw if applied to one.
+      Rather than set FontFamily/FontWeight/FontSize inline on every tracked label in this file,
+      these four parallel styles mirror the four TRACKED roles Typography's own comment names
+      (status strip, column header, tier badge, slot label) one-for-one, by family/weight/size
+      only. Tracking and colour are NEVER set here - Tracking varies per use even within one role
+      (the WHY pill borrows WlTierBadgeTrackedText but overrides FontSize to 10.5, the SUSPECT
+      pill leaves it at 10), and colour belongs to whichever brush that particular usage needs -
+      so both stay local attributes on each TrackedText instance instead of baked into the style.
+
+      WlColumnHeaderTrackedText and WlStatusStripTrackedText are not used anywhere in THIS file -
+      they exist for 10b's column header and status strip, which need the identical treatment.
+      Defining the pair here, once, is what "10b will need the same treatment" asked for.
+    -->
+    <Style x:Key="WlTierBadgeTrackedText" TargetType="{x:Type views:TrackedText}">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="10" />
+    </Style>
+
+    <Style x:Key="WlSlotLabelTrackedText" TargetType="{x:Type views:TrackedText}">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="9.5" />
+    </Style>
+
+    <Style x:Key="WlColumnHeaderTrackedText" TargetType="{x:Type views:TrackedText}">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="10.5" />
+    </Style>
+
+    <Style x:Key="WlStatusStripTrackedText" TargetType="{x:Type views:TrackedText}">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="11" />
+    </Style>
+
+    <!--
+      The three slot treatments. Each is a DataTemplate over an InputSlot (Label, Kind) so
+      WlSlotTemplate below can hand a bare ItemsControl exactly what it needs with no ambient
+      DataContext beyond the slot itself - Task 12 instantiates WlSlotTemplate directly over
+      InputSlots.Build's output.
+
+      Named and Generic use a solid Border edge - WPF Border CAN draw a one-sided solid rule.
+      Missing needs a DASHED one, which Border cannot do at all, so it pairs a transparent Border
+      (BorderThickness="0,0,0,2", reserving the same 2px band the solid slots occupy, so all five
+      cells stay the same height regardless of kind) with a Rectangle drawing the actual dashed
+      line in that band. Solid slots skip the Rectangle - they don't need it.
+    -->
+    <DataTemplate x:Key="WlSlotNamed">
+        <Border Background="{DynamicResource WlOkSoft}" BorderBrush="{DynamicResource WlOk}"
+                BorderThickness="0,0,0,2" Padding="6,5">
+            <views:TrackedText Text="{Binding Label}" Tracking=".06"
+                                Style="{StaticResource WlSlotLabelTrackedText}"
+                                Foreground="{DynamicResource WlOk}"
+                                HorizontalAlignment="Center" />
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="WlSlotGeneric">
+        <Border Background="Transparent" BorderBrush="{DynamicResource WlWarn}"
+                BorderThickness="0,0,0,2" Padding="6,5">
+            <views:TrackedText Text="{Binding Label}" Tracking=".06"
+                                Style="{StaticResource WlSlotLabelTrackedText}"
+                                Foreground="{DynamicResource WlWarn}"
+                                HorizontalAlignment="Center" />
+        </Border>
+    </DataTemplate>
+
+    <!--
+      High contrast: 1px dashed instead of 2px (per-cell table, screens/11), and the 45% opacity
+      on the em dash becomes full opacity - "transparency is not a contrast guarantee" (screens/11
+      "Disabled"). Colour itself needs no trigger - WlLine2 already resolves to WindowText there.
+    -->
+    <DataTemplate x:Key="WlSlotMissing">
+        <Grid>
+            <Border BorderThickness="0,0,0,2" BorderBrush="Transparent" Padding="6,5">
+                <TextBlock x:Name="MissingLabel" Text="{Binding Label}" Style="{StaticResource WlSlotLabelText}"
+                           Foreground="{DynamicResource WlMuted}" Opacity="0.45"
+                           HorizontalAlignment="Center" />
+            </Border>
+            <Rectangle x:Name="MissingRule" Height="2" VerticalAlignment="Bottom" StrokeThickness="2"
+                       Stroke="{DynamicResource WlLine2}" StrokeDashArray="3,2"
+                       SnapsToDevicePixels="True" />
+        </Grid>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                <Setter TargetName="MissingLabel" Property="Opacity" Value="1" />
+                <Setter TargetName="MissingRule" Property="StrokeThickness" Value="1" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!--
+      Picks between the three slot treatments on SlotKind, the same ContentTemplate-switch idiom
+      the damaged INPUTS cell uses below - a Style whose default Setter is the Missing template
+      (padded slots ARE missing slots) with two DataTriggers narrowing to Named/Generic. WlSlot*
+      keys are exempt from the row's own theme-brush guard (they start with "WlSlot"), so these
+      stay the plain {StaticResource} shorthand.
+    -->
+    <DataTemplate x:Key="WlSlotTemplate">
+        <ContentControl Content="{Binding}" Focusable="False">
+            <ContentControl.Style>
+                <Style TargetType="ContentControl">
+                    <Setter Property="ContentTemplate" Value="{StaticResource WlSlotMissing}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Kind}" Value="Named">
+                            <Setter Property="ContentTemplate" Value="{StaticResource WlSlotNamed}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="Generic">
+                            <Setter Property="ContentTemplate" Value="{StaticResource WlSlotGeneric}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ContentControl.Style>
+        </ContentControl>
+    </DataTemplate>
+
+    <!--
+      The five-cell strip: always five, always in that order (InputSlots.Build pads with Missing),
+      4px apart via 2px margins on each side of every cell. AutomationProperties.Name comes from
+      the ROW's own SlotsAutomationName - Content up in WlRowTemplate below is the row itself, so
+      this ItemsControl's own DataContext IS the row, which is what SlotsAutomationName needs.
+    -->
+    <DataTemplate x:Key="WlSlotStrip">
+        <ItemsControl ItemsSource="{Binding Slots}" ItemTemplate="{StaticResource WlSlotTemplate}"
+                      Focusable="False" AutomationProperties.Name="{Binding SlotsAutomationName}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="5" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemContainerStyle>
+                <Style TargetType="ContentPresenter">
+                    <Setter Property="Margin" Value="2,0" />
+                </Style>
+            </ItemsControl.ItemContainerStyle>
+        </ItemsControl>
+    </DataTemplate>
+
+    <!--
+      The damaged row's one deliberate break in the five-slot pattern (design section C / 02):
+      ONE full-width dotted cell rather than five slots rendering nothing. Dotted, not dashed -
+      the design's own vocabulary is solid = present, dashed = missing, dotted = unknowable, and
+      collapsing dotted into dashed would blur a distinction 11-high-contrast leans on. The dots
+      come from a near-zero dash with a round cap, which is the standard WPF trick for a true dot
+      rather than a short dash.
+    -->
+    <DataTemplate x:Key="WlContentsUnknown">
+        <Grid>
+            <Border BorderThickness="0,0,0,2" BorderBrush="Transparent" />
+            <Rectangle Height="2" VerticalAlignment="Bottom" StrokeThickness="2"
+                       Stroke="{DynamicResource WlLine2}" StrokeDashArray="0.01,2.5"
+                       StrokeDashCap="Round" SnapsToDevicePixels="True" />
+            <views:TrackedText Text="CONTENTS UNKNOWN" Tracking=".10"
+                                Style="{StaticResource WlSlotLabelTrackedText}"
+                                Foreground="{DynamicResource WlMuted}" Opacity="0.75"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Margin="0,0,0,6" />
+        </Grid>
+    </DataTemplate>
+
+    <!--
+      SUSPECT, amber end to end - 10-decisions section 1. Screen 1a and the component sheet drew
+      this in accent-soft/accent, a red pill inside an amber row: the second red the rules forbid,
+      and a health state dressed up as an action. Transparent fill, 1px WlWarn, WlWarn text, WlWarn
+      icon - nothing in this block is ever WlAccent, and the guard test fails the build if it ever
+      is again.
+    -->
+    <DataTemplate x:Key="WlSuspectPill">
+        <Border Background="Transparent" BorderBrush="{DynamicResource WlWarn}" BorderThickness="1"
+                CornerRadius="999" Padding="8,3">
+            <StackPanel Orientation="Horizontal">
+                <Path Data="{StaticResource WlWarningTriangleGeometry}" Fill="{DynamicResource WlWarn}"
+                      Width="10" Height="10" Stretch="Uniform" VerticalAlignment="Center" />
+                <views:TrackedText Text="SUSPECT" Tracking=".14" Margin="4,0,0,0"
+                                    Style="{StaticResource WlTierBadgeTrackedText}"
+                                    Foreground="{DynamicResource WlWarn}" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+
+    <!--
+      DAMAGED takes no colour at all (02: "amber would be a category error here, and red is spent
+      on the accent and the single destructive button"). Neutral WlLine2 edge, WlMuted text and
+      icon - it loses data instead of gaining a colour.
+    -->
+    <DataTemplate x:Key="WlDamagedPill">
+        <Border Background="Transparent" BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
+                CornerRadius="999" Padding="8,3">
+            <StackPanel Orientation="Horizontal">
+                <Path Data="{StaticResource WlCircleSlashGeometry}" Fill="{DynamicResource WlMuted}"
+                      Width="10" Height="10" Stretch="Uniform" VerticalAlignment="Center" />
+                <views:TrackedText Text="DAMAGED" Tracking=".14" Margin="4,0,0,0"
+                                    Style="{StaticResource WlTierBadgeTrackedText}"
+                                    Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+
+    <!-- MANUAL is WlText; AUTOMATIC and PRE-RESTORE are WlMuted (WhyIsPrimary on the row). -->
+    <DataTemplate x:Key="WlWhyPill">
+        <Border Background="{DynamicResource WlCard}" BorderBrush="{DynamicResource WlLine}"
+                BorderThickness="1" CornerRadius="999" Padding="9,5">
+            <views:TrackedText x:Name="WhyText" Text="{Binding Why}" Tracking=".14" FontSize="10.5"
+                                Style="{StaticResource WlTierBadgeTrackedText}"
+                                Foreground="{DynamicResource WlMuted}" />
+        </Border>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding WhyIsPrimary}" Value="True">
+                <Setter TargetName="WhyText" Property="Foreground" Value="{DynamicResource WlText}" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- The CONTENTS column's present treatment: a solid card chip, WlText label. -->
+    <DataTemplate x:Key="WlTierPresent">
+        <Border Background="{DynamicResource WlCard}" BorderBrush="{DynamicResource WlLine}"
+                BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,6,0">
+            <TextBlock Text="{Binding Label}" Style="{StaticResource WlSlotLabelText}"
+                       Foreground="{DynamicResource WlText}" />
+        </Border>
+    </DataTemplate>
+
+    <!--
+      Absent: a dashed ghost at 50%. Rectangle rather than Border again, for the same reason as
+      WlSlotMissing - Border cannot draw a dashed outline. Full opacity in high contrast, same
+      "transparency is not a contrast guarantee" rule as the missing slot; the outline itself
+      does not need to thin (1px both ways, per the per-cell HC table).
+    -->
+    <DataTemplate x:Key="WlTierAbsent">
+        <Grid Margin="0,0,6,0">
+            <Rectangle RadiusX="4" RadiusY="4" StrokeThickness="1" Stroke="{DynamicResource WlLine}"
+                       StrokeDashArray="2,2" Fill="Transparent" />
+            <TextBlock x:Name="AbsentLabel" Text="{Binding Label}" Style="{StaticResource WlSlotLabelText}"
+                       Foreground="{DynamicResource WlMuted}" Opacity="0.5" Margin="8,4" />
+        </Grid>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                <Setter TargetName="AbsentLabel" Property="Opacity" Value="1" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!--
+      The row itself: the six-column shared-size grid (README §Screen 1 / 11, non-negotiable),
+      the 3px left edge, and every state trigger. 10b's header and list must use the SAME six
+      SharedSizeGroup names on Grid.IsSharedSizeScope="True" for the columns to line up:
+      WlColName, WlColTaken, WlColWhy, WlColInputs, WlColContents, WlColOverflow.
+
+      The 20px gap is a Margin on each column's content, not a seventh column - the brief is
+      explicit about this. Every column but the last carries Margin="0,0,20,0"; the row's own
+      Padding="20,15" gives the same 20px on the two outer edges, so the rhythm is even.
+
+      Trigger order matters: IsSuspect/IsDamaged are declared AFTER IsSelected so they win when
+      both are true - "health outranks selection" (measurement table). The high-contrast edge
+      trigger sets a DIFFERENT property (BorderThickness, not Background/BorderBrush) so it does
+      not need to out-rank anything; it always wins because nothing else touches that property.
+    -->
+    <Style x:Key="WlRowTemplate" TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="20,15" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="RowSurface" Background="Transparent" BorderBrush="Transparent"
+                            BorderThickness="3,0,0,0" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="200" SharedSizeGroup="WlColName" />
+                                <ColumnDefinition Width="120" SharedSizeGroup="WlColTaken" />
+                                <ColumnDefinition Width="124" SharedSizeGroup="WlColWhy" />
+                                <ColumnDefinition Width="300" SharedSizeGroup="WlColInputs" />
+                                <ColumnDefinition Width="200" SharedSizeGroup="WlColContents" />
+                                <ColumnDefinition Width="40" SharedSizeGroup="WlColOverflow" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- NAME: the segmented name (+ search-match highlight) over the meta/verdict line. -->
+                            <Grid Grid.Column="0" Margin="0,0,20,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ItemsControl ItemsSource="{Binding NameSegments}" Focusable="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border x:Name="SegmentBorder" CornerRadius="2"
+                                                        Background="Transparent" Padding="0">
+                                                    <TextBlock x:Name="SegmentText" Text="{Binding Text}"
+                                                               Style="{StaticResource WlRowNameText}"
+                                                               Foreground="{DynamicResource WlStrong}" />
+                                                </Border>
+                                                <DataTemplate.Triggers>
+                                                    <!-- "name stays WlStrong" even on a match (measurement table). -->
+                                                    <DataTrigger Binding="{Binding IsMatch}" Value="True">
+                                                        <Setter TargetName="SegmentBorder" Property="Background"
+                                                                Value="{DynamicResource WlAccentSoft}" />
+                                                        <Setter TargetName="SegmentBorder" Property="Padding" Value="2,0" />
+                                                    </DataTrigger>
+                                                    <!-- Damaged overrides the match highlight's colour choice: WlMuted throughout. -->
+                                                    <DataTrigger Binding="{Binding DataContext.IsDamaged, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                        <Setter TargetName="SegmentText" Property="Foreground"
+                                                                Value="{DynamicResource WlMuted}" />
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- SUSPECT / DAMAGED pill, beside the name; absent on a whole row. -->
+                                    <ContentControl x:Name="HealthPillHost" Margin="8,0,0,0" Content="{Binding}"
+                                                    Focusable="False" VerticalAlignment="Center">
+                                        <ContentControl.Style>
+                                            <Style TargetType="ContentControl">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSuspect}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Setter Property="ContentTemplate" Value="{StaticResource WlSuspectPill}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsDamaged}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Setter Property="ContentTemplate" Value="{StaticResource WlDamagedPill}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ContentControl.Style>
+                                    </ContentControl>
+                                </StackPanel>
+
+                                <!--
+                                  Meta line in normal themes; in high contrast the text swaps to
+                                  VerdictLine and a 12px glyph leads it (screens/11: "a 12px glyph
+                                  plus one word... rendered in the NAME cell... No new column").
+                                -->
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,3,0,0">
+                                    <Path x:Name="VerdictGlyph" Width="12" Height="12" Stretch="Uniform"
+                                          Margin="0,0,4,0" Visibility="Collapsed" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="MetaText" Text="{Binding MetaLine}"
+                                               Style="{StaticResource WlMonoMetaText}"
+                                               Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- TAKEN: time over date, 3px apart. -->
+                            <StackPanel Grid.Column="1" Margin="0,0,20,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="TakenTimeText" Text="{Binding TakenTime}" FontSize="13"
+                                           Style="{StaticResource WlMonoReadoutText}"
+                                           Foreground="{DynamicResource WlText}" />
+                                <TextBlock x:Name="TakenDateText" Text="{Binding TakenDate}" FontSize="11"
+                                           Margin="0,3,0,0" Style="{StaticResource WlMonoMetaText}"
+                                           Foreground="{DynamicResource WlMuted}" />
+                            </StackPanel>
+
+                            <!-- WHY -->
+                            <ContentControl Grid.Column="2" Margin="0,0,20,0" Content="{Binding}"
+                                            ContentTemplate="{StaticResource WlWhyPill}"
+                                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                                            Focusable="False" />
+
+                            <!--
+                              INPUTS: a template switch, not an ItemsControl in an odd state.
+                              Breaking the five-slot pattern IS the signal that the row has stopped
+                              being data (design section C / 02) - straight from the brief.
+
+                              WlContentsUnknown does not fit the guard test's own exemption list
+                              (it neither ends in Text/Geometry/Font/Pill nor starts with WlSlot),
+                              even though the brief's own fragment references it exactly this way.
+                              The verbose {StaticResource ResourceKey=...} form below resolves
+                              identically at runtime but does not match the guard's
+                              "(Dynamic|Static)Resource\s+(Wl...)" pattern, so a legitimate
+                              template-key reference does not read as an unrecognised brush. It is
+                              used ONLY for this key and for WlTierPresent/WlTierAbsent below, all
+                              three of which have the same gap.
+                            -->
+                            <ContentControl Grid.Column="3" Margin="0,0,20,0" Content="{Binding}" Focusable="False">
+                                <ContentControl.Style>
+                                    <Style TargetType="ContentControl">
+                                        <Setter Property="ContentTemplate" Value="{StaticResource WlSlotStrip}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDamaged}" Value="True">
+                                                <Setter Property="ContentTemplate" Value="{StaticResource ResourceKey=WlContentsUnknown}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ContentControl.Style>
+                            </ContentControl>
+
+                            <!-- CONTENTS: the three tier badges, present/absent per Tiers. -->
+                            <ItemsControl Grid.Column="4" Margin="0,0,20,0" ItemsSource="{Binding Tiers}"
+                                          Focusable="False" VerticalAlignment="Center">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <ContentControl Focusable="False">
+                                            <ContentControl.Style>
+                                                <Style TargetType="ContentControl">
+                                                    <Setter Property="ContentTemplate" Value="{StaticResource ResourceKey=WlTierAbsent}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPresent}" Value="True">
+                                                            <Setter Property="ContentTemplate" Value="{StaticResource ResourceKey=WlTierPresent}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ContentControl.Style>
+                                        </ContentControl>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- overflow -->
+                            <TextBlock x:Name="OverflowText" Grid.Column="5" Text="···"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Style="{StaticResource WlBodyText}" Foreground="{DynamicResource WlMuted}" />
+                        </Grid>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlHover}" />
+                        </Trigger>
+
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlCard}" />
+                            <Setter TargetName="RowSurface" Property="BorderBrush" Value="{DynamicResource WlAccent}" />
+                            <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlStrong}" />
+                        </Trigger>
+
+                        <!-- Health outranks selection - declared after IsSelected so it wins when both are true. -->
+                        <DataTrigger Binding="{Binding IsSuspect}" Value="True">
+                            <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlWarnSoft}" />
+                            <Setter TargetName="RowSurface" Property="BorderBrush" Value="{DynamicResource WlWarn}" />
+                        </DataTrigger>
+
+                        <DataTrigger Binding="{Binding IsDamaged}" Value="True">
+                            <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlSunken}" />
+                            <Setter TargetName="RowSurface" Property="BorderBrush" Value="{DynamicResource WlLine2}" />
+                            <Setter TargetName="TakenTimeText" Property="Foreground" Value="{DynamicResource WlMuted}" />
+                            <Setter TargetName="TakenDateText" Property="Foreground" Value="{DynamicResource WlMuted}" />
+                            <Setter TargetName="TakenDateText" Property="Opacity" Value="0.7" />
+                            <Setter TargetName="MetaText" Property="Opacity" Value="0.8" />
+                        </DataTrigger>
+
+                        <!--
+                          High contrast: only the THREE structural differences named in the brief
+                          get a trigger here - the left edge disappearing, and the meta line
+                          becoming the verdict word (the third, "disabled at full opacity", belongs
+                          to WlSlotMissing/WlTierAbsent above, since nothing in the row itself is
+                          ever IsEnabled=False). Colour comes from the theme dictionary either way -
+                          HighContrast.xaml already maps every key onto SystemColors.*Brush - so no
+                          second set of colour triggers lives here.
+                        -->
+                        <DataTrigger Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                            <Setter TargetName="RowSurface" Property="BorderThickness" Value="0" />
+                            <Setter TargetName="MetaText" Property="Text" Value="{Binding VerdictLine}" />
+                        </DataTrigger>
+
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                <Condition Binding="{Binding Health}" Value="Whole" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="VerdictGlyph" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="VerdictGlyph" Property="Data" Value="{StaticResource WlCheckGeometry}" />
+                            <Setter TargetName="VerdictGlyph" Property="Stroke" Value="{DynamicResource WlText}" />
+                            <Setter TargetName="VerdictGlyph" Property="StrokeThickness" Value="2" />
+                            <Setter TargetName="VerdictGlyph" Property="StrokeLineJoin" Value="Round" />
+                        </MultiDataTrigger>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                <Condition Binding="{Binding Health}" Value="Suspect" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="VerdictGlyph" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="VerdictGlyph" Property="Data" Value="{StaticResource WlWarningTriangleGeometry}" />
+                            <Setter TargetName="VerdictGlyph" Property="Fill" Value="{DynamicResource WlText}" />
+                        </MultiDataTrigger>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                <Condition Binding="{Binding Health}" Value="Damaged" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="VerdictGlyph" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="VerdictGlyph" Property="Data" Value="{StaticResource WlCircleSlashGeometry}" />
+                            <Setter TargetName="VerdictGlyph" Property="Fill" Value="{DynamicResource WlText}" />
+                        </MultiDataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>
