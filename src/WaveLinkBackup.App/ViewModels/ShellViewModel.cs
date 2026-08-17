@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Globalization;
-using System.Text.RegularExpressions;
 
 namespace WaveLinkBackup.App.ViewModels;
 
@@ -40,17 +39,6 @@ public sealed record ShellFacts(
 /// </summary>
 public sealed class ShellViewModel : ObservableObject
 {
-    /// <summary>
-    /// Recognises a Windows user profile's AppData\Local, generically - not by asking THIS
-    /// machine for its own copy. <see cref="Environment.GetFolderPath"/> would only match a
-    /// store path that happens to sit under the account running the process; every other
-    /// account, including whichever one runs the test suite or CI, would silently fall through
-    /// to the un-shortened branch. The same trap SnapshotListViewModelTests already found for a
-    /// hardcoded weekday - see its "Groups_run_newest_first..." deviation note.
-    /// </summary>
-    private static readonly Regex LocalAppDataPrefix = new(
-        @"^[A-Za-z]:\\Users\\[^\\]+\\AppData\\Local\\", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     private ShellFacts facts = new(true, false, null, true, false, string.Empty, null);
     private bool isHighContrast;
     private SnapshotRowViewModel? watchedRow;
@@ -151,11 +139,12 @@ public sealed class ShellViewModel : ObservableObject
     {
         get
         {
-            var match = LocalAppDataPrefix.Match(facts.StorePath);
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
-            return match.Success
-                ? "%LOCALAPPDATA%\\" + facts.StorePath[match.Length..]
-                : facts.StorePath;
+            return localAppData.Length > 0
+                && facts.StorePath.StartsWith(localAppData, StringComparison.OrdinalIgnoreCase)
+                    ? "%LOCALAPPDATA%" + facts.StorePath[localAppData.Length..]
+                    : facts.StorePath;
         }
     }
 

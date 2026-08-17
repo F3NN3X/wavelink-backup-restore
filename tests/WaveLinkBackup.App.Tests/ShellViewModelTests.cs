@@ -90,10 +90,21 @@ public sealed class ShellViewModelTests
     // -- the bottom bar ---------------------------------------------------------------------
 
     // README: "4 BACKUPS · 12.4 MB IN %LOCALAPPDATA%\WaveLinkBackup · 118 GB FREE".
+    //
+    // Deviation from the brief: storePath is built from THIS machine's own
+    // Environment.GetFolderPath(LocalApplicationData) rather than the brief's literal
+    // @"C:\Users\t\AppData\Local\WaveLinkBackup". ShellViewModel.ShortStorePath asks Windows
+    // for %LOCALAPPDATA% and shortens only a path that is genuinely under it - which is the
+    // correct behaviour (a false match on a merely similar-looking path would print
+    // %LOCALAPPDATA% for a location that is not it). A fixture path only matches that check on
+    // an account literally named "t"; building it from the real value here is what makes the
+    // test pass on any machine and any account while still pinning real behaviour rather than a
+    // string shape.
     [Fact]
     public void The_summary_counts_backups_names_the_folder_and_reports_free_space()
     {
-        var shell = Shell();
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var shell = Shell(storePath: localAppData + @"\WaveLinkBackup");
         shell.List.Refresh();
 
         Assert.Matches(
@@ -120,6 +131,20 @@ public sealed class ShellViewModelTests
         shell.List.Refresh();
 
         Assert.Contains(@"\\NAS\streaming\WaveLinkBackup", shell.SummaryLine, StringComparison.Ordinal);
+        Assert.DoesNotContain("%LOCALAPPDATA%", shell.SummaryLine, StringComparison.Ordinal);
+    }
+
+    // Not in the brief - added per coordinator review of Task 9. The half that actually catches
+    // a wrong match: a store path that is not under %LOCALAPPDATA% at all (a different drive,
+    // not merely a different machine's account) must come back byte-for-byte, not just "any
+    // path that fails to start with a hardcoded prefix".
+    [Fact]
+    public void A_store_on_a_different_drive_is_printed_in_full()
+    {
+        var shell = Shell(storePath: @"D:\Backups\WaveLinkBackup");
+        shell.List.Refresh();
+
+        Assert.Contains(@"D:\Backups\WaveLinkBackup", shell.SummaryLine, StringComparison.Ordinal);
         Assert.DoesNotContain("%LOCALAPPDATA%", shell.SummaryLine, StringComparison.Ordinal);
     }
 
