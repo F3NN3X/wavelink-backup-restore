@@ -1,6 +1,10 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
@@ -63,27 +67,10 @@ public partial class MainWindow : Window
     /// </summary>
     private void WireBottomBar()
     {
-        RenameButton.Click += (_, _) => MessageBox.Show(
-            "Renaming a backup arrives in the next plan.", "Wave Link Backup",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-        DeleteButton.Click += (_, _) => MessageBox.Show(
-            "Deleting a backup arrives in the next plan.", "Wave Link Backup",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-        RestoreButton.Click += (_, _) => MessageBox.Show(
-            "Restoring a backup arrives in the next plan.", "Wave Link Backup",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-        BackUpNowButton.Click += async (_, _) =>
-        {
-            var app = (App)Application.Current;
-            var result = app.BackUpNow();
-
-            await shell.List.RefreshAsync();
-
-            if (result.IsSuccess) shell.List.Select(result.Value.Id);
-        };
+        RenameButton.Click += (_, _) => ShowRenamePlaceholder();
+        DeleteButton.Click += (_, _) => ShowDeletePlaceholder();
+        RestoreButton.Click += (_, _) => ShowRestorePlaceholder();
+        BackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
 
         SettingsButton.Click += (_, _) => App.OpenSettings();
     }
@@ -92,6 +79,125 @@ public partial class MainWindow : Window
     {
         ClearSearchButton.Click += (_, _) => shell.List.ClearSearch();
         ClearSearchLinkButton.Click += (_, _) => shell.List.ClearSearch();
+    }
+
+    // Shared by the bottom-bar Click handlers above and ShellCommands' Executed handlers below -
+    // F2/Delete/Enter and their matching buttons do exactly the same thing, so there is only ever
+    // one place that names the placeholder text.
+    private static void ShowRenamePlaceholder() => MessageBox.Show(
+        "Renaming a backup arrives in the next plan.", "Wave Link Backup",
+        MessageBoxButton.OK, MessageBoxImage.Information);
+
+    private static void ShowDeletePlaceholder() => MessageBox.Show(
+        "Deleting a backup arrives in the next plan.", "Wave Link Backup",
+        MessageBoxButton.OK, MessageBoxImage.Information);
+
+    private static void ShowRestorePlaceholder() => MessageBox.Show(
+        "Restoring a backup arrives in the next plan.", "Wave Link Backup",
+        MessageBoxButton.OK, MessageBoxImage.Information);
+
+    private async Task BackUpNowAsync()
+    {
+        var app = (App)Application.Current;
+        var result = app.BackUpNow();
+
+        await shell.List.RefreshAsync();
+
+        if (result.IsSuccess) shell.List.Select(result.Value.Id);
+    }
+
+    // ================================================================================
+    // ShellCommands.All, bound in MainWindow.xaml's Window.CommandBindings (all but
+    // ClearSearch, which is bound narrowly on SearchBox and ListScrollViewer instead - see the
+    // comment on Window.CommandBindings in the XAML for why).
+    // ================================================================================
+
+    private async void Refresh_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        await shell.List.RefreshAsync();
+
+    private void Search_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        SearchBox.Focus();
+
+    private void ClearSearch_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        shell.List.ClearSearch();
+
+    private async void BackUpNow_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        await BackUpNowAsync();
+
+    private void BackUpNow_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = shell.CanBackUpNow;
+
+    private void Rename_Executed(object sender, ExecutedRoutedEventArgs e) => ShowRenamePlaceholder();
+
+    private void Rename_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = shell.CanRename;
+
+    private void Delete_Executed(object sender, ExecutedRoutedEventArgs e) => ShowDeletePlaceholder();
+
+    private void Delete_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = shell.CanDelete;
+
+    // CanExecute, not a guard inside the handler: WPF does not grey the command's target out on
+    // its own, so a check made only here would leave Enter looking live on a row that cannot be
+    // restored.
+    private void Restore_Executed(object sender, ExecutedRoutedEventArgs e) => ShowRestorePlaceholder();
+
+    private void Restore_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = shell.CanRestore;
+
+    /// <summary>
+    /// Each date group is its own ListBox (Task 10b), so native Home/End only reach that GROUP's
+    /// own first/last row - WPF has no concept of "the next Selector down" to fall through to.
+    /// The map (README/7.4) asks for Home/End to reach the list's first/last row overall, so this
+    /// closes that gap with the smallest fix that does not touch the ListBox structure Task 10
+    /// fought to get right: on Home/End, move List.Selected directly to the first/last row of the
+    /// first/last GROUP, then focus that row's own generated container once layout has caught up
+    /// with the new selection (BeginInvoke at Input priority - the container does not exist yet on
+    /// the same tick a virtualizing panel is asked to realise it).
+    ///
+    /// ↑/↓ are NOT handled here - they already move the selection natively within one group's own
+    /// ListBox (Task 10b), and stopping at a group boundary is the one gap this task's brief
+    /// explicitly says is fine to leave for Task 12's by-eye pass to confirm, rather than
+    /// restructure the list to close.
+    /// </summary>
+    private void ListScrollViewer_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Home && e.Key != Key.End) return;
+        if (shell.List.Groups.Count == 0) return;
+
+        var group = e.Key == Key.Home ? shell.List.Groups[0] : shell.List.Groups[^1];
+        if (group.Rows.Count == 0) return;
+
+        var row = e.Key == Key.Home ? group.Rows[0] : group.Rows[^1];
+
+        shell.List.Select(row.Id);
+        e.Handled = true;
+
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => FocusRow(row)));
+    }
+
+    private void FocusRow(SnapshotRowViewModel row)
+    {
+        foreach (var listBox in FindDescendants<ListBox>(GroupsHost))
+        {
+            if (listBox.ItemContainerGenerator.ContainerFromItem(row) is ListBoxItem container)
+            {
+                container.Focus();
+                return;
+            }
+        }
+    }
+
+    private static IEnumerable<T> FindDescendants<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+
+            if (child is T match) yield return match;
+
+            foreach (var descendant in FindDescendants<T>(child)) yield return descendant;
+        }
     }
 
     private void OnSystemThemeChanged(object? sender, EventArgs e) => Dispatcher.Invoke(() =>

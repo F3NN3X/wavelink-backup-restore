@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
+        xmlns:vm="clr-namespace:WaveLinkBackup.App.ViewModels"
         Title="Wave Link Backup"
         Height="760" Width="1180" MinHeight="560" MinWidth="980"
         WindowStartupLocation="CenterScreen"
@@ -25,6 +26,34 @@
                             GlassFrameThickness="0"
                             UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
+
+    <!--
+      The key map (ShellCommands, ViewModels/ShellCommands.cs), five of the seven bound at the
+      window: Refresh, Search, BackUpNow, Rename, Delete, Restore. ClearSearch is deliberately NOT
+      here - 10-decisions section 6 binds Escape only on the list and the search field (see
+      SearchBox and the row ListScrollViewer below), or a window-wide binding would swallow Escape
+      in the dialogs a later session adds.
+
+      Restore's CanExecute is what keeps Enter from firing on an unselected or disallowed row - a
+      guard inside Restore_Executed would still leave the command LOOKING live (WPF does not grey
+      anything out on its own without CanExecute saying so).
+    -->
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static vm:ShellCommands.Refresh}" Executed="Refresh_Executed" />
+        <CommandBinding Command="{x:Static vm:ShellCommands.Search}" Executed="Search_Executed" />
+        <CommandBinding Command="{x:Static vm:ShellCommands.BackUpNow}"
+                        Executed="BackUpNow_Executed" CanExecute="BackUpNow_CanExecute" />
+        <CommandBinding Command="{x:Static vm:ShellCommands.Rename}"
+                        Executed="Rename_Executed" CanExecute="Rename_CanExecute" />
+        <CommandBinding Command="{x:Static vm:ShellCommands.Delete}"
+                        Executed="Delete_Executed" CanExecute="Delete_CanExecute" />
+        <CommandBinding Command="{x:Static vm:ShellCommands.Restore}"
+                        Executed="Restore_Executed" CanExecute="Restore_CanExecute" />
+    </Window.CommandBindings>
+
+    <Window.Resources>
+        <views:SentenceCaseConverter x:Key="WlSentenceCase" />
+    </Window.Resources>
 
     <!--
       IsSharedSizeScope lives HERE, on the root Grid, rather than on the ListBox the brief's own
@@ -116,9 +145,13 @@
                         <views:TrackedText.Style>
                             <Style TargetType="views:TrackedText" BasedOn="{StaticResource WlStatusStripTrackedText}">
                                 <Setter Property="Text" Value="{Binding List.MatchSummary}" />
+                                <Setter Property="AutomationProperties.Name"
+                                        Value="{Binding List.MatchSummary, Converter={StaticResource ResourceKey=WlSentenceCase}}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding List.Query}" Value="">
                                         <Setter Property="Text" Value="{Binding StatusStrip}" />
+                                        <Setter Property="AutomationProperties.Name"
+                                                Value="{Binding StatusStrip, Converter={StaticResource ResourceKey=WlSentenceCase}}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -179,7 +212,15 @@
                                 <TextBox x:Name="SearchBox" Style="{StaticResource WlSearchBox}"
                                          Text="{Binding List.Query, UpdateSourceTrigger=PropertyChanged}"
                                          AutomationProperties.Name="Search backups"
-                                         VerticalAlignment="Center" />
+                                         VerticalAlignment="Center">
+                                    <!-- Escape clears the search only from HERE, not the window
+                                         (10-decisions section 6) - see the comment on
+                                         Window.CommandBindings above. -->
+                                    <TextBox.CommandBindings>
+                                        <CommandBinding Command="{x:Static vm:ShellCommands.ClearSearch}"
+                                                        Executed="ClearSearch_Executed" />
+                                    </TextBox.CommandBindings>
+                                </TextBox>
                             </Grid>
 
                             <Button x:Name="ClearSearchButton" Grid.Column="2"
@@ -262,7 +303,14 @@
               MainWindowSelectionTests.Selecting_a_row_in_one_group_clears_the_others_container).
             -->
             <ScrollViewer x:Name="ListScrollViewer" VerticalScrollBarVisibility="Auto"
-                          CanContentScroll="True">
+                          CanContentScroll="True"
+                          PreviewKeyDown="ListScrollViewer_PreviewKeyDown">
+                <!-- Escape clears the search from anywhere in the list, same reasoning as
+                     SearchBox's own CommandBindings above. -->
+                <ScrollViewer.CommandBindings>
+                    <CommandBinding Command="{x:Static vm:ShellCommands.ClearSearch}"
+                                    Executed="ClearSearch_Executed" />
+                </ScrollViewer.CommandBindings>
                 <ScrollViewer.Style>
                     <Style TargetType="ScrollViewer">
                         <Setter Property="Visibility" Value="Collapsed" />
@@ -275,6 +323,7 @@
                 </ScrollViewer.Style>
 
                 <ItemsControl x:Name="GroupsHost" ItemsSource="{Binding List.Groups}" Focusable="False"
+                              AutomationProperties.Name="Backups"
                               VirtualizingPanel.IsVirtualizing="True"
                               VirtualizingPanel.VirtualizationMode="Recycling">
                     <ItemsControl.ItemsPanel>

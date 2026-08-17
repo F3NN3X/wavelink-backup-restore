@@ -116,12 +116,17 @@
             <views:TrackedText Grid.Column="1" Text="TAKEN" Tracking=".18" Margin="0,0,20,0"
                                 Style="{StaticResource WlColumnHeaderTrackedText}"
                                 Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+            <!-- WHY/INPUTS get a spelt-out AutomationProperties.Name (Step 5): short all-caps mono
+                 labels are exactly what a reader spells out letter-by-letter rather than reads as
+                 a word. TrackedText's own AutomationPeer defers to this explicit override. -->
             <views:TrackedText Grid.Column="2" Text="WHY" Tracking=".18" Margin="0,0,20,0"
                                 Style="{StaticResource WlColumnHeaderTrackedText}"
-                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center"
+                                AutomationProperties.Name="Why" />
             <views:TrackedText Grid.Column="3" Text="INPUTS" Tracking=".18" Margin="0,0,20,0"
                                 Style="{StaticResource WlColumnHeaderTrackedText}"
-                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center"
+                                AutomationProperties.Name="Inputs" />
             <views:TrackedText Grid.Column="4" Text="CONTENTS" Tracking=".18" Margin="0,0,20,0"
                                 Style="{StaticResource WlColumnHeaderTrackedText}"
                                 Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
@@ -248,6 +253,68 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!--
+      2px, 2px offset, ALWAYS VISIBLE - including on the list rows, which is the one WPF makes you
+      ask for, since a ListBoxItem's default focus visual is a dotted 1px rectangle that vanishes
+      on a filled row.
+
+      Colour: WlAccent normally. In high contrast that maps to Highlight (HighContrast.xaml), which
+      is wrong on a SELECTED row - Task 10 fills a selected row with a full Highlight background
+      there, so a Highlight ring on a Highlight fill would be invisible. So in high contrast the
+      ring uses WlText (WindowText) by default, and only where the templated element is itself a
+      selected ListBoxItem does it switch to WlAccentInk (HighlightText) - the readable-on-Highlight
+      counterpart, and the same key WlRowTemplate's own selected+HC triggers already reuse for
+      exactly this reason (RowStyles.xaml). The TemplatedParent.IsSelected path only resolves for a
+      ListBoxItem; on every other control (a Button, the search TextBox) the condition simply never
+      matches, leaving WlText - still correct there, since none of those are ever Highlight-filled.
+    -->
+    <Style x:Key="WlFocusVisual">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Rectangle x:Name="Ring" Margin="-2" StrokeThickness="2" SnapsToDevicePixels="True"
+                               Stroke="{DynamicResource WlAccent}" />
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Value="True">
+                            <DataTrigger.Binding>
+                                <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                            </DataTrigger.Binding>
+                            <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource WlText}" />
+                        </DataTrigger>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="IsSelected" RelativeSource="{RelativeSource TemplatedParent}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource WlAccentInk}" />
+                        </MultiDataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      Registered a second time under WPF's own well-known key: every default (non-overridden)
+      Control.FocusVisualStyle resolves dynamically against SystemParameters.FocusVisualStyleKey,
+      so aliasing it here is what makes the ring apply to every focusable element in the window -
+      buttons, the search box, and every generated ListBoxItem row - without setting
+      FocusVisualStyle one control at a time and missing one. The verbose ResourceKey= form below
+      (not the shorthand curly-brace form) is deliberate - same reason RowStyles.xaml's own
+      WlContentsUnknown/WlTierPresent/WlTierAbsent references use it: the guard test that every
+      brush is a known theme key would otherwise flag a Style key as an unrecognised brush.
+    -->
+    <Style x:Key="{x:Static SystemParameters.FocusVisualStyleKey}"
+           BasedOn="{StaticResource ResourceKey=WlFocusVisual}" />
 
     <!--
       The search TextBox itself, chromeless. The border, the icon, the placeholder and the clear
