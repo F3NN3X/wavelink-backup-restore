@@ -6,6 +6,8 @@
             <ResourceDictionary.MergedDictionaries>
                 <!-- Slot 0. Replaced at runtime by ThemeManager.Apply. -->
                 <ResourceDictionary Source="Theming/Dark.xaml" />
+                <!-- Merged after the theme, so anything in here may reference its keys. -->
+                <ResourceDictionary Source="Views/TrayIcon.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

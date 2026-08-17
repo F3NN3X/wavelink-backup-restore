@@ -1,0 +1,20 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ContextMenu x:Key="TrayMenu">
+        <!-- A readout, not an item. Its Header is rewritten on every tray refresh. -->
+        <MenuItem x:Name="LastBackupHeader" Header="LAST BACKUP" IsEnabled="False" />
+        <Separator />
+        <MenuItem x:Name="BackUpNow" Header="Back up now" FontWeight="Medium" />
+        <MenuItem x:Name="OpenApp" Header="Open Wave Link Backup" />
+        <MenuItem x:Name="OpenFolder" Header="Open the backup folder" />
+        <Separator />
+        <MenuItem x:Name="AutoBackup" Header="Back up automatically" IsCheckable="True" />
+        <MenuItem x:Name="PauseResume" Header="Pause for an hour" />
+        <Separator />
+        <MenuItem x:Name="OpenSettings" Header="Settings…" />
+        <!-- Quitting stops the backups, and the item says so rather than a dialog afterwards. -->
+        <MenuItem x:Name="Quit" Header="Quit — stops backing up" />
+    </ContextMenu>
+
+</ResourceDictionary>
