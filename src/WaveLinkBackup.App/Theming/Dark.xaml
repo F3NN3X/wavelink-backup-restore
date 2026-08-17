@@ -1,0 +1,36 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Surfaces -->
+    <SolidColorBrush x:Key="WlBg"        Color="#111419" />
+    <SolidColorBrush x:Key="WlChrome"    Color="#1A1E20" />
+    <SolidColorBrush x:Key="WlCard"      Color="#16191A" />
+    <SolidColorBrush x:Key="WlRaised"    Color="#1B1D1C" />
+    <SolidColorBrush x:Key="WlSunken"    Color="#0B0D0C" />
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="WlText"      Color="#C8CBD2" />
+    <SolidColorBrush x:Key="WlStrong"    Color="#FFFFFF" />
+    <SolidColorBrush x:Key="WlMuted"     Color="#8B9096" />
+
+    <!-- Lines -->
+    <SolidColorBrush x:Key="WlLine"      Color="#FFFFFF" Opacity="0.11" />
+    <SolidColorBrush x:Key="WlLine2"     Color="#FFFFFF" Opacity="0.20" />
+    <SolidColorBrush x:Key="WlHover"     Color="#FFFFFF" Opacity="0.04" />
+
+    <!-- Accent. WlAccent follows the OS accent (plan 3); WlDanger never does. -->
+    <SolidColorBrush x:Key="WlAccent"     Color="#F01616" />
+    <SolidColorBrush x:Key="WlAccentInk"  Color="#FFFFFF" />
+    <SolidColorBrush x:Key="WlAccentSoft" Color="#F01616" Opacity="0.12" />
+    <SolidColorBrush x:Key="WlAccentLine" Color="#F01616" Opacity="0.32" />
+    <SolidColorBrush x:Key="WlDanger"     Color="#F01616" />
+
+    <!-- Health -->
+    <SolidColorBrush x:Key="WlOk"        Color="#5FD3A6" />
+    <SolidColorBrush x:Key="WlOkSoft"    Color="#5FD3A6" Opacity="0.13" />
+    <SolidColorBrush x:Key="WlWarn"      Color="#F5B843" />
+    <SolidColorBrush x:Key="WlWarnSoft"  Color="#F5B843" Opacity="0.18" />
+
+    <SolidColorBrush x:Key="WlScrim"     Color="#0B0D0C" Opacity="0.22" />
+
+</ResourceDictionary>

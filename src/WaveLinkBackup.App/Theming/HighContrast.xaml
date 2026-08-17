@@ -1,0 +1,44 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      In a high-contrast theme the palette is not ours. Windows forces four or five colours and
+      we do not get to mean anything with them: green-is-whole and amber-is-not are gone. This
+      works because health was never encoded only in colour — it is encoded in shape.
+
+      Every fill goes transparent. Nothing here is a literal.
+
+      The keys are SystemColors.*ColorKey, not SystemColors.*Color: the latter is the Color
+      VALUE, and a value used as a DynamicResource key never resolves — the brush would render
+      black in high contrast, which is the one theme where that is unsurvivable.
+    -->
+    <SolidColorBrush x:Key="WlBg"     Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
+    <SolidColorBrush x:Key="WlChrome" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
+    <SolidColorBrush x:Key="WlCard"   Color="Transparent" />
+    <SolidColorBrush x:Key="WlRaised" Color="Transparent" />
+    <SolidColorBrush x:Key="WlSunken" Color="Transparent" />
+
+    <SolidColorBrush x:Key="WlText"   Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="WlStrong" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="WlMuted"  Color="{DynamicResource {x:Static SystemColors.GrayTextColorKey}}" />
+
+    <SolidColorBrush x:Key="WlLine"   Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="WlLine2"  Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="WlHover"  Color="Transparent" />
+
+    <!-- Red and the accent are gone. Primary = Highlight; nothing here is red. -->
+    <SolidColorBrush x:Key="WlAccent"     Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <SolidColorBrush x:Key="WlAccentInk"  Color="{DynamicResource {x:Static SystemColors.HighlightTextColorKey}}" />
+    <SolidColorBrush x:Key="WlAccentSoft" Color="Transparent" />
+    <SolidColorBrush x:Key="WlAccentLine" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="WlDanger"     Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+
+    <SolidColorBrush x:Key="WlOk"       Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="WlOkSoft"   Color="Transparent" />
+    <SolidColorBrush x:Key="WlWarn"     Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="WlWarnSoft" Color="Transparent" />
+
+    <!-- A dialog is separated by a border, not by dimming: dimming is opacity. -->
+    <SolidColorBrush x:Key="WlScrim"    Color="Transparent" />
+
+</ResourceDictionary>
