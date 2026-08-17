@@ -45,6 +45,9 @@ public sealed class FileSystem : IFileSystem
         if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
     }
 
+    public void MoveDirectory(string source, string destination) =>
+        Directory.Move(source, destination);
+
     public void WriteBytes(string path, byte[] bytes) => File.WriteAllBytes(path, bytes);
 
     public void Replace(string source, string destination, string backup) =>

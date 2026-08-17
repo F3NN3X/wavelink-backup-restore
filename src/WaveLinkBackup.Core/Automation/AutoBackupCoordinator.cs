@@ -1,9 +1,18 @@
 using WaveLinkBackup.Core.Abstractions;
+using WaveLinkBackup.Core.Results;
 
 namespace WaveLinkBackup.Core.Automation;
 
 /// <param name="Decision">Why the tick did or did not capture. Useful in a diagnostic log.</param>
-public sealed record TickResult(CaptureDecision Decision, CaptureResult? Capture)
+/// <param name="Error">
+/// Non-null when a capture was due and failed. **This is what the shell shows.** The tray's
+/// NEEDS YOU state and the status strip's folder-unavailable variant both read it; without it
+/// the tray has a state it cannot enter, and a failing watcher is invisible.
+///
+/// A skipped duplicate is NOT an error — nothing is wrong, the configuration simply has not
+/// changed.
+/// </param>
+public sealed record TickResult(CaptureDecision Decision, CaptureResult? Capture, CoreError? Error = null)
 {
     public bool Captured => Capture?.Captured == true;
 }
@@ -82,7 +91,20 @@ public sealed class AutoBackupCoordinator : IDisposable
         if (decision != CaptureDecision.Capture) return new TickResult(decision, null);
 
         var result = service.CaptureAutomatic();
-        if (!result.IsSuccess) return new TickResult(decision, null);
+
+        if (!result.IsSuccess)
+        {
+            // Clear the pending write on FAILURE too, and report the error once.
+            //
+            // Leaving it pending was the old behaviour and it was exactly what the design
+            // forbids: every tick re-evaluated as Capture and tried again - every 15 seconds,
+            // silently, forever. Nothing is lost by clearing it, because the next real write
+            // re-arms the watcher; this is the same reconciliation-by-hash argument that makes
+            // a dropped filesystem event a latency problem rather than data loss.
+            lock (gate) lastWriteAt = null;
+
+            return new TickResult(decision, null, result.Error);
+        }
 
         lock (gate)
         {
@@ -109,7 +131,7 @@ public sealed class AutoBackupCoordinator : IDisposable
     public TickResult CaptureOnShutdown()
     {
         var result = service.CaptureAutomatic();
-        if (!result.IsSuccess) return new TickResult(CaptureDecision.Capture, null);
+        if (!result.IsSuccess) return new TickResult(CaptureDecision.Capture, null, result.Error);
 
         lock (gate)
         {

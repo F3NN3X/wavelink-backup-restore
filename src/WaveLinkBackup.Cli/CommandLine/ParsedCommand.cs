@@ -12,6 +12,7 @@ public enum Verb
     Delete,
     Verify,
     Prune,
+    EmptyTrash,
     Watch,
 }
 

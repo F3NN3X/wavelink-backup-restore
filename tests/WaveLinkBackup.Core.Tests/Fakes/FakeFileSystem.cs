@@ -27,6 +27,9 @@ public sealed class FakeFileSystem : IFileSystem
     /// <summary>Models an unwritable store location — a read-only drive, or a denied path.</summary>
     public bool FailDirectoryCreation { get; init; }
 
+    /// <summary>Models one directory locked by a sync client while its neighbours are fine.</summary>
+    public string? FailDirectoryDeleteFor { get; set; }
+
     public FakeFileSystem AddFile(string path, string content) => AddFile(path, Encoding.UTF8.GetBytes(content));
 
     public FakeFileSystem AddFile(string path, byte[] content)
@@ -97,8 +100,36 @@ public sealed class FakeFileSystem : IFileSystem
         }
     }
 
+    public void MoveDirectory(string source, string destination)
+    {
+        var sourcePrefix = source.TrimEnd('\\') + "\\";
+        var destPrefix = destination.TrimEnd('\\') + "\\";
+
+        foreach (var file in files.Keys.Where(f => f.StartsWith(sourcePrefix, StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            var moved = destPrefix + file[sourcePrefix.Length..];
+            AddFile(moved, files[file]);
+            files.Remove(file);
+        }
+
+        foreach (var dir in directories.Where(d =>
+                     string.Equals(d, source, StringComparison.OrdinalIgnoreCase) ||
+                     d.StartsWith(sourcePrefix, StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            directories.Remove(dir);
+        }
+
+        directories.Add(destination);
+    }
+
     public void DeleteDirectory(string path)
     {
+        if (FailDirectoryDeleteFor is not null &&
+            string.Equals(FailDirectoryDeleteFor, path, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new IOException($"'{path}' is in use by another process.");
+        }
+
         var prefix = path.TrimEnd('\\') + "\\";
 
         foreach (var file in files.Keys.Where(f => f.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())

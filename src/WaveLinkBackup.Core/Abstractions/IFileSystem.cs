@@ -36,6 +36,12 @@ public interface IFileSystem
     /// <summary>Deletes a directory and everything in it.</summary>
     void DeleteDirectory(string path);
 
+    /// <summary>
+    /// Moves a directory. Used by the two-stage delete, where it is what makes deletion
+    /// reversible without any shell interop.
+    /// </summary>
+    void MoveDirectory(string source, string destination);
+
     void WriteBytes(string path, byte[] bytes);
 
     /// <summary>Atomic on NTFS, and produces the rollback copy in the same operation.</summary>

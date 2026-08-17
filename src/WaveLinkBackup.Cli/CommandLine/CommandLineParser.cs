@@ -89,6 +89,7 @@ public static class CommandLineParser
         "delete" or "rm" => Verb.Delete,
         "verify" => Verb.Verify,
         "prune" => Verb.Prune,
+        "empty-trash" or "empty" => Verb.EmptyTrash,
         "watch" => Verb.Watch,
         "help" or "--help" or "-h" or "-?" => Verb.Help,
         "version" or "--version" => Verb.Version,

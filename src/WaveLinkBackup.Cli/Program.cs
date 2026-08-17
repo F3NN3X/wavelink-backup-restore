@@ -13,6 +13,7 @@ var runner = new CommandRunner(
     new WaveLinkProcess(),
     new SystemClock(),
     new ConsoleOutput(),
-    WaveLinkBackup.Core.Discovery.SettingsLocator.SystemLocalAppData);
+    WaveLinkBackup.Core.Discovery.SettingsLocator.SystemLocalAppData,
+    new RecycleBin());
 
 return runner.Run(CommandLineParser.Parse(args));

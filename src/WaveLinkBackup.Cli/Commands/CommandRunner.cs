@@ -28,7 +28,8 @@ public sealed class CommandRunner(
     IWaveLinkProcess process,
     IClock clock,
     IOutput output,
-    string localAppDataPath)
+    string localAppDataPath,
+    IRecycleBin recycleBin)
 {
     public int Run(ParsedCommand command)
     {
@@ -50,6 +51,7 @@ public sealed class CommandRunner(
             Verb.Delete => Delete(command),
             Verb.Verify => Verify(command),
             Verb.Prune => Prune(command),
+            Verb.EmptyTrash => EmptyTrash(command),
             Verb.Watch => Watch(command),
             _ => Help(),
         };
@@ -157,8 +159,11 @@ public sealed class CommandRunner(
         var found = store.Get(command.Arguments[0]);
         if (!found.IsSuccess) return Fail(found.Error);
 
+        // Names the trash, not the Recycle Bin. Deleting is a move; the Recycle Bin only
+        // enters at `empty-trash`, and on a network store it never does at all. Saying
+        // "Recycle Bin" here would be untrue for exactly the users most careful about backups.
         if (!command.AssumeYes &&
-            !output.Confirm($"Delete \"{found.Value.Manifest.DisplayName}\"? This cannot be undone."))
+            !output.Confirm($"Move \"{found.Value.Manifest.DisplayName}\" to the trash?"))
         {
             output.Write("Nothing was deleted.");
             return ExitCode.Declined;
@@ -167,7 +172,48 @@ public sealed class CommandRunner(
         var result = store.Delete(command.Arguments[0]);
         if (!result.IsSuccess) return Fail(result.Error);
 
-        output.Write("Deleted.");
+        output.Write("Moved to the trash. Run 'wlbackup empty-trash' to remove it for good.");
+        return ExitCode.Success;
+    }
+
+    private int EmptyTrash(ParsedCommand command)
+    {
+        var store = Store(command);
+        var (count, bytes) = store.TrashSize();
+
+        if (count == 0)
+        {
+            output.Write("The trash is empty.");
+            return ExitCode.Success;
+        }
+
+        // Ask before promising an undo. On a network or removable store there is no Recycle
+        // Bin, and the honest word for what happens then is "permanently".
+        var toRecycleBin = store.TrashGoesToRecycleBin(recycleBin);
+        var destination = toRecycleBin
+            ? "to the Recycle Bin"
+            : "permanently — this backup folder has no Recycle Bin";
+
+        var summary = $"{count} backup{(count == 1 ? "" : "s")}, {bytes / 1024.0 / 1024.0:0.0} MB";
+
+        if (!command.AssumeYes && !output.Confirm($"Remove {summary} {destination}?"))
+        {
+            output.Write("The trash was left alone.");
+            return ExitCode.Declined;
+        }
+
+        var emptied = store.EmptyTrash(recycleBin);
+
+        if (emptied.Count < count)
+        {
+            output.WriteError($"Removed {emptied.Count} of {count}; the rest are still in use.");
+            return ExitCode.StoreFailed;
+        }
+
+        output.Write(toRecycleBin
+            ? $"Removed {emptied.Count} to the Recycle Bin."
+            : $"Removed {emptied.Count} permanently.");
+
         return ExitCode.Success;
     }
 

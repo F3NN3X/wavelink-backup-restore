@@ -83,16 +83,30 @@ public sealed class BackupService(
     /// Deletes automatic snapshots beyond the keep count, oldest first. Manual and
     /// pre-restore snapshots are never touched - the rule lives in
     /// <see cref="SnapshotRetention"/> and is consulted, never re-derived.
+    ///
+    /// **Verifies each candidate before deleting it, and refuses any that fail.** A corrupted
+    /// backup must never push a good one out.
+    ///
+    /// This verifies only the CONDEMNED, which is what keeps it cheap: pruning a 30-deep store
+    /// removes one or two, so it hashes one or two. Verifying at list time - the obvious
+    /// alternative - would rehash the whole store every time a window opened, which is exactly
+    /// the cost phase 2 declined to pay.
     /// </summary>
     public IReadOnlyList<Snapshot> Prune()
     {
         var doomed = SnapshotRetention.SelectForPruning(store.List(), keepCount);
+        if (doomed.Count == 0) return [];
 
-        // Best effort per snapshot: one undeletable directory - locked by a sync client, say -
-        // must not stop the rest being pruned, and must not fail the capture that triggered it.
         var deleted = new List<Snapshot>();
+
         foreach (var snapshot in doomed)
         {
+            // A damaged snapshot is immortal to the pruner. It stays deletable by hand -
+            // making it unremovable would be a worse failure than the one this prevents.
+            if (!store.Verify(snapshot).IsSuccess) continue;
+
+            // Best effort per snapshot: one undeletable directory - locked by a sync client,
+            // say - must not stop the rest, and must not fail the capture that triggered it.
             if (store.Delete(snapshot.Id).IsSuccess) deleted.Add(snapshot);
         }
 

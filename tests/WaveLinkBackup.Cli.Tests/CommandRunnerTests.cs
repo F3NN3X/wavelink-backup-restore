@@ -36,7 +36,15 @@ public sealed class CommandRunnerTests
         public FakeWaveLinkProcess Process { get; } = new() { Running = false };
         public FakeOutput Out { get; } = new(confirm);
 
-        public CommandRunner Runner => new(Fs, Process, Clock, Out, LocalAppData);
+        private FakeRecycleBin? bin;
+
+        /// <summary>
+        /// Lazy because it needs <see cref="Fs"/> — sending to the Recycle Bin IS the removal,
+        /// so a fake that only recorded the call would let a double-delete through.
+        /// </summary>
+        public FakeRecycleBin Bin => bin ??= new FakeRecycleBin(Fs);
+
+        public CommandRunner Runner => new(Fs, Process, Clock, Out, LocalAppData, Bin);
 
         public int Run(params string[] args)
         {
@@ -273,14 +281,69 @@ public sealed class CommandRunnerTests
     }
 
     [Fact]
-    public void Delete_with_yes_removes_it()
+    public void Delete_with_yes_moves_it_to_the_trash_rather_than_destroying_it()
     {
         var h = new Harness();
         h.Run("backup", "--name", "doomed");
         var id = h.Store.List()[0].Id;
 
         Assert.Equal(ExitCode.Success, h.Run("delete", id, "--yes"));
+
         Assert.Empty(h.Store.List());
+        Assert.Single(h.Store.ListTrash());
+        Assert.Contains("trash", h.Out.All, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void The_delete_prompt_names_the_trash_not_the_recycle_bin()
+    {
+        // On a network store there is no Recycle Bin, so saying so here would be untrue for
+        // exactly the users most careful about backups.
+        var h = new Harness(confirm: false);
+        h.Run("backup", "--name", "doomed");
+
+        h.Run("delete", h.Store.List()[0].Id);
+
+        var question = Assert.Single(h.Out.Questions);
+        Assert.Contains("trash", question, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Recycle Bin", question, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Empty_trash_on_an_empty_trash_says_so()
+    {
+        var h = new Harness();
+
+        Assert.Equal(ExitCode.Success, h.Run("empty-trash"));
+        Assert.Contains("empty", h.Out.All, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Empty_trash_removes_what_delete_put_there()
+    {
+        var h = new Harness();
+        h.Run("backup", "--name", "doomed");
+        h.Run("delete", h.Store.List()[0].Id, "--yes");
+
+        Assert.Equal(ExitCode.Success, h.Run("empty-trash", "--yes"));
+
+        Assert.Empty(h.Store.ListTrash());
+        Assert.Single(h.Bin.Recycled);
+    }
+
+    [Fact]
+    public void Empty_trash_says_permanent_where_there_is_no_recycle_bin()
+    {
+        var h = new Harness(confirm: false);
+        h.Bin.Available = false;
+        h.Run("backup", "--name", "doomed");
+        h.Run("delete", h.Store.List()[0].Id, "--yes");
+        h.Out.Questions.Clear();
+
+        Assert.Equal(ExitCode.Declined, h.Run("empty-trash"));
+
+        var question = Assert.Single(h.Out.Questions);
+        Assert.Contains("permanently", question, StringComparison.OrdinalIgnoreCase);
     }
 
     // ------------------------------------------------------------------ verify / prune
@@ -337,7 +400,7 @@ public sealed class CommandRunnerTests
     public void A_missing_Wave_Link_returns_its_own_exit_code()
     {
         var fs = new FakeFileSystem();
-        var runner = new CommandRunner(fs, new FakeWaveLinkProcess(), new FakeClock(), new FakeOutput(), LocalAppData);
+        var runner = new CommandRunner(fs, new FakeWaveLinkProcess(), new FakeClock(), new FakeOutput(), LocalAppData, new FakeRecycleBin());
 
         var code = runner.Run(CommandLineParser.Parse(["backup", "--store", StorePath]));
 
@@ -350,7 +413,7 @@ public sealed class CommandRunnerTests
         // technical-debt.md 2.2: the escape hatch has to reach every verb, not just restore.
         var fs = new FakeFileSystem().AddFile(@"D:\rescued\Settings.json", Healthy);
         var clock = new FakeClock();
-        var runner = new CommandRunner(fs, new FakeWaveLinkProcess(), clock, new FakeOutput(), LocalAppData);
+        var runner = new CommandRunner(fs, new FakeWaveLinkProcess(), clock, new FakeOutput(), LocalAppData, new FakeRecycleBin());
 
         var code = runner.Run(CommandLineParser.Parse(
             ["backup", "--settings-path", @"D:\rescued\Settings.json", "--store", StorePath]));
