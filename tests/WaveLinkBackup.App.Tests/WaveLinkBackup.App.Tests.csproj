@@ -20,6 +20,12 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/WaveLinkBackup.App/WaveLinkBackup.App.csproj" />
+    <!--
+      For the Core fakes — FakeFileSystem, FakeClock, FakeSettingsWatcher. BackupHost wraps
+      AutoBackupCoordinator, so testing it needs the same in-memory rig the coordinator's own
+      tests use. Cli.Tests borrows them the same way rather than each suite growing its own.
+    -->
+    <ProjectReference Include="../WaveLinkBackup.Core.Tests/WaveLinkBackup.Core.Tests.csproj" />
   </ItemGroup>
 
   <!--
