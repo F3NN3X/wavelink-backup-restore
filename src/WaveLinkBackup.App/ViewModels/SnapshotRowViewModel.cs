@@ -42,7 +42,7 @@ public sealed class SnapshotRowViewModel : ObservableObject
         health = manifest.IsSuspect ? SnapshotHealth.Suspect : SnapshotHealth.Whole;
 
         SizeBytes = manifest.Files.Values.Sum(f => f.SizeBytes);
-        TakenAt = manifest.CreatedUtc;
+        TakenAt = manifest.CreatedUtc.ToLocalTime();
 
         Slots = InputSlots.Build(manifest.InputNames, peakInputCount);
         Tiers = [.. TierOrder.Select(t => new TierBadge(
@@ -177,7 +177,7 @@ public sealed class SnapshotRowViewModel : ObservableObject
                 : "FILE CAN'T BE READ";
 
             return $"MANIFEST SAYS {Readable.Bytes(v.ManifestBytes)} · {actual} · "
-                 + $"CHECKED {Readable.TimeOfDay(v.CheckedAt)}";
+                 + $"CHECKED {Readable.TimeOfDay(v.CheckedAt.ToLocalTime())}";
         }
     }
 

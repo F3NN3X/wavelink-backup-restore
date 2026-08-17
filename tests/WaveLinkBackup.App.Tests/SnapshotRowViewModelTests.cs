@@ -11,6 +11,13 @@ public sealed class SnapshotRowViewModelTests
 {
     private static readonly DateTimeOffset Now = new(2026, 8, 15, 23, 7, 0, TimeSpan.Zero);
 
+    // The row converts to local time for display (TakenTime/TakenDate/DamagedDetail's CHECKED),
+    // so a test asserting a literal clock reading is only correct on a UTC-offset host. These
+    // expectations run every timestamp through the same .ToLocalTime() the view model uses,
+    // which pins "the conversion happens and the formatter is fed its result" on any host.
+    private static readonly DateTimeOffset DefaultCreatedUtc =
+        new(2026, 8, 11, 21, 36, 0, TimeSpan.Zero);
+
     private static readonly string[] Healthy =
         ["Wave Mic 1", "Voice", "Browser", "Game", "System"];
 
@@ -32,7 +39,7 @@ public sealed class SnapshotRowViewModelTests
                 SchemaVersion: SnapshotManifest.CurrentSchemaVersion,
                 DisplayName: name,
                 Notes: "",
-                CreatedUtc: takenAt ?? new DateTimeOffset(2026, 8, 11, 21, 36, 0, TimeSpan.Zero),
+                CreatedUtc: takenAt ?? DefaultCreatedUtc,
                 Trigger: trigger,
                 SettingsSha256: "abc",
                 WaveLinkVersion: "3.3.0.4108",
@@ -159,9 +166,11 @@ public sealed class SnapshotRowViewModelTests
     public void Taken_is_a_time_over_a_date()
     {
         var row = Row();
+        var expectedLocal = DefaultCreatedUtc.ToLocalTime();
 
-        Assert.Equal("21:36", row.TakenTime);
-        Assert.Equal("11 AUG", row.TakenDate);
+        Assert.Equal(expectedLocal, row.TakenAt);
+        Assert.Equal(Readable.TimeOfDay(expectedLocal), row.TakenTime);
+        Assert.Equal(Readable.ShortDate(expectedLocal), row.TakenDate);
     }
 
     // README: "MANUAL at --wl-text; AUTOMATIC and PRE-RESTORE at --wl-muted."
@@ -269,7 +278,9 @@ public sealed class SnapshotRowViewModelTests
         var row = Row();
         row.ApplyVerdict(new HealthVerdict(SnapshotHealth.Damaged, 481280, 12288, Now));
 
-        Assert.Equal("MANIFEST SAYS 470 KB · FILE IS 12 KB · CHECKED 23:07", row.DamagedDetail);
+        Assert.Equal(
+            $"MANIFEST SAYS 470 KB · FILE IS 12 KB · CHECKED {Readable.TimeOfDay(Now.ToLocalTime())}",
+            row.DamagedDetail);
     }
 
     [Fact]
@@ -321,7 +332,7 @@ public sealed class SnapshotRowViewModelTests
 
         Assert.Contains("Before 3.3 beta", name, StringComparison.Ordinal);
         Assert.Contains("manual", name, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("21:36", name, StringComparison.Ordinal);
+        Assert.Contains(Readable.TimeOfDay(DefaultCreatedUtc.ToLocalTime()), name, StringComparison.Ordinal);
     }
 
     [Fact]
