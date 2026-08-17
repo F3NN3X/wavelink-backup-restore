@@ -29,7 +29,7 @@ Update this file **in the same commit** as the document it counts. See
 | Patterns | 4 |
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
-| Sessions | 6 |
+| Sessions | 7 |
 | Plans | 2 |
 | Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
 | **Tests** | **308 passing** — Core 84.8% line / 81.6% branch · CLI 83.6% / 81.6% |
