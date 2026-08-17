@@ -2,6 +2,7 @@ using System.Windows;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Tests.Fakes;
 using WaveLinkBackup.App.Theming;
+using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Views;
 
 namespace WaveLinkBackup.App.Tests;
@@ -45,13 +46,26 @@ public sealed class MainWindowGeometryTests
     private static readonly ShellState OffScreen =
         new(5_000_000, 5_000_000, 400, 300, IsMaximized: false, ClosingHidesToTray: true);
 
+    /// <summary>
+    /// A minimal, otherwise-default ShellViewModel - Task 10b added a fourth constructor
+    /// parameter to MainWindow, and every test in this file needs SOME view model to hand it,
+    /// even though none of them assert anything about the shell itself.
+    /// </summary>
+    private static ShellViewModel Shell() => ShellViewModelHarness.Build(
+        waveLinkRunning: true, waveLinkFound: true, folderMissing: false, autoBackupEnabled: true,
+        freeBytes: 100, storePath: @"C:\store",
+        savedAt: new DateTimeOffset(2026, 8, 15, 23, 7, 0, TimeSpan.Zero));
+
     private static MainWindow Build(ShellState state) =>
-        new(new FakeWindowChrome(), new FakeSystemTheme(), state);
+        new(new FakeWindowChrome(), new FakeSystemTheme(), state, Shell());
 
     /// <summary>
     /// What App.xaml.cs's own InitializeComponent normally merges into Application.Resources.
     /// Wpf.cs's harness constructs a bare System.Windows.Application rather than this app's App,
-    /// so nothing does this automatically here.
+    /// so nothing does this automatically here. Typography and RowStyles joined ControlStyles in
+    /// Task 10b: MainWindow.xaml now references TrackedText styles from both (WlColumnHeaderTrackedText,
+    /// WlStatusStripTrackedText) and the row template itself (WlRowTemplate), all StaticResource,
+    /// so InitializeComponent throws resolving them unless every one of these is merged first.
     /// </summary>
     private static void EnsureCaptionResourcesLoaded()
     {
@@ -61,7 +75,19 @@ public sealed class MainWindowGeometryTests
         dictionaries.Add(new ResourceDictionary
         {
             Source = new Uri(
+                "pack://application:,,,/WaveLinkBackup;component/Views/Typography.xaml",
+                UriKind.Absolute),
+        });
+        dictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri(
                 "pack://application:,,,/WaveLinkBackup;component/Views/ControlStyles.xaml",
+                UriKind.Absolute),
+        });
+        dictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri(
+                "pack://application:,,,/WaveLinkBackup;component/Views/RowStyles.xaml",
                 UriKind.Absolute),
         });
     }

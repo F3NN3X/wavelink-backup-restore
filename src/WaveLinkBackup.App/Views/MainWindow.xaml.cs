@@ -1,8 +1,10 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Theming;
+using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Windows;
 
 namespace WaveLinkBackup.App.Views;
@@ -11,13 +13,29 @@ public partial class MainWindow : Window
 {
     private readonly IWindowChrome chrome;
     private readonly ISystemTheme systemTheme;
+    private readonly ShellViewModel shell;
 
-    public MainWindow(IWindowChrome chrome, ISystemTheme systemTheme, ShellState state)
+    public MainWindow(IWindowChrome chrome, ISystemTheme systemTheme, ShellState state, ShellViewModel shell)
     {
         this.chrome = chrome;
         this.systemTheme = systemTheme;
+        this.shell = shell;
 
         InitializeComponent();
+
+        DataContext = shell;
+
+        // MUST happen before the first RefreshAsync (wired below, on Loaded): HealthProbe
+        // reports verdicts on its OWN thread and does not marshal itself, so the first
+        // PropertyChanged after a verdict lands would otherwise fire off the UI thread and the
+        // binding would throw. Loaded always fires strictly after the constructor returns, so
+        // setting this here is early enough for every caller.
+        shell.List.Marshal = action => Dispatcher.Invoke(action);
+
+        // Read once here rather than waiting for the first Changed: ThemeManager.Follow (called
+        // in App.OnStartup, before this window exists) has already applied the current palette,
+        // so systemTheme.IsHighContrast is already correct by the time this constructor runs.
+        shell.IsHighContrast = systemTheme.IsHighContrast;
 
         Restore(state);
 
@@ -26,6 +44,11 @@ public partial class MainWindow : Window
             WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         CloseButton.Click += (_, _) => Close();
 
+        Loaded += async (_, _) => await shell.List.RefreshAsync();
+
+        WireBottomBar();
+        WireSearch();
+
         // The HWND does not exist before SourceInitialized, and DwmSetWindowAttribute needs
         // one. Re-applied on every theme change because the dark-frame attribute is a colour
         // decision and high contrast withdraws the backdrop entirely.
@@ -33,7 +56,63 @@ public partial class MainWindow : Window
         systemTheme.Changed += OnSystemThemeChanged;
     }
 
-    private void OnSystemThemeChanged(object? sender, EventArgs e) => Dispatcher.Invoke(ApplyChrome);
+    /// <summary>
+    /// A row's click. WlRowTemplate's ListBoxItem is hand-placed rather than ListBox-generated
+    /// (see MainWindow.xaml's own comment on the row DataTemplate), so nothing gives it the
+    /// usual Selector click-to-select behaviour - this is that behaviour, routed through
+    /// List.Selected so every dependent (ShellViewModel's Can* properties, the bottom bar, the
+    /// expansion) updates the same way a real Selector's SelectedItem binding would have driven
+    /// it.
+    /// </summary>
+    private void Row_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is SnapshotRowViewModel row) shell.List.Selected = row;
+    }
+
+    /// <summary>
+    /// Rename, Delete and Restore render live with correct enablement and open a placeholder
+    /// naming the session that builds them - the same answer plan 3 gave Settings
+    /// (App.OpenSettings). Back up now is real: it calls App.BackUpNow, refreshes the list, and
+    /// selects the row the capture just wrote.
+    /// </summary>
+    private void WireBottomBar()
+    {
+        RenameButton.Click += (_, _) => MessageBox.Show(
+            "Renaming a backup arrives in the next plan.", "Wave Link Backup",
+            MessageBoxButton.OK, MessageBoxImage.Information);
+
+        DeleteButton.Click += (_, _) => MessageBox.Show(
+            "Deleting a backup arrives in the next plan.", "Wave Link Backup",
+            MessageBoxButton.OK, MessageBoxImage.Information);
+
+        RestoreButton.Click += (_, _) => MessageBox.Show(
+            "Restoring a backup arrives in the next plan.", "Wave Link Backup",
+            MessageBoxButton.OK, MessageBoxImage.Information);
+
+        BackUpNowButton.Click += async (_, _) =>
+        {
+            var app = (App)Application.Current;
+            var result = app.BackUpNow();
+
+            await shell.List.RefreshAsync();
+
+            if (result.IsSuccess) shell.List.Select(result.Value.Id);
+        };
+
+        SettingsButton.Click += (_, _) => App.OpenSettings();
+    }
+
+    private void WireSearch()
+    {
+        ClearSearchButton.Click += (_, _) => shell.List.ClearSearch();
+        ClearSearchLinkButton.Click += (_, _) => shell.List.ClearSearch();
+    }
+
+    private void OnSystemThemeChanged(object? sender, EventArgs e) => Dispatcher.Invoke(() =>
+    {
+        ApplyChrome();
+        shell.IsHighContrast = systemTheme.IsHighContrast;
+    });
 
     private void ApplyChrome()
     {

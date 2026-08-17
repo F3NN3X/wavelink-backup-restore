@@ -10,6 +10,7 @@ using H.NotifyIcon.Core;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Startup;
 using WaveLinkBackup.App.Theming;
+using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Views;
 using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.Core.Abstractions;
@@ -17,6 +18,7 @@ using WaveLinkBackup.Core.Automation;
 using WaveLinkBackup.Core.Discovery;
 using WaveLinkBackup.Core.Io;
 using WaveLinkBackup.Core.Process;
+using WaveLinkBackup.Core.Results;
 using WaveLinkBackup.Core.Snapshots;
 
 namespace WaveLinkBackup.App;
@@ -55,6 +57,16 @@ public partial class App : Application
     private ShellStateRepository? shellStateRepository;
     private BackupSettings settings = BackupSettings.Default;
     private bool shuttingDown;
+
+    /// <summary>
+    /// The window's whole data model - held here, not just handed to MainWindow, because
+    /// RefreshShellFacts (the 15-second tick) has to reach ShellViewModel.Apply even while no
+    /// window is open (the app starts hidden when launched with --start-in-tray).
+    /// </summary>
+    private ShellViewModel? shell;
+
+    /// <summary>Kept for RefreshShellFacts, which re-checks the live installation on every tick.</summary>
+    private IFileSystem? fileSystem;
 
     /// <summary>Read by MainWindow at construction, and updated by every SaveGeometry.</summary>
     internal ShellState ShellState { get; private set; } = ShellState.Default;
@@ -107,7 +119,7 @@ public partial class App : Application
         chrome = new DwmWindowChrome();
         ThemeManager.Apply(systemTheme.Theme, systemTheme.Accent);
 
-        var fileSystem = new FileSystem();
+        fileSystem = new FileSystem();
         settingsRepository = new SettingsRepository(fileSystem, SettingsRepository.DefaultDirectory);
 
         shellStateRepository = new ShellStateRepository(fileSystem, SettingsRepository.DefaultDirectory);
@@ -115,13 +127,16 @@ public partial class App : Application
 
         settings = arguments.ApplyTo(settingsRepository.Read());
 
-        (host, service, store, waveLinkProcess) = Compose(fileSystem, settings);
+        (host, service, store, waveLinkProcess, shell) = Compose(fileSystem, settings);
         host.AutoBackupEnabled = settings.AutoBackupEnabled;
         host.Start();
 
         // Once, before anything is shown: the readout and the tooltip must be right on the first
-        // frame, not after the first capture of this run.
+        // frame, not after the first capture of this run. The shell's own facts are the same
+        // idea, one level up - Screen 1's status strip must be right before the window ever
+        // shows, not after the first 15-second tick.
         RefreshNewest();
+        RefreshShellFacts();
 
         tray = BuildTray();
 
@@ -134,7 +149,7 @@ public partial class App : Application
         {
             Interval = TimeSpan.FromSeconds(15),
         };
-        timer.Tick += (_, _) => { host.Tick(); RefreshTray(); };
+        timer.Tick += (_, _) => { host.Tick(); RefreshTray(); RefreshShellFacts(); };
         timer.Start();
 
         // Windows shutting down is a shutdown path too — and the ORIGINAL INCIDENT happened
@@ -147,7 +162,9 @@ public partial class App : Application
         RefreshTray();
     }
 
-    private static (BackupHost Host, BackupService Service, SnapshotStore Store, IWaveLinkProcess WaveLinkProcess)
+    private static (
+        BackupHost Host, BackupService Service, SnapshotStore Store, IWaveLinkProcess WaveLinkProcess,
+        ShellViewModel Shell)
         Compose(IFileSystem fileSystem, BackupSettings settings)
     {
         var clock = new SystemClock();
@@ -168,7 +185,16 @@ public partial class App : Application
         var coordinator = new AutoBackupCoordinator(
             new FileSystemSettingsWatcher(watchPath), service, clock);
 
-        return (new BackupHost(coordinator, clock), service, store, new WaveLinkProcess());
+        // The window's own data model. Built here rather than in MainWindow's constructor so it
+        // exists (and RefreshShellFacts can reach it) even before any window is ever shown - the
+        // app can start hidden in the tray. Marshal is NOT set here: SnapshotListViewModel
+        // defaults to running inline, which is correct for every caller except the one that
+        // calls RefreshAsync, and that caller (MainWindow) sets it itself before its own first
+        // RefreshAsync - see MainWindow.xaml.cs.
+        var list = new SnapshotListViewModel(store, new HealthProbe(store, fileSystem, clock), fileSystem, clock);
+        var shell = new ShellViewModel(list);
+
+        return (new BackupHost(coordinator, clock), service, store, new WaveLinkProcess(), shell);
     }
 
     private TaskbarIcon BuildTray()
@@ -275,7 +301,12 @@ public partial class App : Application
         }
     }
 
-    private void BackUpNow()
+    /// <summary>
+    /// Internal, and returning the Result, so MainWindow's own "Back up now" button can select
+    /// the row the capture just wrote (README: "Back up now inserts a row at the top of TODAY
+    /// and selects it") - the tray menu's own entry point keeps discarding it, same as before.
+    /// </summary>
+    internal Result<Snapshot> BackUpNow()
     {
         var result = service!.BackUpNow("Manual");
 
@@ -288,6 +319,9 @@ public partial class App : Application
         }
 
         RefreshTray();
+        RefreshShellFacts();
+
+        return result;
     }
 
     private void OpenStoreFolder() =>
@@ -311,7 +345,8 @@ public partial class App : Application
         RefreshTray();
     }
 
-    private static void OpenSettings() =>
+    /// <summary>Internal so MainWindow's own gear button can call the same placeholder.</summary>
+    internal static void OpenSettings() =>
         MessageBox.Show("Settings arrive in the next plan.", "Wave Link Backup",
             MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -387,9 +422,38 @@ public partial class App : Application
         return $"LAST BACKUP · {day} {local.ToString("HH:mm", CultureInfo.CurrentCulture)}{inputs}";
     }
 
+    /// <summary>
+    /// The status strip's five facts, re-read from the live installation and re-applied to the
+    /// shell. Called once before the window is ever shown and again on every 15-second tick,
+    /// alongside RefreshTray - the tray icon and the status strip are two readouts of the same
+    /// underlying state and neither should be able to go stale while the other updates.
+    /// </summary>
+    private void RefreshShellFacts()
+    {
+        if (shell is null || fileSystem is null) return;
+
+        var inspection = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
+            .Inspect(settings.ChosenWaveLinkPath);
+
+        var savedAt = inspection.IsSuccess
+            ? new DateTimeOffset(
+                fileSystem.GetLastWriteTimeUtc(inspection.Value.Location.SettingsPath), TimeSpan.Zero)
+                .ToLocalTime()
+            : (DateTimeOffset?)null;
+
+        shell.Apply(new ShellFacts(
+            WaveLinkFound: inspection.IsSuccess,
+            WaveLinkRunning: waveLinkProcess?.IsRunning ?? false,
+            SettingsLastSavedLocal: savedAt,
+            AutoBackupEnabled: host?.AutoBackupEnabled ?? false,
+            FolderMissing: !fileSystem.DirectoryExists(settings.StorePath),
+            StorePath: settings.StorePath,
+            FreeBytes: fileSystem.GetAvailableFreeBytes(settings.StorePath)));
+    }
+
     private void ShowMainWindow()
     {
-        MainWindow ??= new Views.MainWindow(chrome!, systemTheme!, ShellState);
+        MainWindow ??= new Views.MainWindow(chrome!, systemTheme!, ShellState, shell!);
 
         // Closing HIDES it, so a window that exists may simply be invisible.
         MainWindow.Show();

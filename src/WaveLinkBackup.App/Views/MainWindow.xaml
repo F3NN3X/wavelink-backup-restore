@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
         Title="Wave Link Backup"
         Height="760" Width="1180" MinHeight="560" MinWidth="980"
         WindowStartupLocation="CenterScreen"
@@ -25,13 +26,20 @@
                             UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
 
-    <Grid>
+    <!--
+      IsSharedSizeScope lives HERE, on the root Grid, rather than on the ListBox the brief's own
+      words name. The header (row 2) and the row template (three layers deep inside row 3's
+      scroll region) are SIBLINGS under this Grid, not ancestor/descendant of each other - the
+      attached property only shares sizes among elements that are BOTH inside the element it is
+      set on, so it has to sit on their nearest common ancestor to reach both at once.
+    -->
+    <Grid Grid.IsSharedSizeScope="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="34" />   <!-- caption: left unpainted, so Mica shows -->
-            <RowDefinition Height="Auto" /> <!-- status strip   (Task 9) -->
-            <RowDefinition Height="Auto" /> <!-- column header  (Task 9) -->
-            <RowDefinition Height="*" />    <!-- the list       (Task 9) -->
-            <RowDefinition Height="Auto" /> <!-- bottom bar     (Task 9) -->
+            <RowDefinition Height="Auto" /> <!-- status strip -->
+            <RowDefinition Height="Auto" /> <!-- column header -->
+            <RowDefinition Height="*" />    <!-- the list -->
+            <RowDefinition Height="Auto" /> <!-- bottom bar -->
         </Grid.RowDefinitions>
 
         <!-- Solid WlBg behind everything BELOW the bar. README: "Mica/SystemBackdrop on the
@@ -58,6 +66,461 @@
                             AutomationProperties.Name="Maximise" Content="&#xE922;" />
                     <Button x:Name="CloseButton" Style="{StaticResource WlCaptionCloseButton}"
                             AutomationProperties.Name="Close" Content="&#xE8BB;" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!--
+          ================================================================================
+          Row 1 - the status strip. 10,20 padding (CSS-order top/bottom 10, left/right 20,
+          which in a WPF Thickness is written "20,10"), WlChrome, a hairline bottom edge,
+          space-between: the dot+label on the left, the search field and the settings gear
+          on the right.
+          ================================================================================
+        -->
+        <Border Grid.Row="1" Background="{DynamicResource WlChrome}"
+                BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1" Padding="20,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="7" Height="7" VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{DynamicResource WlOk}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding StatusTone}" Value="Warn">
+                                        <Setter Property="Fill" Value="{DynamicResource WlWarn}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding StatusTone}" Value="Neutral">
+                                        <Setter Property="Fill" Value="{DynamicResource WlMuted}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+
+                    <!--
+                      Default reads List.MatchSummary (07: what the strip shows while searching);
+                      the DataTrigger below overrides it back to StatusStrip once the query is
+                      empty - the same "default is the exception, a trigger restores the common
+                      case" idiom RowStyles.xaml's own high-contrast MetaText trigger already
+                      uses, just with the roles swapped.
+                    -->
+                    <views:TrackedText Margin="8,0,0,0" Tracking=".14"
+                                        Foreground="{DynamicResource WlText}"
+                                        VerticalAlignment="Center">
+                        <views:TrackedText.Style>
+                            <Style TargetType="views:TrackedText" BasedOn="{StaticResource WlStatusStripTrackedText}">
+                                <Setter Property="Text" Value="{Binding List.MatchSummary}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding List.Query}" Value="">
+                                        <Setter Property="Text" Value="{Binding StatusStrip}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </views:TrackedText.Style>
+                    </views:TrackedText>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+
+                    <!--
+                      The search field. WlBg fill, hairline border (steps to WlLine2 while the
+                      box has keyboard focus), 8px radius, 8,11 padding, a 14px search icon, an
+                      18px round clear button that appears once there is a query.
+                    -->
+                    <Border x:Name="SearchBoxBorder" Width="216" Background="{DynamicResource WlBg}"
+                            BorderThickness="1" CornerRadius="8" Padding="8,11">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="BorderBrush" Value="{DynamicResource WlLine}" />
+                                <Style.Triggers>
+                                    <DataTrigger Value="True">
+                                        <DataTrigger.Binding>
+                                            <Binding Path="IsKeyboardFocusWithin" ElementName="SearchBox" />
+                                        </DataTrigger.Binding>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource WlLine2}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Path Grid.Column="0" Data="{StaticResource WlSearchGeometry}"
+                                  Stroke="{DynamicResource WlMuted}" StrokeThickness="1.6"
+                                  Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0"
+                                  VerticalAlignment="Center" />
+
+                            <Grid Grid.Column="1">
+                                <TextBlock Text="Search backups" VerticalAlignment="Center"
+                                           IsHitTestVisible="False"
+                                           FontFamily="{DynamicResource WlDisplayFont}" FontSize="13"
+                                           Foreground="{DynamicResource WlMuted}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding List.Query}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBox x:Name="SearchBox" Style="{StaticResource WlSearchBox}"
+                                         Text="{Binding List.Query, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Search backups"
+                                         VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Button x:Name="ClearSearchButton" Grid.Column="2"
+                                    Margin="6,0,0,0" VerticalAlignment="Center"
+                                    AutomationProperties.Name="Clear the search">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource WlSearchClearButton}">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding List.Query}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <Button x:Name="SettingsButton" Style="{StaticResource WlIconGhostButton}"
+                            Margin="10,0,0,0" AutomationProperties.Name="Settings">
+                        <Path Data="{StaticResource WlGearGeometry}" Stroke="{DynamicResource WlText}"
+                              StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Width="16" Height="16" Stretch="Uniform" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!--
+          ================================================================================
+          Row 2 - the column header. 11,20,9,20 padding, hairline bottom, the same shared-size
+          grid the row and this template both key off. Stays during a search (07); hides when
+          the list has nothing to have columns FOR (Empty/FolderMissing), each of which renders
+          its own copy of this same DataTemplate inside its row-3 stand-in instead.
+          ================================================================================
+        -->
+        <Border x:Name="ColumnHeaderBorder" Grid.Row="2" BorderBrush="{DynamicResource WlLine}"
+                BorderThickness="0,0,0,1" Padding="11,20,9,20">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding List.State}" Value="Empty">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding List.State}" Value="FolderMissing">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <ContentControl ContentTemplate="{StaticResource WlColumnHeaderRowTemplate}" Focusable="False" />
+        </Border>
+
+        <!--
+          ================================================================================
+          Row 3 - the list, and its three stand-ins, one Grid with all four states stacked and
+          switched by List.State. ONE state is ever visible at a time, so there is no visual
+          overlap even though all four live in the same cell.
+          ================================================================================
+        -->
+        <Grid Grid.Row="3">
+
+            <!--
+              Loaded: the groups, each a date header followed by its rows. Groups is already
+              pre-grouped by the view model (SnapshotListViewModel.Groups), so this is an
+              ItemsControl over Groups rather than a flat ListBox with GroupStyle - there is no
+              flat row collection to hand a CollectionView, and building one here would mean
+              re-deriving the TODAY/YESTERDAY grouping this ItemsControl's own data already
+              carries. See MainWindow.xaml.cs / the task report for why each row below is a
+              hand-placed ListBoxItem rather than a ListBox.SelectedItem binding, and what that
+              costs.
+            -->
+            <ScrollViewer x:Name="ListScrollViewer" VerticalScrollBarVisibility="Auto"
+                          CanContentScroll="True">
+                <ScrollViewer.Style>
+                    <Style TargetType="ScrollViewer">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding List.State}" Value="Loaded">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ScrollViewer.Style>
+
+                <ItemsControl x:Name="GroupsHost" ItemsSource="{Binding List.Groups}" Focusable="False"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <!-- Group header: same tracked role and tracking as the column
+                                     header, no rule under it ("no separator line"). -->
+                                <views:TrackedText Text="{Binding Header}" Tracking=".18"
+                                                    Margin="14,20,20,7"
+                                                    Style="{StaticResource WlColumnHeaderTrackedText}"
+                                                    Foreground="{DynamicResource WlMuted}" />
+
+                                <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <!--
+                                                  The row. A bare ListBoxItem, not ListBox-hosted:
+                                                  WlRowTemplate's ControlTemplate has no
+                                                  ContentPresenter (it draws every cell directly
+                                                  against {Binding}), so nothing an ItemTemplate
+                                                  supplies would ever render through it, and that
+                                                  is exactly the seam the expansion below needs -
+                                                  a sibling element in the SAME row of the SAME
+                                                  StackPanel, which a real per-group ListBox
+                                                  cannot offer without either editing
+                                                  RowStyles.xaml or losing correct interleaving
+                                                  under multi-row groups. IsSelected binds
+                                                  ONE-WAY from the row's own already-correct
+                                                  property (SnapshotListViewModel.Selected's
+                                                  setter is the single place that flips it); the
+                                                  Click handler is what pushes a NEW selection
+                                                  back the other way, through List.Selected.
+                                                -->
+                                                <ListBoxItem Style="{StaticResource WlRowTemplate}"
+                                                             IsSelected="{Binding IsSelected, Mode=OneWay}"
+                                                             PreviewMouseLeftButtonDown="Row_PreviewMouseLeftButtonDown" />
+
+                                                <!--
+                                                  The selected-row expansion. Visible only when
+                                                  IsSelected - which, since only one row's
+                                                  IsSelected is ever true (enforced by
+                                                  SnapshotListViewModel.Selected's setter), is
+                                                  also what makes "one row expands at a time" true
+                                                  with no extra state here.
+                                                -->
+                                                <Border Background="{DynamicResource WlCard}"
+                                                        Padding="20,0,20,16"
+                                                        Visibility="{Binding IsSelected, Converter={StaticResource WlBoolToVisibility}}">
+                                                    <StackPanel>
+                                                        <StackPanel Margin="0,0,0,8"
+                                                                    Visibility="{Binding IsDamaged, Converter={StaticResource WlBoolToVisibility}}">
+                                                            <TextBlock Text="{Binding DamagedSentence}"
+                                                                       Style="{StaticResource WlBodyText}"
+                                                                       Foreground="{DynamicResource WlText}"
+                                                                       MaxWidth="660" HorizontalAlignment="Left"
+                                                                       Margin="0,0,0,8" />
+                                                            <TextBlock Text="{Binding DamagedDetail}"
+                                                                       Style="{StaticResource WlMonoMetaText}"
+                                                                       Foreground="{DynamicResource WlMuted}" />
+                                                        </StackPanel>
+
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBlock Grid.Column="0" Text="{Binding DetailLine}"
+                                                                       Style="{StaticResource WlMonoMetaText}"
+                                                                       Foreground="{DynamicResource WlMuted}"
+                                                                       VerticalAlignment="Center" />
+                                                            <Border Grid.Column="1" Height="1" Margin="12,0"
+                                                                    VerticalAlignment="Center"
+                                                                    Background="{DynamicResource WlLine}" />
+                                                            <TextBlock Grid.Column="2" Text="{Binding DetailFileName}"
+                                                                       Style="{StaticResource WlMonoMetaText}"
+                                                                       Foreground="{DynamicResource WlMuted}"
+                                                                       Opacity="0.75" VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!--
+              NoResults: the real treatment (07). No measure-rule frame - that frame belongs to
+              first run (Empty), and reusing it here would make an empty RESULT look like an
+              empty APP.
+            -->
+            <StackPanel x:Name="NoResultsPanel" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Margin="0,52,0,56">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding List.State}" Value="NoResults">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+
+                <TextBlock Text="{Binding List.NoResultsTitle}" Style="{StaticResource WlBodyText}"
+                           FontSize="15" Foreground="{DynamicResource WlStrong}"
+                           HorizontalAlignment="Center" TextAlignment="Center" />
+                <TextBlock Text="{Binding List.NoResultsDetail}" Style="{StaticResource WlMonoMetaText}"
+                           Foreground="{DynamicResource WlMuted}" Margin="0,8,0,0"
+                           HorizontalAlignment="Center" TextAlignment="Center" />
+                <Button x:Name="ClearSearchLinkButton" Content="Clear the search"
+                        Style="{StaticResource WlGhostButton}" Margin="0,6,0,0"
+                        HorizontalAlignment="Center" />
+            </StackPanel>
+
+            <!--
+              Empty and FolderMissing: stand-ins, NOT the designed screens - first run (screen 4)
+              and error 12's full screen both arrive in later sessions. Each renders the column
+              header (since row 2's own copy hid itself for exactly these two states) plus one
+              centred line, and nothing else.
+            -->
+            <Grid x:Name="EmptyStandIn">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding List.State}" Value="Empty">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+
+                <Border Grid.Row="0" BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1"
+                        Padding="11,20,9,20">
+                    <ContentControl ContentTemplate="{StaticResource WlColumnHeaderRowTemplate}" Focusable="False" />
+                </Border>
+                <TextBlock Grid.Row="1" Text="No backups yet." Style="{StaticResource WlBodyText}"
+                           Foreground="{DynamicResource WlText}" HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+            </Grid>
+
+            <Grid x:Name="FolderMissingStandIn">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding List.State}" Value="FolderMissing">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+
+                <Border Grid.Row="0" BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1"
+                        Padding="11,20,9,20">
+                    <ContentControl ContentTemplate="{StaticResource WlColumnHeaderRowTemplate}" Focusable="False" />
+                </Border>
+                <TextBlock Grid.Row="1" Text="The backup folder can't be used." Style="{StaticResource WlBodyText}"
+                           Foreground="{DynamicResource WlText}" HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Grid>
+
+        <!--
+          ================================================================================
+          Row 4 - the bottom bar. 12,20 padding (WPF order: left/right 20, top/bottom 12),
+          WlChrome, hairline top, space-between: SelectedLine over SummaryLine on the left,
+          the four action buttons 7px apart on the right.
+          ================================================================================
+        -->
+        <Border Grid.Row="4" Background="{DynamicResource WlChrome}"
+                BorderBrush="{DynamicResource WlLine}" BorderThickness="0,1,0,0" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <views:TrackedText Text="{Binding SelectedLine}" Tracking=".14"
+                                        Style="{StaticResource WlStatusStripTrackedText}"
+                                        Foreground="{DynamicResource WlText}" />
+                    <TextBlock Text="{Binding SummaryLine}" FontFamily="{DynamicResource WlMonoFont}"
+                               FontWeight="Normal" FontSize="11" Margin="0,4,0,0"
+                               Foreground="{DynamicResource WlMuted}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="RenameButton" Style="{StaticResource WlGhostButton}"
+                            IsEnabled="{Binding CanRename}" AutomationProperties.Name="Rename">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource WlPencilGeometry}" Stroke="{DynamicResource WlText}"
+                                  StrokeThickness="1.5" StrokeLineJoin="Round" Width="14" Height="14"
+                                  Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Rename" Margin="6,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="DeleteButton" Style="{StaticResource WlGhostButton}" Margin="7,0,0,0"
+                            IsEnabled="{Binding CanDelete}" AutomationProperties.Name="Delete">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource WlTrashGeometry}" Stroke="{DynamicResource WlText}"
+                                  StrokeThickness="1.5" StrokeLineJoin="Round" Width="14" Height="14"
+                                  Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Delete" Margin="6,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="RestoreButton" Style="{StaticResource WlSecondaryButton}" Margin="7,0,0,0"
+                            IsEnabled="{Binding CanRestore}" AutomationProperties.Name="Restore this backup">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource WlRotateCcwGeometry}" Stroke="{DynamicResource WlText}"
+                                  StrokeThickness="1.5" StrokeLineJoin="Round" Width="14" Height="14"
+                                  Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Restore this backup" Margin="6,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BackUpNowButton" Style="{StaticResource WlPrimaryButton}" Margin="7,0,0,0"
+                            IsEnabled="{Binding CanBackUpNow}" AutomationProperties.Name="Back up now">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource WlDownloadTrayGeometry}" Stroke="{DynamicResource WlAccentInk}"
+                                  StrokeThickness="1.5" StrokeLineJoin="Round" Width="14" Height="14"
+                                  Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Back up now" Margin="6,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>

@@ -11,6 +11,11 @@
                 <!-- The caption row's own styles and geometry - after Typography so anything in
                      here that wants WlDisplayFont or WlMonoFont can find it. -->
                 <ResourceDictionary Source="Views/ControlStyles.xaml" />
+                <!-- Screen 1's row: the six-column grid, the health strip, the pills and the tier
+                     badges (Task 10a). Merged after ControlStyles so nothing in it needs to
+                     duplicate anything already here; it self-merges Typography.xaml, so its own
+                     internal StaticResources do not depend on this ordering either. -->
+                <ResourceDictionary Source="Views/RowStyles.xaml" />
                 <!--
                   Views/TrayIcon.xaml is deliberately NOT merged here. The tray menu is loaded
                   fresh, by pack URI, every time the theme changes - a detached ContextMenu never

@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:views="clr-namespace:WaveLinkBackup.App.Views">
 
     <!--
       The window's shield-check mark. Same 24px-grid Lucide idiom TrayIconRenderer already draws
@@ -65,6 +66,216 @@
                             <Setter Property="Foreground" Value="{DynamicResource WlAccentInk}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      10b: the search, settings and bottom-bar icons. Same 24px-grid Lucide idiom as the
+      caption's WlShieldCheckGeometry above and RowStyles.xaml's own three glyphs - a separate
+      copy in a separate dictionary, not a rename, since RowStyles.xaml is merged standalone by
+      pack URI in Task 12 and must not depend on this file being merged too. All six are
+      stroke-rendered (Stroke + StrokeThickness on the Path that uses them, no Fill) - simpler to
+      author as open paths than to get a fill region right, and nothing here is pixel-tested (the
+      guard tests only check that the KEY exists, same rule RowStyles.xaml's own comment states
+      for its three glyphs).
+    -->
+    <Geometry x:Key="WlSearchGeometry">M10 4 A6 6 0 1 0 10 16 A6 6 0 1 0 10 4 Z M14.5 14.5 L20.5 20.5</Geometry>
+    <Geometry x:Key="WlGearGeometry">M9 12 A3 3 0 1 0 15 12 A3 3 0 1 0 9 12 Z M12 2 L12 5 M12 19 L12 22 M2 12 L5 12 M19 12 L22 12 M4.9 4.9 L7.05 7.05 M16.95 16.95 L19.1 19.1 M19.1 4.9 L16.95 7.05 M7.05 16.95 L4.9 19.1</Geometry>
+    <Geometry x:Key="WlCloseGeometry">M5 5 L15 15 M15 5 L5 15</Geometry>
+    <Geometry x:Key="WlPencilGeometry">M4 20 L4 16 L15 5 L19 9 L8 20 Z M13 7 L17 11</Geometry>
+    <Geometry x:Key="WlTrashGeometry">M5 7 L19 7 M9 7 L9 4 L15 4 L15 7 M7 7 L7.6 20 L16.4 20 L17 7 M10 11 L10 16 M14 11 L14 16</Geometry>
+    <Geometry x:Key="WlRotateCcwGeometry">M4 4 L4 9 L9 9 M4.6 15 A8 8 0 1 0 6.2 6.2</Geometry>
+    <Geometry x:Key="WlDownloadTrayGeometry">M12 3 L12 14 M7 9 L12 14 L17 9 M4 18 L4 20 L20 20 L20 18</Geometry>
+
+    <!--
+      Boolean -> Visibility, the framework's own converter. Used by the selected-row expansion in
+      MainWindow.xaml ("visible only when IsSelected" / "a damaged row also shows..."), which has
+      no DataTrigger-only equivalent as clean as a plain bool->Visibility on a Border.
+    -->
+    <BooleanToVisibilityConverter x:Key="WlBoolToVisibility" />
+
+    <!--
+      Reused three times verbatim (row 2's real column header, and the Empty/FolderMissing
+      stand-ins that render their own copy of it per the brief's Step 4) - a DataTemplate rather
+      than three hand-copied Grids, since a DataTemplate can be instantiated more than once where
+      a plain element cannot. The six SharedSizeGroup names MUST match WlRowTemplate's own
+      (RowStyles.xaml) for the header to line up with every row - MainWindow.xaml sets
+      Grid.IsSharedSizeScope="True" on its OWN root Grid (not here) because that is the nearest
+      element that is a common ancestor of THIS header and the row template nested three layers
+      deep inside the list; setting it on either alone would not reach the other.
+    -->
+    <DataTemplate x:Key="WlColumnHeaderRowTemplate">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="200" SharedSizeGroup="WlColName" />
+                <ColumnDefinition Width="120" SharedSizeGroup="WlColTaken" />
+                <ColumnDefinition Width="124" SharedSizeGroup="WlColWhy" />
+                <ColumnDefinition Width="300" SharedSizeGroup="WlColInputs" />
+                <ColumnDefinition Width="200" SharedSizeGroup="WlColContents" />
+                <ColumnDefinition Width="40" SharedSizeGroup="WlColOverflow" />
+            </Grid.ColumnDefinitions>
+
+            <views:TrackedText Grid.Column="0" Text="NAME" Tracking=".18" Margin="0,0,20,0"
+                                Style="{StaticResource WlColumnHeaderTrackedText}"
+                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+            <views:TrackedText Grid.Column="1" Text="TAKEN" Tracking=".18" Margin="0,0,20,0"
+                                Style="{StaticResource WlColumnHeaderTrackedText}"
+                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+            <views:TrackedText Grid.Column="2" Text="WHY" Tracking=".18" Margin="0,0,20,0"
+                                Style="{StaticResource WlColumnHeaderTrackedText}"
+                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+            <views:TrackedText Grid.Column="3" Text="INPUTS" Tracking=".18" Margin="0,0,20,0"
+                                Style="{StaticResource WlColumnHeaderTrackedText}"
+                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+            <views:TrackedText Grid.Column="4" Text="CONTENTS" Tracking=".18" Margin="0,0,20,0"
+                                Style="{StaticResource WlColumnHeaderTrackedText}"
+                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+        </Grid>
+    </DataTemplate>
+
+    <!--
+      Ghost: transparent, lifts WlHover on hover, 40% when disabled. Rename, Delete and the
+      settings gear all want this "quiet until touched" treatment. Restore/Back up now do NOT use
+      it plain - see WlSecondaryButton/WlPrimaryButton below, which need their own idle-state
+      chrome (a border, a fill) that a pure ghost has none of.
+    -->
+    <Style x:Key="WlGhostButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource WlText}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontFamily" Value="{DynamicResource WlDisplayFont}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{DynamicResource WlHover}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The 36x36 icon-only ghost square - the caption bar's own idiom (WlCaptionButton above),
+         reused for the status strip's settings gear. -->
+    <Style x:Key="WlIconGhostButton" TargetType="Button" BasedOn="{StaticResource WlGhostButton}">
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!--
+      Restore this backup: a hairline border rather than a fill - "secondary" per the bottom bar's
+      measurement table ("secondary, hairline-24% border"). WlLine2 stands in for that hairline
+      rather than a new opacity key: it is already the closest existing token, and the brief says
+      to prefer not needing a new one.
+    -->
+    <Style x:Key="WlSecondaryButton" TargetType="Button" BasedOn="{StaticResource WlGhostButton}">
+        <Setter Property="Padding" Value="12,7" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{DynamicResource WlHover}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      Back up now: the one primary, filled action - WlAccent per the bottom bar's own measurement
+      table. Hover dips the surface's opacity slightly rather than reaching for a second accent
+      shade, which would need a new theme key for exactly one button.
+    -->
+    <Style x:Key="WlPrimaryButton" TargetType="Button" BasedOn="{StaticResource WlGhostButton}">
+        <Setter Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Surface" Background="{DynamicResource WlAccent}" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Surface" Property="Opacity" Value="0.88" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The search field's 18px round clear button: WlLine fill, an 8px x glyph in WlText. -->
+    <Style x:Key="WlSearchClearButton" TargetType="Button">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Ellipse Fill="{DynamicResource WlLine}" />
+                        <Path Data="{StaticResource WlCloseGeometry}" Stroke="{DynamicResource WlText}"
+                              StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Width="8" Height="8" Stretch="Uniform"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      The search TextBox itself, chromeless. The border, the icon, the placeholder and the clear
+      button all live around it in MainWindow.xaml rather than in this template: a custom TextBox
+      ControlTemplate needs only PART_ContentHost, and giving the surrounding chrome named
+      elements of its own (SearchBox, ClearSearchButton) is what lets MainWindow.xaml.cs wire the
+      clear button directly rather than reaching a FindName into a template's visual tree.
+    -->
+    <Style x:Key="WlSearchBox" TargetType="TextBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource WlText}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource WlText}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontFamily" Value="{DynamicResource WlDisplayFont}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{TemplateBinding Background}">
+                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" />
+                    </Border>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
