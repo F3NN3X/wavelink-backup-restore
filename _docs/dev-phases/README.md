@@ -133,13 +133,20 @@ settings, first run. Brush resources per theme, live OS theme following, OS acce
 one role with `--wl-danger` fixed, custom 34px caption bar with Mica, the five-slot health
 strip, tier badges, row expansion.
 
-**Also carries the design gaps** ([technical-debt.md](../technical-debt.md) §4) — delete
-confirmation, in-progress states, error states, search results, keyboard map and
-screen-reader labels, high-contrast mode. Six undesigned surfaces. Budget for them here or
-improvise them under time pressure later.
+**All thirteen state groups are now designed** — the six gaps that used to live here are closed
+([technical-debt.md](../technical-debt.md) §4). It is a **tray app with a window**: closing the
+window hides it, quitting is a menu item that says what it stops, and single-instance is
+mandatory because two watchers would race on one file.
 
-**Exits when** the four screens match the handoff in both themes, the gap list is designed and
-built, and no Core logic has leaked into the shell.
+**Four Core changes come first** ([technical-debt.md](../technical-debt.md) §7): the two-stage
+delete, lazy verification during pruning, the watcher's queuing fix, and Windows keyboard
+conventions. The tray's `NEEDS YOU` state is blocked on the third.
+
+**Deferred to phase 7:** the two toast notifications and the update mechanism — both need
+Windows APIs WPF does not provide, and neither is day-one.
+
+**Exits when** the four screens and thirteen state groups match the handoff in both themes plus
+high contrast, the tray shell works, and no Core logic has leaked into the shell.
 
 ---
 
@@ -171,11 +178,20 @@ test, and elevation is requested only for tier 4.
 contain hardware serial numbers and the Windows username, and users will attach them to bug
 reports. "Copy diagnostics" with redaction ships **before** the repo is public, not after.
 
+**Inherited from phase 5**, both deferred because they need Windows APIs WPF does not provide
+and neither is day-one:
+
+- **The two toast notifications** — nine days of silence, and a rejected restore. Designed in
+  `screens/12`; the tray's `NEEDS YOU` icon and tooltip carry the same information passively
+  until then.
+- **The update mechanism** — check, download, install, restart. Phase 5 builds only the static
+  `UPDATES` section, because error 8 deep-links into it.
+
 Also here: the packaging decision left open by upstream finding 5 — self-contained,
-framework-dependent, or NativeAOT for the CLI, which needs `[ComImport]`-under-AOT verified
-([technical-debt.md](../technical-debt.md) §2.4). MIT attribution. README stating Windows-only
-above the fold ([[ADR-008]]). Icon from the brand mark. Update mechanics, currently out of
-scope.
+framework-dependent, or NativeAOT for the CLI. **NativeAOT is verified working at 3.2 MB**, but
+`[ComImport]`-under-AOT is still unanswered ([technical-debt.md](../technical-debt.md) §2.4)
+because no COM interop has been ported. MIT attribution. README stating Windows-only above the
+fold ([[ADR-008]]). Icon from the brand mark.
 
 **Exits when** a stranger can download it, run it, and not accidentally publish their own
 hardware serial number.

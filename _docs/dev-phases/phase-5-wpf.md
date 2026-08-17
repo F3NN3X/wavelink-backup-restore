@@ -37,28 +37,35 @@ others assume you have read, and it carries the WPF brush keys and the F3NN3X to
 **As of v4 of the package, nothing is undesigned.** High contrast (`11`) and
 tray/autostart/updates (`12`) closed the last two.
 
-### The tray design changes what this app *is*
+### It is a tray app with a window, and that costs less than it sounds
 
-`12-tray-autostart-update.md` opens with the sentence the rest of the phase should be built
-around: *"Configured once, then ignored — so it lives in the tray and the window is the
-exception."*
+`12-tray-autostart-update.md` opens with the sentence the phase should be built around:
+*"Configured once, then ignored — so it lives in the tray and the window is the exception."*
 
-That is not a feature added to a window app. **It is a tray app that has a window**, and it
-lands scope this document did not previously carry:
+Not aesthetics. **If closing the window stops backups, the app fails its own promise** and
+becomes upstream's tool with extra steps.
 
-- Tray icon with **four states**, of which `NEEDS YOU` is the one Core cannot currently
-  produce — it needs the error `TickResult` is about to start carrying (§7.3).
-- A context menu that is the primary interface: back up, open, pause for an hour, quit.
-  **"Quit — stops backing up"** says so in the item, because quitting is not closing.
-- **Exactly two notifications**, and a rule worth quoting: *a successful backup never
-  notifies. A safety net that congratulates itself weekly gets muted, and then it is not a
-  safety net.*
-- Autostart through `HKCU\...\Run` with `--tray`, per-user, never a scheduled task — and
-  **Task Manager wins**: if it has disabled the entry, the toggle reads off and cannot be
-  switched on from here.
-- An **update section in Settings**. The *UI* is phase 5; the *mechanism* — downloading,
-  installing, restarting — stays phase 7. Error 8 ("made by a newer version") deep-links into
-  this section, so the section must exist even while the mechanism does not.
+| | App with a tray icon | Tray app with a window |
+|---|---|---|
+| What "the app" is | The window | The process |
+| Closing the window | Quits | Hides it; work continues |
+| `ShutdownMode` | `OnLastWindowClose` | `OnExplicitShutdown` |
+| Window at startup | Always | Optional — `--tray` starts windowless |
+| Who owns the watcher | The window | `App`, outliving any window |
+| Single instance | Nice to have | **Mandatory** — two watchers race on one file |
+
+**Core is already shaped for this.** `AutoBackupCoordinator` owns no timer, holds two
+timestamps, and waits for a host to call `Tick()` — the CLI's `watch` verb is one such host
+today. Moving that host into `App` is a small change, and `ShutdownMode` is one line.
+
+**The real cost is three Windows integrations WPF does not provide**, which is why the
+notification and update halves are deferred below:
+
+| Need | Cost |
+|---|---|
+| Tray icon | No `NotifyIcon` in WPF. `UseWindowsForms=true` in the App project, a package, or `Shell_NotifyIcon` interop — **and it must survive Explorer restarting**, which naive implementations miss |
+| Toast notifications | A separate API again, and the modern one wants packaging → **phase 7** |
+| Autostart | `HKCU\...\Run`, easy — but **Task Manager can veto it** and the toggle must read that back |
 
 ### But four decisions in it contradict shipped code
 
@@ -92,7 +99,11 @@ to happen before or alongside the XAML:
 - The four Core changes in [technical-debt.md](../technical-debt.md) §7.
 - Settings **persistence** at `%LOCALAPPDATA%\WaveLinkBackup\settings.json`, with command-line
   flags winning for one run and not written back.
-- Tray + autostart, or an explicit decision not to.
+- **The tray shell**: icon with its four states, context menu, hide-on-close,
+  `OnExplicitShutdown`, single-instance, `--tray` windowless start, and the autostart toggle
+  with its Task Manager read-back.
+- **High contrast** (`11`) — in scope, not deferred. It is a theme, and this is the phase that
+  builds the theming.
 
 ### Edits to things already specified — do these, don't re-derive them
 
@@ -109,9 +120,16 @@ to happen before or alongside the XAML:
 
 ### Out
 
-- Tier 2–4 capture → **phase 6**. The Settings dialog shows those toggles as designed; they
-  can be disabled with a "coming soon" affordance or omitted, but not silently non-functional.
-- Update mechanics → **phase 7**.
+- Tier 2–4 capture → **phase 6**. The Settings dialog shows those toggles as designed, with
+  the **NOT BUILT YET** badge from `08` — visible on purpose, never silently non-functional.
+- **The two toast notifications → phase 7.** Both are *"something has been wrong for a while"*
+  cases — the nine-day silence and a rejected restore. Real, but not day-one, and they need a
+  notification API WPF does not provide. Nothing else in the design depends on them existing;
+  the tray's `NEEDS YOU` icon state and tooltip already carry the same information passively.
+- **The update section beyond a static row → phase 7.** Build the `UPDATES` section showing
+  *Up to date* with the running version, because error 8 deep-links into it and the section
+  must exist. **Do not build** check-for-updates, download, install or restart.
+- Update mechanics generally → **phase 7**.
 
 ## Work
 

@@ -45,6 +45,27 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### Phase 5 scope split (2026-08-17)
+
+The tray design looked like it doubled phase 5. Examined rather than accepted: **the framing is
+free, the Windows integrations are not.**
+
+`AutoBackupCoordinator` already owns no timer and waits for a host to call `Tick()` — the CLI's
+`watch` verb is one today — so "tray app with a window" is what Core was built for, and
+`ShutdownMode` is one line. What actually costs is that **WPF provides none of the three
+integrations the design assumes**: tray icon, toast notifications, autostart registry.
+
+**Split accordingly.** Phase 5 keeps the tray shell, hide-on-close, single-instance, `--tray`,
+autostart, and high contrast. Phase 7 takes the two notifications and the update mechanism —
+both are *"something has been wrong for a while"* cases, and the tray's `NEEDS YOU` icon
+carries the same information passively until then. Nothing else in the design depends on them.
+
+The framing stays because dropping it would be wrong, not because it is cheap: **if closing the
+window stops backups, the app fails its own promise** and becomes upstream's tool with extra
+steps.
+
+---
+
 ### Design handoff v4 + four decisions (2026-08-17) — no version, no code
 
 **Integrated:** `11-high-contrast.md` and `12-tray-autostart-update.md` with three PNGs.
