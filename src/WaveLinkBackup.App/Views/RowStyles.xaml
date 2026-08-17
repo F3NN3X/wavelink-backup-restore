@@ -504,34 +504,6 @@
                             <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlStrong}" />
                         </Trigger>
 
-                        <!--
-                          High contrast + selected (screens/11: "Selected = full Highlight fill with
-                          HighlightText throughout"). Without this, IsSelected above only sets WlCard
-                          (which HighContrast.xaml maps to Transparent) plus a WlAccent border, and the
-                          plain "every row" HC trigger further down strips that border by forcing
-                          BorderThickness to 0 - leaving a selected row with no fill and no border at
-                          all, indistinguishable from an unselected one. WlAccent/WlAccentInk already
-                          ARE Highlight/HighlightText in HighContrast.xaml (lines 30-31), so this reuses
-                          the same theme keys rather than adding a second set of colour triggers.
-
-                          Declared here, immediately after IsSelected and BEFORE IsSuspect/IsDamaged,
-                          so those two (still declared after, unchanged) continue to win when a row is
-                          both selected and unwell - "health outranks selection" stays true by
-                          declaration order even in high contrast. Its position relative to the plain
-                          HC trigger below is irrelevant to that ordering: the plain trigger only
-                          touches BorderThickness and MetaText.Text, disjoint from the Background/
-                          Foreground this trigger sets, so there is nothing to out-rank there - the two
-                          simply combine.
-                        -->
-                        <MultiDataTrigger>
-                            <MultiDataTrigger.Conditions>
-                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
-                                <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
-                            </MultiDataTrigger.Conditions>
-                            <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlAccent}" />
-                            <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlAccentInk}" />
-                        </MultiDataTrigger>
-
                         <!-- Health outranks selection - declared after IsSelected so it wins when both are true. -->
                         <DataTrigger Binding="{Binding IsSuspect}" Value="True">
                             <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlWarnSoft}" />
@@ -589,6 +561,43 @@
                             <Setter TargetName="VerdictGlyph" Property="Visibility" Value="Visible" />
                             <Setter TargetName="VerdictGlyph" Property="Data" Value="{StaticResource WlCircleSlashGeometry}" />
                             <Setter TargetName="VerdictGlyph" Property="Fill" Value="{DynamicResource WlText}" />
+                        </MultiDataTrigger>
+
+                        <!--
+                          High contrast + selected, declared LAST so it wins over EVERYTHING above,
+                          including IsSuspect/IsDamaged: in high contrast, health does not tint the
+                          row at all (11-high-contrast.md: "Suspect and damaged no longer tint the
+                          row; the verdict word does the work"), so there is no health tint left for
+                          selection to out-rank or be out-ranked by. Selection alone decides the fill
+                          in HC - full Highlight regardless of health - which is exactly "Selected =
+                          full Highlight fill with HighlightText throughout" (11-high-contrast.md).
+
+                          This must be LAST, not first: an earlier attempt placed it right after the
+                          plain IsSelected trigger, before IsSuspect/IsDamaged, on the theory that
+                          "health outranks selection" required that order. It does not - that
+                          property is a normal-theme rule (WlWarnSoft/WlSunken really do tint there,
+                          so selection must not paint over them). In high contrast IsSuspect/IsDamaged
+                          resolve to Transparent (HighContrast.xaml lines 19, 39) precisely because
+                          there is no tint to protect, so the two rules do not actually conflict - the
+                          first row's earlier position just left a selected+unwell row invisible again
+                          in HC (Background back to Transparent, BorderThickness still 0 from the
+                          plain HC trigger below). Moving this to the end fixes that without touching
+                          IsSuspect/IsDamaged's own position, so health-outranks-selection in the
+                          normal (tinted) themes is completely unaffected: this trigger's IsHighContrast
+                          condition is false there, so it never fires and never competes for
+                          Background at all.
+
+                          WlAccent/WlAccentInk already ARE Highlight/HighlightText in HighContrast.xaml
+                          (lines 30-31), so this reuses the same theme keys rather than adding a
+                          second set of colour triggers.
+                        -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
+                                <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlAccent}" />
+                            <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlAccentInk}" />
                         </MultiDataTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

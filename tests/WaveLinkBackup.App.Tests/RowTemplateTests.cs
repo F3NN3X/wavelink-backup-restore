@@ -102,13 +102,17 @@ public sealed class RowTemplateTests
         Assert.Contains("Transparent", damagedTrigger, StringComparison.Ordinal);
     }
 
+    private static string HighContrastTheme() =>
+        File.ReadAllText(Path.Combine(SourceRoot, "Theming", "HighContrast.xaml"));
+
     // screens/11-high-contrast.md: "Selected = full Highlight fill with HighlightText throughout."
-    // Without a selected+HC trigger, the plain IsSelected trigger's WlCard fill maps to Transparent
-    // in high contrast and the "every row" HC trigger zeroes BorderThickness - a selected row would
-    // have no fill and no border at all. Reverting the MultiDataTrigger below removes that fill,
-    // failing this.
+    // and "Suspect and damaged no longer tint the row; the verdict word does the work." Together
+    // those mean a selected row must win over health TOO in high contrast - unlike the normal
+    // themes, where IsSuspect/IsDamaged's real tints must win over selection. Reverting the
+    // MultiDataTrigger, or moving it back before IsSuspect/IsDamaged (an earlier, wrong attempt at
+    // this same fix), both remove the fill from a selected+unwell row in HC, failing this.
     [Fact]
-    public void A_selected_row_gets_a_full_highlight_fill_in_high_contrast()
+    public void A_selected_row_gets_a_full_highlight_fill_in_high_contrast_even_when_unwell()
     {
         var template = RowStyles();
 
@@ -127,16 +131,38 @@ public sealed class RowTemplateTests
         Assert.Contains("RowSurface", block, StringComparison.Ordinal);
         Assert.Contains("WlAccent", block, StringComparison.Ordinal);
 
-        // Declared before the health triggers so IsSuspect/IsDamaged (still declared after) keep
-        // out-ranking selection even in high contrast. Search from ControlTemplate.Triggers only -
-        // "Binding IsSuspect" also appears earlier, inside the HealthPillHost's own nested Style,
-        // which is a different trigger entirely (pill visibility, not row surface colour).
+        // Must be declared LAST in ControlTemplate.Triggers - after IsSuspect, IsDamaged, and the
+        // plain "every row" HC trigger - so it wins over all three. Search from
+        // ControlTemplate.Triggers only: "Binding IsSuspect" also appears earlier, inside the
+        // HealthPillHost's own nested Style, a different trigger entirely (pill visibility, not
+        // row surface colour).
         var triggersSectionIndex = template.IndexOf("<ControlTemplate.Triggers>", StringComparison.Ordinal);
         Assert.True(triggersSectionIndex >= 0, "ControlTemplate.Triggers section is gone or renamed.");
         var isSuspectIndex = template.IndexOf("Binding IsSuspect", triggersSectionIndex, StringComparison.Ordinal);
         Assert.True(isSuspectIndex >= 0, "IsSuspect health trigger is gone or renamed.");
-        Assert.True(blockEnd < isSuspectIndex,
-            "The selected+high-contrast trigger must be declared before IsSuspect/IsDamaged so health still outranks selection.");
+        var isDamagedIndex = template.IndexOf("Binding IsDamaged", triggersSectionIndex, StringComparison.Ordinal);
+        Assert.True(isDamagedIndex >= 0, "IsDamaged health trigger is gone or renamed.");
+        var plainHcBorderIndex = template.IndexOf(
+            "TargetName=\"RowSurface\" Property=\"BorderThickness\" Value=\"0\"",
+            triggersSectionIndex, StringComparison.Ordinal);
+        Assert.True(plainHcBorderIndex >= 0, "The plain every-row high-contrast trigger is gone or renamed.");
+
+        Assert.True(blockStart > isSuspectIndex && blockStart > isDamagedIndex && blockStart > plainHcBorderIndex,
+            "The selected+high-contrast trigger must be declared LAST - after IsSuspect, IsDamaged, " +
+            "and the plain high-contrast trigger - so a selected row stays filled even when it is " +
+            "also suspect or damaged. It must NOT be positioned before them (that was tried and is " +
+            "wrong): in high contrast health does not tint the row at all, so there is no tint here " +
+            "for selection to out-rank; declaring this last is what makes selection win instead.");
+
+        // Pin WHY this ordering is safe, not just that it happens to work: IsSuspect/IsDamaged set
+        // RowSurface.Background to WlWarnSoft/WlSunken, and this trigger only gets to win over them
+        // harmlessly because HighContrast.xaml maps BOTH to Transparent - there is no real tint
+        // being clobbered. If a future edit gave either of those keys a real high-contrast colour,
+        // this ordering would start hiding a genuine signal, and this assertion would catch that
+        // before the trigger-order test above could go stale silently.
+        var hcTheme = HighContrastTheme();
+        Assert.Contains("x:Key=\"WlWarnSoft\" Color=\"Transparent\"", hcTheme, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"WlSunken\" Color=\"Transparent\"", hcTheme, StringComparison.Ordinal);
     }
 
     // 02-backup-health-states.md:53 - "CONTENTS column: all three tier slots present but dashed
