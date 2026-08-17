@@ -131,6 +131,15 @@ public sealed class RowTemplateTests
         Assert.Contains("RowSurface", block, StringComparison.Ordinal);
         Assert.Contains("WlAccent", block, StringComparison.Ordinal);
 
+        // "...throughout" (11-high-contrast.md) includes MetaText: it carries the verdict word once
+        // the row tint is gone, and its Foreground is never touched by Health (only its Text swaps,
+        // via the plain HC trigger). Reverting just this one setter would leave the verdict word in
+        // WlMuted (GrayText) on a Highlight-filled row - readable or not depending on the user's HC
+        // scheme, which is exactly the risk HighlightText exists to remove.
+        Assert.Contains(
+            "TargetName=\"MetaText\" Property=\"Foreground\" Value=\"{DynamicResource WlAccentInk}\"",
+            block, StringComparison.Ordinal);
+
         // Must be declared LAST in ControlTemplate.Triggers - after IsSuspect, IsDamaged, and the
         // plain "every row" HC trigger - so it wins over all three. Search from
         // ControlTemplate.Triggers only: "Binding IsSuspect" also appears earlier, inside the
@@ -163,6 +172,70 @@ public sealed class RowTemplateTests
         var hcTheme = HighContrastTheme();
         Assert.Contains("x:Key=\"WlWarnSoft\" Color=\"Transparent\"", hcTheme, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"WlSunken\" Color=\"Transparent\"", hcTheme, StringComparison.Ordinal);
+    }
+
+    // 11-high-contrast.md:32 - "...throughout" names glyphs explicitly. VerdictGlyph IS the verdict
+    // word's icon, and it is a named element in the same ControlTemplate scope as RowSurface (unlike
+    // the deferred nested pills/badges), so it is in scope for this fix. Reverting either of the two
+    // property-specific setters below would leave that one Health's glyph in WlText (WindowText) on
+    // a Highlight-filled selected row - not guaranteed to contrast, failing this.
+    [Theory]
+    [InlineData("Whole", "Stroke")]
+    [InlineData("Suspect", "Fill")]
+    [InlineData("Damaged", "Fill")]
+    public void A_selected_rows_verdict_glyph_inverts_to_highlight_text_in_high_contrast(
+        string health, string property)
+    {
+        var template = RowStyles();
+
+        var triggersSectionIndex = template.IndexOf("<ControlTemplate.Triggers>", StringComparison.Ordinal);
+        Assert.True(triggersSectionIndex >= 0, "ControlTemplate.Triggers section is gone or renamed.");
+        var triggersSection = template[triggersSectionIndex..];
+
+        // Each MultiDataTrigger for a given Health value is unique in combination with IsSelected -
+        // the setter TEXT alone ("Fill" -> WlAccentInk) is shared between Suspect and Damaged, so
+        // the block has to be picked out by BOTH conditions together, not by the setter alone.
+        var blocks = Regex.Matches(triggersSection, "<MultiDataTrigger>.*?</MultiDataTrigger>", RegexOptions.Singleline)
+            .Select(m => m.Value)
+            .Where(b => b.Contains("Path=IsSelected", StringComparison.Ordinal)
+                     && b.Contains($"Value=\"{health}\"", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.True(blocks.Length == 1,
+            $"Expected exactly one selected+high-contrast+{health} MultiDataTrigger, found {blocks.Length}.");
+        var block = blocks[0];
+
+        Assert.Contains("IsHighContrast", block, StringComparison.Ordinal);
+        Assert.Contains(
+            $"TargetName=\"VerdictGlyph\" Property=\"{property}\" Value=\"{{DynamicResource WlAccentInk}}\"",
+            block, StringComparison.Ordinal);
+
+        // "Check which of Fill/Stroke the glyph actually uses ... set what it has" - the check mark
+        // (Whole) is an open, stroke-only geometry; filling it too would paint a triangular sliver
+        // WPF's implicit fill-closes-open-paths behaviour would add across a shape that has no fill
+        // anywhere else in the app. Suspect/Damaged are fill-only glyphs, so the reverse must hold.
+        var otherProperty = property == "Stroke" ? "Fill" : "Stroke";
+        Assert.DoesNotContain(
+            $"TargetName=\"VerdictGlyph\" Property=\"{otherProperty}\" Value=\"{{DynamicResource WlAccentInk}}\"",
+            block, StringComparison.Ordinal);
+
+        // Declared after that Health's OWN base HC-only trigger (the one with the same Health value
+        // but no IsSelected condition), so it overrides WlText with WlAccentInk rather than the
+        // other way round. Picked out by the same both-conditions technique, since "Fill -> WlText"
+        // is likewise shared text between Suspect's and Damaged's base triggers.
+        var baseBlocks = Regex.Matches(triggersSection, "<MultiDataTrigger>.*?</MultiDataTrigger>", RegexOptions.Singleline)
+            .Select(m => m.Value)
+            .Where(b => !b.Contains("Path=IsSelected", StringComparison.Ordinal)
+                     && b.Contains($"Value=\"{health}\"", StringComparison.Ordinal))
+            .ToArray();
+        Assert.True(baseBlocks.Length == 1,
+            $"Expected exactly one base (non-selected) high-contrast MultiDataTrigger for {health}, found {baseBlocks.Length}.");
+
+        var blockStart = triggersSectionIndex + triggersSection.IndexOf(block, StringComparison.Ordinal);
+        var baseBlockStart = triggersSectionIndex + triggersSection.IndexOf(baseBlocks[0], StringComparison.Ordinal);
+        Assert.True(blockStart > baseBlockStart,
+            $"The selected+high-contrast {health} glyph trigger must be declared AFTER {health}'s own " +
+            "base high-contrast trigger so it wins and overrides WlText with WlAccentInk.");
     }
 
     // 02-backup-health-states.md:53 - "CONTENTS column: all three tier slots present but dashed

@@ -590,6 +590,16 @@
                           WlAccent/WlAccentInk already ARE Highlight/HighlightText in HighContrast.xaml
                           (lines 30-31), so this reuses the same theme keys rather than adding a
                           second set of colour triggers.
+
+                          "...throughout" (11-high-contrast.md) means MetaText and VerdictGlyph too -
+                          they ARE the verdict word this whole HC scheme leans on once the row tint is
+                          gone, and both are named elements in THIS ControlTemplate scope, unlike the
+                          nested pills/badges/name-segments living in their own DataTemplate scopes
+                          (those stay out of reach via TargetName and stay deferred). MetaText's
+                          Foreground is set here unconditionally (Health never touches it - only its
+                          Text swaps, via the plain HC trigger above) because WindowText/GrayText are
+                          never guaranteed to contrast against Highlight; the two are chosen
+                          independently by whichever HC scheme the user picked.
                         -->
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
@@ -598,6 +608,46 @@
                             </MultiDataTrigger.Conditions>
                             <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlAccent}" />
                             <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+                            <Setter TargetName="MetaText" Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+                        </MultiDataTrigger>
+
+                        <!--
+                          VerdictGlyph's own colour is Health-dependent AND property-dependent - the
+                          check mark (Whole) is stroke-rendered only (an open path; WlCheckGeometry's
+                          own comment says so, matching the tray menu), while the warning triangle
+                          (Suspect) and circle-slash (Damaged) are fill-rendered only, per the three
+                          Health-keyed triggers just above. Setting BOTH Fill and Stroke in one
+                          selected+HC trigger regardless of Health would put a Fill on the check mark's
+                          open geometry too - WPF closes an open path for fill purposes, so that would
+                          paint a thin triangular sliver across the check mark that the unselected,
+                          non-selected-HC rendering never has. Three triggers instead, one per Health
+                          value, each setting only the property that Health's own trigger above set,
+                          each declared after that trigger so it overrides the WlText it set there with
+                          WlAccentInk instead.
+                        -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
+                                <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                <Condition Binding="{Binding Health}" Value="Whole" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="VerdictGlyph" Property="Stroke" Value="{DynamicResource WlAccentInk}" />
+                        </MultiDataTrigger>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
+                                <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                <Condition Binding="{Binding Health}" Value="Suspect" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="VerdictGlyph" Property="Fill" Value="{DynamicResource WlAccentInk}" />
+                        </MultiDataTrigger>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
+                                <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                <Condition Binding="{Binding Health}" Value="Damaged" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="VerdictGlyph" Property="Fill" Value="{DynamicResource WlAccentInk}" />
                         </MultiDataTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
