@@ -301,7 +301,10 @@ public partial class MainWindow : Window
     {
         base.OnClosing(e);
 
-        var app = (App)Application.Current;
+        // Not an App (e.g. a test harness running a bare Application) - close normally rather
+        // than exploding on the cast. In production Application.Current is always the App, so
+        // this branch never runs there.
+        if (Application.Current is not App app) return;
 
         // Before the branch: geometry must survive a HIDE as well as an exit, and a hidden
         // window is the normal case for this app.
