@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Media;
+using WaveLinkBackup.App.Windows;
 
 namespace WaveLinkBackup.App.Theming;
 
@@ -13,8 +15,8 @@ public enum AppTheme
 /// Every --wl-* value is a brush resource key, declared once per theme and referenced with
 /// DynamicResource. That is what makes switching a resource swap rather than a window rebuild.
 ///
-/// Live following of the OS — UISettings.ColorValuesChanged, SystemEvents.UserPreferenceChanged
-/// and the accent derivation — arrives in plan 3. This picks a theme once, at startup.
+/// Live following of the OS lives in <see cref="Follow"/>, over the <see cref="ISystemTheme"/>
+/// seam; the accent is overlaid at swap time by <see cref="AccentPalette"/>.
 /// </summary>
 public static class ThemeManager
 {
@@ -47,33 +49,53 @@ public static class ThemeManager
     };
 
     /// <summary>
-    /// High contrast wins over dark/light: it is not a preference sitting alongside them, it is
-    /// Windows saying the palette is no longer ours.
+    /// Applies a theme, optionally overlaying the user's accent.
+    ///
+    /// The accent is written OVER the loaded dictionary rather than edited into the XAML, which
+    /// keeps Dark.xaml and Light.xaml readable on their own and keeps them correct for the case
+    /// where there is no accent to read.
     /// </summary>
-    public static AppTheme DetectFromSystem()
+    public static void Apply(AppTheme theme, Color? accent = null)
     {
-        if (SystemParameters.HighContrast) return AppTheme.HighContrast;
+        var dictionary = Load(theme);
 
-        return IsSystemInLightMode() ? AppTheme.Light : AppTheme.Dark;
-    }
+        if (accent is { } colour)
+        {
+            foreach (var derived in AccentPalette.Derive(colour, theme))
+            {
+                dictionary[derived.Key] = new SolidColorBrush(derived.Colour)
+                {
+                    Opacity = derived.Opacity,
+                };
+            }
+        }
 
-    public static void Apply(AppTheme theme)
-    {
         var dictionaries = Application.Current.Resources.MergedDictionaries;
 
-        // Slot 0 is the theme by convention; everything merged after it may reference these
-        // keys. Replacing in place keeps that ordering.
-        if (dictionaries.Count == 0) dictionaries.Add(Load(theme));
-        else dictionaries[0] = Load(theme);
+        // Slot 0 is the theme by convention; everything merged after it — the tray menu's styles
+        // — references these keys. Replacing in place rather than appending is what keeps that
+        // ordering true across a swap.
+        if (dictionaries.Count == 0) dictionaries.Add(dictionary);
+        else dictionaries[0] = dictionary;
     }
 
-    private static bool IsSystemInLightMode()
+    /// <summary>
+    /// Applies now and on every change. <paramref name="afterApply"/> runs after the swap, for
+    /// the things that read the dictionary rather than binding to it — the tray icon is drawn
+    /// from resolved brushes, so it has to be redrawn, and doing it here rather than in a second
+    /// subscriber means the ordering is guaranteed instead of depending on subscription order.
+    /// </summary>
+    public static void Follow(ISystemTheme system, Action? afterApply = null)
     {
-        // Registry rather than UISettings for now: UISettings arrives with the live-following
-        // work in plan 3, and this keeps the WinRT surface out of the startup path until then.
-        using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
-            @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+        void Reapply()
+        {
+            Apply(system.Theme, system.Accent);
+            afterApply?.Invoke();
+        }
 
-        return key?.GetValue("AppsUseLightTheme") is int light && light != 0;
+        system.Changed += (_, _) => Reapply();
+
+        Reapply();
+        system.Start();
     }
 }

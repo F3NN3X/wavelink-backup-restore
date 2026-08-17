@@ -9,6 +9,7 @@ using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Startup;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.Views;
+using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.Core.Abstractions;
 using WaveLinkBackup.Core.Automation;
 using WaveLinkBackup.Core.Discovery;
@@ -37,6 +38,7 @@ public partial class App : Application
     private static readonly Guid TrayIconId = new("2f8b6f4e-9d3a-4c17-9b52-6a1d4f0e7c38");
 
     private SingleInstance? instance;
+    private ISystemTheme? systemTheme;
     private BackupHost? host;
     private BackupService? service;
     private TaskbarIcon? tray;
@@ -77,7 +79,10 @@ public partial class App : Application
         // Set before anything exists that could close.
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        ThemeManager.Apply(ThemeManager.DetectFromSystem());
+        // Applied before anything is drawn; Follow (below, once the tray exists) starts the
+        // listening and re-applies on every OS change.
+        systemTheme = new UiSettingsTheme();
+        ThemeManager.Apply(systemTheme.Theme, systemTheme.Accent);
 
         var fileSystem = new FileSystem();
         settingsRepository = new SettingsRepository(fileSystem, SettingsRepository.DefaultDirectory);
@@ -88,6 +93,11 @@ public partial class App : Application
         host.Start();
 
         tray = BuildTray();
+
+        // Now that there is an icon to repaint, follow the OS. screens/11 requires high contrast
+        // to be reacted to at runtime rather than needing a restart, and the same is true of
+        // dark/light and the accent.
+        ThemeManager.Follow(systemTheme, RefreshTray);
 
         timer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -218,7 +228,8 @@ public partial class App : Application
         if (tray is null || host is null) return;
 
         var status = TrayState.From(host.Conditions);
-        var colour = TrayIconRenderer.ColourFor(status, SystemParameters.HighContrast);
+        var colour = TrayIconRenderer.ColourFor(
+            status, systemTheme?.IsHighContrast ?? SystemParameters.HighContrast);
 
         // The new icon is installed before the old one is disposed: the shell has taken a copy
         // by then, and freeing it first would flash an empty slot.
@@ -263,6 +274,10 @@ public partial class App : Application
         tray?.Dispose();
         trayIcon?.Dispose();
         host?.Dispose();
+
+        // SystemEvents holds a static subscription; leaving it attached keeps the process alive
+        // past Shutdown, which on a tray app is indistinguishable from a leak.
+        systemTheme?.Dispose();
         instance?.Dispose();
 
         Shutdown(0);
