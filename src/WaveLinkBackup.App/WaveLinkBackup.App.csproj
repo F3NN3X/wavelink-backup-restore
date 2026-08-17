@@ -5,10 +5,28 @@
     <RootNamespace>WaveLinkBackup.App</RootNamespace>
     <AssemblyName>WaveLinkBackup</AssemblyName>
     <UseWPF>true</UseWPF>
+    <!--
+      OS-versioned, unlike every other project here. UISettings.GetColorValue is the API the
+      design names for the OS accent (screens/01-tokens-and-mapping.md), and
+      UISettings.ColorValuesChanged is what makes live theme following an event rather than a
+      poll. That WinRT projection needs a Windows SDK TFM.
+
+      Core stays net10.0 and GuardNoDesktopFramework is untouched.
+    -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../WaveLinkBackup.Core/WaveLinkBackup.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WaveLinkBackup.App.Tests" />
   </ItemGroup>
 
 </Project>

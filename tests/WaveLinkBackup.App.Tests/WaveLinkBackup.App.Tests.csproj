@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>WaveLinkBackup.App.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Must match the App project: a test project cannot reference a higher TFM. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <!-- Needed to reference WPF types (brushes, resource dictionaries) from tests. -->
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/WaveLinkBackup.App/WaveLinkBackup.App.csproj" />
+  </ItemGroup>
+
+  <!--
+    The XAML colour-literal guard is a source scan, like Core's SourceGuardTests. It needs the
+    App source directory at test time; passing it as assembly metadata beats walking up from
+    the output directory and guessing.
+  -->
+  <ItemGroup>
+    <AssemblyMetadata Include="AppSourceRoot"
+                      Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../src/WaveLinkBackup.App'))" />
+  </ItemGroup>
+
+</Project>
