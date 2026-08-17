@@ -23,14 +23,24 @@ namespace WaveLinkBackup.Cli.Commands;
 /// Passed in rather than read here, so tests can point the whole runner at a fake tree. See
 /// <see cref="SettingsLocator.SystemLocalAppData"/>.
 /// </param>
+/// <param name="settings">
+/// What settings.json says, with command-line flags layered on top per command. Flags win for
+/// this run only and are never written back
+/// (operations/design/screens/08-settings-persistence.md).
+///
+/// Optional so that tests which do not care about persistence get the old defaults.
+/// </param>
 public sealed class CommandRunner(
     IFileSystem fileSystem,
     IWaveLinkProcess process,
     IClock clock,
     IOutput output,
     string localAppDataPath,
-    IRecycleBin recycleBin)
+    IRecycleBin recycleBin,
+    BackupSettings? settings = null)
 {
+    private readonly BackupSettings settings = settings ?? BackupSettings.Default;
+
     public int Run(ParsedCommand command)
     {
         if (!command.IsValid)
@@ -255,7 +265,9 @@ public sealed class CommandRunner(
 
     private int Prune(ParsedCommand command)
     {
-        var keep = command.KeepCount ?? SnapshotRetention.DefaultKeepCount;
+        // Resolved a second time, independently of Service() - leave this on the hard-coded
+        // default and the message would contradict what was actually pruned.
+        var keep = command.KeepCount ?? settings.AutoBackupKeepCount;
         var pruned = Service(command).Prune();
 
         if (pruned.Count == 0)
@@ -333,13 +345,13 @@ public sealed class CommandRunner(
     private SettingsInspector Inspector() => SettingsInspector.For(fileSystem, localAppDataPath);
 
     private SnapshotStore Store(ParsedCommand command) =>
-        new(fileSystem, clock, command.StorePath ?? SnapshotStore.DefaultStorePath);
+        new(fileSystem, clock, command.StorePath ?? settings.StorePath);
 
     private BackupService Service(ParsedCommand command) => new(
         Inspector(),
         Store(command),
-        command.KeepCount ?? SnapshotRetention.DefaultKeepCount,
-        command.SettingsPath);
+        command.KeepCount ?? settings.AutoBackupKeepCount,
+        command.SettingsPath ?? settings.ChosenWaveLinkPath);
 
     private int Fail(CoreError error)
     {
