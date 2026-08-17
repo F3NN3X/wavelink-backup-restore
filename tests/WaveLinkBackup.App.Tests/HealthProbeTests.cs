@@ -158,4 +158,38 @@ public sealed class HealthProbeTests
 
         Assert.Equal(0, reported);
     }
+
+    // The test above cancels BEFORE ProbeAsync is even called, so Task.Run never invokes the
+    // delegate at all - neither in-loop guard is reached, and deleting both would leave that
+    // test just as green. This one cancels from inside a running probe, after the first verdict
+    // has actually landed, so the second snapshot's fate depends on the loop noticing the
+    // cancellation rather than never starting.
+    [Fact]
+    public async Task Cancelling_mid_probe_stops_the_next_snapshot_from_being_reported()
+    {
+        var fs = new FakeFileSystem();
+        var clock = new FakeClock();
+        var store = new SnapshotStore(fs, clock, StorePath);
+        var analysis = SettingsAnalysis.Analyse(Settings).Value;
+
+        var first = store.Write(Settings, analysis, SnapshotTrigger.Manual, "First").Value;
+        clock.Advance(TimeSpan.FromMinutes(1));
+        var second = store.Write(Settings, analysis, SnapshotTrigger.Manual, "Second").Value;
+
+        var probe = new HealthProbe(store, fs, clock);
+
+        using var cancellation = new CancellationTokenSource();
+        var reported = new List<string>();
+
+        await probe.ProbeAsync(
+            [first, second],
+            (id, verdict) =>
+            {
+                reported.Add(id);
+                cancellation.Cancel();
+            },
+            cancellation.Token);
+
+        Assert.Equal([first.Id], reported);
+    }
 }
