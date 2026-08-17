@@ -1183,11 +1183,17 @@ Recorded so the plan matches the commits rather than quietly disagreeing with th
 | 34 new tests | 35 (386 total) | The extra ancestor test |
 | `EnumerateFiles(dir, "*.tmp")` | `EnumerateFiles(dir, "*")` filtered on the extension | `FakeFileSystem.Glob` only understands `prefix*`, so the planned assertion would have passed vacuously |
 
-**Not verified:** the NativeAOT publish. `dotnet publish -p:PublishAot=true` fails in this
-environment at the native link step — `vswhere.exe` is not resolvable, so the MSVC linker cannot
-be located. Managed compilation completed with no AOT or trim warnings, and the new
-`GetDiskFreeSpaceEx` `DllImport` follows the same shape as `RecycleBin`, which is already
-AOT-verified. The default publish (self-contained single-file, 70.3 MB) succeeds.
+**NativeAOT verified: 3.23 MB**, and the native image runs. The new `GetDiskFreeSpaceEx`
+`DllImport` does not close AOT off.
+
+Getting there needed a VS developer shell **plus** `vswhere.exe` on `PATH`, which the dev shell
+does not add. Without it the publish fails with an `MSB3073` naming `link.exe` and an exit code
+— a message that reads like the interop broke when nothing of the sort happened. Written up in
+[publish-the-native-aot-binary.md](../knowledge-base/recipes/publish-the-native-aot-binary.md),
+because the next person to add a `DllImport` will hit it and suspect their own code.
+
+The default publish (self-contained single-file, 70.3 MB) is the shipped artifact; the 3.2 MB
+figure is a separate, deliberate AOT run.
 
 ## What this plan does not do
 
