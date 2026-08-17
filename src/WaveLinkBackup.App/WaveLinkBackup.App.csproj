@@ -29,4 +29,17 @@
     <InternalsVisibleTo Include="WaveLinkBackup.App.Tests" />
   </ItemGroup>
 
+  <!--
+    Resource, not Content: the fonts must live INSIDE the assembly so a pack URI resolves them
+    and a single-file publish keeps working. The .ttf extension is not picked up by the WPF SDK
+    globs, so this include is required rather than tidy.
+
+    Static instances, never the variable files. WPF has no variable-font support - a [wght] file
+    loads as one default instance and every weight in the type scale renders identically.
+  -->
+  <ItemGroup>
+    <Resource Include="Fonts\*.ttf" />
+    <Resource Include="Fonts\OFL-*.txt" />
+  </ItemGroup>
+
 </Project>

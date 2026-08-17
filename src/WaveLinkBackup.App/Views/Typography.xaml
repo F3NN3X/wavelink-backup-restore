@@ -1,0 +1,92 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      "Anything a machine produced is mono; anything a person wrote or reads as a sentence is
+      Rubik." - README. Times, sizes, counts, paths, filenames, column headers, status readouts
+      and slot labels are mono. Everything else is Rubik.
+
+      Both families are EMBEDDED as static instances. The trailing '#Family Name' is the family
+      inside the resource, and the folder URI must end in a slash. WPF has no variable-font
+      support, so the [wght] files would give one weight for all three - see the csproj comment.
+
+      This file lives in Views/ and not Theming/ on purpose: the colour-literal guard skips
+      Theming/, and a type dictionary that could smuggle a #RRGGBB past the scan is not worth
+      the tidier folder. Nothing here sets a colour anyway.
+    -->
+    <FontFamily x:Key="WlDisplayFont">pack://application:,,,/WaveLinkBackup;component/Fonts/#Rubik</FontFamily>
+    <FontFamily x:Key="WlMonoFont">pack://application:,,,/WaveLinkBackup;component/Fonts/#JetBrains Mono</FontFamily>
+
+    <!-- Rubik. Sentences, names, labels, buttons. -->
+
+    <Style x:Key="WlDialogTitleText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlDisplayFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="LineHeight" Value="26" />
+    </Style>
+
+    <Style x:Key="WlRowNameText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlDisplayFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="14.5" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <Style x:Key="WlBodyText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlDisplayFont}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="LineHeight" Value="21.7" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style x:Key="WlSecondaryText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlDisplayFont}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="LineHeight" Value="18.75" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- JetBrains Mono. Times, paths, sizes, counts, and every micro-label. -->
+
+    <Style x:Key="WlMonoReadoutText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontSize" Value="12.5" />
+    </Style>
+
+    <Style x:Key="WlMonoMetaText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontSize" Value="11.5" />
+    </Style>
+
+    <!--
+      The four TRACKED roles. README's type table gives them .14em, .18em, .12em and .06em, and
+      TextBlock has no WPF equivalent - there is no CharacterSpacing outside WinUI. Task 2 adds
+      the element that honours it; until then these render untracked, which is exactly what the
+      tray readout has been doing since plan 3 (technical-debt 4.8 item 2).
+    -->
+    <Style x:Key="WlStatusStripText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="11" />
+    </Style>
+
+    <Style x:Key="WlColumnHeaderText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="10.5" />
+    </Style>
+
+    <Style x:Key="WlTierBadgeText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="10" />
+    </Style>
+
+    <Style x:Key="WlSlotLabelText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="9.5" />
+    </Style>
+
+</ResourceDictionary>

@@ -6,6 +6,8 @@
             <ResourceDictionary.MergedDictionaries>
                 <!-- Slot 0. Replaced at runtime by ThemeManager.Apply. -->
                 <ResourceDictionary Source="Theming/Dark.xaml" />
+                <!-- Type scale and embedded font families. -->
+                <ResourceDictionary Source="Views/Typography.xaml" />
                 <!--
                   Views/TrayIcon.xaml is deliberately NOT merged here. The tray menu is loaded
                   fresh, by pack URI, every time the theme changes - a detached ContextMenu never

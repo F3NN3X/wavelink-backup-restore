@@ -21,8 +21,9 @@
       literal, and a literal is also what would stop the menu following the OS theme.
     -->
 
-    <FontFamily x:Key="WlDisplayFont">Rubik, Segoe UI Variable, Segoe UI</FontFamily>
-    <FontFamily x:Key="WlMonoFont">JetBrains Mono, Cascadia Mono, Consolas</FontFamily>
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/WaveLinkBackup;component/Views/Typography.xaml" />
+    </ResourceDictionary.MergedDictionaries>
 
     <!-- The check for "Back up automatically". Lucide idiom, 24px grid, same as the tray glyphs. -->
     <Geometry x:Key="WlCheckGeometry">M8.5 12 L11 14.5 L15.5 9.5</Geometry>
