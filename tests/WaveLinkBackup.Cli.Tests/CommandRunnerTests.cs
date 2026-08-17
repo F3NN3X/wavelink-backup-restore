@@ -332,7 +332,23 @@ public sealed class CommandRunnerTests
     }
 
     [Fact]
-    public void Empty_trash_says_permanent_where_there_is_no_recycle_bin()
+    public void Empty_trash_does_NOT_confirm_where_the_recycle_bin_can_catch_it()
+    {
+        // "A dialog guarding a reversible action is the noise that teaches people to click
+        // through the ones that matter." screens/08.
+        var h = new Harness(confirm: false);
+        h.Run("backup", "--name", "doomed");
+        h.Run("delete", h.Store.List()[0].Id, "--yes");
+        h.Out.Questions.Clear();
+
+        Assert.Equal(ExitCode.Success, h.Run("empty-trash"));
+
+        Assert.Empty(h.Out.Questions);
+        Assert.Empty(h.Store.ListTrash());
+    }
+
+    [Fact]
+    public void Empty_trash_DOES_confirm_where_it_is_permanent()
     {
         var h = new Harness(confirm: false);
         h.Bin.Available = false;
@@ -343,7 +359,8 @@ public sealed class CommandRunnerTests
         Assert.Equal(ExitCode.Declined, h.Run("empty-trash"));
 
         var question = Assert.Single(h.Out.Questions);
-        Assert.Contains("permanently", question, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("for good", question, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(h.Store.ListTrash());
     }
 
     // ------------------------------------------------------------------ verify / prune

@@ -240,7 +240,14 @@ because they carry history our first run will not have. We do not prune, rotate 
 
 ---
 
-## 7 · Design decisions that outdated shipped code — **all four decided 2026-08-17**
+## 7 · Design decisions that outdated shipped code — **three shipped, one is phase-5 UI work**
+
+> **Status 2026-08-17:** 7.1, 7.2 and 7.3 are **implemented and tested** (351 tests green).
+> 7.4 is keyboard and focus, which is WPF work and arrives with the shell.
+>
+> The design package was amended to match (v5): `screens/05` now specifies the two-stage
+> delete, `screens/08` the Empty trash row. **The amendment is upstream, not just in this
+> repo** — the two no longer disagree.
 
 The phase-5 design package (handoff part 2) closed the six gaps **and** made four behavioural
 decisions that contradict code already written and tested. None of this is a mistake in either
@@ -248,7 +255,28 @@ place: the code was built to the best spec available, and the design has since d
 Recording it here because "the design says X, the code does Y" is exactly the kind of drift
 that becomes invisible once phase 5 starts and everyone is looking at XAML.
 
-### 7.1 Delete must not be permanent — **decided: two-stage**
+### 7.1 ~~Delete must not be permanent~~ — **SHIPPED 2026-08-17**
+
+> `SnapshotStore.Delete` moves to `<store>/.trash/<id>/`; `EmptyTrash` forwards via
+> `IRecycleBin`. The CLI gained an `empty-trash` verb. Smoke-tested end to end on the AOT
+> binary, which is still 3.2 MB.
+>
+> **Two deviations from the recommendation below, both deliberate:**
+>
+> 1. **`RecycleBin` lives in Core**, not per-shell. The recommendation assumed interop needs
+>    the Windows Desktop ref pack; it does not — P/Invoke works from plain `net10.0`, and
+>    `GuardNoDesktopFramework` guards the *ref pack*. Per-shell would duplicate the interop,
+>    and a fourth project for one class is worse than either. Core already contains
+>    Windows-specific behaviour for the same reason (`LaunchByAppId` shells to `explorer.exe`).
+> 2. **`DllImport`, not `LibraryImport`.** The generator requires `AllowUnsafeBlocks` for the
+>    whole project; granting unsafe to a conservative library for one call that runs when
+>    someone clicks *Empty trash* is a poor trade. Equally AOT-compatible — verified.
+>
+> **`SHFileOperation` is tested against real temp directories**, including a sibling-directory
+> case: `pFrom` is a double-null-terminated *list*, and a single terminator reads past the end
+> and can take neighbours with it. That is not a bug to discover in production.
+
+#### Original decision
 
 `SnapshotStore.Delete` → `IFileSystem.DeleteDirectory` → `Directory.Delete(path, recursive: true)`.
 Permanent. The design (decision 3) requires `SHFileOperation` with `FOF_ALLOWUNDO`, and changed
@@ -300,7 +328,16 @@ hash.
 > **The dialog copy must name `.trash`, not the Recycle Bin**, or it repeats the same untrue
 > sentence for a new reason.
 
-### 7.2 Damaged backups must not count toward the keep-count
+### 7.2 ~~Damaged backups must not count toward the keep-count~~ — **SHIPPED 2026-08-17**
+
+> `BackupService.Prune` verifies each candidate through `SnapshotStore.Verify` and refuses any
+> that fail. A test asserts **exactly one** `settings.json` read while pruning one of five —
+> which is the whole argument that this does not reintroduce phase 2's cost.
+>
+> `TrashInvisibilityTests` additionally pins that trashed backups do not count toward the
+> keep-count, so deleting one cannot silently make the next capture prune a good one.
+
+#### Original decision
 
 Decision 6: *"A corrupted file must never push a good one out."*
 
@@ -328,7 +365,14 @@ hand. That is the right trade — the alternative is a program that quietly dest
 of its own corruption — but the UI must therefore make damaged backups deletable, which
 `05-delete-dialogs.md` already allows.
 
-### 7.3 Automatic backup must not queue while the folder is missing — **current behaviour is what the design forbids**
+### 7.3 ~~Automatic backup must not queue~~ — **SHIPPED 2026-08-17**
+
+> `Tick` clears `lastWriteAt` on failure and `TickResult` carries the `CoreError`.
+> `WatcherFailureTests` pins the **absence** of retrying — two ticks after a failure reach Core
+> once — rather than only the presence of the error, which is the assertion that would have
+> passed while the bug remained.
+
+#### Original problem
 
 Decision 6: *"does nothing at all, and the status strip says so. It must not fail silently
 every hour and it must not queue."*

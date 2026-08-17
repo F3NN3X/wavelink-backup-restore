@@ -45,6 +45,41 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### Phase 5, part 1: the four Core changes + design v5 (2026-08-17)
+
+**351 tests green** (266 Core, 85 CLI). Core 85.7% line / 82.3% branch, CLI 84.1% / 82.0%.
+NativeAOT still 3.2 MB despite new shell interop.
+
+**Shipped:** technical-debt §7.1, §7.2 and §7.3. Only §7.4 (keyboard) remains, and it is WPF
+work that arrives with the shell.
+
+**Design v5 integrated — and the amendment is upstream now, not just in this repo.**
+`screens/05` specifies the two-stage delete; `screens/08` specifies the Empty trash row. The
+code and the design no longer disagree.
+
+**The designer solved the sentence I flagged as possibly unsolvable**, and rejected the
+fallback I offered:
+
+> *"After that it is gone" is exactly true on a network share and slightly **pessimistic** on a
+> local disk… Pessimism is the safe direction in a destructive dialog, and it is the one
+> sentence that never breaks on any volume.*
+
+Worth recording because the brief explicitly invited a "no", and the answer was better than
+either option in it.
+
+**One divergence found by reading the spec rather than assuming:** `screens/08` says Empty
+trash takes **no confirmation on a local drive** — *"a dialog guarding a reversible action is
+the noise that teaches people to click through the ones that matter."* My CLI confirmed
+unconditionally. Now it confirms only where the Recycle Bin cannot catch it.
+
+**Five tests added from a list I nearly skipped.** `screens/05` closes with *".trash must be
+invisible to the list, the search, every count and size readout, and the keep-count."* Those
+passed first time — the implementation already satisfied them — but "it already works" is not
+the same as "it is pinned", and each is a place where a trashed backup leaking back would look
+like a bug in deletion rather than in counting.
+
+---
+
 ### Phase 5 scope split (2026-08-17)
 
 The tray design looked like it doubled phase 5. Examined rather than accepted: **the framing is

@@ -187,16 +187,17 @@ public sealed class CommandRunner(
             return ExitCode.Success;
         }
 
-        // Ask before promising an undo. On a network or removable store there is no Recycle
-        // Bin, and the honest word for what happens then is "permanently".
         var toRecycleBin = store.TrashGoesToRecycleBin(recycleBin);
-        var destination = toRecycleBin
-            ? "to the Recycle Bin"
-            : "permanently — this backup folder has no Recycle Bin";
-
         var summary = $"{count} backup{(count == 1 ? "" : "s")}, {bytes / 1024.0 / 1024.0:0.0} MB";
 
-        if (!command.AssumeYes && !output.Confirm($"Remove {summary} {destination}?"))
+        // CONFIRM ONLY WHERE THE RECYCLE BIN CANNOT CATCH IT.
+        //
+        // On a local drive emptying is reversible, and per the design "a dialog guarding a
+        // reversible action is the noise that teaches people to click through the ones that
+        // matter". On a network or removable store it is permanent, so it asks — and says why.
+        if (!toRecycleBin && !command.AssumeYes &&
+            !output.Confirm($"Empty the trash? {summary} go for good — this backup folder is " +
+                            "somewhere Windows keeps no Recycle Bin."))
         {
             output.Write("The trash was left alone.");
             return ExitCode.Declined;
