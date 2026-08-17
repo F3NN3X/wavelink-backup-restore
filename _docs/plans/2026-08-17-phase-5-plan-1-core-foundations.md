@@ -1171,6 +1171,24 @@ null when unknown so the bottom bar can omit the figure instead of printing 0."
 - [ ] `wlbackup list` honours a `storePath` written into `settings.json`
 - [ ] `wlbackup list --store D:\elsewhere` uses the flag and leaves `settings.json` byte-identical
 
+## Deviations, as built
+
+Recorded so the plan matches the commits rather than quietly disagreeing with them.
+
+| Planned | Built | Why |
+|---|---|---|
+| Tests in `Automation/`, `Snapshots/`, `Abstractions/` subfolders | Flat at the test-project root | Every existing test file is flat; only `Fakes/` is a folder |
+| A new `FileSystemFreeSpaceTests.cs` | Four tests appended to the existing `FileSystemTests.cs` | That file already tests the real adapter against a real temp directory |
+| 3 free-space tests | 4 | Added `Free_space_falls_back_to_the_first_existing_ancestor`, which pins the behaviour the bottom bar depends on before the store exists |
+| 34 new tests | 35 (386 total) | The extra ancestor test |
+| `EnumerateFiles(dir, "*.tmp")` | `EnumerateFiles(dir, "*")` filtered on the extension | `FakeFileSystem.Glob` only understands `prefix*`, so the planned assertion would have passed vacuously |
+
+**Not verified:** the NativeAOT publish. `dotnet publish -p:PublishAot=true` fails in this
+environment at the native link step — `vswhere.exe` is not resolvable, so the MSVC linker cannot
+be located. Managed compilation completed with no AOT or trim warnings, and the new
+`GetDiskFreeSpaceEx` `DllImport` follows the same shape as `RecycleBin`, which is already
+AOT-verified. The default publish (self-contained single-file, 70.3 MB) succeeds.
+
 ## What this plan does not do
 
 Plan 2 (tray shell) needs `SettingsRepository` and `BackupSettings`; both exist after this.

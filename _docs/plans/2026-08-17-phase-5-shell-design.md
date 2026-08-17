@@ -176,8 +176,24 @@ Cost, stated plainly: the CLI's flag handling layers over the file, which touche
 tests.
 
 Atomic write — temp file plus `File.Replace`, mirroring `SettingsWriter`. Write on change,
-never on exit. A source-generated `JsonSerializerContext`, since
-`JsonSerializerIsReflectionEnabledByDefault` is off.
+never on exit.
+
+JSON is **hand-written with `Utf8JsonWriter` and read with `JsonDocument`**, matching
+`ManifestSerializer`. Not a source-generated `JsonSerializerContext`: `SourceGuardTests` fails
+the build on `JsonSerializer.Serialize`/`Deserialize` to keep NativeAOT open for the CLI
+(technical-debt §2.4), and the established pattern here is hand-written readers and writers.
+
+Reading is **tolerant**: every field falls back to its default independently, and an
+unparseable document yields `BackupSettings.Default`. This is a preferences file, not a backup
+— refusing to start because it is corrupt would be worse than starting with defaults, and none
+of the design's twelve errors covers it. No `CoreError` is defined, because there is no failure
+for a caller to handle.
+
+> **Known consequence, found while smoke-testing.** A hand-edited `settings.json` containing a
+> Windows path with a single backslash (`"D:\store"`) is invalid JSON — `\s` is not an escape —
+> so the *whole document* fails to parse and every setting silently reverts to its default, not
+> just the malformed one. The app itself always writes correct escaping, so this only reaches
+> someone editing the file by hand. Worth knowing before anyone reports "it forgot my settings".
 
 ## C · Theming and the screens
 
