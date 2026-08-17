@@ -30,6 +30,12 @@ public sealed class FakeFileSystem : IFileSystem
     /// <summary>Models one directory locked by a sync client while its neighbours are fine.</summary>
     public string? FailDirectoryDeleteFor { get; set; }
 
+    /// <summary>
+    /// What <see cref="GetAvailableFreeBytes"/> reports. Null - the default - models a volume
+    /// whose free space cannot be determined, which the bottom bar renders by omitting it.
+    /// </summary>
+    public long? FreeBytes { get; set; }
+
     public FakeFileSystem AddFile(string path, string content) => AddFile(path, Encoding.UTF8.GetBytes(content));
 
     public FakeFileSystem AddFile(string path, byte[] content)
@@ -158,6 +164,8 @@ public sealed class FakeFileSystem : IFileSystem
     }
 
     public void Delete(string path) => files.Remove(path);
+
+    public long? GetAvailableFreeBytes(string path) => FreeBytes;
 
     private static Func<string, bool> Glob(string pattern)
     {

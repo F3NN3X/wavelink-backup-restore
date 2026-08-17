@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace WaveLinkBackup.Core.Abstractions;
 
 /// <summary>
@@ -57,4 +59,50 @@ public sealed class FileSystem : IFileSystem
     {
         if (File.Exists(path)) File.Delete(path);
     }
+
+    /// <summary>
+    /// GetDiskFreeSpaceEx rather than DriveInfo, which throws on UNC paths. Keeping backups on
+    /// a NAS is supported — it is the reason deletion goes to .trash instead of the Recycle Bin
+    /// at all (screens/10-decisions.md 3) — so a UNC store has to report free space like any
+    /// other volume.
+    ///
+    /// Probes the first EXISTING ancestor of the path, because the store directory may not have
+    /// been created yet the first time the shell draws the bottom bar.
+    ///
+    /// DllImport rather than LibraryImport, matching <see cref="RecycleBin"/>: the generator
+    /// requires AllowUnsafeBlocks for the whole project.
+    /// </summary>
+    public long? GetAvailableFreeBytes(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+
+        string? probe;
+        try
+        {
+            probe = Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+
+        for (; !string.IsNullOrEmpty(probe); probe = Path.GetDirectoryName(probe))
+        {
+            if (!Directory.Exists(probe)) continue;
+
+            return GetDiskFreeSpaceExW(probe, out var available, out _, out _)
+                ? (long)available
+                : null;
+        }
+
+        return null;
+    }
+
+    [DllImport("kernel32.dll", EntryPoint = "GetDiskFreeSpaceExW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetDiskFreeSpaceExW(
+        string directoryName,
+        out ulong freeBytesAvailableToCaller,
+        out ulong totalNumberOfBytes,
+        out ulong totalNumberOfFreeBytes);
 }

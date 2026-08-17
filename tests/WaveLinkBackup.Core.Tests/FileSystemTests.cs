@@ -126,4 +126,40 @@ public sealed class FileSystemTests : IDisposable
 
         Assert.InRange(fs.GetLastWriteTimeUtc(path), DateTime.UtcNow.AddMinutes(-5), DateTime.UtcNow.AddMinutes(5));
     }
+
+    // ------------------------------------------------------------------ free space
+
+    [Fact]
+    public void Free_space_is_a_positive_figure_for_a_real_directory()
+    {
+        var free = fs.GetAvailableFreeBytes(root);
+
+        Assert.NotNull(free);
+        Assert.True(free > 0, $"Expected a positive figure, got {free}.");
+    }
+
+    /// <summary>
+    /// The store directory may not exist yet the first time the shell draws the bottom bar,
+    /// and the volume underneath it still has a free-space figure worth showing.
+    /// </summary>
+    [Fact]
+    public void Free_space_falls_back_to_the_first_existing_ancestor()
+    {
+        var notYetCreated = Path.Combine(root, "store", "that", "is", "not", "there");
+
+        Assert.NotNull(fs.GetAvailableFreeBytes(notYetCreated));
+    }
+
+    [Fact]
+    public void Free_space_is_null_for_a_volume_that_does_not_exist()
+    {
+        Assert.Null(fs.GetAvailableFreeBytes(@"Q:\nothing\here"));
+    }
+
+    [Fact]
+    public void Free_space_is_null_rather_than_throwing_for_a_malformed_path()
+    {
+        Assert.Null(fs.GetAvailableFreeBytes(""));
+        Assert.Null(fs.GetAvailableFreeBytes("   "));
+    }
 }

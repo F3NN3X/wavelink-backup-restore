@@ -48,4 +48,14 @@ public interface IFileSystem
     void Replace(string source, string destination, string backup);
 
     void Delete(string path);
+
+    /// <summary>
+    /// Bytes available to this user on the volume holding <paramref name="path"/>, or null when
+    /// it cannot be determined.
+    ///
+    /// Null rather than 0 or a throw: the design's bottom bar reads
+    /// "4 BACKUPS · 12.4 MB USED · 118 GB FREE ON THIS DRIVE", and omitting the figure is
+    /// honest where printing 0 would quietly claim a full disk.
+    /// </summary>
+    long? GetAvailableFreeBytes(string path);
 }
