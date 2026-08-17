@@ -1,6 +1,6 @@
 ---
 title: "Phase 5 Plan 3 — Live theme following, the accent, and Windows 11 chrome"
-status: draft
+status: published
 created: 2026-08-17
 updated: 2026-08-17
 related_adrs: [ADR-005, ADR-008]
@@ -150,13 +150,13 @@ registered by constructing a `System.Windows.Application`. Reuse it; do not re-d
   - `interface ISystemTheme : IDisposable { AppTheme Theme { get; } Color Accent { get; } bool IsHighContrast { get; } event EventHandler? Changed; void Start(); }`
   - `sealed class UiSettingsTheme : ISystemTheme`
 
-- [ ] **Step 1: Write the interface**
+- [x] **Step 1: Write the interface**
 
 Three reads and one event. One event rather than three, because every source below means the
 same thing to the app — *the palette moved, re-apply* — and a consumer that has to subscribe to
 three is a consumer that will subscribe to two.
 
-- [ ] **Step 2: Write `UiSettingsTheme` over all three sources**
+- [x] **Step 2: Write `UiSettingsTheme` over all three sources**
 
 | Source | Tells us |
 |---|---|
@@ -171,7 +171,7 @@ three is a consumer that will subscribe to two.
 > `UISettings` instance in a **field** — the event unsubscribes itself if it is collected, and
 > the symptom is theme following that works for a minute and then quietly stops.
 
-- [ ] **Step 3: Write the fake, and the tests it makes possible**
+- [x] **Step 3: Write the fake, and the tests it makes possible**
 
 `FakeSystemTheme` with settable `Theme`/`Accent`/`IsHighContrast` and a `RaiseChanged()`,
 mirroring `FakeSettingsWatcher`'s shape.
@@ -196,7 +196,7 @@ user's accent is set, `--wl-accent-soft` = accent at 12% (dark) / 7% (light) and
   - `static void ThemeManager.Apply(AppTheme theme, Color? accent = null)`
   - `static void ThemeManager.Follow(ISystemTheme system)`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 The ones that carry risk:
 
@@ -207,18 +207,18 @@ The ones that carry risk:
 - A `Changed` on the fake re-applies: flip `FakeSystemTheme.Theme` to Light, raise, assert `Application.Current.Resources["WlBg"]` is the light value.
 - **Slot ordering survives a swap.** `App.xaml` merges the theme at slot 0 and `Views/TrayIcon.xaml` after it; a re-apply that appended instead of replacing slot 0 would put the theme *after* the menu styles and break every `DynamicResource` in them. Assert slot 0 is still the theme after two swaps.
 
-- [ ] **Step 2: Write `AccentPalette`, pure**
+- [x] **Step 2: Write `AccentPalette`, pure**
 
 Colour in, colours out. No WPF beyond the `Color` struct, so the percentages are a table test
 rather than something only a screenshot can catch.
 
-- [ ] **Step 3: Overlay, do not rewrite, in `ThemeManager.Apply`**
+- [x] **Step 3: Overlay, do not rewrite, in `ThemeManager.Apply`**
 
 Load the dictionary, then write the derived keys over the authored ones. Overlaying rather than
 editing the XAML keeps `Dark.xaml`/`Light.xaml` readable on their own and keeps them correct
 for the no-accent-preference case.
 
-- [ ] **Step 4: `Follow(ISystemTheme)`**
+- [x] **Step 4: `Follow(ISystemTheme)`**
 
 Subscribe, apply once immediately, and re-apply on `Changed`. This is also where the tray icon
 must be re-rendered — a scheme change that repaints the window but leaves a stale icon in the
@@ -239,7 +239,7 @@ notification area is the visible half of the bug.
   - `enum Corners { Default, Rounded }`
   - `interface IWindowChrome { bool Apply(IntPtr hwnd, Backdrop backdrop, Corners corners, bool dark); }`
 
-- [ ] **Step 1: Write it against the constants in finding A above**
+- [x] **Step 1: Write it against the constants in finding A above**
 
 Do not re-derive the attribute numbers; they are in the table. Three `DwmSetWindowAttribute`
 calls, each `HRESULT`-checked, each allowed to fail independently — an older Windows that
@@ -248,7 +248,7 @@ rejects the backdrop should still get the dark frame.
 `Apply` returns whether the **backdrop** took, because that is the one a caller may want to
 compensate for by painting a solid `WlChrome` instead.
 
-- [ ] **Step 2: Fail soft, and prove it**
+- [x] **Step 2: Fail soft, and prove it**
 
 `FakeWindowChrome` records the calls. The real one is not unit-tested — design §E lists Mica
 under **Not tested** — but the *decision table* is: assert the tray menu asks for
@@ -267,12 +267,12 @@ The user-visible half, and the reason this plan moved up the queue.
 - Modify: `src/WaveLinkBackup.App/App.xaml`, `App.xaml.cs`
 - Create: `tests/WaveLinkBackup.App.Tests/TrayMenuStyleTests.cs`
 
-- [ ] **Step 1: `HasDropShadow="False"` on the `ContextMenu`**
+- [x] **Step 1: `HasDropShadow="False"` on the `ContextMenu`**
 
 **Do this first and understand why** — finding A. Without it every DWM call in Step 3 succeeds
 and changes nothing.
 
-- [ ] **Step 2: Template the menu to Windows 11 geometry**
+- [x] **Step 2: Template the menu to Windows 11 geometry**
 
 Every colour a `DynamicResource` on a `Wl*` key; the guard test fails the build on a literal.
 Windows 11's own metrics, for reference: 8px outer corner radius, 4px inner padding, ~32px item
@@ -283,12 +283,12 @@ Surfaces: `WlChrome` for the menu (it is the Mica tint role), `WlHover` for hove
 the separators, `WlText` for items and `WlMuted` for the readout. A disabled item is
 `WlMuted` — and in high contrast `GrayText` at **full** opacity, never 40% (`11`).
 
-- [ ] **Step 3: Apply the chrome on every `Opened`**
+- [x] **Step 3: Apply the chrome on every `Opened`**
 
 `PresentationSource.FromVisual(menu)` as `HwndSource`, on `Opened` not `Opening`, every time —
 finding A. `Acrylic` + `Rounded` + dark from `ISystemTheme`.
 
-- [ ] **Step 4: Make the header match its spec — finding B**
+- [x] **Step 4: Make the header match its spec — finding B**
 
 Mono 10px label, and the readout gains its date qualifier and input count:
 `LAST BACKUP · TODAY 23:07 · 5 INPUTS`.
@@ -302,11 +302,12 @@ cache it and invalidate on a successful capture rather than listing the store on
 > count of zero inputs. A zero there reads as "your backup has no inputs", which is a different
 > and much more alarming claim than "we could not look".
 
-- [ ] **Step 5: Check by hand**
+- [x] **Step 5: Check by hand**
 
 None of this is unit-testable:
 
-- [ ] The menu has rounded corners, a translucent Acrylic background, and no square legacy frame
+- [x] The menu has rounded corners, an app-coloured surface, and no square legacy frame — **confirmed by eye 2026-08-17.** Note the wording: this step originally asked for "a translucent Acrylic background" and that is no longer what is wanted. See Outcome, below.
+- [x] The menu header reads `LAST BACKUP · TODAY 10:17 · 5 INPUTS` — confirmed by eye
 - [ ] Switching Windows to light mode restyles the menu **without restarting the app**
 - [ ] Switching the Windows accent recolours what uses `WlAccent`, and **nothing** that was red stops being red
 - [ ] Turning high contrast on gives a menu with no tints, `WindowText` borders, and a `GrayText` disabled item
@@ -317,21 +318,21 @@ None of this is unit-testable:
 
 ### Task 5: Guards, and the seams reaching `App`
 
-- [ ] **Step 1: Own the seams in `App.OnStartup`**
+- [x] **Step 1: Own the seams in `App.OnStartup`**
 
 `UiSettingsTheme` and `DwmWindowChrome` are constructed after single-instance and before the
 first `ThemeManager` call, and disposed in `ShutdownEverything` alongside the tray and the host.
 `SystemEvents` holds a **static** subscription — an undisposed `UiSettingsTheme` keeps the
 process alive at exit, which on a tray app looks exactly like a leak because it is one.
 
-- [ ] **Step 2: The guard that matters most**
+- [x] **Step 2: The guard that matters most**
 
 The colour-literal scan already covers new XAML. Add its counterpart for the accent: a test
 that walks `ThemeManager.BrushKeys` and asserts **only** `WlAccent`, `WlAccentSoft` and
 `WlAccentLine` change when the accent does. `WlDanger` is the one the design calls out, but a
 whitelist catches the next one too.
 
-- [ ] **Step 3: Full suite and Release**
+- [x] **Step 3: Full suite and Release**
 
 Run: `dotnet test WaveLinkBackup.slnx` · `dotnet build WaveLinkBackup.slnx -c Release`
 Expected: green, zero warnings, **≥ 465** tests.
@@ -340,14 +341,59 @@ Expected: green, zero warnings, **≥ 465** tests.
 
 ## Done when
 
-- [ ] `dotnet build WaveLinkBackup.slnx -c Release` — zero warnings
-- [ ] `dotnet test WaveLinkBackup.slnx` — all green, **≥ 465** tests
-- [ ] Changing Windows dark/light restyles the app and the tray menu with no restart
-- [ ] Changing the Windows accent moves `WlAccent` and **not** `WlDanger`
-- [ ] Turning high contrast on removes every tint and ignores the accent
-- [ ] The tray menu is Acrylic with rounded corners on Windows 11, and plain-but-working without
-- [ ] The tray icon repaints on a scheme change
-- [ ] The menu header reads `LAST BACKUP · TODAY 23:07 · 5 INPUTS`
+- [x] `dotnet build WaveLinkBackup.slnx -c Release` — zero warnings
+- [x] `dotnet test WaveLinkBackup.slnx` — all green, **473** tests (295 Core, 91 CLI, 87 App)
+- [x] Changing Windows dark/light restyles the app and the tray menu with no restart — **by test**, not by eye; see Outcome
+- [x] Changing the Windows accent moves `WlAccent` and **not** `WlDanger` — by test
+- [x] Turning high contrast on removes every tint and ignores the accent — by test
+- [x] The tray menu has rounded corners on Windows 11 and is plain-but-working without
+- [x] The menu header reads `LAST BACKUP · TODAY 23:07 · 5 INPUTS`
+- [ ] The tray icon repaints on a scheme change — **not verified.** The wiring is asserted (`The_after_apply_callback_runs_after_the_swap_not_before`), but nobody has watched the icon change colour while flipping Windows to light mode.
+
+## Outcome — 2026-08-17
+
+Built and shipped in six commits. Three things went differently from the plan.
+
+**The tray menu takes no backdrop at all.** Finding A got the material question right in the
+abstract and wrong for this app. Acrylic was implemented, and the result — seen by eye — read as
+neither native Windows nor Wave Link Backup: a flat grey box belonging to nothing. The cause was
+the surface role, not the material. `WlChrome` is defined as the *"Windows 11 Mica caption/strip
+tint"*, so it only means anything with Mica behind it; with the backdrop not visibly landing, the
+grey was all that was left.
+
+So the menu is now an opaque **`WlCard`** surface with a `WlLine2` hairline — the design's role
+for a raised panel, which is what a floating menu is. `ChromeChoice.ForTrayMenu` returns
+`Backdrop.None`. The rounded corner and the theme-matched frame stayed, because those are DWM
+doing two things the app cannot do for itself and neither is a colour decision.
+
+Finding A's table is still correct for **the caption bar**, which is where a backdrop earns its
+keep and where the design asks for Mica by name. Plan 4 should read it as a window contract, not
+a menu one.
+
+**The menu must be rebuilt, not just restyled.** A tray icon's `ContextMenu` has no parent in any
+visual tree, so the resources-changed notification an `Application.Resources` swap raises never
+reaches it: its `DynamicResource`s resolve once, at load, and then never again. Reopening the menu
+does not refresh them and neither does `UpdateLayout` — both were tried, and
+`TrayMenuStyleTests.The_menus_colours_follow_the_theme_rather_than_being_baked_in` failed on both
+before `App.RebuildTrayMenu` existed. Styling alone would have shipped a menu permanently frozen
+in whichever theme was current at startup, which is exactly what "follows the OS" must not mean.
+
+**The readout was wrong for a reason the plan did not name.** Finding B blamed the missing input
+count on having no `SnapshotStore` reference, which was true. It missed that
+`BackupHost.LastBackupAt` only knows about captures made during the current run — so a freshly
+started app said "no backup yet" with backups on disk, in the tooltip as well as the header. Both
+now read the store.
+
+Two smaller notes: `ChromeChoice` was extracted so the which-surface-gets-what decision is
+asserted rather than folklore and so plan 4 inherits it as a contract; and the accent guard landed
+as a **whitelist** (`Only_the_three_accent_roles_move_when_the_accent_does`) rather than the
+`WlDanger`-shaped hole the plan described, so the next role that must not follow the accent is
+caught without anyone remembering to add a test.
+
+One design rule is worth re-confirming with a human: the check on *Back up automatically* is
+`WlAccent`, so it follows the Windows accent and is **not** the brand red. That is
+`01-tokens-and-mapping.md` working as written, and it does mean the check is whatever colour the
+user's accent is.
 
 ## What this plan does not do
 
@@ -356,6 +402,17 @@ Expected: green, zero warnings, **≥ 465** tests.
 - **The Settings dialog**, including the autostart toggle `IAutostart` was built for — plan 5. Autostart still has no UI and is reachable only from tests.
 
 ## Related, not scheduled
+
+- **Mono letter-spacing is not implemented.** The type scale gives section labels `.18em`
+  tracking, and `TextBlock` has no WPF equivalent — there is no `CharacterSpacing` outside WinUI.
+  The tray menu's readout therefore renders untracked. Faking it (per-character `Run`s, or a
+  `Glyphs` element) is possible and was judged not worth it for one label; it becomes worth
+  deciding properly when the column headers and status strip arrive in plan 4, since they use the
+  same two mono styles at much greater width. `TrayMenuStyles.xaml` points here.
+- **`Back up automatically` shows a trailing check, not a switch.** `screens/12`'s ASCII sketch
+  writes `[toggle]`. A switch inside a menu is not something Windows itself draws, so the sketch
+  was read as shorthand. Flagged rather than silent: it is a one-line template change if the
+  literal reading was meant.
 
 - **The tray icon is rendered at a fixed 32px.** Correct at 100% and 150%; soft at 200%+. The
   right size comes from the DPI of the screen holding the taskbar, and it should re-render on a
