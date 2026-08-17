@@ -25,14 +25,14 @@ Update this file **in the same commit** as the document it counts. See
 | Artifact | Count |
 |---|---|
 | ADRs | 9 |
-| Gotchas | 9 |
+| Gotchas | 10 |
 | Patterns | 4 |
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
-| Sessions | 7 |
+| Sessions | 8 |
 | Plans | 2 |
 | Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
-| **Tests** | **308 passing** — Core 84.8% line / 81.6% branch · CLI 83.6% / 81.6% |
+| **Tests** | **351 passing** — Core 85.7% line / 82.3% branch · CLI 84.1% / 82.0% |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was

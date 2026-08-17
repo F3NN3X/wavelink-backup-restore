@@ -35,37 +35,32 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phases 0–4 are complete (2026-08-16). Phase 5 is next.**
+**Phases 0–4 are complete. Phase 5 is in progress — its Core groundwork is done.**
 
 **There is a working program.** `wlbackup` backs up, lists, restores, renames, deletes,
-verifies, prunes and watches — reaching everything Core does. **308 tests**; Core at 84.8% line
-coverage, the CLI at 83.6%.
+verifies, prunes, empties the trash and watches. **351 tests**; Core at 85.7% line coverage,
+the CLI at 84.1%. Published as a **3.2 MB NativeAOT binary**, verified against a real install.
 
 **All three founding problems are solved.** Snapshots survive an MSIX package reset
-([[ADR-003]]), backups happen on their own ([[ADR-007]]), and there is now something to run
+([[ADR-003]]), backups happen on their own ([[ADR-007]]), and there is something to run
 ([[ADR-004]]).
 
-Published as a **3.2 MB NativeAOT binary**, verified against a real install.
+**Phase 5 groundwork shipped 2026-08-17** — three of the four Core changes in
+[technical-debt.md](technical-debt.md) §7: two-stage delete via `.trash`, lazy verification
+during pruning, and a watcher that no longer queues. §7.4 (keyboard and focus) is WPF work and
+arrives with the shell.
 
 What is missing is a **window**. The whole promise is *configured once, then ignored* — and a
 person who must remember to run `wlbackup watch` has the same problem upstream's users have.
-That is [phase 5](dev-phases/phase-5-wpf.md).
 
-**The design is complete** (2026-08-17, package v4): thirteen state-group specs close all six
-gaps, including high contrast and the tray. Nothing in the UI is undesigned.
-
-Two things to know before starting it:
-
-- **It is a tray app with a window**, not the reverse — `screens/12` is explicit about that,
-  and it lands scope the original four screens did not carry.
-- **Four Core changes come first**, all decided and written up in
-  [technical-debt.md](technical-debt.md) §7. The tray's `NEEDS YOU` state is blocked on one of
-  them.
+**The design is complete** (package v5): thirteen state-group specs, nothing undesigned.
+**It is a tray app with a window**, not the reverse — `screens/12` is explicit, and that framing
+lands scope the original four screens did not carry.
 
 | | |
 |---|---|
-| What shipped | [Phase 4 session note](sessions/2026-08-16-phase-4-cli-build.md) · [CHANGELOG](../CHANGELOG.md) |
-| What is next | [Phase 5 — the WPF shell](dev-phases/phase-5-wpf.md) |
+| What shipped | [Phase 5 part 1](sessions/2026-08-17-phase-5-core-changes.md) · [CHANGELOG](../CHANGELOG.md) |
+| What is next | The tray shell — [phase 5](dev-phases/phase-5-wpf.md) |
 | How Core is shaped | [Phase 1](plans/2026-08-16-phase-1-core-design.md) · [Phase 2](plans/2026-08-16-phase-2-store-design.md) designs |
 
 > **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three
@@ -96,7 +91,7 @@ follow from them.
 
 ## Gotchas
 
-Nine ways this goes wrong. Titled by symptom, because that is what you will be searching
+Ten ways this goes wrong. Titled by symptom, because that is what you will be searching
 for at the time.
 
 | Symptom | Gotcha |
@@ -110,6 +105,7 @@ for at the time.
 | The plugin is restored but refuses to run | [restored-plugin-demands-a-licence.md](knowledge-base/gotchas/restored-plugin-demands-a-licence.md) |
 | A plugin backs up as zero bytes | [vst3-backs-up-as-nothing.md](knowledge-base/gotchas/vst3-backs-up-as-nothing.md) |
 | Someone else's backup produces dead channels | [restored-backup-has-dead-channels.md](knowledge-base/gotchas/restored-backup-has-dead-channels.md) |
+| Deleting one backup takes its neighbours with it | [deleting-one-backup-takes-its-neighbours.md](knowledge-base/gotchas/deleting-one-backup-takes-its-neighbours.md) |
 
 ---
 
@@ -151,6 +147,7 @@ Extracted from shipped code, each naming its real callers.
 
 | Date | Session |
 |---|---|
+| 2026-08-17 | [Phase 5 part 1 — the Core changes, and a design that answered back](sessions/2026-08-17-phase-5-core-changes.md) |
 | 2026-08-17 | [Design integration, and deciding what phase 5 actually is](sessions/2026-08-17-design-integration-and-phase-5-scope.md) |
 | 2026-08-16 | [Phase 4 — Core gets a caller, and AOT lands at 3.2 MB](sessions/2026-08-16-phase-4-cli-build.md) |
 | 2026-08-16 | [Phase 3 — it now backs up on its own](sessions/2026-08-16-phase-3-automation-build.md) |
