@@ -85,6 +85,92 @@ public sealed class RowTemplateTests
         Assert.DoesNotContain("WlAccent", style, StringComparison.Ordinal);
     }
 
+    // 02-backup-health-states.md:48 - "WHY pill: transparent fill, 1px --wl-line, --wl-muted at
+    // 70%", unconditionally - not just when WhyIsPrimary is false. Reverting the IsDamaged trigger
+    // (leaving only the WhyIsPrimary one) would drop the IsDamaged binding and the 0.7 opacity,
+    // failing this.
+    [Fact]
+    public void The_why_pill_goes_flat_and_dim_when_the_row_is_damaged()
+    {
+        var style = Style("WlWhyPill");
+
+        Assert.Contains("Binding IsDamaged", style, StringComparison.Ordinal);
+        Assert.Contains("Opacity\" Value=\"0.7\"", style, StringComparison.Ordinal);
+
+        var damagedTrigger = style[style.IndexOf("Binding IsDamaged", StringComparison.Ordinal)..];
+        Assert.Contains("WhyBorder", damagedTrigger, StringComparison.Ordinal);
+        Assert.Contains("Transparent", damagedTrigger, StringComparison.Ordinal);
+    }
+
+    // screens/11-high-contrast.md: "Selected = full Highlight fill with HighlightText throughout."
+    // Without a selected+HC trigger, the plain IsSelected trigger's WlCard fill maps to Transparent
+    // in high contrast and the "every row" HC trigger zeroes BorderThickness - a selected row would
+    // have no fill and no border at all. Reverting the MultiDataTrigger below removes that fill,
+    // failing this.
+    [Fact]
+    public void A_selected_row_gets_a_full_highlight_fill_in_high_contrast()
+    {
+        var template = RowStyles();
+
+        var multiTriggerIndex = template.IndexOf(
+            "Path=IsSelected", StringComparison.Ordinal);
+        Assert.True(multiTriggerIndex >= 0, "The selected+high-contrast trigger is gone or renamed.");
+
+        var blockStart = template.LastIndexOf("<MultiDataTrigger>", multiTriggerIndex, StringComparison.Ordinal);
+        Assert.True(blockStart >= 0, "Could not find the enclosing MultiDataTrigger.");
+        var blockEnd = template.IndexOf("</MultiDataTrigger>", multiTriggerIndex, StringComparison.Ordinal);
+        Assert.True(blockEnd >= 0, "Could not find the closing </MultiDataTrigger>.");
+
+        var block = template[blockStart..blockEnd];
+
+        Assert.Contains("IsHighContrast", block, StringComparison.Ordinal);
+        Assert.Contains("RowSurface", block, StringComparison.Ordinal);
+        Assert.Contains("WlAccent", block, StringComparison.Ordinal);
+
+        // Declared before the health triggers so IsSuspect/IsDamaged (still declared after) keep
+        // out-ranking selection even in high contrast. Search from ControlTemplate.Triggers only -
+        // "Binding IsSuspect" also appears earlier, inside the HealthPillHost's own nested Style,
+        // which is a different trigger entirely (pill visibility, not row surface colour).
+        var triggersSectionIndex = template.IndexOf("<ControlTemplate.Triggers>", StringComparison.Ordinal);
+        Assert.True(triggersSectionIndex >= 0, "ControlTemplate.Triggers section is gone or renamed.");
+        var isSuspectIndex = template.IndexOf("Binding IsSuspect", triggersSectionIndex, StringComparison.Ordinal);
+        Assert.True(isSuspectIndex >= 0, "IsSuspect health trigger is gone or renamed.");
+        Assert.True(blockEnd < isSuspectIndex,
+            "The selected+high-contrast trigger must be declared before IsSuspect/IsDamaged so health still outranks selection.");
+    }
+
+    // 02-backup-health-states.md:53 - "CONTENTS column: all three tier slots present but dashed
+    // ghosts at 50% opacity" regardless of IsPresent. Reverting the IsDamaged trigger on the tier
+    // ContentControl's Style would leave a present tier showing WlTierPresent (real data) on a
+    // damaged row, failing this.
+    [Fact]
+    public void A_damaged_row_forces_every_tier_badge_to_the_absent_ghost_treatment()
+    {
+        // WlRowTemplate is a Style with several nested Style blocks of its own, so the Style()
+        // helper's non-greedy match (built for leaf DataTemplates) would stop at the first nested
+        // </Style> long before reaching the CONTENTS column - read the raw source instead.
+        var template = RowStyles();
+
+        // The tier ItemTemplate's own Style block: from its "IsPresent" DataTrigger to the
+        // ItemsControl's closing tag, so this does not accidentally match the WHY pill's own
+        // IsDamaged trigger or the row-level IsDamaged health trigger.
+        var isPresentIndex = template.IndexOf("Binding IsPresent", StringComparison.Ordinal);
+        Assert.True(isPresentIndex >= 0, "Tier badge's IsPresent trigger is gone or renamed.");
+
+        var tierEndIndex = template.IndexOf("</ItemsControl>", isPresentIndex, StringComparison.Ordinal);
+        Assert.True(tierEndIndex >= 0, "Tier ItemsControl close tag not found after IsPresent trigger.");
+
+        var tierItemStyle = template[isPresentIndex..tierEndIndex];
+
+        Assert.Contains("DataContext.IsDamaged", tierItemStyle, StringComparison.Ordinal);
+        Assert.Contains("AncestorType=ListBoxItem", tierItemStyle, StringComparison.Ordinal);
+
+        // Declared AFTER IsPresent so it wins and forces WlTierAbsent regardless of IsPresent.
+        var isDamagedIndex = tierItemStyle.IndexOf("DataContext.IsDamaged", StringComparison.Ordinal);
+        var isDamagedSetter = tierItemStyle[isDamagedIndex..];
+        Assert.Contains("WlTierAbsent", isDamagedSetter, StringComparison.Ordinal);
+    }
+
     // 10-decisions section 5: "No element in this app has a 2px border on all four sides." The
     // health slots use a 2px bottom RULE, which is a different thing. The focus ring is the one
     // legitimate 2px rectangle and it lives in ControlStyles.xaml, not here.

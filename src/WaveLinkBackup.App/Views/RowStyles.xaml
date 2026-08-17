@@ -239,9 +239,16 @@
         </Border>
     </DataTemplate>
 
-    <!-- MANUAL is WlText; AUTOMATIC and PRE-RESTORE are WlMuted (WhyIsPrimary on the row). -->
+    <!--
+      MANUAL is WlText; AUTOMATIC and PRE-RESTORE are WlMuted (WhyIsPrimary on the row). Damaged
+      overrides WhyIsPrimary's colour choice unconditionally (02: WHY pill is transparent fill,
+      1px wl-line, wl-muted at 70%) - declared after WhyIsPrimary below so it always wins, same
+      "health outranks the other reading" idiom the NAME cell's match-highlight trigger already
+      uses a few lines up. The border brush needs no change: WlLine was already the default here
+      regardless of WhyIsPrimary, so the design's 1px wl-line is already satisfied.
+    -->
     <DataTemplate x:Key="WlWhyPill">
-        <Border Background="{DynamicResource WlCard}" BorderBrush="{DynamicResource WlLine}"
+        <Border x:Name="WhyBorder" Background="{DynamicResource WlCard}" BorderBrush="{DynamicResource WlLine}"
                 BorderThickness="1" CornerRadius="999" Padding="9,5">
             <views:TrackedText x:Name="WhyText" Text="{Binding Why}" Tracking=".14" FontSize="10.5"
                                 Style="{StaticResource WlTierBadgeTrackedText}"
@@ -250,6 +257,11 @@
         <DataTemplate.Triggers>
             <DataTrigger Binding="{Binding WhyIsPrimary}" Value="True">
                 <Setter TargetName="WhyText" Property="Foreground" Value="{DynamicResource WlText}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsDamaged}" Value="True">
+                <Setter TargetName="WhyBorder" Property="Background" Value="Transparent" />
+                <Setter TargetName="WhyText" Property="Foreground" Value="{DynamicResource WlMuted}" />
+                <Setter TargetName="WhyText" Property="Opacity" Value="0.7" />
             </DataTrigger>
         </DataTemplate.Triggers>
     </DataTemplate>
@@ -436,7 +448,16 @@
                                 </ContentControl.Style>
                             </ContentControl>
 
-                            <!-- CONTENTS: the three tier badges, present/absent per Tiers. -->
+                            <!--
+                              CONTENTS: the three tier badges, present/absent per Tiers. Damaged
+                              overrides IsPresent unconditionally - all three render as the dashed
+                              ghost (02: "all three tier slots present but dashed ghosts at 50%
+                              opacity"), which is exactly what WlTierAbsent already draws, so damaged
+                              just forces that same template rather than needing a new one. Bound via
+                              RelativeSource AncestorType=ListBoxItem because this DataTemplate's own
+                              DataContext is a Tier item, not the row - IsDamaged lives on the row,
+                              same reach the NAME cell's match-highlight trigger already uses above.
+                            -->
                             <ItemsControl Grid.Column="4" Margin="0,0,20,0" ItemsSource="{Binding Tiers}"
                                           Focusable="False" VerticalAlignment="Center">
                                 <ItemsControl.ItemsPanel>
@@ -453,6 +474,9 @@
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsPresent}" Value="True">
                                                             <Setter Property="ContentTemplate" Value="{StaticResource ResourceKey=WlTierPresent}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding DataContext.IsDamaged, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                            <Setter Property="ContentTemplate" Value="{StaticResource ResourceKey=WlTierAbsent}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -479,6 +503,34 @@
                             <Setter TargetName="RowSurface" Property="BorderBrush" Value="{DynamicResource WlAccent}" />
                             <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlStrong}" />
                         </Trigger>
+
+                        <!--
+                          High contrast + selected (screens/11: "Selected = full Highlight fill with
+                          HighlightText throughout"). Without this, IsSelected above only sets WlCard
+                          (which HighContrast.xaml maps to Transparent) plus a WlAccent border, and the
+                          plain "every row" HC trigger further down strips that border by forcing
+                          BorderThickness to 0 - leaving a selected row with no fill and no border at
+                          all, indistinguishable from an unselected one. WlAccent/WlAccentInk already
+                          ARE Highlight/HighlightText in HighContrast.xaml (lines 30-31), so this reuses
+                          the same theme keys rather than adding a second set of colour triggers.
+
+                          Declared here, immediately after IsSelected and BEFORE IsSuspect/IsDamaged,
+                          so those two (still declared after, unchanged) continue to win when a row is
+                          both selected and unwell - "health outranks selection" stays true by
+                          declaration order even in high contrast. Its position relative to the plain
+                          HC trigger below is irrelevant to that ordering: the plain trigger only
+                          touches BorderThickness and MetaText.Text, disjoint from the Background/
+                          Foreground this trigger sets, so there is nothing to out-rank there - the two
+                          simply combine.
+                        -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
+                                <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlAccent}" />
+                            <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+                        </MultiDataTrigger>
 
                         <!-- Health outranks selection - declared after IsSelected so it wins when both are true. -->
                         <DataTrigger Binding="{Binding IsSuspect}" Value="True">
