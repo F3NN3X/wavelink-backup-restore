@@ -476,6 +476,16 @@ public partial class App : Application
 
         if (MainWindow is Views.MainWindow main) SaveGeometry(main);
 
+        // First, not last: shell.List owns a HealthProbe run on a background thread that reports
+        // back through Marshal (MainWindow.xaml.cs: `action => Dispatcher.Invoke(action)`), a
+        // delegate closed over a window whose dispatcher this very method is about to tear down.
+        // Disposing cancels HealthProbe's CancellationTokenSource, which HealthProbe.ProbeAsync
+        // checks immediately before every report() call - so cancelling as early as possible here
+        // gives that check the most time to land before Shutdown(0) below actually stops the
+        // dispatcher pumping, shrinking the window where a probe callback could try to marshal
+        // through a dispatcher that is no longer there.
+        shell?.List.Dispose();
+
         timer?.Stop();
         host?.Stop();
         host?.CaptureOnShutdown();

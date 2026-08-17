@@ -326,11 +326,22 @@ public sealed class RowTemplateTests
     // 10b fix: WlRowTemplate's trigger ORDER took three review rounds to get right (see the
     // selected+high-contrast tests above) and the fix brief is explicit that restoring native
     // list selection must not disturb it. This does not re-check every trigger's position (the
-    // two tests above already do that in full) - it only proves no trigger was inserted ahead of
-    // the last one, which is the shape a careless "add a new IsSelected trigger for the
-    // expansion" fix would have taken instead of reusing the existing one.
+    // two tests above already do that in full) - it only proves nothing that ALSO paints
+    // RowSurface was inserted ahead of, or after, the load-bearing selected+high-contrast trigger.
+    //
+    // An earlier version of this test picked out the template's literal LAST <MultiDataTrigger>
+    // and asserted it contained "Path=IsSelected", "IsHighContrast" and "WlAccent". That is NOT
+    // the load-bearing trigger: the file's actual last MultiDataTrigger is one of the three
+    // selected+HC+Health VerdictGlyph-colour triggers below it (declared after it on purpose - see
+    // that trigger's own comment), and it satisfies all three substrings by accident (its own
+    // conditions include Path=IsSelected and IsHighContrast, and its Setter value WlAccentInk
+    // contains the substring "WlAccent"). That version would have stayed green even if the real
+    // RowSurface-filling trigger were moved back before IsSuspect/IsDamaged - precisely the
+    // regression the big comment above it (~line 660) documents as already having been tried and
+    // found wrong. This version picks the trigger out by its actual Setter (TargetName="RowSurface"
+    // Property="Background"), which only the load-bearing trigger has.
     [Fact]
-    public void The_selected_plus_high_contrast_trigger_is_still_the_last_trigger_declared()
+    public void The_selected_plus_high_contrast_trigger_is_the_last_one_that_paints_RowSurface()
     {
         var template = RowStyles();
 
@@ -339,14 +350,44 @@ public sealed class RowTemplateTests
         Assert.True(triggersSectionIndex >= 0 && triggersSectionEnd >= 0,
             "ControlTemplate.Triggers section is gone or renamed.");
 
-        var lastMultiTriggerStart = template.LastIndexOf(
-            "<MultiDataTrigger>", triggersSectionEnd, StringComparison.Ordinal);
-        Assert.True(lastMultiTriggerStart > triggersSectionIndex);
+        var triggersSection = template[triggersSectionIndex..triggersSectionEnd];
 
-        var lastTrigger = template[lastMultiTriggerStart..triggersSectionEnd];
-        Assert.Contains("Path=IsSelected", lastTrigger, StringComparison.Ordinal);
-        Assert.Contains("IsHighContrast", lastTrigger, StringComparison.Ordinal);
-        Assert.Contains("WlAccent", lastTrigger, StringComparison.Ordinal);
+        var blocks = Regex.Matches(triggersSection, "<MultiDataTrigger>.*?</MultiDataTrigger>", RegexOptions.Singleline)
+            .Select(m => m.Value)
+            .Where(b => b.Contains("Path=IsSelected", StringComparison.Ordinal)
+                     && b.Contains("IsHighContrast", StringComparison.Ordinal)
+                     && b.Contains("TargetName=\"RowSurface\" Property=\"Background\"", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.True(blocks.Length == 1,
+            $"Expected exactly one selected+high-contrast trigger that fills RowSurface, found {blocks.Length}.");
+
+        var block = blocks[0];
+        var blockStart = triggersSectionIndex + triggersSection.IndexOf(block, StringComparison.Ordinal);
+
+        // Must come after every OTHER trigger that tints RowSurface - IsSuspect, IsDamaged, and
+        // the plain every-row high-contrast trigger - or health/plain-HC would win back over
+        // selection in high contrast.
+        var isSuspectIndex = template.IndexOf("Binding IsSuspect", triggersSectionIndex, StringComparison.Ordinal);
+        var isDamagedIndex = template.IndexOf("Binding IsDamaged", triggersSectionIndex, StringComparison.Ordinal);
+        var plainHcBorderIndex = template.IndexOf(
+            "TargetName=\"RowSurface\" Property=\"BorderThickness\" Value=\"0\"",
+            triggersSectionIndex, StringComparison.Ordinal);
+
+        Assert.True(isSuspectIndex >= 0, "IsSuspect health trigger is gone or renamed.");
+        Assert.True(isDamagedIndex >= 0, "IsDamaged health trigger is gone or renamed.");
+        Assert.True(plainHcBorderIndex >= 0, "The plain every-row high-contrast trigger is gone or renamed.");
+
+        Assert.True(blockStart > isSuspectIndex && blockStart > isDamagedIndex && blockStart > plainHcBorderIndex,
+            "The selected+high-contrast RowSurface trigger must be declared AFTER IsSuspect, " +
+            "IsDamaged, and the plain every-row high-contrast trigger, so selection wins over " +
+            "health in high contrast.");
+
+        // And nothing declared AFTER it may also touch RowSurface - the three glyph-colour
+        // triggers that follow it in the file all target VerdictGlyph instead, which is fine and
+        // is what this asserts stays true.
+        var rest = template[(blockStart + block.Length)..triggersSectionEnd];
+        Assert.DoesNotContain("TargetName=\"RowSurface\"", rest, StringComparison.Ordinal);
     }
 
     // Every brush in the row must be one of the 22 theme keys. The colour-literal guard catches

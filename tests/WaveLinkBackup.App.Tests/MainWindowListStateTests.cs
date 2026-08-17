@@ -33,7 +33,7 @@ public sealed class MainWindowListStateTests
         dictionaries.Clear();
         ThemeManager.Apply(AppTheme.Dark);
 
-        foreach (var file in new[] { "Typography.xaml", "ControlStyles.xaml", "RowStyles.xaml" })
+        foreach (var file in new[] { "Typography.xaml", "RowStyles.xaml", "ControlStyles.xaml" })
         {
             dictionaries.Add(new ResourceDictionary
             {

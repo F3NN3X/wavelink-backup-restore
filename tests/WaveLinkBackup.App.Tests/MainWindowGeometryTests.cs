@@ -81,13 +81,13 @@ public sealed class MainWindowGeometryTests
         dictionaries.Add(new ResourceDictionary
         {
             Source = new Uri(
-                "pack://application:,,,/WaveLinkBackup;component/Views/ControlStyles.xaml",
+                "pack://application:,,,/WaveLinkBackup;component/Views/RowStyles.xaml",
                 UriKind.Absolute),
         });
         dictionaries.Add(new ResourceDictionary
         {
             Source = new Uri(
-                "pack://application:,,,/WaveLinkBackup;component/Views/RowStyles.xaml",
+                "pack://application:,,,/WaveLinkBackup;component/Views/ControlStyles.xaml",
                 UriKind.Absolute),
         });
     }

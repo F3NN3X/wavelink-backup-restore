@@ -90,13 +90,6 @@
     <Geometry x:Key="WlDownloadTrayGeometry">M12 3 L12 14 M7 9 L12 14 L17 9 M4 18 L4 20 L20 20 L20 18</Geometry>
 
     <!--
-      Boolean -> Visibility, the framework's own converter. Used by the selected-row expansion in
-      MainWindow.xaml ("visible only when IsSelected" / "a damaged row also shows..."), which has
-      no DataTrigger-only equivalent as clean as a plain bool->Visibility on a Border.
-    -->
-    <BooleanToVisibilityConverter x:Key="WlBoolToVisibility" />
-
-    <!--
       Reused three times verbatim (row 2's real column header, and the Empty/FolderMissing
       stand-ins that render their own copy of it per the brief's Step 4) - a DataTemplate rather
       than three hand-copied Grids, since a DataTemplate can be instantiated more than once where
