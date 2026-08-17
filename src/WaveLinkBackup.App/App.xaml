@@ -8,14 +8,22 @@
                 <ResourceDictionary Source="Theming/Dark.xaml" />
                 <!-- Type scale and embedded font families. -->
                 <ResourceDictionary Source="Views/Typography.xaml" />
-                <!-- The caption row's own styles and geometry - after Typography so anything in
-                     here that wants WlDisplayFont or WlMonoFont can find it. -->
-                <ResourceDictionary Source="Views/ControlStyles.xaml" />
                 <!-- Screen 1's row: the six-column grid, the health strip, the pills and the tier
-                     badges (Task 10a). Merged after ControlStyles so nothing in it needs to
-                     duplicate anything already here; it self-merges Typography.xaml, so its own
-                     internal StaticResources do not depend on this ordering either. -->
+                     badges (Task 10a), including WlColumnHeaderTrackedText - shared with 10b's
+                     column header below. Merged before ControlStyles.xaml because
+                     WlColumnHeaderRowTemplate (ControlStyles.xaml) references that style by
+                     StaticResource inside a DataTemplate: a StaticResource cannot resolve forward
+                     across merge order, only back to a dictionary already merged before it, so the
+                     definition has to come first even though the reference is only ever hit lazily,
+                     at template instantiation. It self-merges Typography.xaml, so its own internal
+                     StaticResources do not depend on this ordering either. -->
                 <ResourceDictionary Source="Views/RowStyles.xaml" />
+                <!-- The caption row's own styles and geometry, plus WlColumnHeaderRowTemplate -
+                     after Typography so anything in here that wants WlDisplayFont or WlMonoFont
+                     can find it, and after RowStyles.xaml so WlColumnHeaderRowTemplate's own
+                     StaticResource="{StaticResource WlColumnHeaderTrackedText}" (defined in
+                     RowStyles.xaml) can resolve. -->
+                <ResourceDictionary Source="Views/ControlStyles.xaml" />
                 <!--
                   Views/TrayIcon.xaml is deliberately NOT merged here. The tray menu is loaded
                   fresh, by pack URI, every time the theme changes - a detached ContextMenu never
