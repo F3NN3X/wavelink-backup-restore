@@ -1,0 +1,65 @@
+<Window x:Class="WaveLinkBackup.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Wave Link Backup"
+        Height="760" Width="1180" MinHeight="560" MinWidth="980"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Background="Transparent">
+
+    <!--
+      Background="Transparent", and AllowsTransparency stays FALSE.
+
+      Mica renders BEHIND the client area, so anything the window paints hides it. And
+      AllowsTransparency="True" would make the window layered, which makes DWM ignore the
+      backdrop silently - the call succeeds and nothing looks different. Plan 3, finding A.
+
+      WindowChrome gives the custom caption without needing either.
+    -->
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="34"
+                            ResizeBorderThickness="6"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="34" />   <!-- caption: left unpainted, so Mica shows -->
+            <RowDefinition Height="Auto" /> <!-- status strip   (Task 9) -->
+            <RowDefinition Height="Auto" /> <!-- column header  (Task 9) -->
+            <RowDefinition Height="*" />    <!-- the list       (Task 9) -->
+            <RowDefinition Height="Auto" /> <!-- bottom bar     (Task 9) -->
+        </Grid.RowDefinitions>
+
+        <!-- Solid WlBg behind everything BELOW the bar. README: "Mica/SystemBackdrop on the
+             bar, solid wl-bg behind the list." -->
+        <Border Grid.Row="1" Grid.RowSpan="4" Background="{DynamicResource WlBg}" />
+
+        <Border x:Name="CaptionBar" Grid.Row="0"
+                BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1">
+            <Grid>
+                <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <Path Data="{StaticResource WlShieldCheckGeometry}"
+                          Fill="{DynamicResource WlMuted}"
+                          Width="14" Height="14" Stretch="Uniform" />
+                    <TextBlock Text="Wave Link Backup" Margin="9,0,0,0" VerticalAlignment="Center"
+                               FontFamily="{DynamicResource WlDisplayFont}" FontSize="12"
+                               Foreground="{DynamicResource WlText}" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button x:Name="MinimiseButton" Style="{StaticResource WlCaptionButton}"
+                            AutomationProperties.Name="Minimise" Content="&#xE921;" />
+                    <Button x:Name="MaximiseButton" Style="{StaticResource WlCaptionButton}"
+                            AutomationProperties.Name="Maximise" Content="&#xE922;" />
+                    <Button x:Name="CloseButton" Style="{StaticResource WlCaptionCloseButton}"
+                            AutomationProperties.Name="Close" Content="&#xE8BB;" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

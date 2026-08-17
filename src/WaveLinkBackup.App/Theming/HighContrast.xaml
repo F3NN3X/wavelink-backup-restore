@@ -41,4 +41,13 @@
     <!-- A dialog is separated by a border, not by dimming: dimming is opacity. -->
     <SolidColorBrush x:Key="WlScrim"    Color="Transparent" />
 
+    <!-- Genuinely transparent in every theme: the caption row when Mica has taken. -->
+    <SolidColorBrush x:Key="WlTransparent" Color="Transparent" />
+
+    <!-- The close caption button's hover fill. Highlight, not WlDanger's WindowText - nothing in
+         high contrast is red (11-high-contrast.md), and a close button still needs to visibly
+         react on hover. -->
+    <SolidColorBrush x:Key="WlCaptionCloseHover"
+                      Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+
 </ResourceDictionary>

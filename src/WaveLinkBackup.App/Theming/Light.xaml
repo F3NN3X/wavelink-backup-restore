@@ -30,4 +30,11 @@
 
     <SolidColorBrush x:Key="WlScrim"     Color="#0B0D0C" Opacity="0.22" />
 
+    <!-- The caption row's own material, when Mica does not take: MainWindow paints this instead. -->
+    <SolidColorBrush x:Key="WlTransparent" Color="Transparent" />
+
+    <!-- The close caption button's hover fill. WlDanger's own colour here; Highlight in
+         high contrast, because WlDanger itself is not (see HighContrast.xaml). -->
+    <SolidColorBrush x:Key="WlCaptionCloseHover" Color="#AA0000" />
+
 </ResourceDictionary>

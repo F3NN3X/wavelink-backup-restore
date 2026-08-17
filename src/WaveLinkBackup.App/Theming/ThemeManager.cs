@@ -34,6 +34,7 @@ public static class ThemeManager
         "WlAccent", "WlAccentInk", "WlAccentSoft", "WlAccentLine", "WlDanger",
         "WlOk", "WlOkSoft", "WlWarn", "WlWarnSoft",
         "WlScrim",
+        "WlTransparent", "WlCaptionCloseHover",
     ];
 
     /// <summary>

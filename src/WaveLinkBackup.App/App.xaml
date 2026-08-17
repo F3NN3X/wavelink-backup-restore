@@ -8,6 +8,9 @@
                 <ResourceDictionary Source="Theming/Dark.xaml" />
                 <!-- Type scale and embedded font families. -->
                 <ResourceDictionary Source="Views/Typography.xaml" />
+                <!-- The caption row's own styles and geometry - after Typography so anything in
+                     here that wants WlDisplayFont or WlMonoFont can find it. -->
+                <ResourceDictionary Source="Views/ControlStyles.xaml" />
                 <!--
                   Views/TrayIcon.xaml is deliberately NOT merged here. The tray menu is loaded
                   fresh, by pack URI, every time the theme changes - a detached ContextMenu never

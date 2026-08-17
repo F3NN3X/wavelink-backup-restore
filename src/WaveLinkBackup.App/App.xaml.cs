@@ -50,8 +50,12 @@ public partial class App : Application
     private System.Drawing.Icon? trayIcon;
     private DispatcherTimer? timer;
     private SettingsRepository? settingsRepository;
+    private ShellStateRepository? shellStateRepository;
     private BackupSettings settings = BackupSettings.Default;
     private bool shuttingDown;
+
+    /// <summary>Read by MainWindow at construction, and updated by every SaveGeometry.</summary>
+    internal ShellState ShellState { get; private set; } = ShellState.Default;
 
     /// <summary>
     /// The newest snapshot, for the menu readout and the tooltip.
@@ -103,6 +107,10 @@ public partial class App : Application
 
         var fileSystem = new FileSystem();
         settingsRepository = new SettingsRepository(fileSystem, SettingsRepository.DefaultDirectory);
+
+        shellStateRepository = new ShellStateRepository(fileSystem, SettingsRepository.DefaultDirectory);
+        ShellState = shellStateRepository.Read();
+
         settings = arguments.ApplyTo(settingsRepository.Read());
 
         (host, service, store) = Compose(fileSystem, settings);
@@ -379,13 +387,17 @@ public partial class App : Application
 
     private void ShowMainWindow()
     {
-        MainWindow ??= new MainWindow();
+        MainWindow ??= new Views.MainWindow(chrome!, systemTheme!, ShellState);
 
         // Closing HIDES it, so a window that exists may simply be invisible.
         MainWindow.Show();
         if (MainWindow.WindowState == WindowState.Minimized) MainWindow.WindowState = WindowState.Normal;
         MainWindow.Activate();
     }
+
+    /// <summary>Called from the window's Closing, so geometry survives a hide as well as an exit.</summary>
+    internal void SaveGeometry(Views.MainWindow window) =>
+        shellStateRepository?.Save(window.CurrentGeometry(ShellState.ClosingHidesToTray));
 
     /// <summary>
     /// The single exit. Three entrances reach it: the tray's Quit, closing the window when
@@ -395,6 +407,8 @@ public partial class App : Application
     {
         if (shuttingDown) return;
         shuttingDown = true;
+
+        if (MainWindow is Views.MainWindow main) SaveGeometry(main);
 
         timer?.Stop();
         host?.Stop();
