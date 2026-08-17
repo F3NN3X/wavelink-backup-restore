@@ -6,8 +6,12 @@
             <ResourceDictionary.MergedDictionaries>
                 <!-- Slot 0. Replaced at runtime by ThemeManager.Apply. -->
                 <ResourceDictionary Source="Theming/Dark.xaml" />
-                <!-- Merged after the theme, so anything in here may reference its keys. -->
-                <ResourceDictionary Source="Views/TrayIcon.xaml" />
+                <!--
+                  Views/TrayIcon.xaml is deliberately NOT merged here. The tray menu is loaded
+                  fresh, by pack URI, every time the theme changes - a detached ContextMenu never
+                  sees a resource swap, so a single shared instance would keep whichever theme was
+                  current when the app started. See App.RebuildTrayMenu.
+                -->
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

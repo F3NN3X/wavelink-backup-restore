@@ -1,9 +1,25 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <ContextMenu x:Key="TrayMenu">
+    <!--
+      Merged HERE rather than alongside this file in App.xaml. A StaticResource inside a
+      ResourceDictionary resolves against that dictionary and its own MergedDictionaries - NOT
+      against sibling dictionaries merged into the same parent - so the styles have to be reachable
+      from in here or every Style reference below fails at parse time.
+    -->
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="TrayMenuStyles.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <ContextMenu x:Key="TrayMenu" Style="{StaticResource WlTrayMenu}">
+        <ContextMenu.Resources>
+            <Style TargetType="MenuItem" BasedOn="{StaticResource WlTrayMenuItem}" />
+            <Style TargetType="Separator" BasedOn="{StaticResource WlTrayMenuSeparator}" />
+        </ContextMenu.Resources>
+
         <!-- A readout, not an item. Its Header is rewritten on every tray refresh. -->
-        <MenuItem x:Name="LastBackupHeader" Header="LAST BACKUP" IsEnabled="False" />
+        <MenuItem x:Name="LastBackupHeader" Header="LAST BACKUP"
+                  Style="{StaticResource WlTrayMenuReadout}" IsEnabled="False" />
         <Separator />
         <MenuItem x:Name="BackUpNow" Header="Back up now" FontWeight="Medium" />
         <MenuItem x:Name="OpenApp" Header="Open Wave Link Backup" />

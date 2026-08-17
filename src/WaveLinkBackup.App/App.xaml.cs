@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 using H.NotifyIcon;
 using H.NotifyIcon.Core;
@@ -39,8 +41,10 @@ public partial class App : Application
 
     private SingleInstance? instance;
     private ISystemTheme? systemTheme;
+    private IWindowChrome? chrome;
     private BackupHost? host;
     private BackupService? service;
+    private SnapshotStore? store;
     private TaskbarIcon? tray;
     private ContextMenu? trayMenu;
     private System.Drawing.Icon? trayIcon;
@@ -48,6 +52,18 @@ public partial class App : Application
     private SettingsRepository? settingsRepository;
     private BackupSettings settings = BackupSettings.Default;
     private bool shuttingDown;
+
+    /// <summary>
+    /// The newest snapshot, for the menu readout and the tooltip.
+    ///
+    /// Read from the STORE rather than from BackupHost.LastBackupAt, which only knows about
+    /// captures made during this run — so a freshly started app would say "no backup yet" with
+    /// thirty backups on disk.
+    /// </summary>
+    private (DateTimeOffset? TakenAt, int? Inputs) newest;
+
+    /// <summary>What LastBackupAt was when <see cref="newest"/> was last read.</summary>
+    private DateTimeOffset? summaryAsOf;
 
     /// <summary>Read by MainWindow: closing hides, unless the app is on its way out.</summary>
     internal bool IsShuttingDown => shuttingDown;
@@ -82,22 +98,27 @@ public partial class App : Application
         // Applied before anything is drawn; Follow (below, once the tray exists) starts the
         // listening and re-applies on every OS change.
         systemTheme = new UiSettingsTheme();
+        chrome = new DwmWindowChrome();
         ThemeManager.Apply(systemTheme.Theme, systemTheme.Accent);
 
         var fileSystem = new FileSystem();
         settingsRepository = new SettingsRepository(fileSystem, SettingsRepository.DefaultDirectory);
         settings = arguments.ApplyTo(settingsRepository.Read());
 
-        (host, service) = Compose(fileSystem, settings);
+        (host, service, store) = Compose(fileSystem, settings);
         host.AutoBackupEnabled = settings.AutoBackupEnabled;
         host.Start();
+
+        // Once, before anything is shown: the readout and the tooltip must be right on the first
+        // frame, not after the first capture of this run.
+        RefreshNewest();
 
         tray = BuildTray();
 
         // Now that there is an icon to repaint, follow the OS. screens/11 requires high contrast
         // to be reacted to at runtime rather than needing a restart, and the same is true of
-        // dark/light and the accent.
-        ThemeManager.Follow(systemTheme, RefreshTray);
+        // dark/light and the accent. This first call is also what builds the menu.
+        ThemeManager.Follow(systemTheme, OnThemeChanged);
 
         timer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -116,7 +137,7 @@ public partial class App : Application
         RefreshTray();
     }
 
-    private static (BackupHost Host, BackupService Service) Compose(
+    private static (BackupHost Host, BackupService Service, SnapshotStore Store) Compose(
         IFileSystem fileSystem, BackupSettings settings)
     {
         var clock = new SystemClock();
@@ -137,18 +158,14 @@ public partial class App : Application
         var coordinator = new AutoBackupCoordinator(
             new FileSystemSettingsWatcher(watchPath), service, clock);
 
-        return (new BackupHost(coordinator, clock), service);
+        return (new BackupHost(coordinator, clock), service, store);
     }
 
     private TaskbarIcon BuildTray()
     {
-        trayMenu = (ContextMenu)Resources["TrayMenu"];
-        WireMenu(trayMenu);
-
         var icon = new TaskbarIcon
         {
             Id = TrayIconId,
-            ContextMenu = trayMenu,
             MenuActivation = PopupActivationMode.RightClick,
         };
 
@@ -159,6 +176,74 @@ public partial class App : Application
         icon.ForceCreate();
 
         return icon;
+    }
+
+    /// <summary>
+    /// Builds the menu from scratch, and does so again on every theme change.
+    ///
+    /// A tray icon's ContextMenu has no parent in ANY visual tree, so the resources-changed
+    /// notification that an Application.Resources swap raises never reaches it — its
+    /// DynamicResources resolve once, when it is loaded, and then never again. Neither closing
+    /// and reopening the menu nor an UpdateLayout refreshes them. Rebuilding is what makes a
+    /// live theme change actually visible in the menu, which is the whole point of following the
+    /// OS rather than reading it once at startup.
+    /// </summary>
+    private void RebuildTrayMenu()
+    {
+        if (tray is null) return;
+
+        var dictionary = new ResourceDictionary
+        {
+            Source = new Uri(
+                "pack://application:,,,/WaveLinkBackup;component/Views/TrayIcon.xaml",
+                UriKind.Absolute),
+        };
+
+        trayMenu = (ContextMenu)dictionary["TrayMenu"];
+        WireMenu(trayMenu);
+
+        // Opened, not Opening: the popup's HWND does not exist yet at Opening. And every time
+        // rather than once, because WPF does not guarantee the same HWND on the next open.
+        trayMenu.Opened += (_, _) => ApplyMenuChrome();
+
+        tray.ContextMenu = trayMenu;
+    }
+
+    /// <summary>
+    /// Rebuild first: <see cref="RefreshTray"/> writes into the menu's items, so refreshing a
+    /// menu that is about to be replaced would put the state on the discarded one.
+    /// </summary>
+    private void OnThemeChanged()
+    {
+        RebuildTrayMenu();
+        RefreshTray();
+    }
+
+    /// <summary>
+    /// Gives the tray menu the Windows 11 treatment: Acrylic, rounded, and a frame that matches
+    /// the OS theme.
+    ///
+    /// Acrylic rather than Mica because the menu is a TRANSIENT surface, and that is the material
+    /// Windows itself uses for one. Mica here would read as an effect someone applied.
+    /// </summary>
+    private void ApplyMenuChrome()
+    {
+        if (trayMenu is null || chrome is null) return;
+
+        if (PresentationSource.FromVisual(trayMenu) is not HwndSource source) return;
+
+        var highContrast = systemTheme?.IsHighContrast ?? SystemParameters.HighContrast;
+        var dark = (systemTheme?.Theme ?? AppTheme.Dark) != AppTheme.Light;
+
+        var (material, corners) = ChromeChoice.ForTrayMenu(highContrast);
+
+        var backdropTook = chrome.Apply(source.Handle, material, corners, dark);
+
+        // A backdrop can only show through a background that is not painted over it. Where it
+        // did not take — Windows 10, or high contrast — the menu keeps its opaque WlChrome,
+        // because a transparent menu over nothing is an unreadable menu.
+        if (backdropTook) trayMenu.Background = Brushes.Transparent;
+        else trayMenu.SetResourceReference(Control.BackgroundProperty, "WlChrome");
     }
 
     private MenuItem Item(string name) =>
@@ -238,14 +323,61 @@ public partial class App : Application
         tray.Icon = trayIcon;
         previous?.Dispose();
 
-        tray.ToolTipText = TrayState.Tooltip(host.Conditions, host.LastBackupAt);
+        // A capture during this run is the only thing that can have changed the store under us.
+        if (summaryAsOf != host.LastBackupAt)
+        {
+            summaryAsOf = host.LastBackupAt;
+            RefreshNewest();
+        }
 
-        Item("LastBackupHeader").Header = host.LastBackupAt is { } at
-            ? $"LAST BACKUP · {at.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture)}"
-            : "LAST BACKUP · NEVER";
+        tray.ToolTipText = TrayState.Tooltip(host.Conditions, newest.TakenAt);
 
+        Item("LastBackupHeader").Header = Readout();
         Item("AutoBackup").IsChecked = host.AutoBackupEnabled;
         Item("PauseResume").Header = host.IsPaused ? "Resume" : "Pause for an hour";
+    }
+
+    /// <summary>
+    /// List() is newest-first and swallows a per-snapshot IO failure rather than throwing, so an
+    /// unreadable store reads as "nothing found" here.
+    /// </summary>
+    private void RefreshNewest()
+    {
+        var all = store?.List();
+
+        newest = all is { Count: > 0 }
+            ? (all[0].Manifest.CreatedUtc, all[0].Manifest.InputCount)
+            : (null, null);
+    }
+
+    /// <summary>
+    /// The design's readout: a mono label plus what a machine produced.
+    /// screens/12: "LAST BACKUP (mono 10px label + TODAY 23:07 · 5 INPUTS)".
+    ///
+    /// The day qualifier is not decoration — "23:07" alone is ambiguous the moment a backup is
+    /// more than a day old, which for this app is the normal case.
+    /// </summary>
+    private string Readout()
+    {
+        if (newest.TakenAt is not { } at) return "LAST BACKUP · NEVER";
+
+        var local = at.ToLocalTime();
+        var today = DateTimeOffset.Now.Date;
+
+        var day = local.Date == today ? "TODAY"
+            : local.Date == today.AddDays(-1) ? "YESTERDAY"
+            : local.ToString("d MMM", CultureInfo.CurrentCulture).ToUpper(CultureInfo.CurrentCulture);
+
+        // A count of zero is NOT shown as "0 INPUTS": an unreadable store and a backup of nothing
+        // are very different claims, and only one of them is ours to make.
+        var inputs = newest.Inputs switch
+        {
+            null or 0 => string.Empty,
+            1 => " · 1 INPUT",
+            var n => $" · {n} INPUTS",
+        };
+
+        return $"LAST BACKUP · {day} {local.ToString("HH:mm", CultureInfo.CurrentCulture)}{inputs}";
     }
 
     private void ShowMainWindow()
