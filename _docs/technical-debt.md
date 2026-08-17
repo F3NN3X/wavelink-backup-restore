@@ -484,6 +484,27 @@ requires the icon to follow the *system* contrast. Plan 2 therefore draws the sh
 colour; substituting real Lucide path data is a data change. Recorded because a hand-drawn
 stand-in that works is exactly the kind of thing that quietly becomes permanent.
 
+**Status 2026-08-17:** the mechanism shipped. `TrayIconRenderer` draws all four states to the
+24px grid and renders them at runtime. The four glyph constants in that file are the
+substitution point.
+
+### 4.8 Deferred minors from the tray shell — **open, 2026-08-17**
+
+Plans 2 and 3 shipped. Five things were deliberately left, none blocking.
+
+| # | Minor | Why it was left, and what fixing it costs |
+|---|---|---|
+| 1 | **The tray icon renders at a fixed 32px.** Correct at 100% and 150% scaling, soft at 200%+ | The right size comes from the DPI of the screen holding the taskbar, and it should re-render on a DPI change. The renderer already takes `pixelSize`, so this is a caller change plus a `WM_DPICHANGED` hook |
+| 2 | **Mono letter-spacing is not implemented.** The type scale gives section labels `.18em`; `TextBlock` has no WPF equivalent — there is no `CharacterSpacing` outside WinUI | Affects one label today (the tray readout) and was judged not worth faking with per-character `Run`s. Becomes worth deciding properly in plan 4, where the column headers and status strip use the same two mono styles at much greater width |
+| 3 | **`Back up automatically` shows a trailing check, not a switch.** `screens/12`'s ASCII sketch writes `[toggle]` | A switch inside a menu is not something Windows draws, so the sketch was read as shorthand. One template change in `TrayMenuStyles.xaml` if the literal reading was meant |
+| 4 | **`Settings…` opens a placeholder `MessageBox`.** Plan 5 builds the dialog | Visible on purpose rather than silently doing nothing, which is this repo's established answer. `IAutostart` has no UI until then and is reachable only from tests |
+| 5 | **A failed manual backup shows a raw `MessageBox`** carrying `CoreError.Message` | The twelve designed error screens (`06-errors.md`) are a later phase-5 session. Reporting it plainly beats swallowing it, but the wording is Core's log phrasing, not the design's |
+
+Two related items are **not** debt and are recorded elsewhere because they are traps rather than
+shortfalls: [the tray menu keeping its startup
+theme](knowledge-base/gotchas/tray-menu-keeps-the-theme-it-started-with.md) and [the tray icon
+refusing generated images](knowledge-base/gotchas/the-tray-icon-refuses-every-image-you-draw.md).
+
 ---
 
 ## 5 · Numbers that are not constants
