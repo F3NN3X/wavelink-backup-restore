@@ -34,23 +34,50 @@ louder treatment — it does, and it is the one strip that cannot be dismissed).
 **Read `screens/01-tokens-and-mapping.md` before writing any markup.** It is the only file the
 others assume you have read, and it carries the WPF brush keys and the F3NN3X token provenance.
 
-**Only Windows high-contrast mode and item 6 (tray/autostart/update) remain undesigned.**
+**As of v4 of the package, nothing is undesigned.** High contrast (`11`) and
+tray/autostart/updates (`12`) closed the last two.
+
+### The tray design changes what this app *is*
+
+`12-tray-autostart-update.md` opens with the sentence the rest of the phase should be built
+around: *"Configured once, then ignored — so it lives in the tray and the window is the
+exception."*
+
+That is not a feature added to a window app. **It is a tray app that has a window**, and it
+lands scope this document did not previously carry:
+
+- Tray icon with **four states**, of which `NEEDS YOU` is the one Core cannot currently
+  produce — it needs the error `TickResult` is about to start carrying (§7.3).
+- A context menu that is the primary interface: back up, open, pause for an hour, quit.
+  **"Quit — stops backing up"** says so in the item, because quitting is not closing.
+- **Exactly two notifications**, and a rule worth quoting: *a successful backup never
+  notifies. A safety net that congratulates itself weekly gets muted, and then it is not a
+  safety net.*
+- Autostart through `HKCU\...\Run` with `--tray`, per-user, never a scheduled task — and
+  **Task Manager wins**: if it has disabled the entry, the toggle reads off and cannot be
+  switched on from here.
+- An **update section in Settings**. The *UI* is phase 5; the *mechanism* — downloading,
+  installing, restarting — stays phase 7. Error 8 ("made by a newer version") deep-links into
+  this section, so the section must exist even while the mechanism does not.
 
 ### But four decisions in it contradict shipped code
 
 This is now the interesting part of phase 5, and none of it is XAML.
 [technical-debt.md](../technical-debt.md) §7 has the detail:
 
-| Decision | Conflict |
-|---|---|
-| Delete goes to the **Recycle Bin** | `SnapshotStore.Delete` is permanent. `SHFileOperation` is Win32 interop, and `Core` targets `net10.0` on purpose. **Needs an architectural decision.** |
-| **Damaged backups don't count toward the keep-count** | Retention can't see damage — it's detected by `SnapshotGuard` at restore time, not stored in the manifest. |
-| **Automatic backup must not queue** when the folder is missing | It currently retries every 15s, silently, forever — both halves of what the decision forbids. |
-| Keyboard map, focus behaviour | Specified, unimplemented. No conflict, just work. |
+**All four are now decided** (2026-08-17) — the approaches are in
+[technical-debt.md](../technical-debt.md) §7. Summarised, because they are Core work that has
+to happen before or alongside the XAML:
 
-**Settle the Recycle Bin question first.** It reaches into a phase-1 decision the
-`GuardNoDesktopFramework` build guard actively enforces, and discovering that mid-phase is how
-a UI phase turns into an architecture phase.
+| Decision | Approach |
+|---|---|
+| Delete | **Two-stage.** Move to `<store>/.trash/<id>/` — a plain directory move, no interop. **Empty trash** in Settings hands it to the Recycle Bin behind an `IRecycleBin` seam. Keeps `Core` on `net10.0`, and works on network stores where the Recycle Bin simply does not exist. **Amends design decision 3** — the dialog must name `.trash`, not the Recycle Bin. |
+| Damaged vs keep-count | **Verify lazily, only the condemned.** `SelectForPruning` returns candidates; the pruner verifies just those and refuses to delete any that fail. Hashes one or two, not thirty. No manifest field to keep in sync. |
+| Watcher queuing | **Clear `lastWriteAt` on failure and carry the `CoreError` in `TickResult`.** The error is what feeds the tray's `NEEDS YOU` state — without it the tray has a state it cannot enter. |
+| Keyboard | **Windows conventions generally**, not only the four keys the design names — accelerators, `Space`, `Home`/`End`, `Shift+F10`, `Ctrl+F`, `Delete`. Screen-reader labels are part of this, not a follow-up: the five-slot health strip reads as five unlabelled cells without an `AutomationProperties` name. |
+
+**Do the Core work first.** Three of the four are `Core` changes with tests, and the tray's
+`NEEDS YOU` state is blocked on one of them.
 
 ## Scope
 

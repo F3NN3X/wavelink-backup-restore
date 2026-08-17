@@ -45,6 +45,33 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### Design handoff v4 + four decisions (2026-08-17) — no version, no code
+
+**Integrated:** `11-high-contrast.md` and `12-tray-autostart-update.md` with three PNGs.
+**All six design gaps in §4 are now closed** — nothing in the UI is undesigned.
+
+`12` changes what the app is: *"it lives in the tray and the window is the exception."* That is
+a tray app with a window, not a window app with a tray, and it lands scope phase 5 did not
+carry — four icon states, a context menu as the primary interface, exactly two notifications,
+`HKCU\...\Run` autostart that **Task Manager can veto**, and an update section whose *UI* is
+phase 5 while its *mechanism* stays phase 7.
+
+**The four §7 conflicts are decided**, and one of them improved on my recommendation:
+
+- **Delete → two-stage.** Move to `<store>/.trash/`, *Empty trash* forwards to the Recycle Bin.
+  Better than the direct `SHFileOperation` I proposed, for a reason I had missed: **the store is
+  user-chosen, and the Recycle Bin does not exist on network shares** — so the design's promise
+  was one the app could not keep there. A directory move behaves identically on every volume,
+  and interop leaves the delete path entirely. **Amends design decision 3.**
+- **Damaged vs keep-count → verify lazily, only the condemned.** Hashes one or two snapshots per
+  prune instead of the whole store, so it does not reintroduce the cost phase 2 avoided.
+- **Watcher → clear the pending write on failure and carry the error.** The error is what feeds
+  the tray's `NEEDS YOU` state; without it the tray has a state it cannot enter.
+- **Keyboard → Windows conventions generally**, and screen-reader labels are part of it rather
+  than a follow-up.
+
+---
+
 ### Design handoff part 2 (2026-08-17) — no version, no code
 
 An updated design package landed and was integrated into `operations/design/`. Doc-only, but

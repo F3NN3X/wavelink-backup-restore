@@ -240,7 +240,7 @@ because they carry history our first run will not have. We do not prune, rotate 
 
 ---
 
-## 7 · Design decisions that outdated shipped code — **NEW 2026-08-17**
+## 7 · Design decisions that outdated shipped code — **all four decided 2026-08-17**
 
 The phase-5 design package (handoff part 2) closed the six gaps **and** made four behavioural
 decisions that contradict code already written and tested. None of this is a mistake in either
@@ -248,7 +248,7 @@ place: the code was built to the best spec available, and the design has since d
 Recording it here because "the design says X, the code does Y" is exactly the kind of drift
 that becomes invisible once phase 5 starts and everyone is looking at XAML.
 
-### 7.1 Delete must go to the Recycle Bin — **conflicts with shipped code**
+### 7.1 Delete must not be permanent — **decided: two-stage**
 
 `SnapshotStore.Delete` → `IFileSystem.DeleteDirectory` → `Directory.Delete(path, recursive: true)`.
 Permanent. The design (decision 3) requires `SHFileOperation` with `FOF_ALLOWUNDO`, and changed
@@ -269,11 +269,38 @@ target or needs the call to live in a shell.
 | `[LibraryImport]` against `shell32` from `net10.0` | Works — P/Invoke needs no Windows TFM — but puts platform interop in the "headless" library, and `[SupportedOSPlatform]` warnings arrive with `TreatWarningsAsErrors` on |
 | An `IRecycleBin` seam, implemented per shell | Keeps `Core` clean and honest; costs a seam and means the CLI must implement it too |
 
-**Recommendation:** the third. It is the same shape as `IFileSystem` and `IWaveLinkProcess`,
-it keeps the guard meaningful, and "deleting is a platform gesture, not a file operation" is a
-true statement worth encoding. **Needs a decision before phase 5 — it is not a UI change.**
+**DECIDED 2026-08-17 — two-stage delete, and it is better than what I recommended.**
 
-### 7.2 Damaged backups must not count toward the keep-count — **not implementable today**
+Delete **moves the snapshot directory to `<store>/.trash/<id>/`** — a plain directory move, no
+interop, no rename. An **Empty trash** action then hands the contents to the Recycle Bin.
+
+Three reasons this beats the direct `SHFileOperation` I proposed:
+
+1. **The Recycle Bin does not exist everywhere.** The store is user-chosen (`--store`), and on
+   a network share or many removable volumes `SHFileOperation` either permanently deletes or
+   prompts. The design's promise — *"goes to the Recycle Bin"* — is one the app **cannot keep**
+   on those volumes. A `.trash/` directory behaves identically on all of them.
+2. **Interop leaves the delete path entirely.** `Core` stays `net10.0`, the
+   `GuardNoDesktopFramework` guard stays meaningful, and the one interop call lives behind an
+   `IRecycleBin` seam used only by *Empty trash* — where failing to reach the Recycle Bin can
+   degrade to an honest "deleted permanently" rather than corrupting the main flow.
+3. **Undo becomes a move, not an API.**
+
+**The naming mess this seemed to risk does not exist.** Snapshot directories are already
+machine-generated (`2026-08-15T2307-a3f81c`) with identity in `manifest.json` — that is
+[[ADR-003]]'s whole point. A move into `.trash/` preserves the id, the manifest and the guard's
+ability to verify it. Collisions are impossible because ids carry a timestamp *and* a content
+hash.
+
+> **This amends design decision 3**, which currently reads *"Deleted backups go to the Windows
+> Recycle Bin… No in-app trash view, no undo toast."* The amendment needed:
+> deleted backups go to `<store>/.trash/`, and **Empty trash** — a single Settings row with a
+> size readout, not a list — sends them onward. Still no trash *view*, still no undo toast; the
+> tray's existing "Open the backup folder" is how anyone recovers one by hand.
+> **The dialog copy must name `.trash`, not the Recycle Bin**, or it repeats the same untrue
+> sentence for a new reason.
+
+### 7.2 Damaged backups must not count toward the keep-count
 
 Decision 6: *"A corrupted file must never push a good one out."*
 
@@ -283,9 +310,23 @@ detected by `SnapshotGuard.Verify`, which reads and hashes every file, and is ca
 *restore* time, not at list time (a deliberate phase-2 choice: rehashing the whole store on
 every window open is not free).
 
-So this needs either a cheap damage signal in the manifest, or retention that verifies — and
-verifying during a prune reintroduces exactly the cost phase 2 avoided. **Design work, not
-just code.**
+**DECIDED 2026-08-17 — verify lazily, only the condemned.**
+
+`SelectForPruning` returns candidates; the pruner then verifies **only those**, and skips
+deleting any that fail. Pruning a 30-deep store removes one or two snapshots, so this hashes
+one or two — not the thirty that a verify-on-list would.
+
+This is why it does **not** reintroduce phase 2's cost: the expensive thing was verifying
+everything on every window open, and this verifies almost nothing, almost never.
+
+No manifest change, no new field to keep in sync, and it is correct by construction rather than
+by remembering to update a cached flag. A damaged snapshot simply never gets deleted — which is
+exactly the rule: *"a corrupted file must never push a good one out."*
+
+**Consequence to accept:** a damaged snapshot is now immortal until the user deletes it by
+hand. That is the right trade — the alternative is a program that quietly destroys the evidence
+of its own corruption — but the UI must therefore make damaged backups deletable, which
+`05-delete-dialogs.md` already allows.
 
 ### 7.3 Automatic backup must not queue while the folder is missing — **current behaviour is what the design forbids**
 
@@ -306,12 +347,45 @@ forbids, and worse than the "every hour" it names.
 Also needed: `TickResult` currently discards the error, so the shell has nothing to put in the
 status strip. It needs to carry the `CoreError`.
 
-### 7.4 Keyboard behaviour is specified and unimplemented — **no conflict, just work**
+**DECIDED 2026-08-17 — clear the pending write on failure, and surface the error.**
 
-Escape cancels every dialog and clears search · Enter fires the primary button **except**
-Delete and Restore, where focus starts on Cancel · F5 re-reads the folder · focus ring 2px/2px
-always visible, including list rows. All phase-5 work; listed so it is scheduled rather than
-discovered.
+```csharp
+var result = service.CaptureAutomatic();
+if (!result.IsSuccess)
+{
+    lock (gate) lastWriteAt = null;          // stop queuing
+    return new TickResult(decision, null, result.Error);
+}
+```
+
+Clearing `lastWriteAt` is what stops the queue: the failure is reported once and the coordinator
+returns to `NothingPending` until Wave Link writes again. The next real write re-arms it, so
+nothing is lost — this is the same reconciliation-by-hash argument that makes a dropped watcher
+event a latency problem rather than data loss.
+
+`TickResult` gains the `CoreError`, which is what feeds the tray's **NEEDS YOU** state and its
+tooltip (*"the backup folder can't be used"*), plus the nine-day notification in
+`12-tray-autostart-update.md`. Without it the tray has a state it cannot enter.
+
+**Needs a test that pins the absence of retrying**, not just the presence of the error — two
+consecutive ticks after a failure must produce exactly one `CaptureAutomatic` call.
+
+### 7.4 Keyboard and focus — **Windows conventions, not just the design's list**
+
+The design closes Escape / Enter / F5 / focus-ring. **Decided 2026-08-17:** implement to
+Windows conventions generally, not only the four keys named.
+
+That means at minimum: full keyboard reachability with a visible focus ring everywhere;
+`Alt`-accelerators on dialog buttons; `Space` activating the focused control; arrow keys moving
+list selection with `Home`/`End`; `Shift+F10` and the Menu key opening the row's overflow;
+`Ctrl+F` reaching the search field; and `Delete` on a selected row opening the delete dialog —
+which must still land focus on Cancel, per the design.
+
+**Screen-reader labels are part of this**, not a follow-up: the five-slot health strip is
+meaningless to a screen reader as five unlabelled cells, and needs an `AutomationProperties`
+name that reads as a sentence — *"5 inputs, all named: Wave Mic 1, Voice, Browser, Music,
+System"*.
+
 
 ---
 
@@ -327,8 +401,10 @@ several states nobody had listed:
 | 2. In-progress states | `04-in-progress.md` — determinate hairline for backup, four named stages for restore |
 | 3. Error states | `06-errors.md` — **all twelve**, with a placement rule and a weight rule |
 | 4. Search + no-results | `07-search.md` |
-| 5. Keyboard, focus, high-contrast | `10-decisions.md` §6 — keyboard and focus closed; **high-contrast still open** |
-| 6. Tray, autostart, update | **Still out of scope.** Unchanged. |
+| 5. Keyboard, focus, high-contrast | `10-decisions.md` §6 + `11-high-contrast.md` |
+| 6. Tray, autostart, update | `12-tray-autostart-update.md` |
+
+**All six are now closed** (v4 of the package, 2026-08-17). Nothing in the UI is undesigned.
 
 **Also designed, and not on anyone's list:** SUSPECT vs DAMAGED as distinct states (`02`), four
 restore outcomes (`03`), persisted settings and the missing-folder screen (`08`), the

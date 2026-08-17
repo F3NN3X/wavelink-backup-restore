@@ -51,10 +51,16 @@ What is missing is a **window**. The whole promise is *configured once, then ign
 person who must remember to run `wlbackup watch` has the same problem upstream's users have.
 That is [phase 5](dev-phases/phase-5-wpf.md).
 
-**The design for it is now complete** (2026-08-17): handoff part 2 closes five of the six gaps
-and specifies states nobody had listed. But four of its decisions **contradict shipped code** —
-the Recycle Bin one reaches into a phase-1 architectural choice a build guard enforces. See
-[technical-debt.md](technical-debt.md) §7 and settle that before writing XAML.
+**The design is complete** (2026-08-17, package v4): thirteen state-group specs close all six
+gaps, including high contrast and the tray. Nothing in the UI is undesigned.
+
+Two things to know before starting it:
+
+- **It is a tray app with a window**, not the reverse — `screens/12` is explicit about that,
+  and it lands scope the original four screens did not carry.
+- **Four Core changes come first**, all decided and written up in
+  [technical-debt.md](technical-debt.md) §7. The tray's `NEEDS YOU` state is blocked on one of
+  them.
 
 | | |
 |---|---|
