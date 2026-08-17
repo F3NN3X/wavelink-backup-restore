@@ -337,6 +337,28 @@ public sealed class SnapshotListViewModelTests
         Assert.Null(list.Selected);
     }
 
+    // Not in the brief - review finding: the Query setter is copied from the brief's Step 3 and
+    // never re-synced Selected the way Refresh() does. Rebuild() always constructs fresh row
+    // objects, so without this fix, typing into search leaves Selected pointing at a detached
+    // row (IsSelected true, but no longer in Groups) while the fresh row for the same snapshot
+    // defaults to IsSelected false - the bottom bar Task 10 binds to Selected would show an
+    // orphan.
+    [Fact]
+    public void Selecting_a_row_then_searching_keeps_it_selected_if_it_still_matches()
+    {
+        var list = Store14().List();
+        list.Refresh();
+
+        var row = list.Groups.SelectMany(g => g.Rows).Single(r => r.Name == "Before 3.3 beta");
+        list.Select(row.Id);
+
+        list.Query = "beta";
+
+        var current = list.Groups.Single().Rows.Single();
+        Assert.Same(current, list.Selected);
+        Assert.True(current.IsSelected);
+    }
+
     // -- the probe --------------------------------------------------------------------------
 
     [Fact]
@@ -430,5 +452,28 @@ public sealed class SnapshotListViewModelTests
         list.Query = "beta";
 
         Assert.Equal(total, list.TotalBytes);
+    }
+
+    // -- disposal -----------------------------------------------------------------------------
+
+    // Not in the brief - IDisposable is a produced interface with nothing exercising it. Pinning
+    // it rather than leaving it correct-by-inspection only.
+    [Fact]
+    public void Disposing_twice_does_not_throw()
+    {
+        var list = Store14().List();
+        list.Refresh();
+
+        list.Dispose();
+
+        Assert.Null(Record.Exception(list.Dispose));
+    }
+
+    [Fact]
+    public void Disposing_before_any_refresh_does_not_throw()
+    {
+        var list = Store14().List();
+
+        Assert.Null(Record.Exception(list.Dispose));
     }
 }

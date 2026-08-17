@@ -78,7 +78,13 @@ public sealed class SnapshotListViewModel(
         {
             if (!Set(ref query, value ?? string.Empty)) return;
 
+            // Mirrors Refresh(): Rebuild() always constructs fresh row objects, so without this
+            // Selected would keep pointing at a detached row that is no longer in Groups.
+            var selectedId = selected?.Id;
+
             Rebuild();
+
+            if (selectedId is not null) Select(selectedId);
         }
     }
 
@@ -100,7 +106,7 @@ public sealed class SnapshotListViewModel(
     /// <summary>07: `3 OF 14 MATCH "BETA"`. Empty with no query - the strip says other things then.</summary>
     public string MatchSummary => query.Length == 0
         ? string.Empty
-        : $"{MatchCount} OF {TotalCount} MATCH \"{query.ToUpper(CultureInfo.CurrentCulture)}\"";
+        : $"{MatchCount} OF {TotalCount} MATCH \"{query.ToUpper(CultureInfo.InvariantCulture)}\"";
 
     /// <summary>07: `SHOWING 3 OF 14 · 11 HIDDEN BY THE SEARCH`.</summary>
     public string? SearchFooter => query.Length == 0 || State != ListState.Loaded
