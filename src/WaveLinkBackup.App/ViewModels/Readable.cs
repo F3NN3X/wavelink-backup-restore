@@ -35,7 +35,7 @@ public static class Readable
         var decimals = unit >= 2 && value < 100 ? 1 : 0;
 
         return string.Create(
-            CultureInfo.CurrentCulture, $"{Math.Round(value, decimals)} {Units[unit]}");
+            CultureInfo.InvariantCulture, $"{Math.Round(value, decimals)} {Units[unit]}");
     }
 
     /// <summary>
@@ -89,15 +89,15 @@ public static class Readable
         if (day == today) return "TODAY";
         if (day == today.AddDays(-1)) return "YESTERDAY";
 
-        return Upper(at.ToString("ddd d MMM", CultureInfo.CurrentCulture));
+        return Upper(at.ToString("ddd d MMM", CultureInfo.InvariantCulture));
     }
 
     /// <summary>The TAKEN column's upper line.</summary>
-    public static string TimeOfDay(DateTimeOffset at) => at.ToString("HH:mm", CultureInfo.CurrentCulture);
+    public static string TimeOfDay(DateTimeOffset at) => at.ToString("HH:mm", CultureInfo.InvariantCulture);
 
     /// <summary>The TAKEN column's lower line, and the bottom bar's selected readout.</summary>
     public static string ShortDate(DateTimeOffset at) =>
-        Upper(at.ToString("d MMM", CultureInfo.CurrentCulture));
+        Upper(at.ToString("d MMM", CultureInfo.InvariantCulture));
 
     /// <summary>
     /// An input name shortened to fit a 57px slot: MIC 1 · VOICE · BROWSER · GAME · SYSTEM, and
@@ -127,5 +127,5 @@ public static class Readable
         return name.Length <= 10 ? name : name[..9] + "…";
     }
 
-    private static string Upper(string value) => value.ToUpper(CultureInfo.CurrentCulture);
+    private static string Upper(string value) => value.ToUpper(CultureInfo.InvariantCulture);
 }
