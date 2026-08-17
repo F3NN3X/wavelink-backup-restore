@@ -106,6 +106,6 @@ issue tracker.
 
 - `SPEC.md` §3, §11
 - [technical-debt.md](../../technical-debt.md) §3, §6
-- [design-handoff.md](../../operations/design/design-handoff.md) — Screen 2, Screen 3 notes
+- [README.md](../../operations/design/README.md) — Screen 2, Screen 3 notes
 - [[ADR-006]] · [[ADR-008]] · [[restored-plugin-demands-a-licence]]
 - [glossary.md](../../glossary.md) — *endpoint ID*, *machine-local*

@@ -45,6 +45,49 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### Design handoff part 2 (2026-08-17) — no version, no code
+
+An updated design package landed and was integrated into `operations/design/`. Doc-only, but
+it changes what phase 5 is.
+
+**Integrated**
+
+- **11 state-group specs** in `screens/` with 12 PNGs, `MANIFEST.md`, and `CHANGES-SINCE-V1.md`.
+- Regenerated prototype (1.24 MB) and canvas (235 KB).
+- **Tokens and brand assets are hash-verified byte-identical** to what was already here — the
+  token-drift risk flagged before the export turned out to be zero.
+
+**Structural**
+
+- `design-handoff.md` reverted to the export's own `README.md`, and **the whole folder is now
+  exempt from the frontmatter rule** — stated in `README.md` with the reason. It is a vendored
+  drop-in export; patching frontmatter on every re-export would guarantee the repo copy drifts
+  from the design tool's, which is the one thing a handoff must not do. Same exemption as
+  `third_party/`, same reason. 13 files repointed; the two references left in session notes are
+  deliberately historical.
+
+**Closed**
+
+- **[technical-debt.md](technical-debt.md) §4** — five of the six design gaps. Only Windows
+  high-contrast and tray/autostart/update remain.
+
+**Opened — and this is the substantive part**
+
+- **§7, four decisions that outdated shipped code.** Delete must go to the Recycle Bin
+  (`SnapshotStore.Delete` is permanent, and `SHFileOperation` is Win32 interop against a
+  library deliberately targeting `net10.0`); damaged backups must not count toward the
+  keep-count (retention cannot see damage at all); automatic backup must not queue when the
+  folder is missing (it currently retries every 15s, silently, forever). None is a mistake in
+  either place — the code was built to the best spec available and the design has since decided
+  better — but "the design says X, the code does Y" goes invisible once everyone is looking at
+  XAML.
+
+**Also worth recording:** the first handoff specified the SUSPECT badge in red inside an amber
+row — the forbidden second red, by its own rules. The design caught it. Nothing had been built
+against it, so the correction cost nothing.
+
+---
+
 ### v0.4.0 — Phase 4: the CLI (2026-08-16)
 
 **Added**
@@ -257,7 +300,7 @@ The documentation system, seeded from `SPEC.md` and the design handoff. No appli
 **Moved**
 
 - `design_handoff_wave_link_backup/` → `_docs/operations/design/`, its `README.md` renamed
-  `design-handoff.md` so it does not read as a folder readme.
+  `README.md` so it does not read as a folder readme.
 - `_docs/README-temp.md` → `_docs/archive/README-temp.md`, consumed.
 
 **Counts moved:** ADRs 0 → 8 · gotchas 0 → 8 · recipes 0 → 1 · audits 0 → 1 · sessions 0 → 1.
@@ -305,7 +348,7 @@ The part that looks obvious and fails.
 | [[restored-settings-revert-seconds-later]] | The flush race |
 | [[preconditions-inside-the-operation]] | Why the write refuses rather than trusting the caller |
 | `Restore/RestoreOrchestrator.cs` | The assembled sequence (phase 2) |
-| [design-handoff.md](operations/design/design-handoff.md) Screen 2 | The confirmation dialog, and the automatic pre-restore snapshot |
+| [README.md](operations/design/README.md) Screen 2 | The confirmation dialog, and the automatic pre-restore snapshot |
 | [glossary.md](glossary.md) | Verified exited, atomic write, shell AppID, pre-restore snapshot |
 
 ### The snapshot store
@@ -330,7 +373,7 @@ The phase that made this a different product from the tool it was forked from.
 | [[ADR-007]] | Watch don't poll; dedup by hash; never prune what the user named |
 | [phase-3-automation.md](dev-phases/phase-3-automation.md) | The plan, and the no-real-time constraint |
 | `SPEC.md` §2, §6 | Retention measurements and the design target |
-| [design-handoff.md](operations/design/design-handoff.md) Screen 3 | **Copy that is a specification** — the debounce and rate limit are quoted to users |
+| [README.md](operations/design/README.md) Screen 3 | **Copy that is a specification** — the debounce and rate limit are quoted to users |
 | [technical-debt.md](technical-debt.md) §1.4 | The gap this filled, struck through |
 | [[capture-fails-while-wave-link-is-running]] | Why the watcher's reads must be shared-mode |
 

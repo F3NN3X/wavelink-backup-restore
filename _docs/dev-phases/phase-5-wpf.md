@@ -23,37 +23,62 @@ to run `wlbackup watch` has the same problem upstream's users have.
 Everything Core does is reachable from a command line today. This phase is about it being
 reachable by someone who does not want a command line.
 
-## The biggest phase, for a reason worth stating
+## The gaps are designed — 2026-08-17
 
-The other phases had a specification. This one has **four finished screens plus six holes**,
-and the holes are not small ([technical-debt.md](../technical-debt.md) §4):
+The six holes this document was written around are **specified**. Handoff part 2 lives in
+[operations/design/screens/](../operations/design/README.md): eleven files, one state group
+each, a PNG beside each, and `10-decisions.md` closing every open question including the two I
+flagged as needing a deliberate answer (SUSPECT vs DAMAGED; whether a rejected restore gets a
+louder treatment — it does, and it is the one strip that cannot be dismissed).
 
-1. Delete confirmation dialog
-2. Backup-in-progress and restore-in-progress states
-3. Error states — Wave Link not installed, settings file missing, backup folder unwritable,
-   disk full, corrupt backup on restore
-4. Search results and no-results state
-5. Keyboard map, screen-reader labels, Windows high-contrast mode
-6. Tray behaviour, autostart, update mechanics
+**Read `screens/01-tokens-and-mapping.md` before writing any markup.** It is the only file the
+others assume you have read, and it carries the WPF brush keys and the F3NN3X token provenance.
 
-**Budget for designing these, not just building them.** Improvised UI is how a coherent design
-erodes, and the handoff is high-fidelity enough that improvisation will show.
+**Only Windows high-contrast mode and item 6 (tray/autostart/update) remain undesigned.**
 
-Item 3 deserves particular attention: the CLI already renders every one of those errors,
-because `CoreError` is a closed hierarchy and the CLI maps all of it. **The information exists;
-only the visual treatment is missing.**
+### But four decisions in it contradict shipped code
+
+This is now the interesting part of phase 5, and none of it is XAML.
+[technical-debt.md](../technical-debt.md) §7 has the detail:
+
+| Decision | Conflict |
+|---|---|
+| Delete goes to the **Recycle Bin** | `SnapshotStore.Delete` is permanent. `SHFileOperation` is Win32 interop, and `Core` targets `net10.0` on purpose. **Needs an architectural decision.** |
+| **Damaged backups don't count toward the keep-count** | Retention can't see damage — it's detected by `SnapshotGuard` at restore time, not stored in the manifest. |
+| **Automatic backup must not queue** when the folder is missing | It currently retries every 15s, silently, forever — both halves of what the decision forbids. |
+| Keyboard map, focus behaviour | Specified, unimplemented. No conflict, just work. |
+
+**Settle the Recycle Bin question first.** It reaches into a phase-1 decision the
+`GuardNoDesktopFramework` build guard actively enforces, and discovering that mid-phase is how
+a UI phase turns into an architecture phase.
 
 ## Scope
 
 ### In
 
-- The four designed screens: main list, restore confirmation, settings, first run.
+- The four screens from `README.md`, **plus the eleven state groups in `screens/`**.
 - Brush resources per theme, **live OS theme following**, OS accent bound to `--wl-accent`
   with `--wl-danger` fixed.
 - Custom 34px caption bar with Mica, the five-slot health strip, tier badges, row expansion.
-- The six gaps above.
-- Settings **persistence** — the first place a user changes a setting without a command line.
+- The **new inline result strip** between the status strip and the column header — the single
+  home for restore outcomes, in-progress states and six of the twelve errors.
+- The four Core changes in [technical-debt.md](../technical-debt.md) §7.
+- Settings **persistence** at `%LOCALAPPDATA%\WaveLinkBackup\settings.json`, with command-line
+  flags winning for one run and not written back.
 - Tray + autostart, or an explicit decision not to.
+
+### Edits to things already specified — do these, don't re-derive them
+
+`CHANGES-SINCE-V1.md` §3 is the authoritative list. The ones that will bite:
+
+- **SUSPECT badge is amber now, not red.** Everywhere, including the component sheet.
+- The five-slot INPUTS strip is **replaced by a single dotted cell** on damaged rows — the one
+  place the fixed-slot pattern is deliberately broken.
+- Restore dialog focus starts on **Cancel**, not the destructive button.
+- Deleting your only backup is **neutral, not amber** — nothing is un-whole at that moment,
+  and the red Delete button already carries the weight.
+- An amber tint **must composite over an opaque `--wl-bg` base**; a bare 18% tint on a darker
+  surface goes unreadable.
 
 ### Out
 
@@ -120,6 +145,6 @@ The suite so far tests everything except pixels, and that should continue.
 
 ## References
 
-- [design-handoff.md](../operations/design/design-handoff.md) — the authority on values and layout
+- [README.md](../operations/design/README.md) — the authority on values and layout
 - [[ADR-004]] · [[ADR-005]]
 - [technical-debt.md](../technical-debt.md) §4 — the six gaps, listed since day one

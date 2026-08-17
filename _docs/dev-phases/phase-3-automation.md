@@ -142,5 +142,5 @@ fell; watch both.
 ## References
 
 - [[ADR-007]] — the decision this implements
-- `SPEC.md` §2, §6 · [design-handoff.md](../operations/design/design-handoff.md) — Screen 3, *Interactions*
+- `SPEC.md` §2, §6 · [README.md](../operations/design/README.md) — Screen 3, *Interactions*
 - [technical-debt.md](../technical-debt.md) §1.4

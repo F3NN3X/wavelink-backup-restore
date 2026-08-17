@@ -116,5 +116,5 @@ without writing C#. Planned in [dev-phases/phase-4-cli.md](../dev-phases/phase-4
 
 - [[ADR-007]] — the decision this implements
 - [technical-debt.md](../technical-debt.md) §1.4
-- [design-handoff.md](../operations/design/design-handoff.md) — Screen 3, whose copy is a
+- [design-handoff.md](../operations/design/README.md) — Screen 3, whose copy is a
   specification this phase had to match

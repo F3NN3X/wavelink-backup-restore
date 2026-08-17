@@ -72,5 +72,5 @@ gives free and WPF cannot reach. Neither is on the horizon.
 ## References
 
 - `SPEC.md` §10
-- [design-handoff.md](../operations/design/design-handoff.md) — tokens, four screens, window geometry
+- [README.md](../operations/design/README.md) — tokens, four screens, window geometry
 - [[ADR-004]] · [[ADR-008]]

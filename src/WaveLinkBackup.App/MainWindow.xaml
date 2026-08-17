@@ -7,5 +7,5 @@
                FontFamily="Segoe UI Variable"
                HorizontalAlignment="Center" VerticalAlignment="Center"
                TextAlignment="Center"
-               Text="Wave Link Backup&#x0a;&#x0a;Shell stub — phase 5 builds the four designed screens.&#x0a;See _docs/operations/design/design-handoff.md" />
+               Text="Wave Link Backup&#x0a;&#x0a;Shell stub — phase 5 builds the four designed screens.&#x0a;See _docs/operations/design/README.md" />
 </Window>

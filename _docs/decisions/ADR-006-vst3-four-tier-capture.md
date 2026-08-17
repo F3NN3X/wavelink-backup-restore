@@ -101,5 +101,5 @@ which would make tier 3's discovery heuristic unreliable rather than merely impe
 ## References
 
 - `SPEC.md` §9
-- [design-handoff.md](../operations/design/design-handoff.md) — Screen 3 "What goes in a backup"
+- [README.md](../operations/design/README.md) — Screen 3 "What goes in a backup"
 - [[restored-plugin-demands-a-licence]] · [[vst3-backs-up-as-nothing]]

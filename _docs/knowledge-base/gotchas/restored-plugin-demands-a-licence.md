@@ -83,5 +83,5 @@ switchable ([[ADR-006]]).
 ## References
 
 - `SPEC.md` §9
-- [design-handoff.md](../../operations/design/design-handoff.md) — Screen 3, plain-language notes
+- [README.md](../../operations/design/README.md) — Screen 3, plain-language notes
 - [[ADR-006]] · [[vst3-backs-up-as-nothing]] · [[restored-backup-has-dead-channels]]

@@ -39,7 +39,11 @@ _docs/
 │   ├── patterns/            # proven solutions, extracted from shipping code
 │   └── recipes/             # step-by-step guides
 ├── operations/
-│   └── design/              # the design handoff: tokens, screens, prototype
+│   └── design/              # the design handoff (vendored export — see note below)
+│       ├── README.md        #   part 1: the four finished screens
+│       ├── CHANGES-SINCE-V1.md  # diff against the previous export — read first
+│       ├── screens/         #   part 2: eleven state-group specs + PNGs
+│       ├── tokens/ assets/  #   token CSS and brand marks
 ├── plans/                   # designs and implementation plans, written before the work
 ├── sessions/                # structured session notes
 ├── README.md                # this file — instructions only, no running totals
@@ -79,7 +83,7 @@ not here yet, and each has a trigger that creates it:
 | You want | Look in |
 |---|---|
 | What are we building? | `SPEC.md` |
-| What does it look like? | `operations/design/design-handoff.md` |
+| What does it look like? | `operations/design/README.md` |
 | Why is it built this way? | `decisions/` |
 | Has this bitten us before? | `knowledge-base/gotchas/` |
 | How do I do X? | `knowledge-base/recipes/` |
@@ -155,11 +159,22 @@ load-bearing. If the order does not matter, it is not a recipe, it is a paragrap
 
 **Purpose:** things done *to* a running system rather than to the code.
 
-`operations/design/` holds the design handoff — the full token set, the four screens, and a
-self-contained HTML prototype. `design-handoff.md` wins on values and layout; the prototype
-is a reference, **not production code, and must not be ported literally**.
+`operations/design/` holds the design handoff — tokens, the four finished screens, eleven
+state-group specs in `screens/`, and a self-contained HTML prototype. `README.md` and
+`screens/` are **both current and non-overlapping**: the README is the only spec for the four
+finished screens, `screens/` the only spec for the states they lack. Neither supersedes the
+other. The prototype is a reference, **not production code, and must not be ported literally**.
 
 Keep this one folder with subdirectories rather than several tiny top-level folders.
+
+> **This folder is a vendored package and is exempt from the frontmatter rule below.** It
+> arrives as a drop-in export from Claude Design and gets replaced wholesale when the design
+> changes. Patching frontmatter into it on every re-export would guarantee the copy in the repo
+> drifts from the copy in the design tool — which is the one thing a handoff must not do. The
+> same exemption applies to `third_party/`, for the same reason.
+>
+> `CHANGES-SINCE-V1.md` is the diff against the previous export. Read it before re-reading the
+> README; it names which of the already-specified screens changed.
 
 ---
 

@@ -25,7 +25,7 @@ small enough to keep one snapshot per distinct content hash, indefinitely, forev
 | Document | What it is |
 |---|---|
 | **[SPEC.md](SPEC.md)** | The build specification. Where the settings live, what's inside them, the restore sequence, the validation traps, the VST3 tiering. **The authority on what to build.** Read its Provenance section before treating any number as a constant. |
-| **[operations/design/design-handoff.md](operations/design/design-handoff.md)** | The complete visual and interaction design — tokens, four screens, states, copy. High fidelity: colours, type, spacing and wording are final. |
+| **[operations/design/README.md](operations/design/README.md)** | The visual and interaction design, part 1 — tokens, the four finished screens, copy. High fidelity: colours, type, spacing and wording are final. Part 2 is [screens/](operations/design/screens/00-index.md); read [CHANGES-SINCE-V1.md](operations/design/CHANGES-SINCE-V1.md) first. |
 | **[dev-phases/README.md](dev-phases/README.md)** | What is left to build, phase by phase, with entry and exit criteria. |
 
 Everything else in this folder explains *why*, records *what bit us*, or tracks *what
@@ -49,8 +49,12 @@ Published as a **3.2 MB NativeAOT binary**, verified against a real install.
 
 What is missing is a **window**. The whole promise is *configured once, then ignored* — and a
 person who must remember to run `wlbackup watch` has the same problem upstream's users have.
-That is [phase 5](dev-phases/phase-5-wpf.md), the biggest phase, carrying six undesigned
-surfaces.
+That is [phase 5](dev-phases/phase-5-wpf.md).
+
+**The design for it is now complete** (2026-08-17): handoff part 2 closes five of the six gaps
+and specifies states nobody had listed. But four of its decisions **contradict shipped code** —
+the Recycle Bin one reaches into a phase-1 architectural choice a build guard enforces. See
+[technical-debt.md](technical-debt.md) §7 and settle that before writing XAML.
 
 | | |
 |---|---|

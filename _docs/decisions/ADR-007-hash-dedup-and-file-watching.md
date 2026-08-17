@@ -89,5 +89,5 @@ backs it up rather than replaces it.
 ## References
 
 - `SPEC.md` §2, §6
-- [design-handoff.md](../operations/design/design-handoff.md) — Screen 3 "When to back up", *Interactions*
+- [README.md](../operations/design/README.md) — Screen 3 "When to back up", *Interactions*
 - [[ADR-002]] · [[ADR-003]] · [[ADR-004]]

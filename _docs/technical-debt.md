@@ -163,7 +163,7 @@ discovery entirely** — unlike upstream, which requires the override to match a
 is false for such a path, so callers can say "restored, but you will need to start Wave Link
 yourself" rather than failing obscurely.
 **Still open:** whether such installs exist, and **the amber not-found UI variant is not
-designed** — see [design-handoff.md](operations/design/design-handoff.md) *Gaps*.
+designed** — see [README.md](operations/design/README.md) *Gaps*.
 **Phase:** 5 for the UI.
 
 ### 2.3 Whether the VST3 bundle path works
@@ -240,21 +240,109 @@ because they carry history our first run will not have. We do not prune, rotate 
 
 ---
 
-## 4 · Design gaps carried into the build
+## 7 · Design decisions that outdated shipped code — **NEW 2026-08-17**
 
-Screens and states the design handoff explicitly does not cover. These are not debt yet, but
-each becomes an improvised UI the moment it is hit, and improvised UI is how a coherent design
-erodes. Listed here so phase 5 budgets for them rather than discovering them.
+The phase-5 design package (handoff part 2) closed the six gaps **and** made four behavioural
+decisions that contradict code already written and tested. None of this is a mistake in either
+place: the code was built to the best spec available, and the design has since decided better.
+Recording it here because "the design says X, the code does Y" is exactly the kind of drift
+that becomes invisible once phase 5 starts and everyone is looking at XAML.
 
-1. Delete confirmation dialog.
-2. Backup-in-progress and restore-in-progress states.
-3. Error states: Wave Link not installed, settings file missing, backup folder unwritable,
-   disk full, corrupt snapshot on restore.
-4. Search results and no-results state.
-5. Keyboard map, screen-reader labels beyond the basics, Windows high-contrast mode.
-6. Tray behaviour, autostart, update mechanics.
+### 7.1 Delete must go to the Recycle Bin — **conflicts with shipped code**
 
-Full list and context: [design-handoff.md](operations/design/design-handoff.md) *Gaps*.
+`SnapshotStore.Delete` → `IFileSystem.DeleteDirectory` → `Directory.Delete(path, recursive: true)`.
+Permanent. The design (decision 3) requires `SHFileOperation` with `FOF_ALLOWUNDO`, and changed
+the dialog copy from "gone for good" to naming the Recycle Bin — because the old sentence
+**became untrue** the moment the decision was made.
+
+**This is the expensive one, and not for the obvious reason.** `SHFileOperation` is Win32
+interop. `WaveLinkBackup.Core` deliberately targets **`net10.0`, not `net10.0-windows`**
+([phase 1](plans/2026-08-16-phase-1-core-design.md) *as built*, enforced by the
+`GuardNoDesktopFramework` MSBuild guard). Adding shell interop to `Core` either changes that
+target or needs the call to live in a shell.
+
+**Options, none of them free:**
+
+| Option | Cost |
+|---|---|
+| Move `Core` to `net10.0-windows` | Undoes a phase-1 decision and re-admits the desktop ref pack the guard exists to reject |
+| `[LibraryImport]` against `shell32` from `net10.0` | Works — P/Invoke needs no Windows TFM — but puts platform interop in the "headless" library, and `[SupportedOSPlatform]` warnings arrive with `TreatWarningsAsErrors` on |
+| An `IRecycleBin` seam, implemented per shell | Keeps `Core` clean and honest; costs a seam and means the CLI must implement it too |
+
+**Recommendation:** the third. It is the same shape as `IFileSystem` and `IWaveLinkProcess`,
+it keeps the guard meaningful, and "deleting is a platform gesture, not a file operation" is a
+true statement worth encoding. **Needs a decision before phase 5 — it is not a UI change.**
+
+### 7.2 Damaged backups must not count toward the keep-count — **not implementable today**
+
+Decision 6: *"A corrupted file must never push a good one out."*
+
+`SnapshotRetention.SelectForPruning` filters on `SnapshotManifest.IsPrunable`, which is
+`Trigger == Automatic` and nothing else. **Retention cannot see damage at all** — damage is
+detected by `SnapshotGuard.Verify`, which reads and hashes every file, and is called at
+*restore* time, not at list time (a deliberate phase-2 choice: rehashing the whole store on
+every window open is not free).
+
+So this needs either a cheap damage signal in the manifest, or retention that verifies — and
+verifying during a prune reintroduces exactly the cost phase 2 avoided. **Design work, not
+just code.**
+
+### 7.3 Automatic backup must not queue while the folder is missing — **current behaviour is what the design forbids**
+
+Decision 6: *"does nothing at all, and the status strip says so. It must not fail silently
+every hour and it must not queue."*
+
+`AutoBackupCoordinator.Tick` line ~85:
+
+```csharp
+var result = service.CaptureAutomatic();
+if (!result.IsSuccess) return new TickResult(decision, null);   // lastWriteAt NOT cleared
+```
+
+A failure leaves the pending write set, so the next tick re-evaluates as `Capture` and tries
+again — **every 15 seconds, silently, forever**. That is both halves of what the decision
+forbids, and worse than the "every hour" it names.
+
+Also needed: `TickResult` currently discards the error, so the shell has nothing to put in the
+status strip. It needs to carry the `CoreError`.
+
+### 7.4 Keyboard behaviour is specified and unimplemented — **no conflict, just work**
+
+Escape cancels every dialog and clears search · Enter fires the primary button **except**
+Delete and Restore, where focus starts on Cancel · F5 re-reads the folder · focus ring 2px/2px
+always visible, including list rows. All phase-5 work; listed so it is scheduled rather than
+discovered.
+
+---
+
+## 4 · ~~Design gaps carried into the build~~ — **CLOSED 2026-08-17, except item 6**
+
+All six were undesigned. Five are now specified in
+[operations/design/screens/](operations/design/screens/00-index.md), which also designed
+several states nobody had listed:
+
+| Was | Now |
+|---|---|
+| 1. Delete confirmation | `05-delete-dialogs.md` — three variants: normal, only-backup, pre-restore |
+| 2. In-progress states | `04-in-progress.md` — determinate hairline for backup, four named stages for restore |
+| 3. Error states | `06-errors.md` — **all twelve**, with a placement rule and a weight rule |
+| 4. Search + no-results | `07-search.md` |
+| 5. Keyboard, focus, high-contrast | `10-decisions.md` §6 — keyboard and focus closed; **high-contrast still open** |
+| 6. Tray, autostart, update | **Still out of scope.** Unchanged. |
+
+**Also designed, and not on anyone's list:** SUSPECT vs DAMAGED as distinct states (`02`), four
+restore outcomes (`03`), persisted settings and the missing-folder screen (`08`), the
+version-mismatch note (`09`), and a **WHICH WAVE LINK** settings row — which exists because
+error 2 asks the user to choose an installation and nothing was storing the answer, so the app
+would have asked on every launch.
+
+**One correction to the first handoff worth knowing:** the SUSPECT badge was specified in red
+(`--wl-accent-soft` fill, `--wl-accent` text) sitting inside an amber row — *the forbidden
+second red*, and it made a health state look like an action. It is now amber. The design caught
+its own rule violation; nothing had been built against it, so the correction cost nothing.
+
+**Not closed:** Windows high-contrast mode, and item 6. See §7 for the four decisions that
+outdated shipped code.
 
 ---
 

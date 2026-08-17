@@ -70,7 +70,7 @@ Everything lives in [`_docs/`](_docs/). Start at [`_docs/index.md`](_docs/index.
 | Document | What it is |
 |---|---|
 | [`_docs/SPEC.md`](_docs/SPEC.md) | The build specification — where the settings live, what is inside them, the restore sequence, the validation traps. The authority on *what* to build. |
-| [`_docs/operations/design/design-handoff.md`](_docs/operations/design/design-handoff.md) | The complete visual and interaction design: tokens, four screens, states, copy. |
+| [`_docs/operations/design/README.md`](_docs/operations/design/README.md) | The complete visual and interaction design: tokens, four screens, states, copy. |
 | [`_docs/dev-phases/`](_docs/dev-phases/README.md) | What is left to build, phase by phase. |
 | [`_docs/decisions/`](_docs/decisions/) | Why it is built this way — 9 ADRs. |
 | [`_docs/knowledge-base/gotchas/`](_docs/knowledge-base/gotchas/) | Nine ways this goes wrong, titled by symptom. |
