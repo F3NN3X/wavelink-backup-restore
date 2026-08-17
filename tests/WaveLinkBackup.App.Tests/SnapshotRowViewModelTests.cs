@@ -168,7 +168,11 @@ public sealed class SnapshotRowViewModelTests
         var row = Row();
         var expectedLocal = DefaultCreatedUtc.ToLocalTime();
 
-        Assert.Equal(expectedLocal, row.TakenAt);
+        // DateTimeOffset equality compares the absolute instant, not the stored offset, so
+        // Assert.Equal(expectedLocal, row.TakenAt) would pass identically whether or not the
+        // conversion to local time actually happened. Pin the OFFSET instead - that is the part
+        // of TakenAt's contract that .ToLocalTime() is responsible for.
+        Assert.Equal(expectedLocal.Offset, row.TakenAt.Offset);
         Assert.Equal(Readable.TimeOfDay(expectedLocal), row.TakenTime);
         Assert.Equal(Readable.ShortDate(expectedLocal), row.TakenDate);
     }
