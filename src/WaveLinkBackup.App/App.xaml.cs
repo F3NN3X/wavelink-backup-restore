@@ -237,13 +237,10 @@ public partial class App : Application
 
         var (material, corners) = ChromeChoice.ForTrayMenu(highContrast);
 
-        var backdropTook = chrome.Apply(source.Handle, material, corners, dark);
-
-        // A backdrop can only show through a background that is not painted over it. Where it
-        // did not take — Windows 10, or high contrast — the menu keeps its opaque WlChrome,
-        // because a transparent menu over nothing is an unreadable menu.
-        if (backdropTook) trayMenu.Background = Brushes.Transparent;
-        else trayMenu.SetResourceReference(Control.BackgroundProperty, "WlChrome");
+        // The background is the STYLE's business and stays opaque, so nothing here touches it.
+        // What DWM contributes is the rounded corner and a frame that matches the OS theme —
+        // two things the app genuinely cannot draw for itself.
+        chrome.Apply(source.Handle, material, corners, dark);
     }
 
     private MenuItem Item(string name) =>

@@ -11,11 +11,16 @@ namespace WaveLinkBackup.App.Windows;
 public static class ChromeChoice
 {
     /// <summary>
-    /// A transient surface. Windows uses Acrylic for menus and flyouts, and rounds them whether
-    /// or not their host window is rounded.
+    /// No backdrop, and rounded regardless.
+    ///
+    /// Acrylic was the first answer here and it was wrong for this app. A translucent menu means
+    /// the palette showing through is the DESKTOP's, and this menu's whole job is to look like
+    /// Wave Link Backup — so it paints an opaque WlCard surface instead and the brand colour is
+    /// what you actually see. The corner preference stays: a square menu on Windows 11 looks
+    /// broken rather than plain, and rounding is not a colour decision.
     /// </summary>
     public static (Backdrop Backdrop, Corners Corners) ForTrayMenu(bool highContrast) =>
-        (highContrast ? Backdrop.None : Backdrop.Acrylic, Corners.Rounded);
+        (Backdrop.None, Corners.Rounded);
 
     /// <summary>
     /// A long-lived background. Mica, and whatever corners Windows would give a resizable window

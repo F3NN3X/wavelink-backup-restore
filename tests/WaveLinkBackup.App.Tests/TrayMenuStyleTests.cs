@@ -53,13 +53,29 @@ public sealed class TrayMenuStyleTests
 
     /// <summary>
     /// HasDropShadow false is load-bearing, not cosmetic. It is what stops the popup being a
-    /// layered window, and a layered window ignores every DWM backdrop attribute silently — the
-    /// call succeeds and the menu looks untouched. Plan 3, finding A.
+    /// layered window, and a layered window ignores the DWM corner and frame attributes silently
+    /// — the call succeeds and the menu looks untouched. Plan 3, finding A.
     /// </summary>
     [Fact]
-    public void The_menu_refuses_a_drop_shadow_so_a_backdrop_can_apply_at_all()
+    public void The_menu_refuses_a_drop_shadow_so_the_dwm_attributes_apply_at_all()
     {
         Assert.False(Wpf.Run(() => LoadMenu().HasDropShadow));
+    }
+
+    /// <summary>
+    /// The menu is opaque. A translucent one shows the desktop's palette through it, which is the
+    /// opposite of looking like this app.
+    /// </summary>
+    [Fact]
+    public void The_menu_surface_is_fully_opaque()
+    {
+        var alpha = Wpf.Run(() =>
+        {
+            ThemeManager.Apply(AppTheme.Dark);
+            return ((SolidColorBrush)LoadMenu().Background).Color.A;
+        });
+
+        Assert.Equal(255, alpha);
     }
 
     [Fact]
@@ -139,8 +155,11 @@ public sealed class TrayMenuStyleTests
             return (inDark, inLight);
         });
 
-        Assert.Equal("#FF1A1E20", dark);   // WlChrome, dark
-        Assert.Equal("#FFEAEAE6", light);  // WlChrome, light
+        // WlCard: the design's role for a raised panel, which is what a floating menu is. NOT
+        // WlChrome — that is specifically the Mica caption/strip tint, and on an opaque menu with
+        // no Mica behind it, it reads as a flat grey belonging to neither Windows nor this app.
+        Assert.Equal("#FF16191A", dark);
+        Assert.Equal("#FFFFFFFF", light);
         Assert.NotEqual(dark, light);
     }
 }

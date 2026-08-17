@@ -11,16 +11,20 @@ namespace WaveLinkBackup.App.Tests;
 /// </summary>
 public sealed class ChromeChoiceTests
 {
+    /// <summary>
+    /// The menu takes no backdrop and paints its own WlCard surface. A translucent menu shows the
+    /// DESKTOP's palette through it, and this menu's job is to look like Wave Link Backup.
+    /// </summary>
     [Fact]
-    public void The_tray_menu_is_acrylic_and_rounded_because_it_is_transient()
+    public void The_tray_menu_paints_its_own_surface_and_stays_rounded()
     {
-        Assert.Equal((Backdrop.Acrylic, Corners.Rounded), ChromeChoice.ForTrayMenu(highContrast: false));
+        Assert.Equal((Backdrop.None, Corners.Rounded), ChromeChoice.ForTrayMenu(highContrast: false));
     }
 
     /// <summary>
-    /// Mica on a context menu reads as an effect someone applied, which is the opposite of what
-    /// a native-feeling app wants. This is the guard against "they are both backdrops, surely
-    /// either will do".
+    /// The window is where a backdrop earns its keep: it is large, long-lived, and the design
+    /// asks for Mica on the caption bar by name. The menu and the window differ on purpose, and
+    /// this is the guard against "they are both surfaces, surely one rule will do".
     /// </summary>
     [Fact]
     public void The_main_window_is_mica_and_keeps_the_corners_windows_would_give_it()
@@ -41,13 +45,15 @@ public sealed class ChromeChoiceTests
     }
 
     /// <summary>
-    /// A menu stays rounded even with no backdrop — the corner preference is not part of the
-    /// material, and a square menu on Windows 11 looks broken rather than plain.
+    /// The corner preference is not part of the material, so it survives everything: a square
+    /// menu on Windows 11 looks broken rather than plain.
     /// </summary>
-    [Fact]
-    public void The_menu_stays_rounded_even_when_it_gets_no_backdrop()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void The_menu_is_rounded_in_every_scheme(bool highContrast)
     {
-        Assert.Equal(Corners.Rounded, ChromeChoice.ForTrayMenu(highContrast: true).Corners);
+        Assert.Equal(Corners.Rounded, ChromeChoice.ForTrayMenu(highContrast).Corners);
     }
 
     [Fact]

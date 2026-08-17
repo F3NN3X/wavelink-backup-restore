@@ -2,14 +2,23 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-      Windows 11 menu geometry, on the app's own palette. Every colour is a DynamicResource on a
-      Wl* key: the guard test fails the build on a literal, and a literal is also what would stop
-      the menu following the OS theme.
+      The tray menu on the app's OWN palette, opaque.
 
-      Sizes are Windows 11's own: 8px outer radius, 4px inner padding, 32px item height, 4px item
-      radius. Deliberately absent is the legacy icon gutter and sunken checkbox column - Windows
-      has not drawn a menu that way since Windows 7, and keeping it is what makes a WPF app look
-      a decade old at a glance.
+      It used to sit on WlChrome behind a DWM Acrylic backdrop, and that was wrong twice over.
+      WlChrome is specifically the "Windows 11 Mica caption/strip tint" role
+      (01-tokens-and-mapping.md) - a flat desaturated grey that only makes sense with a Mica
+      surface behind it. With the backdrop not visibly landing, the menu read as neither native
+      Windows nor this app: a grey box belonging to nothing.
+
+      So the menu is now a FLOATING APP SURFACE - WlCard, the role the design gives a raised
+      panel - with a WlLine2 hairline, because a popup over an unknown desktop needs a stronger
+      edge than a panel inside a window does. Translucency is gone; the palette is the point.
+
+      Rounded corners and the theme-matched frame stay: those are DWM doing something the app
+      cannot do for itself, and they are not colour decisions.
+
+      Every colour is a DynamicResource on a Wl* key. The guard test fails the build on a
+      literal, and a literal is also what would stop the menu following the OS theme.
     -->
 
     <FontFamily x:Key="WlDisplayFont">Rubik, Segoe UI Variable, Segoe UI</FontFamily>
@@ -20,20 +29,21 @@
 
     <Style x:Key="WlTrayMenu" TargetType="ContextMenu">
         <!--
-          HasDropShadow MUST stay false. It is what makes the popup allow transparency, and a
-          layered window silently ignores every DWM backdrop attribute - the call succeeds and
-          nothing changes. See plan 3, finding A.
+          HasDropShadow MUST stay false. It is what stops the popup being a layered window, and a
+          layered window ignores the DWM corner and frame attributes silently - the call succeeds
+          and nothing changes. See plan 3, finding A.
         -->
         <Setter Property="HasDropShadow" Value="False" />
-        <Setter Property="Background" Value="{DynamicResource WlChrome}" />
+        <Setter Property="Background" Value="{DynamicResource WlCard}" />
         <Setter Property="Foreground" Value="{DynamicResource WlText}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource WlLine}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource WlLine2}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="4" />
-        <Setter Property="MinWidth" Value="220" />
+        <Setter Property="Padding" Value="5" />
+        <Setter Property="MinWidth" Value="248" />
         <Setter Property="FontFamily" Value="{DynamicResource WlDisplayFont}" />
         <Setter Property="FontSize" Value="13.5" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="UseLayoutRounding" Value="True" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ContextMenu">
@@ -43,7 +53,7 @@
                             Padding="{TemplateBinding Padding}"
                             CornerRadius="8"
                             SnapsToDevicePixels="True">
-                        <ItemsPresenter />
+                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
@@ -53,15 +63,15 @@
     <Style x:Key="WlTrayMenuItem" TargetType="MenuItem">
         <Setter Property="Foreground" Value="{DynamicResource WlText}" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Height" Value="32" />
-        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Padding" Value="11,0" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="MenuItem">
                     <Border x:Name="Surface"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="4"
+                            CornerRadius="6"
                             Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <Grid>
@@ -70,26 +80,27 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <ContentPresenter Grid.Column="0"
+                            <ContentPresenter x:Name="Label"
+                                              Grid.Column="0"
                                               ContentSource="Header"
                                               RecognizesAccessKey="True"
                                               VerticalAlignment="Center" />
 
                             <!--
-                              The checked state is a trailing check, which is how Windows 11 draws
-                              a checkable menu item. See the note in the plan: the design's ASCII
-                              sketch writes [toggle], and a switch inside a menu is not something
-                              Windows itself does.
+                              A trailing check, which is how Windows 11 draws a checkable menu
+                              item. The design's ASCII sketch writes [toggle]; a switch inside a
+                              menu is not something Windows itself does, and this is the one place
+                              the sketch is read as shorthand rather than literally.
                             -->
                             <Path x:Name="Check"
                                   Grid.Column="1"
-                                  Margin="12,0,0,0"
-                                  Width="16" Height="16"
+                                  Margin="14,0,1,0"
+                                  Width="15" Height="15"
                                   Stretch="Uniform"
                                   Visibility="Collapsed"
                                   Data="{StaticResource WlCheckGeometry}"
                                   Stroke="{DynamicResource WlAccent}"
-                                  StrokeThickness="1.75"
+                                  StrokeThickness="2"
                                   StrokeStartLineCap="Round"
                                   StrokeEndLineCap="Round"
                                   StrokeLineJoin="Round" />
@@ -101,9 +112,15 @@
                             <Setter TargetName="Check" Property="Visibility" Value="Visible" />
                         </Trigger>
 
+                        <!--
+                          WlHover is the same 4% lift the app's own list rows use. Subtle on
+                          purpose; the text going to WlStrong is what makes it unmistakable
+                          without turning every hover into a coloured band.
+                        -->
                         <Trigger Property="IsHighlighted" Value="True">
                             <Setter TargetName="Surface" Property="Background"
                                     Value="{DynamicResource WlHover}" />
+                            <Setter Property="Foreground" Value="{DynamicResource WlStrong}" />
                         </Trigger>
 
                         <!--
@@ -122,25 +139,37 @@
     </Style>
 
     <!--
-      The header is a READOUT, not an item: no hover, no click, mono. "Anything a machine
-      produced is mono; anything a person wrote is Rubik" - a timestamp and a count are
-      machine-produced.
+      "Back up now" is the default item. screens/12 gives it Rubik 500; WlStrong is what makes
+      that read as the default rather than as an accident of weight.
+    -->
+    <Style x:Key="WlTrayMenuDefaultItem" TargetType="MenuItem" BasedOn="{StaticResource WlTrayMenuItem}">
+        <Setter Property="Foreground" Value="{DynamicResource WlStrong}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
 
-      Letter-spacing (.18em in the type scale) has no WPF equivalent on TextBlock and is not
-      faked here; see the plan's Related section.
+    <!--
+      The header is a READOUT, not an item: no hover, no click, mono. "Anything a machine produced
+      is mono; anything a person wrote is Rubik" - a timestamp and a count are machine-produced.
+
+      Kept deliberately plain - muted mono text and nothing else. The design's own separator below
+      it does the dividing; giving the readout a filled strip as well would put two competing
+      dividers in the first 40px of an eleven-row menu.
+
+      Letter-spacing (.18em in the type scale) has no WPF equivalent on TextBlock and is not faked
+      here; see the plan's Related section.
     -->
     <Style x:Key="WlTrayMenuReadout" TargetType="MenuItem">
         <Setter Property="Foreground" Value="{DynamicResource WlMuted}" />
         <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
         <Setter Property="FontSize" Value="10.5" />
         <Setter Property="FontWeight" Value="Medium" />
-        <Setter Property="Height" Value="28" />
-        <Setter Property="Padding" Value="10,0" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="MenuItem">
-                    <Border Padding="{TemplateBinding Padding}" Background="Transparent">
+                    <Border Background="Transparent"
+                            Padding="11,9,11,5"
+                            SnapsToDevicePixels="True">
                         <TextBlock Text="{TemplateBinding Header}"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis" />
@@ -151,7 +180,7 @@
     </Style>
 
     <Style x:Key="WlTrayMenuSeparator" TargetType="Separator">
-        <Setter Property="Margin" Value="6,4" />
+        <Setter Property="Margin" Value="11,5" />
         <Setter Property="Height" Value="1" />
         <Setter Property="Background" Value="{DynamicResource WlLine}" />
         <Setter Property="Template">

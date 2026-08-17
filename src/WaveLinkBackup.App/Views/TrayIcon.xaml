@@ -21,7 +21,8 @@
         <MenuItem x:Name="LastBackupHeader" Header="LAST BACKUP"
                   Style="{StaticResource WlTrayMenuReadout}" IsEnabled="False" />
         <Separator />
-        <MenuItem x:Name="BackUpNow" Header="Back up now" FontWeight="Medium" />
+        <MenuItem x:Name="BackUpNow" Header="Back up now"
+                  Style="{StaticResource WlTrayMenuDefaultItem}" />
         <MenuItem x:Name="OpenApp" Header="Open Wave Link Backup" />
         <MenuItem x:Name="OpenFolder" Header="Open the backup folder" />
         <Separator />
