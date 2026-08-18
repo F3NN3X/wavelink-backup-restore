@@ -98,7 +98,11 @@ public partial class MainWindow : Window
 
     private async Task BackUpNowAsync()
     {
-        var app = (App)Application.Current;
+        // Not an App (e.g. a test harness running a bare Application) - do nothing rather than
+        // exploding on the cast. In production Application.Current is always the App, so this
+        // branch never runs there.
+        if (Application.Current is not App app) return;
+
         var result = app.BackUpNow();
 
         await shell.List.RefreshAsync();
