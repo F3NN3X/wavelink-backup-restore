@@ -4,6 +4,8 @@ using WaveLinkBackup.App.Tests.Fakes;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Views;
+using WaveLinkBackup.Core.Io;
+using WaveLinkBackup.Core.Results;
 
 namespace WaveLinkBackup.App.Tests;
 
@@ -29,8 +31,11 @@ public sealed class MainWindowClosingTests
         freeBytes: 100, storePath: @"C:\store",
         savedAt: new DateTimeOffset(2026, 8, 15, 23, 7, 0, TimeSpan.Zero));
 
+    // No test here drives a restore, so the service is a throw-if-called stub and inspectLive a
+    // closure that never runs (a failure result would be surfaced, but nothing reaches it).
     private static MainWindow Build() =>
-        new(new FakeWindowChrome(), new FakeSystemTheme(), OnScreen, Shell());
+        new(new FakeWindowChrome(), new FakeSystemTheme(), OnScreen, Shell(),
+            new FakeRestoreService(), () => Result<SettingsInspection>.Fail(new WaveLinkNotInstalled()));
 
     // Mirrors MainWindowGeometryTests.EnsureCaptionResourcesLoaded - MainWindow.xaml's
     // InitializeComponent needs these merged before construction or it throws resolving a

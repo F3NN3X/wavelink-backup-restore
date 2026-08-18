@@ -1,5 +1,6 @@
 using WaveLinkBackup.Core.Analysis;
 using WaveLinkBackup.Core.Restore;
+using WaveLinkBackup.App.Services;
 
 namespace WaveLinkBackup.App.ViewModels;
 
@@ -159,6 +160,59 @@ public sealed class RestoreOutcomeStrip : ObservableObject
             _dismissible = true;
             _hasAction = true;
             ActionLabel = "Check again";
+        }
+
+        Raise(nameof(AutoDismisses));
+        Raise(nameof(Dismissible));
+        Raise(nameof(HasAction));
+    }
+
+    /// <summary>
+    /// Show the strip from the shell-facing <see cref="RestoreResult"/> the service returns, rather
+    /// than from a Core <see cref="RestoreOutcome"/>. The window only ever holds the former - it does
+    /// not re-open the verdict - so this is the entry point Task 6's restore flow uses. Confirmed /
+    /// Unconfirmed / Rejected map to their designed states with fixed copy; Failed delegates to
+    /// <see cref="ShowFailure"/> with the message the service carried.
+    /// </summary>
+    public void ShowResult(RestoreResult result)
+    {
+        switch (result)
+        {
+            case RestoreResult.Confirmed:
+                Kind = RestoreStripKind.SucceededConfirmed;
+                Title = "Restore confirmed";
+                Detail = "Wave Link's log recorded the restore.";
+                _autoDismisses = true;
+                _dismissible = true;
+                _hasAction = false;
+                break;
+
+            case RestoreResult.Unconfirmed:
+                Kind = RestoreStripKind.SucceededUnconfirmed;
+                Title = "Restore completed - not confirmed";
+                Detail = "Wave Link's log did not record the restore. If your mixer looks right, it probably worked.";
+                _autoDismisses = false;
+                _dismissible = true;
+                _hasAction = true;
+                ActionLabel = "Check again";
+                break;
+
+            case RestoreResult.Rejected:
+                Kind = RestoreStripKind.Rejected;
+                Title = "Wave Link rejected the settings file";
+                Detail = "The file Wave Link wrote back could not be parsed, so it regenerated its defaults. The version difference is the first thing to check.";
+                _autoDismisses = false;
+                _dismissible = false;
+                _hasAction = false;
+                break;
+
+            case RestoreResult.Failed:
+                ShowFailure("The restore failed.");
+                return;
+
+            default:
+                Kind = RestoreStripKind.None;
+                return;
         }
 
         Raise(nameof(AutoDismisses));

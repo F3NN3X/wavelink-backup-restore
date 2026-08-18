@@ -461,7 +461,16 @@ public partial class App : Application
 
     private void ShowMainWindow()
     {
-        MainWindow ??= new Views.MainWindow(chrome!, systemTheme!, ShellState, shell!);
+        // The window inspects live settings itself at the moment of a restore, so the plan and the
+        // write describe the same "what is on disk right now". This closure reads them fresh from
+        // the locator + chosen path rather than trusting a copy held by the 15-second tick. It
+        // returns the Result, not a bare inspection: Wave Link may be missing or its file unreadable
+        // at that moment, and the window must surface that rather than crash on an unwrap.
+        var inspectLive = () => SettingsInspector.For(fileSystem!, SettingsLocator.SystemLocalAppData)
+            .Inspect(settings.ChosenWaveLinkPath);
+
+        MainWindow ??= new Views.MainWindow(
+            chrome!, systemTheme!, ShellState, shell!, restoreService!, inspectLive);
 
         // Closing HIDES it, so a window that exists may simply be invisible.
         MainWindow.Show();

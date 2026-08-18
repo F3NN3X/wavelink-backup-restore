@@ -110,16 +110,19 @@ public sealed class ShellCommandWiringTests
 
     // Enter must not restore anything without a row selected and CanRestore true - the CanExecute
     // property above is what encodes that; this proves the Executed handler itself carries no
-    // second (redundant, and easy to drift out of sync) guard of its own.
+    // second (redundant, and easy to drift out of sync) guard of its own. Task 6 replaced the
+    // placeholder with the real flow: the handler just calls RestoreSelectedAsync, which does the
+    // plan -> dialog -> restore work. The selection/IsRestoring check lives inside that method, not
+    // in a duplicated CanExecute-style guard here.
     [Fact]
     public void Restore_Executed_carries_no_guard_of_its_own()
     {
         var code = MainWindowCodeBehind();
 
         var executed = Regex.Match(
-            code, @"private void Restore_Executed\(object sender, ExecutedRoutedEventArgs e\) => ([^;]+);")
+            code, @"private async void Restore_Executed\(object sender, ExecutedRoutedEventArgs e\) =>\s*\n?\s*await ([^;]+);")
             .Groups[1].Value.Trim();
 
-        Assert.Equal("ShowRestorePlaceholder()", executed);
+        Assert.Equal("RestoreSelectedAsync()", executed);
     }
 }

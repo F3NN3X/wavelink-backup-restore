@@ -6,9 +6,12 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using WaveLinkBackup.App.Hosting;
+using WaveLinkBackup.App.Services;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Windows;
+using WaveLinkBackup.Core.Io;
+using WaveLinkBackup.Core.Results;
 
 namespace WaveLinkBackup.App.Views;
 
@@ -17,12 +20,23 @@ public partial class MainWindow : Window
     private readonly IWindowChrome chrome;
     private readonly ISystemTheme systemTheme;
     private readonly ShellViewModel shell;
+    private readonly IRestoreService restoreService;
+    private readonly Func<Result<SettingsInspection>> inspectLive;
+    private CancellationTokenSource? restoreCts;
 
-    public MainWindow(IWindowChrome chrome, ISystemTheme systemTheme, ShellState state, ShellViewModel shell)
+    public MainWindow(
+        IWindowChrome chrome,
+        ISystemTheme systemTheme,
+        ShellState state,
+        ShellViewModel shell,
+        IRestoreService restoreService,
+        Func<Result<SettingsInspection>> inspectLive)
     {
         this.chrome = chrome;
         this.systemTheme = systemTheme;
         this.shell = shell;
+        this.restoreService = restoreService;
+        this.inspectLive = inspectLive;
 
         InitializeComponent();
 
@@ -61,16 +75,17 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Rename, Delete and Restore render live with correct enablement and open a placeholder
-    /// naming the session that builds them - the same answer plan 3 gave Settings
-    /// (App.OpenSettings). Back up now is real: it calls App.BackUpNow, refreshes the list, and
-    /// selects the row the capture just wrote.
+    /// Rename and Delete render live with correct enablement and open a placeholder naming the
+    /// session that builds them - the same answer plan 3 gave Settings (App.OpenSettings). Restore
+    /// and Back up now are real: Restore runs the full confirmation -> in-progress strip -> outcome
+    /// flow, and Back up now calls App.BackUpNow, refreshes the list, and selects the row the
+    /// capture just wrote.
     /// </summary>
     private void WireBottomBar()
     {
         RenameButton.Click += (_, _) => ShowRenamePlaceholder();
         DeleteButton.Click += (_, _) => ShowDeletePlaceholder();
-        RestoreButton.Click += (_, _) => ShowRestorePlaceholder();
+        RestoreButton.Click += async (_, _) => await RestoreSelectedAsync();
         BackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
 
         SettingsButton.Click += (_, _) => App.OpenSettings();
@@ -146,9 +161,86 @@ public partial class MainWindow : Window
         "Deleting a backup arrives in the next plan.", "Wave Link Backup",
         MessageBoxButton.OK, MessageBoxImage.Information);
 
-    private static void ShowRestorePlaceholder() => MessageBox.Show(
-        "Restoring a backup arrives in the next plan.", "Wave Link Backup",
-        MessageBoxButton.OK, MessageBoxImage.Information);
+    /// <summary>
+    /// The restore flow, end to end (09-restore-dialog-additions.md + 04-in-progress.md):
+    ///   1. Re-inspect live settings and build the read-only plan for the selected snapshot.
+    ///   2. Show the confirmation dialog; a cancel or Escape leaves everything untouched.
+    ///   3. On confirm, run the restore off-thread while the four-stage strip advances, then map
+    ///      the result onto the existing outcome strip.
+    ///
+    /// CanExecute (shell.CanRestore) is the only gate - no selection and a restore already in
+    /// flight both disable Enter here, so this handler carries no guard of its own.
+    /// </summary>
+    private async Task RestoreSelectedAsync()
+    {
+        if (shell.List.Selected is not { } row || shell.IsRestoring) return;
+
+        // Inspect live settings at the moment of restore - the plan and the write must describe
+        // the SAME "what is on disk right now", so both read it fresh here rather than trusting a
+        // copy from the 15-second tick. This can fail: Wave Link may have been uninstalled, or its
+        // settings file unreadable, in the moment between the tick and this click. Surface that
+        // rather than proceeding to a plan against nothing.
+        var liveResult = inspectLive();
+        if (!liveResult.IsSuccess)
+        {
+            MessageBox.Show(liveResult.Error!.Message, "Wave Link Backup",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var live = liveResult.Value;
+
+        var planResult = await restoreService.PlanAsync(row.Id, live, CancellationToken.None);
+        if (!planResult.IsSuccess)
+        {
+            MessageBox.Show(planResult.Error!.Message, "Wave Link Backup",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var model = RestoreDialogModel.Build(planResult.Value, row.TakenAt);
+        var dialog = new RestoreDialog(model) { Owner = this };
+
+        if (dialog.ShowDialog() != true) return; // Cancel or Escape - nothing was touched.
+
+        await RunRestoreAsync(row.Id, row.Name, live);
+    }
+
+    /// <summary>
+    /// The confirmed half of a restore: drives the four-stage strip from the service's stage
+    /// reports and hands the finished result to the existing outcome strip. Kept separate from
+    /// RestoreSelectedAsync so the confirmation dialog is not part of this method's lifecycle.
+    /// </summary>
+    private async Task RunRestoreAsync(string snapshotId, string snapshotName, SettingsInspection live)
+    {
+        // Begin BEFORE the first stage report: it swaps in a fresh four-stage model (stage 0 current)
+        // and marks the window restoring, which is what makes the strip show instead of the outcome.
+        shell.BeginRestore(snapshotName);
+
+        var progress = new Progress<RestoreStage>(stage => shell.RestoreProgress.Advance(stage));
+        restoreCts = new CancellationTokenSource();
+
+        RestoreResultView view;
+        try
+        {
+            view = await restoreService.RestoreAsync(snapshotId, live, progress, restoreCts.Token);
+        }
+        finally
+        {
+            // CompleteRestore marks every stage done and releases the window. The strip then shows
+            // the finished result - the in-progress strip and the outcome strip never overlap.
+            shell.CompleteRestore();
+        }
+
+        if (view.Result == RestoreResult.Failed)
+        {
+            shell.Strip.ShowFailure(view.FailureMessage ?? "The restore failed.");
+        }
+        else
+        {
+            shell.Strip.ShowResult(view.Result);
+        }
+    }
 
     private async Task BackUpNowAsync()
     {
@@ -197,8 +289,10 @@ public partial class MainWindow : Window
 
     // CanExecute, not a guard inside the handler: WPF does not grey the command's target out on
     // its own, so a check made only here would leave Enter looking live on a row that cannot be
-    // restored.
-    private void Restore_Executed(object sender, ExecutedRoutedEventArgs e) => ShowRestorePlaceholder();
+    // restored. The async void is deliberate - a CommandBinding Executed handler has no Task to
+    // return, and a restore error is surfaced by the outcome strip, not an unobserved exception.
+    private async void Restore_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        await RestoreSelectedAsync();
 
     private void Restore_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
         e.CanExecute = shell.CanRestore;

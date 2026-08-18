@@ -6,6 +6,8 @@ using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Views;
 using WaveLinkBackup.Core.Analysis;
+using WaveLinkBackup.Core.Io;
+using WaveLinkBackup.Core.Results;
 using WaveLinkBackup.Core.Snapshots;
 using WaveLinkBackup.Core.Tests.Fakes;
 
@@ -75,8 +77,11 @@ public sealed class MainWindowListStateTests
         return new ShellViewModel(list);
     }
 
+    // No test here drives a restore, so the service is a throw-if-called stub and inspectLive a
+    // closure that never runs (a failure result would be surfaced, but nothing reaches it).
     private static MainWindow Build(ShellViewModel shell) =>
-        new(new FakeWindowChrome(), new FakeSystemTheme(), ShellState.Default, shell);
+        new(new FakeWindowChrome(), new FakeSystemTheme(), ShellState.Default, shell,
+            new FakeRestoreService(), () => Result<SettingsInspection>.Fail(new WaveLinkNotInstalled()));
 
     private sealed record Visibilities(
         Visibility List, Visibility Header, Visibility NoResults, Visibility Empty, Visibility FolderMissing);

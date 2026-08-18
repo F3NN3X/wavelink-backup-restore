@@ -48,6 +48,14 @@ public sealed record RestoreResultView(
 /// </summary>
 public interface IRestoreService
 {
+    /// <summary>
+    /// What restoring <paramref name="snapshotId"/> would do - the read-only description the
+    /// confirmation dialog renders. Safe to call while Wave Link runs. The window inspects live
+    /// settings and passes them in (see RestoreAsync) so the plan describes the same "what is on
+    /// disk right now" that a subsequent restore would act on.
+    /// </summary>
+    Task<Result<RestorePlan>> PlanAsync(string snapshotId, SettingsInspection live, CancellationToken ct);
+
     /// <param name="snapshotId">The machine id of the snapshot to restore.</param>
     /// <param name="live">
     /// The current live settings, inspected by the caller. The service builds everything else from
@@ -78,6 +86,15 @@ public sealed class RestoreService(
     IWaveLinkProcess process,
     SnapshotStore store) : IRestoreService
 {
+    public Task<Result<RestorePlan>> PlanAsync(string snapshotId, SettingsInspection live, CancellationToken ct)
+    {
+        // Read-only and cheap, but it touches the store - run off the UI thread like RestoreAsync
+        // so a slow disk never freezes the confirmation dialog's own window.
+        return Task.Run(() => new RestoreOrchestrator(
+            fileSystem, process, store, new SettingsWriter(fileSystem, process), new SettingsReader(fileSystem))
+            .Plan(snapshotId, live), ct);
+    }
+
     public Task<RestoreResultView> RestoreAsync(
         string snapshotId, SettingsInspection live, IProgress<RestoreStage>? progress, CancellationToken ct)
     {
