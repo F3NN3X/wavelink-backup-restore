@@ -400,6 +400,11 @@ public partial class MainWindow : Window
                 var box = FindDescendants<TextBox>(container).FirstOrDefault();
                 if (box is null) return;
 
+                // "Commit on Enter or blur" (README Interactions): a click anywhere else, or a Tab
+                // out of the box, commits. Escape cancels first and restores focus, so by the time
+                // this fires the row is no longer editing and OnRenameBoxLostFocus does nothing.
+                box.LostFocus += OnRenameBoxLostFocus;
+
                 box.Focus();
                 box.SelectAll();
                 return;
@@ -418,6 +423,19 @@ public partial class MainWindow : Window
         if (shell.List.Selected is not { } row) return;
 
         Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => FocusRow(row)));
+    }
+
+    /// <summary>
+    /// "Commit on Enter or blur" (README Interactions). The box commits when focus leaves it - a
+    /// click anywhere else in the window, or a Tab out. If the draft is invalid the row stays in
+    /// edit and shows its cue; if Escape already cancelled, IsEditing is false and this is a no-op,
+    /// so the cancel path never double-fires a commit.
+    /// </summary>
+    private void OnRenameBoxLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (shell.List.Selected is not { IsEditing: true } row) return;
+
+        shell.List.CommitRename(row);
     }
 
     private static IEnumerable<T> FindDescendants<T>(DependencyObject root) where T : DependencyObject

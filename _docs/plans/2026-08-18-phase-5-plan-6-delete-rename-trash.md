@@ -39,14 +39,14 @@ tags: [plan, phase-5, wpf, delete, trash]
 
 Rename is free text with no validation beyond non-empty and filesystem-safe. Keep that rule pure and tested before touching the view.
 
-- [ ] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/RenameRules.cs` with `Validate(string name)` returning a result: empty/whitespace → invalid; contains any of `\ / : * ? " < > |` → invalid (filesystem-safe); otherwise valid. No trimming beyond rejecting pure whitespace.
-- [ ] **Step 2:** Unit tests (`RenameRulesTests.cs`): empty, whitespace-only, each illegal character, a valid name, a name with spaces and dots (valid). Commit: `feat(app): rename validation rules`.
+- [x] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/RenameRules.cs` with `Validate(string name)` returning a result: empty/whitespace → invalid; contains any of `\ / : * ? " < > |` → invalid (filesystem-safe); otherwise valid. No trimming beyond rejecting pure whitespace.
+- [x] **Step 2:** Unit tests (`RenameRulesTests.cs`): empty, whitespace-only, each illegal character, a valid name, a name with spaces and dots (valid). Commit: `feat(app): rename validation rules`.
 
 ## Task 2 — Wire rename to the store + commit on Enter/blur, cancel on Escape
 
-- [ ] **Step 1:** In `ShellViewModel`, add a `RenameCommand` that puts the selected row into an editable state exposing a draft name. Commit on Enter or blur (if valid), cancel on Escape. On commit, call the existing rename path in Core (`SnapshotStore`) and refresh the list; the row's sub-line and any delete-dialog title pick up the new name.
-- [ ] **Step 2:** If validation fails, keep the field editable and show an inline cue (no toast is designed); do not commit.
-- [ ] **Step 3:** Unit test the command's state transitions with a stubbed store: valid commit persists + clears edit; Escape reverts; invalid stays in edit. Commit: `feat(app): in-place rename wired to store`.
+- [x] **Step 1:** In `ShellViewModel`, add a `RenameCommand` that puts the selected row into an editable state exposing a draft name. Commit on Enter or blur (if valid), cancel on Escape. On commit, call the existing rename path in Core (`SnapshotStore`) and refresh the list; the row's sub-line and any delete-dialog title pick up the new name.
+- [x] **Step 2:** If validation fails, keep the field editable and show an inline cue (no toast is designed); do not commit.
+- [x] **Step 3:** Unit test the command's state transitions with a stubbed store: valid commit persists + clears edit; Escape reverts; invalid stays in edit. Commit: `feat(app): in-place rename wired to store`.
 
 ## Task 3 — Delete confirmation model (pure, three variants)
 

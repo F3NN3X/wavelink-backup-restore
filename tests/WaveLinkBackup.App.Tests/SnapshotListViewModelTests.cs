@@ -510,3 +510,197 @@ public sealed class SnapshotListViewModelTests
         Assert.Null(Record.Exception(list.Dispose));
     }
 }
+
+/// <summary>
+/// In-place rename, plan 6 task 2 step 3: the command's state transitions against a stubbed store.
+/// The row holds the draft and the cue; the list owns the store. Both are tested here - the row's
+/// machine in isolation (no window), and the full commit path through the real SnapshotStore over
+/// FakeFileSystem, which is this codebase's "stubbed store".
+/// </summary>
+public sealed class RenameCommandTests
+{
+    private const string StorePath = @"C:\store";
+
+    private static byte[] SettingsFor(params string[] inputs)
+    {
+        var entries = inputs.Select((n, i) =>
+            $"\"K{i}\":{{\"InputName\":\"{n}\",\"AudioPluginConfigurations\":[]}}");
+
+        return Encoding.UTF8.GetBytes(
+            $"{{\"MixerConfiguration\":{{\"InputSettings\":{{{string.Join(",", entries)}}}}}}}");
+    }
+
+    private sealed class Rig
+    {
+        public FakeFileSystem Fs { get; } = new();
+        public FakeClock Clock { get; } = new() { UtcNow = new DateTimeOffset(2026, 8, 15, 23, 7, 0, TimeSpan.Zero) };
+        public SnapshotStore Store => new(Fs, Clock, StorePath);
+
+        public SnapshotListViewModel List() =>
+            new(Store, new HealthProbe(Store, Fs, Clock), Fs, Clock) { Marshal = action => action() };
+
+        public void Add(string name, DateTimeOffset at)
+        {
+            Clock.UtcNow = at;
+            var bytes = SettingsFor(["Wave Mic 1", "Voice", "Browser", "Game", "System"]);
+            Store.Write(bytes, SettingsAnalysis.Analyse(bytes).Value, SnapshotTrigger.Manual, name);
+        }
+
+        public (SnapshotListViewModel List, SnapshotRowViewModel Row) OneRow()
+        {
+            Fs.CreateDirectory(StorePath);
+            Add("Before 3.3 beta", new DateTimeOffset(2026, 8, 15, 22, 0, 0, TimeSpan.Zero));
+            Clock.UtcNow = new DateTimeOffset(2026, 8, 15, 23, 7, 0, TimeSpan.Zero);
+
+            var list = List();
+            list.Refresh();
+
+            return (list, list.Groups[0].Rows[0]);
+        }
+    }
+
+    // -- the row's edit machine, in isolation -------------------------------------------------
+
+    [Fact]
+    public void BeginEdit_seeds_the_draft_from_the_stored_name()
+    {
+        var (_, row) = new Rig().OneRow();
+
+        row.BeginEdit();
+
+        Assert.True(row.IsEditing);
+        Assert.Equal("Before 3.3 beta", row.DraftName);
+        Assert.Null(row.RenameError);
+    }
+
+    [Fact]
+    public void A_damaged_row_cannot_begin_editing()
+    {
+        var (_, row) = new Rig().OneRow();
+        row.ApplyVerdict(new HealthVerdict(SnapshotHealth.Damaged, 1, 1, DateTimeOffset.UtcNow));
+
+        row.BeginEdit();
+
+        Assert.False(row.IsEditing);
+    }
+
+    [Fact]
+    public void A_valid_commit_persists_and_clears_edit()
+    {
+        var (list, row) = new Rig().OneRow();
+
+        row.BeginEdit();
+        row.DraftName = "After the fix";
+
+        Assert.True(list.CommitRename(row));
+
+        Assert.False(row.IsEditing);
+        Assert.Null(row.RenameError);
+        Assert.True(row.CanRename);
+    }
+
+    [Fact]
+    public void A_valid_commit_is_visible_to_a_fresh_refresh()
+    {
+        var (list, row) = new Rig().OneRow();
+
+        row.BeginEdit();
+        row.DraftName = "After the fix";
+        Assert.True(list.CommitRename(row));
+
+        list.Refresh();
+
+        var renamed = list.Groups[0].Rows.Single(r => r.Id == row.Id);
+        Assert.Equal("After the fix", renamed.Name);
+    }
+
+    [Fact]
+    public void Escape_reverts_to_the_stored_name()
+    {
+        var (list, row) = new Rig().OneRow();
+
+        row.BeginEdit();
+        row.DraftName = "Something else entirely";
+        row.CancelEdit();
+
+        Assert.False(row.IsEditing);
+        Assert.Null(row.RenameError);
+        Assert.True(row.CanRename);
+
+        // The store never saw the draft.
+        list.Refresh();
+        Assert.Equal("Before 3.3 beta", list.Groups[0].Rows.Single(r => r.Id == row.Id).Name);
+    }
+
+    [Fact]
+    public void An_empty_draft_stays_in_edit_and_shows_the_cue()
+    {
+        var (list, row) = new Rig().OneRow();
+
+        row.BeginEdit();
+        row.DraftName = "   ";
+
+        Assert.False(list.CommitRename(row));
+        Assert.True(row.IsEditing);
+        Assert.Equal("A name can't be empty.", row.RenameError);
+    }
+
+    [Fact]
+    public void An_illegal_character_stays_in_edit_and_names_the_character()
+    {
+        var (list, row) = new Rig().OneRow();
+
+        row.BeginEdit();
+        row.DraftName = "Bad/name";
+
+        Assert.False(list.CommitRename(row));
+        Assert.True(row.IsEditing);
+        Assert.Equal("A name can't contain '/'.", row.RenameError);
+    }
+
+    [Fact]
+    public void A_failed_store_commit_stays_in_edit_and_shows_the_store_reason()
+    {
+        var (list, row) = new Rig().OneRow();
+
+        row.BeginEdit();
+        row.DraftName = "Valid but the store refuses";
+
+        // The commit path is injectable: a failing store reports its reason, and the row keeps
+        // the draft rather than yanking the user out of the box they are typing in.
+        Assert.False(row.TryCommitEdit(_ => "The folder is read-only."));
+
+        Assert.True(row.IsEditing);
+        Assert.Equal("The folder is read-only.", row.RenameError);
+    }
+
+    [Fact]
+    public void A_valid_commit_after_a_failed_one_recovers()
+    {
+        var (list, row) = new Rig().OneRow();
+
+        row.BeginEdit();
+        row.DraftName = "First attempt";
+        Assert.False(row.TryCommitEdit(_ => "The folder is read-only."));
+
+        // The cue clears and the commit lands on retry.
+        Assert.True(list.CommitRename(row));
+
+        Assert.False(row.IsEditing);
+        Assert.Null(row.RenameError);
+    }
+
+    [Fact]
+    public void Entering_edit_mode_disables_the_rename_action_until_it_ends()
+    {
+        var (_, row) = new Rig().OneRow();
+
+        Assert.True(row.CanRename);
+
+        row.BeginEdit();
+        Assert.False(row.CanRename);
+
+        row.CancelEdit();
+        Assert.True(row.CanRename);
+    }
+}
