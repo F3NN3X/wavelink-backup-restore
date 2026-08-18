@@ -1,0 +1,150 @@
+<Window x:Class="WaveLinkBackup.App.Views.DeleteDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
+        Title="Delete backup"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Background="Transparent">
+
+    <!--
+      Screen 5 - the delete confirmation, in its three variants (05-delete-dialogs.md).
+
+      The same borderless-modal shape as RestoreDialog: WlScrim fills this window edge to edge and
+      the 480px WlCard card sits centred on top of it. WindowStyle=None rather than a custom
+      caption bar because a dialog has no caption to host - its title is in the content, not the
+      chrome. Background stays Transparent and AllowsTransparency stays FALSE (the same rule
+      MainWindow's own comment states): this keeps the window non-layered, which is what lets DWM
+      give it a drop shadow instead of the card having to draw one with a brush.
+
+      The DataContext is a DeleteDialogModel set by the caller; every element below binds to it
+      and computes nothing. Nothing here touches Core or does I/O - rendering only.
+
+      The context block (OnlyBackup / PreRestore) and the ghost "Back up now instead" footer action
+      collapse to zero height when their bound value is null, so the Normal variant renders with
+      neither and no conditional margin is needed.
+    -->
+    <Grid>
+        <!-- The scrim: what dims the window behind. Fills this borderless window edge to edge. -->
+        <Border Background="{DynamicResource WlScrim}" />
+
+        <!-- The card: 480px, WlCard surface, hairline-24% border (WlLine2), 8px radius. -->
+        <Border Width="480" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="{DynamicResource WlCard}"
+                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />    <!-- content -->
+                    <RowDefinition Height="Auto" /> <!-- footer -->
+                </Grid.RowDefinitions>
+
+                <!--
+                  Content: 26px left/right, 26 top / 24 bottom (WPF Thickness "26,26,26,24"),
+                  18px between blocks. The context block and the meta line collapse to zero height
+                  when their bound value is null, so the spacing falls away with them.
+                -->
+                <StackPanel Grid.Row="0" Margin="26,26,26,24">
+
+                    <!-- 1. Title: dialog title role, Rubik 500 20px/1.3. -->
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource WlDialogTitleText}"
+                               Foreground="{DynamicResource WlStrong}"
+                               AutomationProperties.Name="Delete confirmation title" />
+
+                    <!-- 2. Body: Rubik 400 14px/1.55, 18px below the title. One sentence of consequence. -->
+                    <TextBlock Text="{Binding Body}" Style="{StaticResource WlBodyText}"
+                               Foreground="{DynamicResource WlText}" Margin="0,18,0,0" />
+
+                    <!--
+                      3. Context block (OnlyBackup / PreRestore only): WlSunken fill, hairline, 8px
+                      radius, a mono label over a Rubik body. Collapses to zero height when the model
+                      computed no block (Context is null) - the Normal variant has neither block nor
+                      margin. The Border.Tag carries the nullable binding; the trigger collapses on it.
+                    -->
+                    <Border x:Name="ContextBlock" Margin="0,18,0,0" CornerRadius="8" Padding="14,13"
+                            Background="{DynamicResource WlSunken}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1"
+                            AutomationProperties.Name="Delete context">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <Trigger Property="Tag" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Border.Tag>
+                            <Binding Path="Context" />
+                        </Border.Tag>
+                        <StackPanel>
+                            <!-- Mono label: tracked caps, muted. TrackedText is a FrameworkElement,
+                                 not a TextBlock, so it takes a TrackedText-targeted style - the slot-
+                                 label role (mono/Medium/9.5), tracking and colour set locally here. -->
+                            <views:TrackedText Text="{Binding Context.Label}" Tracking=".18"
+                                               Style="{StaticResource WlSlotLabelTrackedText}"
+                                               Foreground="{DynamicResource WlMuted}" />
+                            <!-- Rubik body, 10px below the label. -->
+                            <TextBlock Text="{Binding Context.Body}" Margin="0,10,0,0"
+                                       FontFamily="{DynamicResource WlDisplayFont}"
+                                       FontSize="12.5" LineHeight="18.75" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource WlText}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 4. Meta line: mono, muted - size · taken datetime · trigger. -->
+                    <TextBlock Text="{Binding MetaLine}" Style="{StaticResource WlMonoMetaText}"
+                               Foreground="{DynamicResource WlMuted}" Margin="0,18,0,0" />
+                </StackPanel>
+
+                <!-- Footer: WlBg, hairline top, 18px vertical / 26px horizontal. -->
+                <Border Grid.Row="1" Background="{DynamicResource WlBg}"
+                        BorderBrush="{DynamicResource WlLine}" BorderThickness="0,1,0,0"
+                        Padding="26,18">
+                    <Grid>
+                        <!--
+                          The OnlyBackup variant's ghost "Back up now instead", pinned left of the
+                          Cancel + Delete pair (05 §2). Collapses to zero width when null - the other
+                          two variants have no such button and the right-aligned pair is unaffected.
+                        -->
+                        <Button x:Name="BackUpNowButton" Content="Back up now instead"
+                                HorizontalAlignment="Left"
+                                AutomationProperties.Name="Back up now instead">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource WlGhostButton}">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <Trigger Property="Tag" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <Button.Tag>
+                                <Binding Path="BackUpNowInstead" />
+                            </Button.Tag>
+                        </Button>
+
+                        <!-- Cancel + Delete, right-aligned. -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <!-- Cancel: secondary. Focus starts here; Escape is equivalent to it. -->
+                            <Button x:Name="CancelButton" Content="Cancel" IsDefault="False"
+                                    Style="{StaticResource WlSecondaryButton}"
+                                    AutomationProperties.Name="Cancel delete" />
+
+                            <!-- Delete: the destructive action, WlDanger fill, never accent. -->
+                            <Button x:Name="DeleteButton" IsDefault="True" Margin="9,0,0,0"
+                                    Style="{StaticResource WlDangerButton}"
+                                    AutomationProperties.Name="Delete this backup">
+                                <TextBlock Text="Delete" VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource WlDisplayFont}" FontWeight="Medium"
+                                           FontSize="13.5" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

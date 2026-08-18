@@ -64,9 +64,9 @@ The dialog never says "Recycle Bin" (05 §"Why the dialog never says Recycle Bin
 
 ## Task 4 — Delete dialog view (XAML), 480px
 
-- [ ] **Step 1:** Add `src/WaveLinkBackup.App/Views/DeleteDialog.xaml(.cs)`: 480px wide, centred over a full-window scrim below the caption bar, window behind at 50% opacity. Title (Rubik 500 20px), one-sentence body (Rubik 400 14px/1.55), the context block when present (`--wl-sunken` fill, 1px `--wl-line`, radius 8, mono label + Rubik body), meta line, footer on `--wl-bg` with a 1px `--wl-line` top: Cancel (1px `--wl-line2`) + Delete (`--wl-danger` fill, #FFFFFF text, Rubik 500 13.5px).
-- [ ] **Step 2:** Escape = Cancel; focus starts on Cancel. The OnlyBackup variant additionally renders the ghost "Back up now instead" pinned left of the footer (per 05 §2).
-- [ ] **Step 3:** Verify both themes via a visual-QA pass (`visual-qa` skill). Commit: `feat(app): delete confirmation dialog view`.
+- [x] **Step 1:** Add `src/WaveLinkBackup.App/Views/DeleteDialog.xaml(.cs)`: 480px wide, centred over a full-window scrim below the caption bar, window behind at 50% opacity. Title (Rubik 500 20px), one-sentence body (Rubik 400 14px/1.55), the context block when present (`--wl-sunken` fill, 1px `--wl-line`, radius 8, mono label + Rubik body), meta line, footer on `--wl-bg` with a 1px `--wl-line` top: Cancel (1px `--wl-line2`) + Delete (`--wl-danger` fill, #FFFFFF text, Rubik 500 13.5px).
+- [x] **Step 2:** Escape = Cancel; focus starts on Cancel. The OnlyBackup variant additionally renders the ghost "Back up now instead" pinned left of the footer (per 05 §2).
+- [x] **Step 3:** Verify both themes via a visual-QA pass (`visual-qa` skill). Commit: `feat(app): delete confirmation dialog view`.
 
 ## Task 5 — Wire Delete to the two-stage move
 
