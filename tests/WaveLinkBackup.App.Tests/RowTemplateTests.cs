@@ -420,6 +420,36 @@ public sealed class RowTemplateTests
     // Design section C makes five-always-five structural in the view model precisely so it
     // cannot become an accident of a template. This asserts the template agrees, on a row that
     // only has two inputs - the case where a template that skips empties would look fine.
+    //
+    // The brief's own printed snippet built the ItemsControl via a plain object initializer and
+    // asserted items.Items.Count, which mirrors ItemsSource.Count unconditionally regardless of
+    // ItemTemplate - checked empirically, it stayed green even with WlSlotTemplate's key renamed
+    // to something that does not exist (the ResourceDictionary indexer returns null for a missing
+    // key, which casts to a null ItemTemplate without throwing, and Items.Count never looks at
+    // what a template did with the data). ItemContainerGenerator.ContainerFromIndex has the same
+    // blind spot for a different reason: WPF allocates one container per data item independently
+    // of whether ItemTemplate resolves to anything - also checked empirically, container count
+    // stayed 5 with the same renamed key. Neither number depends on WlSlotTemplate actually being
+    // the thing that ran.
+    //
+    // What DOES depend on it: WlSlotTemplate's own root element is a
+    // <ContentControl Content="{Binding}"> (RowStyles.xaml) that a Style then hands one of
+    // WlSlotNamed/WlSlotGeneric/WlSlotMissing as its ContentTemplate - so a real application of
+    // WlSlotTemplate puts exactly one extra ContentControl into the visual tree per slot, nested
+    // under the container ItemsControl.ItemContainerGenerator already produces. Counting those is
+    // what proves WlSlotTemplate specifically, not just "a" template, rendered five times: a
+    // renamed/missing key leaves ItemTemplate null, WPF falls back to each item's own ToString(),
+    // and zero ContentControls appear - confirmed below, this is what "make the guard fail" showed.
+    //
+    // Getting even this far needed one correction to the printed snippet: a plain C# object
+    // initializer never calls ISupportInitialize.BeginInit/EndInit (only the XAML parser does that
+    // automatically), and without EndInit an ItemsControl's IsInitialized stays false and it never
+    // resolves ANY default Style/Template, Measure/Arrange/UpdateLayout notwithstanding - confirmed
+    // empirically: with the brief's exact object-initializer code, Template stayed null and the
+    // generator status stayed NotStarted straight through a full layout pass. BeginInit/EndInit
+    // (still no Show(), still no live PresentationSource - the same headless idiom
+    // AppResourceOrderTests already uses for a ContentControl) is what makes the control resolve
+    // its own default template and actually build containers at all.
     [Fact]
     public void The_slot_strip_renders_five_containers_for_a_two_input_row()
     {
@@ -430,18 +460,32 @@ public sealed class RowTemplateTests
                 Source = new Uri("pack://application:,,,/WaveLinkBackup;component/Views/RowStyles.xaml"),
             };
 
-            var items = new System.Windows.Controls.ItemsControl
-            {
-                ItemsSource = ViewModels.InputSlots.Build(["Elgato Wave:3", "System"], peakInputCount: 5),
-                ItemTemplate = (System.Windows.DataTemplate)dictionary["WlSlotTemplate"],
-            };
+            var items = new System.Windows.Controls.ItemsControl();
+            items.BeginInit();
+            items.ItemsSource = ViewModels.InputSlots.Build(["Elgato Wave:3", "System"], peakInputCount: 5);
+            items.ItemTemplate = (System.Windows.DataTemplate)dictionary["WlSlotTemplate"];
+            items.EndInit();
 
             // A container per item only exists once the control has been through a layout pass.
             items.Measure(new System.Windows.Size(300, 40));
             items.Arrange(new System.Windows.Rect(0, 0, 300, 40));
             items.UpdateLayout();
 
-            return items.Items.Count;
+            // Counts every ContentControl WlSlotTemplate's own root element puts into the visual
+            // tree - one per slot, iff WlSlotTemplate is the thing that actually rendered each one.
+            var slotContentControls = 0;
+            void CountSlotRoots(System.Windows.DependencyObject node)
+            {
+                for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); i++)
+                {
+                    var child = System.Windows.Media.VisualTreeHelper.GetChild(node, i);
+                    if (child is System.Windows.Controls.ContentControl) slotContentControls++;
+                    CountSlotRoots(child);
+                }
+            }
+            CountSlotRoots(items);
+
+            return slotContentControls;
         });
 
         Assert.Equal(ViewModels.InputSlots.SlotCount, rendered);
