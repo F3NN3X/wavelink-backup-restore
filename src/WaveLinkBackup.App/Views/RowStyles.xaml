@@ -372,7 +372,8 @@
                                              FontFamily="{DynamicResource WlDisplayFont}" FontWeight="Medium" FontSize="14.5"
                                              Foreground="{DynamicResource WlStrong}" CaretBrush="{DynamicResource WlStrong}"
                                              BorderThickness="0" Background="Transparent" Padding="0" Margin="0"
-                                             VerticalAlignment="Center" MinWidth="120" Visibility="Collapsed" />
+                                             VerticalAlignment="Center" MinWidth="120" Visibility="Collapsed"
+                                             AutomationProperties.Name="Rename backup name" />
 
                                     <ItemsControl x:Name="NameSegmentsHost" ItemsSource="{Binding NameSegments}" Focusable="False">
                                         <ItemsControl.ItemsPanel>

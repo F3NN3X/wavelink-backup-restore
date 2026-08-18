@@ -121,10 +121,19 @@ The row belongs beside WHERE BACKUPS ARE KEPT because it is a fact about that fo
 
 ## Task 8 — Keyboard, focus, SR parity + full verification
 
-- [ ] **Step 1:** Rename: Enter commits, Escape cancels, Tab moves out (blur commits). Delete/Empty-trash dialogs: Escape = Cancel, focus starts on Cancel, focus returns to the list on close.
-- [ ] **Step 2:** `AutomationProperties.Name` on the trash row's action and each dialog button; the trash row announces its state.
-- [ ] **Step 3:** Keyboard-only pass (Tab/Enter/Escape) across rename + both dialogs. Commit: `feat(app): delete/rename/trash keyboard + SR parity`.
-- [ ] **Step 4:** `dotnet build` — 0 warnings, 0 errors. Full suite green (764 + new tests). Commit: `test(app): delete/rename/trash guards + full verification`.
+- [x] **Step 1:** Rename: Enter commits, Escape cancels, Tab moves out (blur commits). Delete/Empty-trash dialogs: Escape = Cancel, focus starts on Cancel, focus returns to the list on close.
+- [x] **Step 2:** `AutomationProperties.Name` on the trash row's action and each dialog button; the trash row announces its state.
+- [x] **Step 3:** Keyboard-only pass (Tab/Enter/Escape) across rename + both dialogs. Commit: `feat(app): delete/rename/trash keyboard + SR parity`.
+- [x] **Step 4:** `dotnet build` — 0 warnings, 0 errors. Full suite green (764 + new tests). Commit: `test(app): delete/rename/trash guards + full verification`.
+
+> **Implementation note.** Step 1 was already wired by Tasks 2–7: rename Enter/Escape in
+> `MainWindow.OnWindowPreviewKeyDown`, blur-commit in `OnRenameBoxLostFocus`; both dialogs focus
+> Cancel on `Loaded`, treat Escape as Cancel, and the window calls `RestoreFocusToList()` after
+> every dialog close. Step 2's one gap — the rename TextBox had no `AutomationProperties.Name` —
+> is closed here (`RowStyles.xaml`, RenameBox); both dialogs' buttons/titles already carried theirs.
+> The trash row's own action + state announcement ships with Plan 8 (the Settings folder section
+> that hosts it), so Step 2 is satisfied for everything that exists today. Steps 3–4: build 0/0,
+> 850 tests green (296 Core + 91 Cli + 463 App).
 
 ---
 
