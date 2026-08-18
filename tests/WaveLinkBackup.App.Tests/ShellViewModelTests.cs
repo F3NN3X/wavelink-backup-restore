@@ -227,6 +227,33 @@ public sealed class ShellViewModelTests
         Assert.True(shell.CanBackUpNow);
     }
 
+    // While a restore runs the window cannot be driven again: BeginRestore folds not-IsRestoring
+    // into every CanX, so Enter on a row (the Restore command) is dead for the life of the strip.
+    // CompleteRestore re-lights it. This is the no-double-launch guard - the only thing standing
+    // between a second Enter and a second concurrent restore against the same settings file.
+    [Fact]
+    public void A_restore_in_flight_disables_every_action_until_it_completes()
+    {
+        var shell = Shell();
+        shell.List.Refresh();
+        shell.List.Selected = shell.List.Groups[0].Rows[0];
+
+        Assert.True(shell.CanRestore); // lit before the restore begins.
+
+        shell.BeginRestore("Before 3.3 beta");
+
+        Assert.True(shell.IsRestoring);
+        Assert.False(shell.CanRestore);
+        Assert.False(shell.CanRename);
+        Assert.False(shell.CanDelete);
+        Assert.False(shell.CanBackUpNow);
+
+        shell.CompleteRestore();
+
+        Assert.False(shell.IsRestoring);
+        Assert.True(shell.CanRestore); // re-lit once the strip hands off to the outcome.
+    }
+
     // 08: "all four action buttons at 40% opacity, INCLUDING Back up now" - there is nowhere to
     // put a backup.
     [Fact]
