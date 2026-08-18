@@ -96,15 +96,15 @@ Replace `ShowRestorePlaceholder()` with the real flow.
 
 ## Task 7 — Keyboard, focus, screen-reader parity for the new surfaces
 
-- [ ] **Step 1:** The dialog is reachable by Enter on a selected row (the list already opens Restore on Enter per README Interactions). Confirm Escape cancels and focus returns to the list on close.
-- [ ] **Step 2:** Give each in-progress stage an `AutomationProperties.Name` so screen readers announce the current stage; the reassurance line is read once.
-- [ ] **Step 3:** Verify with a keyboard-only pass (Tab/Enter/Escape) and, if available, a Narrator spot-check. Commit: `feat(app): restore flow keyboard + SR parity`.
+- [x] **Step 1:** The dialog is reachable by Enter on a selected row (the list already opens Restore on Enter per README Interactions). Confirm Escape cancels and focus returns to the list on close.
+- [x] **Step 2:** Give each in-progress stage an `AutomationProperties.Name` so screen readers announce the current stage; the reassurance line is read once.
+- [x] **Step 3:** Verify with a keyboard-only pass (Tab/Enter/Escape) and, if available, a Narrator spot-check. Commit: `feat(app): restore flow keyboard + SR parity`.
 
 ## Task 8 — Guards, running-state, and full verification
 
-- [ ] **Step 1:** Guard the Restore command when no row is selected (it should already be disabled at 40% opacity; assert it).
-- [ ] **Step 2:** If a restore is already in progress, the command is disabled (no double-launch).
-- [ ] **Step 3:** `dotnet build` — 0 warnings, 0 errors. Full suite green (expect 764 + new tests). Commit: `test(app): restore flow guards + full verification`.
+- [x] **Step 1:** Guard the Restore command when no row is selected (it should already be disabled at 40% opacity; assert it).
+- [x] **Step 2:** If a restore is already in progress, the command is disabled (no double-launch).
+- [x] **Step 3:** `dotnet build` — 0 warnings, 0 errors. Full suite green (expect 764 + new tests). Commit: `test(app): restore flow guards + full verification`.
 
 ---
 
