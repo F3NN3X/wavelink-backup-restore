@@ -201,7 +201,13 @@ public partial class MainWindow : Window
         var model = RestoreDialogModel.Build(planResult.Value, row.TakenAt);
         var dialog = new RestoreDialog(model) { Owner = this };
 
-        if (dialog.ShowDialog() != true) return; // Cancel or Escape - nothing was touched.
+        // Focus returns to the list when the dialog closes (confirm or cancel), so a keyboard-only
+        // user is never stranded on a dead window. The list re-focuses its previously selected row.
+        if (dialog.ShowDialog() != true)
+        {
+            RestoreFocusToList();
+            return; // Cancel or Escape - nothing was touched.
+        }
 
         await RunRestoreAsync(row.Id, row.Name, live);
     }
@@ -338,6 +344,19 @@ public partial class MainWindow : Window
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// Return keyboard focus to the selected snapshot's row after a dialog closes, so a
+    /// keyboard-only user lands back where they started rather than on a dead window. Defers to
+    /// the input dispatcher for the same reason FocusRow does: the container may not be realised
+    /// yet when the virtualizing panel is first asked to draw it.
+    /// </summary>
+    private void RestoreFocusToList()
+    {
+        if (shell.List.Selected is not { } row) return;
+
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => FocusRow(row)));
     }
 
     private static IEnumerable<T> FindDescendants<T>(DependencyObject root) where T : DependencyObject

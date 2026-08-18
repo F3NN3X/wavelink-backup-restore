@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using WaveLinkBackup.App.ViewModels;
@@ -71,6 +72,8 @@ public partial class RestoreStageViewHost : UserControl
 
         // Only pending is dimmed at 40%; done and current are full opacity.
         host.Opacity = stage.Status == StageStatus.Pending ? 0.4 : 1.0;
+
+        host.UpdateAutomationName(stage);
     }
 
     /// <summary>Point the label's foreground at a theme brush by key, keeping it live across themes.</summary>
@@ -78,5 +81,24 @@ public partial class RestoreStageViewHost : UserControl
     {
         host.Label.SetResourceReference(TrackedText.ForegroundProperty, brushKey);
         host.Label.FontWeight = weight;
+    }
+
+    /// <summary>
+    /// Give this stage an AutomationProperties.Name so a screen reader can announce it by name as
+    /// the frontier advances - e.g. "WRITING SETTINGS, in progress" when it becomes current and
+    /// "CLOSING WAVE LINK, done" once it is complete. Pending stages read just their label; they
+    /// are not yet happening, so no status suffix would mislead. The name is recomputed on every
+    /// OnStageChanged, which fires whenever the model replaces this row's record (Advance/Complete).
+    /// </summary>
+    private void UpdateAutomationName(RestoreStageView stage)
+    {
+        var suffix = stage.Status switch
+        {
+            StageStatus.Current => ", in progress",
+            StageStatus.Done => ", done",
+            _ => string.Empty, // Pending: just the label.
+        };
+
+        AutomationProperties.SetName(this, stage.Label + suffix);
     }
 }
