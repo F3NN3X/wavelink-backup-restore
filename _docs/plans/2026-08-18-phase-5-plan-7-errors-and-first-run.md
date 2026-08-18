@@ -1,3 +1,11 @@
+---
+title: "Phase 5, plan 7: the twelve errors and the first-run / empty state"
+status: planned
+created: 2026-08-18
+updated: 2026-08-18
+tags: [plan, phase-5, wpf, errors, first-run]
+---
+
 # Plan 7 — The twelve errors and the first-run / empty state
 
 **Phase:** 5 · WPF shell, part 7 of the phase.

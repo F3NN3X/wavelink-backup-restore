@@ -9,8 +9,6 @@ tags: [plan, implementation, app, wpf, tray, autostart, phase-5]
 
 # Phase 5 Plan 9 — The Tray Shell Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Finish the tray shell so the app is a *tray app with a window* — the icon states,
 the context menu as the primary interface, hide-on-close, single-instance and autostart all
 working end to end — **and make the tray icon the app icon**, so the shield-check mark appears

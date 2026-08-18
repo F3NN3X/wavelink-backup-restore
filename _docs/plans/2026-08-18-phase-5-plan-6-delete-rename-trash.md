@@ -1,3 +1,11 @@
+---
+title: "Phase 5, plan 6: delete, rename, and empty trash"
+status: planned
+created: 2026-08-18
+updated: 2026-08-18
+tags: [plan, phase-5, wpf, delete, trash]
+---
+
 # Plan 6 — Delete, rename, and empty trash
 
 **Phase:** 5 · WPF shell, part 6 of the phase.

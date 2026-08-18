@@ -1,3 +1,11 @@
+---
+title: "Phase 5, plan 8: the settings dialog"
+status: planned
+created: 2026-08-18
+updated: 2026-08-18
+tags: [plan, phase-5, wpf, settings]
+---
+
 # Plan 8 — The Settings dialog
 
 **Phase:** 5 · WPF shell, part 8 of the phase (the last surface).
