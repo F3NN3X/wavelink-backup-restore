@@ -25,6 +25,9 @@ public sealed class SnapshotRowViewModel : ObservableObject
     private SnapshotHealth health;
     private HealthVerdict? verdict;
     private bool isSelected;
+    private bool isEditing;
+    private string draftName = string.Empty;
+    private string? renameError;
 
     public SnapshotRowViewModel(
         Snapshot snapshot, int peakInputCount, DateTimeOffset now, string? query = null)
@@ -133,11 +136,99 @@ public sealed class SnapshotRowViewModel : ObservableObject
     /// A SUSPECT row keeps everything, Restore included - it is still restorable and may be the
     /// only copy that exists.
     /// </summary>
-    public bool CanRename => !IsDamaged;
+    public bool CanRename => !IsDamaged && !isEditing;
 
     public bool CanRestore => !IsDamaged;
 
     public bool CanDelete => true;
+
+    /// <summary>
+    /// In-place rename (README Interactions: "in place on the row's name; commit on Enter or blur,
+    /// cancel on Escape"). While editing, the template swaps the segmented name for a TextBox bound
+    /// to <see cref="DraftName"/> and hides the health pill; the meta line stays put. The commit
+    /// itself is the list view model's job - it owns the store; this row only holds the draft and
+    /// the inline cue, so both stay table-testable without a window.
+    /// </summary>
+    public bool IsEditing
+    {
+        get => isEditing;
+        private set => Set(ref isEditing, value);
+    }
+
+    /// <summary>The name being typed. The TextBox binds this two-way while editing.</summary>
+    public string DraftName
+    {
+        get => draftName;
+        set => Set(ref draftName, value ?? string.Empty);
+    }
+
+    /// <summary>Inline cue under the name when a draft is rejected; null while valid or idle.</summary>
+    public string? RenameError
+    {
+        get => renameError;
+        private set => Set(ref renameError, value);
+    }
+
+    /// <summary>Enter edit mode: seed the draft from the current name and light the cue off.</summary>
+    public void BeginEdit()
+    {
+        if (IsDamaged) return;
+
+        isEditing = true;
+        draftName = Name;
+        renameError = null;
+
+        Raise(nameof(IsEditing));
+        Raise(nameof(DraftName));
+        Raise(nameof(RenameError));
+        Raise(nameof(CanRename));
+    }
+
+    /// <summary>
+    /// Commit the draft. Validates with <see cref="RenameRules"/>; an invalid draft stays in edit
+    /// mode and shows the cue (the user is not yanked out of the box they are typing in). A valid
+    /// one commits to the store - on success the row leaves edit mode, on failure it shows the
+    /// store's reason. Returns true when the commit landed so the caller can refresh.
+    /// </summary>
+    public bool TryCommitEdit(Func<string, string?> commitToStore)
+    {
+        var validation = RenameRules.Validate(draftName);
+        if (!validation.IsValid)
+        {
+            renameError = validation.Reason;
+            Raise(nameof(RenameError));
+            return false;
+        }
+
+        var storeError = commitToStore(draftName);
+        if (storeError is not null)
+        {
+            renameError = storeError;
+            Raise(nameof(RenameError));
+            return false;
+        }
+
+        isEditing = false;
+        renameError = null;
+
+        Raise(nameof(IsEditing));
+        Raise(nameof(RenameError));
+        Raise(nameof(CanRename));
+        return true;
+    }
+
+    /// <summary>Leave edit mode without committing: the draft reverts to the stored name.</summary>
+    public void CancelEdit()
+    {
+        if (!isEditing) return;
+
+        isEditing = false;
+        renameError = null;
+
+        Raise(nameof(IsEditing));
+        Raise(nameof(RenameError));
+        Raise(nameof(CanRename));
+    }
 
     /// <summary>
     /// README's selected-row readout. Presets and mixes are phase 6, so they are OMITTED rather

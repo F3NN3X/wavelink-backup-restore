@@ -33,6 +33,15 @@
       Pixel accuracy is not load-bearing anywhere these are used - no test reads a glyph's shape,
       only that the file parses and the right key is present - so these are kept simple on purpose.
     -->
+    <!--
+      The rename cue's Visibility: non-null RenameError shows it, null hides it (see the cue below).
+      Keyed WITHOUT the Wl prefix on purpose - RowTemplateTests.Every_brush_the_row_uses_is_a_theme_key
+      scans every {Dynamic|Static}Resource Wl* key in this file and whitelists only Text/Geometry/
+      Font/Pill/WlSlot, so a converter resource named Wl* reads as an unrecognised theme brush and
+      fails the guard. The "Wl" prefix is reserved for theme brushes; this is a converter, not one.
+    -->
+    <views:StringNotNullToVisibilityConverter x:Key="RenameCueVisible" />
+
     <Geometry x:Key="WlCheckGeometry">M8.5 12 L11 14.5 L15.5 9.5</Geometry>
     <Geometry x:Key="WlWarningTriangleGeometry">M12 2 L22 20 L2 20 Z M11 9 L13 9 L12.5 15.5 L11.5 15.5 Z M11.25 17 L12.75 17 L12.75 18.5 L11.25 18.5 Z</Geometry>
     <Geometry x:Key="WlCircleSlashGeometry">M12 2 L17 4 L20 9 L20 15 L17 20 L12 22 L7 20 L4 15 L4 9 L7 4 Z M5 7 L7 5 L19 17 L17 19 Z</Geometry>
@@ -348,7 +357,24 @@
                                 </Grid.RowDefinitions>
 
                                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <ItemsControl ItemsSource="{Binding NameSegments}" Focusable="False">
+                                    <!--
+                                      In-place rename (README Interactions). While IsEditing the
+                                      segmented name is replaced by a TextBox bound to DraftName;
+                                      the health pill stays hidden for the duration so the box has
+                                      the row's full width. Commit/cancel are driven from the window
+                                      code-behind (F2/Enter/Escape), not KeyBindings, because a
+                                      CommandBinding inside a DataTemplate resolves against the
+                                      WINDOW's bindings and the gesture is easier to own in one
+                                      place. The box selects all on focus so the first keystroke
+                                      replaces rather than appends.
+                                    -->
+                                    <TextBox x:Name="RenameBox" Text="{Binding DraftName, UpdateSourceTrigger=PropertyChanged}"
+                                             FontFamily="{DynamicResource WlDisplayFont}" FontWeight="Medium" FontSize="14.5"
+                                             Foreground="{DynamicResource WlStrong}" CaretBrush="{DynamicResource WlStrong}"
+                                             BorderThickness="0" Background="Transparent" Padding="0" Margin="0"
+                                             VerticalAlignment="Center" MinWidth="120" Visibility="Collapsed" />
+
+                                    <ItemsControl x:Name="NameSegmentsHost" ItemsSource="{Binding NameSegments}" Focusable="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <StackPanel Orientation="Horizontal" />
@@ -405,13 +431,28 @@
                                   VerdictLine and a 12px glyph leads it (screens/11: "a 12px glyph
                                   plus one word... rendered in the NAME cell... No new column").
                                 -->
-                                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,3,0,0">
-                                    <Path x:Name="VerdictGlyph" Width="12" Height="12" Stretch="Uniform"
-                                          Margin="0,0,4,0" Visibility="Collapsed" VerticalAlignment="Center" />
-                                    <TextBlock x:Name="MetaText" Text="{Binding MetaLine}"
+                                <!--
+                                  The meta/verdict line, and the rename cue. Both live in the same
+                                  Grid.Row so a cue replaces the meta line rather than adding a row:
+                                  while editing (or when a draft is rejected) MetaText is Collapsed
+                                  by the IsEditing/RenameError triggers below and RenameCue takes its
+                                  place. The cue is WlDanger, not WlMuted - it is an error, and this
+                                  file's own rule is that colour belongs to whichever usage needs it.
+                                -->
+                                <Grid Grid.Row="1" Margin="0,3,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path x:Name="VerdictGlyph" Width="12" Height="12" Stretch="Uniform"
+                                              Margin="0,0,4,0" Visibility="Collapsed" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="MetaText" Text="{Binding MetaLine}"
+                                                   Style="{StaticResource WlMonoMetaText}"
+                                                   Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="RenameCue" Text="{Binding RenameError}"
                                                Style="{StaticResource WlMonoMetaText}"
-                                               Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
-                                </StackPanel>
+                                               Foreground="{DynamicResource WlDanger}"
+                                                Visibility="{Binding RenameError, Converter={StaticResource RenameCueVisible}}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
                             </Grid>
 
                             <!-- TAKEN: time over date, 3px apart. -->
@@ -584,6 +625,34 @@
                                  real ListBox generates this container), not a data-bound copy. -->
                             <Setter TargetName="ExpansionRow" Property="Visibility" Value="Visible" />
                         </Trigger>
+
+                        <!--
+                          In-place rename (README Interactions). While IsEditing the segmented name
+                          is replaced by RenameBox and the health pill yields its width to the box;
+                          the meta line swaps to the cue. Declared after IsSelected so editing wins
+                          over selection for these named elements - a row being renamed is mid-edit,
+                          not merely selected. The trigger itself fires on the ROW's own IsEditing
+                          (bound through the ListBoxItem's DataContext, which IS the row), not on
+                          any nested DataTemplate element, so every TargetName below resolves in
+                          THIS ControlTemplate scope: RenameBox, NameSegmentsHost and
+                          HealthPillHost are direct children of the template, unlike the name
+                          segments' own inner Border/TextBlock (which live in the ItemsControl's
+                          ItemTemplate and stay out of reach via TargetName - collapsing their host
+                          is enough to hide them).
+                        -->
+                        <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                            <Setter TargetName="RenameBox" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="NameSegmentsHost" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="HealthPillHost" Property="Visibility" Value="Collapsed" />
+                            <!-- The meta line yields to the cue while editing. The cue itself is
+                                 driven by RenameError's own binding (converter), not this trigger:
+                                 it is Collapsed on entry (RenameError is null) and only appears if
+                                 a draft is rejected, in which case TryCommitEdit leaves the row in
+                                 edit mode so both are visible at once - cue over the meta line. A
+                                 successful commit nulls RenameError AND flips IsEditing, so the
+                                 box, cue and meta-line swap all revert together. -->
+                            <Setter TargetName="MetaText" Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
 
                         <!-- Health outranks selection - declared after IsSelected so it wins when both are true. -->
                         <DataTrigger Binding="{Binding IsSuspect}" Value="True">

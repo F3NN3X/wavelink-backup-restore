@@ -63,6 +63,11 @@ public partial class MainWindow : Window
 
         Loaded += async (_, _) => await shell.List.RefreshAsync();
 
+        // Window-level, before the list's own PreviewKeyDown: while a row is in edit mode Enter
+        // commits and Escape cancels - and must NOT also fire Restore (Enter) or ClearSearch
+        // (Escape), which are bound on the window / the scroll region respectively.
+        PreviewKeyDown += OnWindowPreviewKeyDown;
+
         WireBottomBar();
         WireSearch();
         WireRestoreOutcomeStrip();
@@ -83,7 +88,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void WireBottomBar()
     {
-        RenameButton.Click += (_, _) => ShowRenamePlaceholder();
+        RenameButton.Click += (_, _) => BeginRename();
         DeleteButton.Click += (_, _) => ShowDeletePlaceholder();
         RestoreButton.Click += async (_, _) => await RestoreSelectedAsync();
         BackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
@@ -150,12 +155,15 @@ public partial class MainWindow : Window
 
     private DispatcherTimer? autoDismissTimer;
 
-    // Shared by the bottom-bar Click handlers above and ShellCommands' Executed handlers below -
-    // F2/Delete/Enter and their matching buttons do exactly the same thing, so there is only ever
-    // one place that names the placeholder text.
-    private static void ShowRenamePlaceholder() => MessageBox.Show(
-        "Renaming a backup arrives in the next plan.", "Wave Link Backup",
-        MessageBoxButton.OK, MessageBoxImage.Information);
+    // Shared by the bottom-bar Rename button and ShellCommands' F2 handler below - both begin an
+    // in-place edit of the selected row's name (README Interactions), so there is one entry point.
+    private void BeginRename()
+    {
+        if (shell.List.Selected is not { } row) return;
+
+        row.BeginEdit();
+        FocusRenameBox(row);
+    }
 
     private static void ShowDeletePlaceholder() => MessageBox.Show(
         "Deleting a backup arrives in the next plan.", "Wave Link Backup",
@@ -283,7 +291,7 @@ public partial class MainWindow : Window
     private void BackUpNow_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
         e.CanExecute = shell.CanBackUpNow;
 
-    private void Rename_Executed(object sender, ExecutedRoutedEventArgs e) => ShowRenamePlaceholder();
+    private void Rename_Executed(object sender, ExecutedRoutedEventArgs e) => BeginRename();
 
     private void Rename_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
         e.CanExecute = shell.CanRename;
@@ -344,6 +352,59 @@ public partial class MainWindow : Window
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// In-place rename's commit/cancel keys (README Interactions: "commit on Enter or blur, cancel
+    /// on Escape"), owned here rather than in the row template because a CommandBinding inside a
+    /// DataTemplate resolves against the WINDOW's bindings and the gesture is easier to own in one
+    /// place. Window-level PreviewKeyDown runs BEFORE the list's own key handling and before the
+    /// window's Restore (Enter) command binding, so when a row is editing:
+    ///   Enter  commits and swallows the key - it must NOT also fire Restore on that same press.
+    ///   Escape cancels and swallows the key - it must NOT fall through to ClearSearch either.
+    /// When no row is editing this does nothing, so both keys keep their normal meaning (Enter
+    /// restores the selected row; Escape clears search when the list or search field has focus).
+    /// </summary>
+    private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (shell.List.Selected is not { IsEditing: true } row) return;
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                shell.List.CommitRename(row);
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                row.CancelEdit();
+                RestoreFocusToList();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Move keyboard focus into the selected row's rename box once it has been made visible, and
+    /// select all so the first keystroke replaces rather than appends. Deferred to the input
+    /// dispatcher for the same reason FocusRow is: the TextBox does not exist in the visual tree
+    /// until layout has realised the container after IsEditing flipped it Visible.
+    /// </summary>
+    private void FocusRenameBox(SnapshotRowViewModel row)
+    {
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+        {
+            foreach (var listBox in FindDescendants<ListBox>(GroupsHost))
+            {
+                if (listBox.ItemContainerGenerator.ContainerFromItem(row) is not ListBoxItem container) continue;
+
+                var box = FindDescendants<TextBox>(container).FirstOrDefault();
+                if (box is null) return;
+
+                box.Focus();
+                box.SelectAll();
+                return;
+            }
+        }));
     }
 
     /// <summary>

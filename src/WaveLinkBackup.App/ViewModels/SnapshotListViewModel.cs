@@ -173,6 +173,23 @@ public sealed class SnapshotListViewModel(
     public void ClearSearch() => Query = string.Empty;
 
     /// <summary>
+    /// The store half of in-place rename (README Interactions). Validates the draft against the
+    /// row's own rule, then hands it to the store. On success the list re-reads so the renamed row
+    /// - and every readout that prints its name - picks up the new one; on failure the row stays
+    /// in edit mode and shows the reason. Returns true when the commit landed.
+    /// </summary>
+    public bool CommitRename(SnapshotRowViewModel row) =>
+        row.TryCommitEdit(name =>
+        {
+            var result = store.Rename(row.Id, name);
+            if (!result.IsSuccess) return result.Error!.Message;
+
+            Refresh();
+            Select(row.Id);
+            return null;
+        });
+
+    /// <summary>
     /// Selection is by ID, not by object: Refresh builds new rows, and "Back up now inserts a
     /// row at the top of TODAY and selects it" needs a name for the thing to select.
     /// </summary>
