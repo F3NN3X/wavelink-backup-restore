@@ -9,10 +9,29 @@ tags: [dev-phase]
 
 # Phase 5 — WPF shell
 
-**Status:** Not started — **next**.
+**Status:** In progress — backup list (part 4) and restore-outcome strip shipped (`136bed7`);
+execution plans for every remaining surface are written (2026-08-18, see below). **next.**
 **Entry criteria:** phase 4 complete. ✅ 2026-08-16.
 **Exit criteria:** the four designed screens match the handoff in **both themes**, the six
 undesigned surfaces are designed and built, and no Core logic has leaked into the shell.
+
+### Execution plans for the remaining surfaces — 2026-08-18
+
+The backup list (part 4) is built and committed. The rest of the phase is now broken into four
+dated execution plans under [`plans/`](../plans/), each following part 4's task format (pure
+model → tests → view → wiring → keyboard/SR → guards + full verification):
+
+| Plan | Surface | Design source |
+|---|---|---|
+| [plan-5](../plans/2026-08-18-phase-5-plan-5-the-restore-flow.md) | Real restore flow: confirmation dialog, four-stage in-progress strip, wire `RestoreOrchestrator`, feed the outcome strip | `screens/04-in-progress.md`, `09` |
+| [plan-6](../plans/2026-08-18-phase-5-plan-6-delete-rename-trash.md) | In-place rename, three-variant two-stage delete, empty-trash row + per-volume detection | `screens/05-delete-dialogs.md`, `08` |
+| [plan-7](../plans/2026-08-18-phase-5-plan-7-errors-and-first-run.md) | The twelve errors in their four placements (weight rule), error 9/12 full screen, first-run/empty state | `screens/06-errors.md`, `08`, README Screen 4 |
+| [plan-8](../plans/2026-08-18-phase-5-plan-8-settings-dialog.md) | Settings dialog: in-place commit (no Save button), atomic persistence, WHICH WAVE LINK + WHERE THESE SETTINGS LIVE, unbuilt tiers | README Screen 3, `screens/08` |
+
+Still outstanding within the phase after those four: the **tray shell** (icon states,
+context menu, hide-on-close, single-instance, autostart) and **high contrast** — both named in
+the Scope above. They are not yet broken into a dated plan; that is the next planning step once
+plans 5–8 have landed.
 
 ## Why this phase exists
 

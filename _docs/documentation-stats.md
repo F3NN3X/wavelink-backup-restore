@@ -30,7 +30,7 @@ Update this file **in the same commit** as the document it counts. See
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
 | Sessions | 9 |
-| Plans | 2 |
+| Plans | 6 |
 | Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
 | **Tests** | **764 passing** — Core 296 · CLI 91 · App 377 |
 
@@ -44,6 +44,31 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Phase 5: execution plans for every remaining surface (2026-08-18)
+
+The backup list (part 4) and the restore-outcome strip are shipped. The rest of the phase is now
+broken into **four dated execution plans** under [`plans/`](plans/), each following part 4's task
+format (pure model → tests → view → wiring → keyboard/SR → guards + full verification):
+
+| Plan | Surface | Design source |
+|---|---|---|
+| [plan-5](plans/2026-08-18-phase-5-plan-5-the-restore-flow.md) | Real restore flow: confirmation dialog, four-stage in-progress strip, wire `RestoreOrchestrator`, feed the outcome strip | `screens/04-in-progress.md`, `09` |
+| [plan-6](plans/2026-08-18-phase-5-plan-6-delete-rename-trash.md) | In-place rename, three-variant two-stage delete, empty-trash row + per-volume detection | `screens/05-delete-dialogs.md`, `08` |
+| [plan-7](plans/2026-08-18-phase-5-plan-7-errors-and-first-run.md) | The twelve errors in their four placements (weight rule), error 9/12 full screen, first-run/empty state | `screens/06-errors.md`, `08`, README Screen 4 |
+| [plan-8](plans/2026-08-18-phase-5-plan-8-settings-dialog.md) | Settings dialog: in-place commit (no Save button), atomic persistence, WHICH WAVE LINK + WHERE THESE SETTINGS LIVE, unbuilt tiers | README Screen 3, `screens/08` |
+
+The phase's status line in [phase-5-wpf.md](dev-phases/phase-5-wpf.md) was refreshed from
+"Not started — next" to "In progress", with a plan table and an explicit note that the **tray
+shell** (icon states, context menu, hide-on-close, single-instance, autostart) and **high
+contrast** are still not broken into a dated plan — that is the next planning step once plans
+5–8 have landed.
+
+Doc-only commit; no code, so the test count is unchanged at 764.
+
+**Counts moved:** plans 2 → 6.
+
+---
 
 ### Phase 5: the restore-outcome strip (2026-08-18)
 
