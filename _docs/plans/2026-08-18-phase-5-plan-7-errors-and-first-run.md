@@ -63,9 +63,19 @@ Placement key: **S** = Status strip · **I** = Inline result strip · **D** = Di
 
 Model the twelve errors as data so placement and weight are decided in one testable place, not scattered across views.
 
-- [ ] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/ErrorCatalog.cs`: an `AppError` record with `Code` (the 12 ids), `Placement` (`StatusStrip` | `InlineStrip` | `Dialog` | `ReplacesList`), `Weight` (`Neutral` | `Amber`), `Title`, `Body`, and any `MonoLine`. Populate all twelve exactly per the table above.
-- [ ] **Step 2:** Add a pure mapper `AppError.FromCoreSignal(...)` that takes the signals Core already emits (validation result, write failure kind, restore verdict, folder probe result) and returns the matching `AppError` — or null when there is no error.
-- [ ] **Step 3:** Unit tests (`ErrorCatalogTests.cs`) pinning: each of the twelve codes maps to the right placement and weight; the weight rule holds (location-missing → neutral, config-not-whole → amber); a healthy signal maps to null. Commit: `feat(app): error catalog — twelve errors, placements, weight rule`.
+- [x] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/ErrorCatalog.cs`: an `AppError` record with `Code` (the 12 ids), `Placement` (`StatusStrip` | `InlineStrip` | `Dialog` | `ReplacesList`), `Weight` (`Neutral` | `Amber`), `Title`, `Body`, and any `MonoLine`. Populate all twelve exactly per the table above.
+- [x] **Step 2:** Add a pure mapper `AppError.FromCoreSignal(...)` that takes the signals Core already emits (validation result, write failure kind, restore verdict, folder probe result) and returns the matching `AppError` — or null when there is no error. Implemented as `AppErrorMapper.FromCoreSignal(CoreSignal)`.
+- [x] **Step 3:** Unit tests (`ErrorCatalogTests.cs`) pinning: each of the twelve codes maps to the right placement and weight; the weight rule holds (location-missing → neutral, config-not-whole → amber); a healthy signal maps to null. Committed `4eba547`, then revised to match `06-errors.md` verbatim (the table above had drifted from the design source — see note below). 31 tests green.
+
+> **Reconciliation note (this plan's table vs `06-errors.md`).** The placement/weight table
+> above was drafted against an earlier error list and has since been superseded by the design
+> source, which is authoritative on values and copy. The catalog (`ErrorCatalog.cs`) now follows
+> `06-errors.md` exactly: only errors **1** (Wave Link not found — `--wl-warn` dot + text) and
+> **4** (malformed settings file) are amber; every inline strip is neutral fill; error **9** is a
+> Dialog (in Settings, after "Change folder…"), not Replaces-list; error **10** is the inline
+> "This backup is damaged" strip, not a status-strip skip. The status-strip folder-missing fact
+> ("BACKUP FOLDER UNAVAILABLE", neutral) already lives in `ShellViewModel` and is pinned by
+> `ShellViewModelTests`; it is the 10-decisions rule, distinct from error 12's full screen.
 
 ## Task 2 — Status-strip errors (1, 10)
 

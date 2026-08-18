@@ -11,17 +11,17 @@ namespace WaveLinkBackup.App.Tests;
 public sealed class ErrorCatalogTests
 {
     [Theory]
-    [InlineData(1, ErrorPlacement.StatusStrip, ErrorWeight.Neutral)]
+    [InlineData(1, ErrorPlacement.StatusStrip, ErrorWeight.Amber)]
     [InlineData(2, ErrorPlacement.Dialog, ErrorWeight.Neutral)]
-    [InlineData(3, ErrorPlacement.InlineStrip, ErrorWeight.Amber)]
+    [InlineData(3, ErrorPlacement.InlineStrip, ErrorWeight.Neutral)]
     [InlineData(4, ErrorPlacement.Dialog, ErrorWeight.Amber)]
-    [InlineData(5, ErrorPlacement.InlineStrip, ErrorWeight.Amber)]
-    [InlineData(6, ErrorPlacement.InlineStrip, ErrorWeight.Amber)]
-    [InlineData(7, ErrorPlacement.InlineStrip, ErrorWeight.Amber)]
-    [InlineData(8, ErrorPlacement.Dialog, ErrorWeight.Amber)]
-    [InlineData(9, ErrorPlacement.ReplacesList, ErrorWeight.Neutral)]
-    [InlineData(10, ErrorPlacement.StatusStrip, ErrorWeight.Neutral)]
-    [InlineData(11, ErrorPlacement.InlineStrip, ErrorWeight.Amber)]
+    [InlineData(5, ErrorPlacement.InlineStrip, ErrorWeight.Neutral)]
+    [InlineData(6, ErrorPlacement.InlineStrip, ErrorWeight.Neutral)]
+    [InlineData(7, ErrorPlacement.InlineStrip, ErrorWeight.Neutral)]
+    [InlineData(8, ErrorPlacement.Dialog, ErrorWeight.Neutral)]
+    [InlineData(9, ErrorPlacement.Dialog, ErrorWeight.Neutral)]
+    [InlineData(10, ErrorPlacement.InlineStrip, ErrorWeight.Neutral)]
+    [InlineData(11, ErrorPlacement.InlineStrip, ErrorWeight.Neutral)]
     [InlineData(12, ErrorPlacement.ReplacesList, ErrorWeight.Neutral)]
     public void Each_error_has_its_designed_placement_and_weight(int code, ErrorPlacement placement, ErrorWeight weight)
     {
@@ -41,24 +41,38 @@ public sealed class ErrorCatalogTests
     }
 
     [Fact]
-    public void Weight_rule_location_missing_is_neutral()
+    public void Weight_rule_exactly_two_errors_are_amber()
     {
-        // A missing location: nothing broken, nothing lost. All four must be neutral.
-        Assert.Equal(ErrorWeight.Neutral, AppError.ByCode(1).Weight);   // Wave Link not found
-        Assert.Equal(ErrorWeight.Neutral, AppError.ByCode(9).Weight);   // folder not a backup
-        Assert.Equal(ErrorWeight.Neutral, AppError.ByCode(10).Weight);  // auto skipped, folder missing
-        Assert.Equal(ErrorWeight.Neutral, AppError.ByCode(12).Weight);  // folder can't be used
+        // The weight rule: "Neutral if nothing happened. Amber only if the configuration — live or
+        // restorable — is not whole." Exactly two of the twelve leave a config not whole:
+        //   1 — Wave Link not found: the LIVE settings file cannot be read at all (06 line 20:
+        //       dot + text both --wl-warn). The status strip is amber.
+        //   4 — Malformed settings file: the LIVE settings file itself does not parse (06 "Amber
+        //       because the live configuration is the thing that is not whole").
+        Assert.Equal(ErrorWeight.Amber, AppError.ByCode(1).Weight);
+        Assert.Equal(ErrorWeight.Amber, AppError.ByCode(4).Weight);
+
+        // Every other error is neutral: refusals (nothing written/changed), missing locations
+        // (nothing lost), or a format this copy doesn't understand yet (the backup is fine).
+        for (var code = 1; code <= 12; code++)
+        {
+            if (code is 1 or 4)
+                continue;
+            Assert.True(AppError.ByCode(code).Weight == ErrorWeight.Neutral, $"error {code} should be neutral");
+        }
     }
 
     [Fact]
-    public void Weight_rule_config_not_whole_is_amber()
+    public void All_inline_strips_are_neutral_fill()
     {
-        // A write or restore that did not produce a whole config. All five must be amber.
-        Assert.Equal(ErrorWeight.Amber, AppError.ByCode(3).Weight);   // unwritable
-        Assert.Equal(ErrorWeight.Amber, AppError.ByCode(4).Weight);   // disk full
-        Assert.Equal(ErrorWeight.Amber, AppError.ByCode(5).Weight);   // write failed
-        Assert.Equal(ErrorWeight.Amber, AppError.ByCode(6).Weight);   // corrupt on restore
-        Assert.Equal(ErrorWeight.Amber, AppError.ByCode(7).Weight);   // relaunch failed
+        // 06-errors.md: "All neutral fill." An inline strip is a refusal — nothing was written,
+        // nothing changed. Errors 3, 5, 6, 7, 10, 11 all sit here.
+        foreach (var code in new[] { 3, 5, 6, 7, 10, 11 })
+        {
+            var error = AppError.ByCode(code);
+            Assert.Equal(ErrorPlacement.InlineStrip, error.Placement);
+            Assert.Equal(ErrorWeight.Neutral, error.Weight);
+        }
     }
 
     [Fact]
@@ -104,43 +118,43 @@ public sealed class ErrorCatalogTests
     }
 
     [Fact]
-    public void Write_failed_with_disk_full_reason_maps_to_error_4()
+    public void Malformed_settings_maps_to_error_4()
     {
-        var signal = new CoreSignal(Error: new WriteFailed("not enough space on the drive"));
+        var signal = new CoreSignal(Error: new MalformedSettings("unexpected character at line 12"));
 
         Assert.Equal(4, AppErrorMapper.FromCoreSignal(signal)!.Code);
     }
 
     [Fact]
-    public void Write_failed_generic_maps_to_error_5()
+    public void Wave_link_still_running_maps_to_error_5()
     {
-        var signal = new CoreSignal(Error: new WriteFailed("access denied"));
+        var signal = new CoreSignal(Error: new WaveLinkStillRunning(new[] { "WaveLink.exe" }));
 
         Assert.Equal(5, AppErrorMapper.FromCoreSignal(signal)!.Code);
     }
 
     [Fact]
-    public void Snapshot_corrupted_maps_to_error_6()
+    public void Write_failed_maps_to_error_6()
     {
-        var signal = new CoreSignal(Error: new SnapshotCorrupted("C:\\b", "checksum mismatch"));
+        var signal = new CoreSignal(Error: new WriteFailed("access denied"));
 
         Assert.Equal(6, AppErrorMapper.FromCoreSignal(signal)!.Code);
     }
 
     [Fact]
-    public void Relaunch_failed_maps_to_error_7()
+    public void Malformed_manifest_maps_to_error_7()
     {
-        var signal = new CoreSignal(RelaunchFailed: true);
+        var signal = new CoreSignal(Error: new MalformedManifest("missing required key"));
 
         Assert.Equal(7, AppErrorMapper.FromCoreSignal(signal)!.Code);
     }
 
     [Fact]
-    public void Store_unavailable_maps_to_error_12_full_screen()
+    public void Unsupported_schema_maps_to_error_8()
     {
-        var signal = new CoreSignal(Error: new StoreUnavailable("D:\\backups", "missing"));
+        var signal = new CoreSignal(Error: new UnsupportedSnapshotSchema(Found: 2, Supported: 1));
 
-        Assert.Equal(12, AppErrorMapper.FromCoreSignal(signal)!.Code);
+        Assert.Equal(8, AppErrorMapper.FromCoreSignal(signal)!.Code);
     }
 
     [Fact]
@@ -152,18 +166,43 @@ public sealed class ErrorCatalogTests
     }
 
     [Fact]
-    public void Folder_unusable_without_an_error_maps_to_error_10()
+    public void Snapshot_corrupted_maps_to_error_10()
     {
-        var signal = new CoreSignal(FolderUsable: false);
+        var signal = new CoreSignal(Error: new SnapshotCorrupted("C:\\b", "checksum mismatch"));
 
         Assert.Equal(10, AppErrorMapper.FromCoreSignal(signal)!.Code);
     }
 
     [Fact]
-    public void An_error_the_catalog_does_not_claim_maps_to_null()
+    public void Snapshot_not_found_maps_to_error_11()
     {
-        // MalformedSettings surfaces through its own path (the plan dialog), not the catalog.
-        var signal = new CoreSignal(Error: new MalformedSettings("unexpected character"));
+        var signal = new CoreSignal(Error: new SnapshotNotFound("abc-123"));
+
+        Assert.Equal(11, AppErrorMapper.FromCoreSignal(signal)!.Code);
+    }
+
+    [Fact]
+    public void Store_unavailable_maps_to_error_12_full_screen()
+    {
+        var signal = new CoreSignal(Error: new StoreUnavailable("D:\\backups", "missing"));
+
+        Assert.Equal(12, AppErrorMapper.FromCoreSignal(signal)!.Code);
+    }
+
+    [Fact]
+    public void Folder_unusable_without_an_error_maps_to_error_12()
+    {
+        var signal = new CoreSignal(FolderUsable: false);
+
+        Assert.Equal(12, AppErrorMapper.FromCoreSignal(signal)!.Code);
+    }
+
+    [Fact]
+    public void Wave_link_not_installed_alone_maps_to_null_the_mapper_needs_the_found_flag()
+    {
+        // The mapper keys off the WaveLinkFound flag (the shell's discovery result), not the raw
+        // CoreError, so a bare WaveLinkNotInstalled with Found=true is not an error here.
+        var signal = new CoreSignal(Error: new WaveLinkNotInstalled(), WaveLinkFound: true);
 
         Assert.Null(AppErrorMapper.FromCoreSignal(signal));
     }
