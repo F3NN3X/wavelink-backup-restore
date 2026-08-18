@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using H.NotifyIcon;
 using H.NotifyIcon.Core;
 using WaveLinkBackup.App.Hosting;
+using WaveLinkBackup.App.Services;
 using WaveLinkBackup.App.Startup;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
@@ -55,6 +56,7 @@ public partial class App : Application
     private DispatcherTimer? timer;
     private SettingsRepository? settingsRepository;
     private ShellStateRepository? shellStateRepository;
+    private IRestoreService? restoreService;
     private BackupSettings settings = BackupSettings.Default;
     private bool shuttingDown;
 
@@ -127,7 +129,7 @@ public partial class App : Application
 
         settings = arguments.ApplyTo(settingsRepository.Read());
 
-        (host, service, store, waveLinkProcess, shell) = Compose(fileSystem, settings);
+        (host, service, store, waveLinkProcess, restoreService, shell) = Compose(fileSystem, settings);
         host.AutoBackupEnabled = settings.AutoBackupEnabled;
         host.Start();
 
@@ -164,7 +166,7 @@ public partial class App : Application
 
     private static (
         BackupHost Host, BackupService Service, SnapshotStore Store, IWaveLinkProcess WaveLinkProcess,
-        ShellViewModel Shell)
+        IRestoreService RestoreService, ShellViewModel Shell)
         Compose(IFileSystem fileSystem, BackupSettings settings)
     {
         var clock = new SystemClock();
@@ -194,7 +196,13 @@ public partial class App : Application
         var list = new SnapshotListViewModel(store, new HealthProbe(store, fileSystem, clock), fileSystem, clock);
         var shell = new ShellViewModel(list);
 
-        return (new BackupHost(coordinator, clock), service, store, new WaveLinkProcess(), shell);
+        // The shell-facing restore seam. Built here rather than in MainWindow so it exists even
+        // before any window is shown - the same reason the shell VM is built here. It wraps Core's
+        // RestoreOrchestrator; the view-model never touches a Wave Link process API itself.
+        var waveLinkProcess = new WaveLinkProcess();
+        var restoreService = new RestoreService(fileSystem, waveLinkProcess, store);
+
+        return (new BackupHost(coordinator, clock), service, store, waveLinkProcess, restoreService, shell);
     }
 
     private TaskbarIcon BuildTray()
