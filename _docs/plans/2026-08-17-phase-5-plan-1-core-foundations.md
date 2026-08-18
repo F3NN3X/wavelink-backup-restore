@@ -9,7 +9,6 @@ tags: [plan, implementation, core, phase-5]
 
 # Phase 5 Plan 1 — Core Foundations Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give Core the four things the shell needs but does not have — persisted settings, a chosen-installation field, snapshot search, and disk-free reporting — and make the CLI honour the same settings file.
 

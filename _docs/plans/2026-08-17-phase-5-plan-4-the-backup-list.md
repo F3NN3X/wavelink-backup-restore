@@ -9,7 +9,6 @@ tags: [plan, implementation, app, wpf, screen-1, phase-5]
 
 # Phase 5 Plan 4 — The Backup List Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build screen 1 — the main window: its 34px caption bar with Mica, the status
 strip, the column header, the five-slot list with its three health states, search, the

@@ -9,7 +9,6 @@ tags: [plan, implementation, app, tray, phase-5]
 
 # Phase 5 Plan 2 — Tray Shell Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Turn `WaveLinkBackup.App` from a two-file stub into a tray-resident process that watches Wave Link, survives its window closing, refuses to run twice, and can put itself in `HKCU\...\Run`.
 

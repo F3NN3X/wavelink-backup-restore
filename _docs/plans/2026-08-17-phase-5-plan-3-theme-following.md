@@ -9,7 +9,6 @@ tags: [plan, implementation, app, theming, mica, phase-5]
 
 # Phase 5 Plan 3 — Theme Following and Chrome Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the three dictionaries plan 2 built actually *follow Windows* — dark/light, high
 contrast and the user's accent, live and without a restart — and give the tray's context menu
