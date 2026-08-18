@@ -17,6 +17,12 @@ namespace WaveLinkBackup.App.Tests;
 /// This is the rendered half of that claim: MainWindowTemplateTests proves each state is WIRED to
 /// SOME trigger; this proves the trigger actually lands on the right element and nothing else.
 ///
+/// Fix 1 moved the Loaded/Collapsed trigger off ListScrollViewer itself and onto the
+/// ListLoadedRegion Grid that now wraps it alongside the new search-footer strip (so the two show
+/// and hide together) - this reads ListLoadedRegion.Visibility rather than
+/// ListScrollViewer.Visibility for exactly that reason: the ScrollViewer's own Visibility property
+/// no longer carries a trigger of its own and always reports Visible.
+///
 /// No test here calls Show()/RefreshAsync/Loaded - constructing the window and calling the
 /// view model's synchronous Refresh() is enough to populate List.State, and staying off the async
 /// health-probe path avoids the deadlock risk of blocking Wpf.Run's own dispatcher thread on a
@@ -99,7 +105,7 @@ public sealed class MainWindowListStateTests
             var window = Build(shell);
             PumpPendingBindings(window);
             return new Visibilities(
-                window.ListScrollViewer.Visibility, window.ColumnHeaderBorder.Visibility,
+                window.ListLoadedRegion.Visibility, window.ColumnHeaderBorder.Visibility,
                 window.NoResultsPanel.Visibility, window.EmptyStandIn.Visibility,
                 window.FolderMissingStandIn.Visibility);
         });
@@ -126,7 +132,7 @@ public sealed class MainWindowListStateTests
             var window = Build(shell);
             PumpPendingBindings(window);
             return new Visibilities(
-                window.ListScrollViewer.Visibility, window.ColumnHeaderBorder.Visibility,
+                window.ListLoadedRegion.Visibility, window.ColumnHeaderBorder.Visibility,
                 window.NoResultsPanel.Visibility, window.EmptyStandIn.Visibility,
                 window.FolderMissingStandIn.Visibility);
         });
@@ -152,7 +158,7 @@ public sealed class MainWindowListStateTests
             var window = Build(shell);
             PumpPendingBindings(window);
             return new Visibilities(
-                window.ListScrollViewer.Visibility, window.ColumnHeaderBorder.Visibility,
+                window.ListLoadedRegion.Visibility, window.ColumnHeaderBorder.Visibility,
                 window.NoResultsPanel.Visibility, window.EmptyStandIn.Visibility,
                 window.FolderMissingStandIn.Visibility);
         });
@@ -176,7 +182,7 @@ public sealed class MainWindowListStateTests
             var window = Build(shell);
             PumpPendingBindings(window);
             return new Visibilities(
-                window.ListScrollViewer.Visibility, window.ColumnHeaderBorder.Visibility,
+                window.ListLoadedRegion.Visibility, window.ColumnHeaderBorder.Visibility,
                 window.NoResultsPanel.Visibility, window.EmptyStandIn.Visibility,
                 window.FolderMissingStandIn.Visibility);
         });

@@ -223,6 +223,48 @@ public sealed class MainWindowTemplateTests
         Assert.DoesNotContain("DetailFileName", xaml, StringComparison.Ordinal);
     }
 
+    // Fix 1: 07-search.md's footer strip ("SHOWING 3 OF 14 · 11 HIDDEN BY THE SEARCH", right a
+    // ghost button "Show all 14") was computed on SnapshotListViewModel (SearchFooter,
+    // ShowAllLabel) and unit-tested there, but Task 10 never built a template that consumed it -
+    // it rendered nowhere. This proves the strip actually exists in the window and is wired to
+    // both properties and to ClearSearch, rather than trusting the view-model tests alone to mean
+    // it is on screen.
+    [Fact]
+    public void The_search_footer_strip_shows_what_the_search_hides_and_offers_to_clear_it()
+    {
+        var xaml = MainWindowXaml();
+
+        var footer = Regex.Match(
+            xaml, "<Border x:Name=\"SearchFooterBorder\".*?</Border>", RegexOptions.Singleline).Value;
+        Assert.True(footer.Length > 0, "SearchFooterBorder is gone or renamed.");
+
+        Assert.Contains("Binding List.SearchFooter", footer, StringComparison.Ordinal);
+        Assert.Contains("Binding List.ShowAllLabel", footer, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ShowAllButton\"", footer, StringComparison.Ordinal);
+
+        // Collapsed only when there is nothing to show, not merely when the list is not Loaded -
+        // ListLoadedRegion's own trigger already handles the Loaded/not-Loaded split, so this one
+        // gates on SearchFooter itself being null.
+        Assert.Contains("Binding List.SearchFooter}\" Value=\"{x:Null}\"", footer, StringComparison.Ordinal);
+
+        Assert.Contains(
+            "ShowAllButton.Click += (_, _) => shell.List.ClearSearch();",
+            MainWindowCodeBehind(), StringComparison.Ordinal);
+    }
+
+    // Fix 5: GroupsHost's own VirtualizingStackPanel defaulted to ScrollUnit="Item" - each item is
+    // an entire date group (header plus every row under it), so one wheel notch jumped a whole
+    // day's worth of rows at once on a store with many backups on one day. Pixel scrolling is what
+    // a user expects from a list like this.
+    [Fact]
+    public void The_groups_host_scrolls_by_pixel_not_by_whole_date_group()
+    {
+        var groupsHostTag = Regex.Match(
+            MainWindowXaml(), "<ItemsControl x:Name=\"GroupsHost\".*?>", RegexOptions.Singleline).Value;
+
+        Assert.Contains("VirtualizingPanel.ScrollUnit=\"Pixel\"", groupsHostTag, StringComparison.Ordinal);
+    }
+
     // The four ListState-driven regions the brief's Step 4 asks for. A source-text check rather
     // than a rendered-visibility check (that is MainWindowListStateTests' job) - this one just
     // proves each state is actually WIRED to something, not left out by a typo in the Value.

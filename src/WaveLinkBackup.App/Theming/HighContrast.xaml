@@ -26,6 +26,10 @@
     <SolidColorBrush x:Key="WlLine2"  Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="WlHover"  Color="Transparent" />
 
+    <!-- 11-high-contrast.md: "Hover = 1px HotTrack outline, no fill." WlHover goes transparent
+         above, so there is no other feedback left without this. -->
+    <SolidColorBrush x:Key="WlHotTrack" Color="{DynamicResource {x:Static SystemColors.HotTrackColorKey}}" />
+
     <!-- Red and the accent are gone. Primary = Highlight; nothing here is red. -->
     <SolidColorBrush x:Key="WlAccent"     Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
     <SolidColorBrush x:Key="WlAccentInk"  Color="{DynamicResource {x:Static SystemColors.HighlightTextColorKey}}" />

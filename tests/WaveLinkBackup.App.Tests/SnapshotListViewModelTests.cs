@@ -252,6 +252,39 @@ public sealed class SnapshotListViewModelTests
         Assert.Equal("14 BACKUPS ARE HERE · SEARCH LOOKS AT NAMES ONLY", list.NoResultsDetail);
     }
 
+    // Fix 6: the noun pluralises ("BACKUPS") but the verb has to agree too - "1 BACKUP ARE HERE"
+    // reads as broken English. Only the 14-backup case was pinned before; this exercises the
+    // one-backup singular.
+    [Fact]
+    public void No_results_detail_agrees_the_verb_with_a_single_backup()
+    {
+        var rig = new Rig();
+        rig.Add("Only one", new DateTimeOffset(2026, 8, 15, 22, 0, 0, TimeSpan.Zero));
+        var list = rig.List();
+        list.Refresh();
+
+        list.Query = "wave:3";
+
+        Assert.Equal("1 BACKUP IS HERE · SEARCH LOOKS AT NAMES ONLY", list.NoResultsDetail);
+    }
+
+    // Fix 7: SnapshotSearch.Filter (Core) treats a whitespace-only query as no filter at all, but
+    // the strip and footer gated only on Length == 0 - so a single space showed "14 OF 14 MATCH
+    // \" \"" instead of going back to the empty-query copy. Core is untouched; only the two
+    // gates in this file change to Trim().Length == 0.
+    [Fact]
+    public void A_whitespace_only_query_is_treated_as_no_query()
+    {
+        var list = Store14().List();
+        list.Refresh();
+
+        list.Query = " ";
+
+        Assert.Equal(string.Empty, list.MatchSummary);
+        Assert.Null(list.SearchFooter);
+        Assert.Null(list.ShowAllLabel);
+    }
+
     [Fact]
     public void An_empty_store_is_empty_and_not_no_results()
     {

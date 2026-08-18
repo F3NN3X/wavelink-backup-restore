@@ -616,7 +616,43 @@
                         <DataTrigger Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
                             <Setter TargetName="RowSurface" Property="BorderThickness" Value="0" />
                             <Setter TargetName="MetaText" Property="Text" Value="{Binding VerdictLine}" />
+                            <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlText}" />
+                            <!--
+                              11's per-cell table: overflow "···" is WlMuted in a normal theme, but
+                              WindowText in high contrast - it was left on WlMuted here (its default,
+                              set on OverflowText itself further up), which resolves to GrayText and
+                              under-states a column every other cell in this scheme renders at full
+                              WindowText strength.
+                            -->
                         </DataTrigger>
+
+                        <!--
+                          11-high-contrast.md: "Hover = 1px HotTrack outline, no fill." WlHover
+                          resolves to Transparent in high contrast, so without this a hovered row
+                          gives no feedback there at all - the plain IsMouseOver trigger above only
+                          ever paints a fill. Declared after the plain "every row" high-contrast
+                          trigger (so it overrides that trigger's BorderThickness="0" back to a
+                          visible 1px) and before the selected+high-contrast trigger further down,
+                          which is the one load-bearing position for RowSurface triggers in this
+                          template (see that trigger's own comment and
+                          RowTemplateTests.The_selected_plus_high_contrast_trigger_is_the_last_one_that_paints_RowSurface).
+                        -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="IsMouseOver" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="RowSurface" Property="BorderThickness" Value="1" />
+                            <Setter TargetName="RowSurface" Property="BorderBrush" Value="{DynamicResource WlHotTrack}" />
+                        </MultiDataTrigger>
 
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
@@ -694,6 +730,19 @@
                             <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlAccent}" />
                             <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlAccentInk}" />
                             <Setter TargetName="MetaText" Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+                            <Setter TargetName="TakenTimeText" Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+                            <Setter TargetName="TakenDateText" Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+                            <!--
+                              TakenTimeText/TakenDateText are named elements in THIS same
+                              ControlTemplate scope (unlike the nested NAME segments, health pill,
+                              WHY pill and tier badges, which live in their own DataTemplate scopes
+                              and stay out of reach via TargetName - a deliberately separate follow-
+                              up). Without these two, the backup's own time and date - the other
+                              thing identifying the row besides its name - stayed WindowText on a
+                              Highlight fill, which on HC White (WindowText near-black, Highlight a
+                              dark purple per 11-high-contrast.md's own illustrative table) reads as
+                              near-black text on dark purple.
+                            -->
                         </MultiDataTrigger>
 
                         <!--

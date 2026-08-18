@@ -21,8 +21,9 @@ public enum AppTheme
 public static class ThemeManager
 {
     /// <summary>
-    /// The 21 roles from screens/01-tokens-and-mapping.md. Named here so a missing key in one
-    /// theme is a failing test rather than a control that renders wrong in light mode only.
+    /// The 21 roles from screens/01-tokens-and-mapping.md, plus WlHotTrack (11-high-contrast.md's
+    /// hover outline, added post-review). Named here so a missing key in one theme is a failing
+    /// test rather than a control that renders wrong in light mode only.
     ///
     /// The design's own list says 20 and omits WlRaised, which the dark surface set needs.
     /// </summary>
@@ -30,7 +31,7 @@ public static class ThemeManager
     [
         "WlBg", "WlChrome", "WlCard", "WlRaised", "WlSunken",
         "WlText", "WlStrong", "WlMuted",
-        "WlLine", "WlLine2", "WlHover",
+        "WlLine", "WlLine2", "WlHover", "WlHotTrack",
         "WlAccent", "WlAccentInk", "WlAccentSoft", "WlAccentLine", "WlDanger",
         "WlOk", "WlOkSoft", "WlWarn", "WlWarnSoft",
         "WlScrim",

@@ -302,7 +302,31 @@
               container without throwing or needing any code-behind to sync them - verified by
               MainWindowSelectionTests.Selecting_a_row_in_one_group_clears_the_others_container).
             -->
-            <ScrollViewer x:Name="ListScrollViewer" VerticalScrollBarVisibility="Auto"
+            <!--
+              Loaded's own region: the scrollable rows above a fixed footer strip that appears
+              only while a search is hiding rows (fix 1 - 07-search.md's footer strip was
+              computed on the view model, SearchFooter/ShowAllLabel, and unit-tested, but never
+              actually rendered anywhere). Visibility for List.State == Loaded now lives on THIS
+              wrapping Grid rather than on ListScrollViewer directly, so the scroll region and the
+              footer show and hide together.
+            -->
+            <Grid x:Name="ListLoadedRegion">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding List.State}" Value="Loaded">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+
+            <ScrollViewer x:Name="ListScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
                           CanContentScroll="True"
                           PreviewKeyDown="ListScrollViewer_PreviewKeyDown">
                 <!-- Escape clears the search from anywhere in the list, same reasoning as
@@ -311,21 +335,12 @@
                     <CommandBinding Command="{x:Static vm:ShellCommands.ClearSearch}"
                                     Executed="ClearSearch_Executed" />
                 </ScrollViewer.CommandBindings>
-                <ScrollViewer.Style>
-                    <Style TargetType="ScrollViewer">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding List.State}" Value="Loaded">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </ScrollViewer.Style>
 
                 <ItemsControl x:Name="GroupsHost" ItemsSource="{Binding List.Groups}" Focusable="False"
                               AutomationProperties.Name="Backups"
                               VirtualizingPanel.IsVirtualizing="True"
-                              VirtualizingPanel.VirtualizationMode="Recycling">
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              VirtualizingPanel.ScrollUnit="Pixel">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <VirtualizingStackPanel />
@@ -377,6 +392,43 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
+
+                <!--
+                  07: "footer strip mono 11px wl-muted: SHOWING 3 OF 14 . 11 HIDDEN BY THE
+                  SEARCH; right: ghost button 'Show all 14'." List.SearchFooter is non-null
+                  precisely when a query is filtering a Loaded list (SnapshotListViewModel.
+                  SearchFooter), so this shows and hides on that alone - no separate State check
+                  needed on top of ListLoadedRegion's own.
+                -->
+                <Border x:Name="SearchFooterBorder" Grid.Row="1" BorderBrush="{DynamicResource WlLine}"
+                        BorderThickness="0,1,0,0" Padding="20,10">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding List.SearchFooter}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="{Binding List.SearchFooter}"
+                                   Style="{StaticResource WlMonoMetaText}"
+                                   Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+
+                        <Button x:Name="ShowAllButton" Grid.Column="1"
+                                Content="{Binding List.ShowAllLabel}"
+                                Style="{StaticResource WlGhostButton}"
+                                AutomationProperties.Name="{Binding List.ShowAllLabel}" />
+                    </Grid>
+                </Border>
+            </Grid>
 
             <!--
               NoResults: the real treatment (07). No measure-rule frame - that frame belongs to
@@ -492,7 +544,8 @@
                     <Button x:Name="RenameButton" Style="{StaticResource WlGhostButton}"
                             IsEnabled="{Binding CanRename}" AutomationProperties.Name="Rename">
                         <StackPanel Orientation="Horizontal">
-                            <Path Data="{StaticResource WlPencilGeometry}" Stroke="{DynamicResource WlText}"
+                            <Path Data="{StaticResource WlPencilGeometry}"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                   StrokeThickness="1.5" StrokeLineJoin="Round" Width="14" Height="14"
                                   Stretch="Uniform" VerticalAlignment="Center" />
                             <TextBlock Text="Rename" Margin="6,0,0,0" VerticalAlignment="Center" />
@@ -502,7 +555,8 @@
                     <Button x:Name="DeleteButton" Style="{StaticResource WlGhostButton}" Margin="7,0,0,0"
                             IsEnabled="{Binding CanDelete}" AutomationProperties.Name="Delete">
                         <StackPanel Orientation="Horizontal">
-                            <Path Data="{StaticResource WlTrashGeometry}" Stroke="{DynamicResource WlText}"
+                            <Path Data="{StaticResource WlTrashGeometry}"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                   StrokeThickness="1.5" StrokeLineJoin="Round" Width="14" Height="14"
                                   Stretch="Uniform" VerticalAlignment="Center" />
                             <TextBlock Text="Delete" Margin="6,0,0,0" VerticalAlignment="Center" />
@@ -512,7 +566,8 @@
                     <Button x:Name="RestoreButton" Style="{StaticResource WlSecondaryButton}" Margin="7,0,0,0"
                             IsEnabled="{Binding CanRestore}" AutomationProperties.Name="Restore this backup">
                         <StackPanel Orientation="Horizontal">
-                            <Path Data="{StaticResource WlRotateCcwGeometry}" Stroke="{DynamicResource WlText}"
+                            <Path Data="{StaticResource WlRotateCcwGeometry}"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                   StrokeThickness="1.5" StrokeLineJoin="Round" Width="14" Height="14"
                                   Stretch="Uniform" VerticalAlignment="Center" />
                             <TextBlock Text="Restore this backup" Margin="6,0,0,0" VerticalAlignment="Center" />

@@ -79,6 +79,10 @@ public partial class MainWindow : Window
     {
         ClearSearchButton.Click += (_, _) => shell.List.ClearSearch();
         ClearSearchLinkButton.Click += (_, _) => shell.List.ClearSearch();
+
+        // Fix 1: the footer strip's "Show all N" ghost button - same action as the other two
+        // clear-search entry points above.
+        ShowAllButton.Click += (_, _) => shell.List.ClearSearch();
     }
 
     // Shared by the bottom-bar Click handlers above and ShellCommands' Executed handlers below -

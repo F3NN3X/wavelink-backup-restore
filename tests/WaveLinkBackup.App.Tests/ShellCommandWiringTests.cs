@@ -77,8 +77,13 @@ public sealed class ShellCommandWiringTests
         Assert.Contains("ShellCommands.ClearSearch", searchBox, StringComparison.Ordinal);
         Assert.Contains("ClearSearch_Executed", searchBox, StringComparison.Ordinal);
 
+        // Fix 1 moved the Loaded/Collapsed visibility trigger off ListScrollViewer itself and onto
+        // the wrapping ListLoadedRegion Grid (so the new search-footer strip shows and hides
+        // alongside the scroll region) - the end marker here follows that move, from
+        // <ScrollViewer.Style> to </ScrollViewer.CommandBindings>, which is still unique to this
+        // element and still closes before GroupsHost begins.
         var listScrollViewer = Regex.Match(
-            xaml, "<ScrollViewer x:Name=\"ListScrollViewer\".*?<ScrollViewer.Style>",
+            xaml, "<ScrollViewer x:Name=\"ListScrollViewer\".*?</ScrollViewer.CommandBindings>",
             RegexOptions.Singleline).Value;
         Assert.Contains("ShellCommands.ClearSearch", listScrollViewer, StringComparison.Ordinal);
         Assert.Contains("ClearSearch_Executed", listScrollViewer, StringComparison.Ordinal);

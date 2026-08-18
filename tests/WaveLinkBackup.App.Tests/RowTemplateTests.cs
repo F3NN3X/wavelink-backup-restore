@@ -238,6 +238,101 @@ public sealed class RowTemplateTests
             "base high-contrast trigger so it wins and overrides WlText with WlAccentInk.");
     }
 
+    // Fix 3: the selected+high-contrast trigger inverted RowSurface, OverflowText, MetaText and
+    // VerdictGlyph to HighlightText, but not TakenTimeText/TakenDateText - both named elements in
+    // the SAME ControlTemplate scope, unlike the nested name segments/pills/badges that stay out
+    // of reach. Without this, the backup's own time and date stayed WindowText on a Highlight
+    // fill - unreadable on at least one of the two illustrative HC schemes 11-high-contrast.md
+    // gives (HC White: WindowText black on Highlight dark purple).
+    [Fact]
+    public void A_selected_rows_taken_time_and_date_invert_to_highlight_text_in_high_contrast()
+    {
+        var template = RowStyles();
+
+        var triggersSectionIndex = template.IndexOf("<ControlTemplate.Triggers>", StringComparison.Ordinal);
+        Assert.True(triggersSectionIndex >= 0, "ControlTemplate.Triggers section is gone or renamed.");
+
+        var blocks = Regex.Matches(template[triggersSectionIndex..], "<MultiDataTrigger>.*?</MultiDataTrigger>", RegexOptions.Singleline)
+            .Select(m => m.Value)
+            .Where(b => b.Contains("Path=IsSelected", StringComparison.Ordinal)
+                     && b.Contains("TargetName=\"RowSurface\" Property=\"Background\"", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.True(blocks.Length == 1, $"Expected exactly one selected+high-contrast RowSurface trigger, found {blocks.Length}.");
+        var block = blocks[0];
+
+        Assert.Contains(
+            "TargetName=\"TakenTimeText\" Property=\"Foreground\" Value=\"{DynamicResource WlAccentInk}\"",
+            block, StringComparison.Ordinal);
+        Assert.Contains(
+            "TargetName=\"TakenDateText\" Property=\"Foreground\" Value=\"{DynamicResource WlAccentInk}\"",
+            block, StringComparison.Ordinal);
+    }
+
+    // Fix 3: 11-high-contrast.md's per-cell table puts the overflow "···" glyph at WindowText in
+    // high contrast (every other normal theme keeps it WlMuted) - it was left on its WlMuted
+    // default with no high-contrast override, under-stating a column every other cell in the
+    // scheme renders at full strength.
+    [Fact]
+    public void The_overflow_glyph_is_window_text_in_high_contrast()
+    {
+        var template = RowStyles();
+
+        // Located by its own known Setter (RowSurface's BorderThickness="0") rather than the
+        // DataTrigger's opening tag alone - "DataContext.IsHighContrast" also opens WlSlotMissing's
+        // and WlTierAbsent's own high-contrast triggers earlier in the file, and a non-greedy match
+        // from the file's FIRST such opening tag would stop at one of those instead.
+        var anchorIndex = template.IndexOf(
+            "TargetName=\"RowSurface\" Property=\"BorderThickness\" Value=\"0\"", StringComparison.Ordinal);
+        Assert.True(anchorIndex >= 0, "The plain every-row high-contrast trigger is gone or renamed.");
+
+        var blockStart = template.LastIndexOf("<DataTrigger", anchorIndex, StringComparison.Ordinal);
+        var blockEnd = template.IndexOf("</DataTrigger>", anchorIndex, StringComparison.Ordinal);
+        var plainHcTrigger = template[blockStart..blockEnd];
+
+        Assert.Contains(
+            "TargetName=\"OverflowText\" Property=\"Foreground\" Value=\"{DynamicResource WlText}\"",
+            plainHcTrigger, StringComparison.Ordinal);
+    }
+
+    // Fix 4: WlHover resolves to Transparent in high contrast (HighContrast.xaml), so hovering a
+    // row gave no feedback at all there. 11-high-contrast.md:32: "Hover = 1px HotTrack outline,
+    // no fill."
+    [Fact]
+    public void Hovering_a_row_draws_a_hot_track_outline_in_high_contrast()
+    {
+        var template = RowStyles();
+
+        var hoverTriggerIndex = template.IndexOf("IsMouseOver\" RelativeSource=", StringComparison.Ordinal);
+        Assert.True(hoverTriggerIndex >= 0, "The row's high-contrast hover trigger is gone or renamed.");
+
+        var blockStart = template.LastIndexOf("<MultiDataTrigger>", hoverTriggerIndex, StringComparison.Ordinal);
+        var blockEnd = template.IndexOf("</MultiDataTrigger>", hoverTriggerIndex, StringComparison.Ordinal);
+        var block = template[blockStart..blockEnd];
+
+        Assert.Contains("IsHighContrast", block, StringComparison.Ordinal);
+        Assert.Contains(
+            "TargetName=\"RowSurface\" Property=\"BorderThickness\" Value=\"1\"",
+            block, StringComparison.Ordinal);
+        Assert.Contains(
+            "TargetName=\"RowSurface\" Property=\"BorderBrush\" Value=\"{DynamicResource WlHotTrack}\"",
+            block, StringComparison.Ordinal);
+
+        // Must sit between the plain every-row high-contrast trigger (which it overrides
+        // BorderThickness="0" back to "1" from) and the load-bearing selected+high-contrast
+        // trigger (which must stay the LAST trigger that paints RowSurface - see that trigger's
+        // own comment and the test above pinning it).
+        var plainHcBorderIndex = template.IndexOf(
+            "TargetName=\"RowSurface\" Property=\"BorderThickness\" Value=\"0\"", StringComparison.Ordinal);
+        var selectedHcIndex = template.IndexOf(
+            "TargetName=\"RowSurface\" Property=\"Background\" Value=\"{DynamicResource WlAccent}\"", StringComparison.Ordinal);
+        Assert.True(plainHcBorderIndex >= 0 && selectedHcIndex >= 0,
+            "One of the two ordering anchors (plain high-contrast trigger, selected+high-contrast trigger) is gone or renamed.");
+        Assert.True(blockStart > plainHcBorderIndex && blockStart < selectedHcIndex,
+            "The row's high-contrast hover trigger must sit after the plain every-row high-contrast " +
+            "trigger and before the selected+high-contrast trigger.");
+    }
+
     // 02-backup-health-states.md:53 - "CONTENTS column: all three tier slots present but dashed
     // ghosts at 50% opacity" regardless of IsPresent. Reverting the IsDamaged trigger on the tier
     // ContentControl's Style would leave a present tier showing WlTierPresent (real data) on a

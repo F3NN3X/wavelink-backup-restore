@@ -17,6 +17,11 @@
     <SolidColorBrush x:Key="WlLine"      Color="#FFFFFF" Opacity="0.11" />
     <SolidColorBrush x:Key="WlLine2"     Color="#FFFFFF" Opacity="0.20" />
     <SolidColorBrush x:Key="WlHover"     Color="#FFFFFF" Opacity="0.04" />
+    <!-- High contrast's hover outline (11-high-contrast.md: "Hover = 1px HotTrack outline, no
+         fill"). WlHover goes transparent there, so hover needs its own key. Here it is unused -
+         Dark/Light hover is still WlHover's fill - but the guard that all three theme
+         dictionaries share one key set requires it defined everywhere. -->
+    <SolidColorBrush x:Key="WlHotTrack"  Color="#4A9EFF" />
 
     <!-- Accent. WlAccent follows the OS accent (plan 3); WlDanger never does. -->
     <SolidColorBrush x:Key="WlAccent"     Color="#F01616" />

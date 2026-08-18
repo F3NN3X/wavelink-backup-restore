@@ -14,6 +14,8 @@
     <SolidColorBrush x:Key="WlLine"      Color="#0B0D0C" Opacity="0.11" />
     <SolidColorBrush x:Key="WlLine2"     Color="#0B0D0C" Opacity="0.20" />
     <SolidColorBrush x:Key="WlHover"     Color="#0B0D0C" Opacity="0.04" />
+    <!-- See Dark.xaml's own comment on WlHotTrack - unused here, defined for the shared key set. -->
+    <SolidColorBrush x:Key="WlHotTrack"  Color="#0060C0" />
 
     <SolidColorBrush x:Key="WlAccent"     Color="#AA0000" />
     <SolidColorBrush x:Key="WlAccentInk"  Color="#FFFFFF" />

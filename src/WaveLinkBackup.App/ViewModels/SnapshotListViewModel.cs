@@ -104,12 +104,12 @@ public sealed class SnapshotListViewModel(
     }
 
     /// <summary>07: `3 OF 14 MATCH "BETA"`. Empty with no query - the strip says other things then.</summary>
-    public string MatchSummary => query.Length == 0
+    public string MatchSummary => query.Trim().Length == 0
         ? string.Empty
         : $"{MatchCount} OF {TotalCount} MATCH \"{query.ToUpper(CultureInfo.InvariantCulture)}\"";
 
     /// <summary>07: `SHOWING 3 OF 14 · 11 HIDDEN BY THE SEARCH`.</summary>
-    public string? SearchFooter => query.Length == 0 || State != ListState.Loaded
+    public string? SearchFooter => query.Trim().Length == 0 || State != ListState.Loaded
         ? null
         : $"SHOWING {MatchCount} OF {TotalCount} · {HiddenCount} HIDDEN BY THE SEARCH";
 
@@ -122,8 +122,9 @@ public sealed class SnapshotListViewModel(
     /// 07's line 2. "SEARCH LOOKS AT NAMES ONLY" is a promise, and SnapshotSearch keeps it -
     /// widening the filter later would make this copy a lie.
     /// </summary>
-    public string NoResultsDetail =>
-        $"{TotalCount} BACKUP{(TotalCount == 1 ? "" : "S")} ARE HERE · SEARCH LOOKS AT NAMES ONLY";
+    public string NoResultsDetail => TotalCount == 1
+        ? "1 BACKUP IS HERE · SEARCH LOOKS AT NAMES ONLY"
+        : $"{TotalCount} BACKUPS ARE HERE · SEARCH LOOKS AT NAMES ONLY";
 
     /// <summary>Reads the store and rebuilds the rows. F5, and every load.</summary>
     public void Refresh()

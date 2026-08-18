@@ -161,6 +161,68 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
                         </Trigger>
+
+                        <!--
+                          11-high-contrast.md: "Hover = 1px HotTrack outline, no fill." WlHover
+                          resolves to Transparent in high contrast (HighContrast.xaml), so without
+                          this a hovered button gives no feedback at all there. IsMouseOver is
+                          expressed as a Binding (RelativeSource Self) rather than a plain Trigger
+                          Property, because it has to sit in a MultiDataTrigger alongside the
+                          IsHighContrast binding - the same reach WlFocusVisual and WlRowTemplate's
+                          own selected+HC triggers already use for exactly this reason.
+                        -->
+                        <!--
+                          11-high-contrast.md: "Hover = 1px HotTrack outline, no fill." WlHover
+                          resolves to Transparent in high contrast (HighContrast.xaml), so without
+                          this a hovered button gives no feedback at all there. IsMouseOver is
+                          expressed as a Binding (RelativeSource Self) rather than a plain Trigger
+                          Property, because it has to sit in a MultiDataTrigger alongside the
+                          IsHighContrast binding - the same reach WlFocusVisual and WlRowTemplate's
+                          own selected+HC triggers already use for exactly this reason.
+                        -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="IsMouseOver" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource WlHotTrack}" />
+                            <Setter TargetName="Surface" Property="BorderThickness" Value="1" />
+                        </MultiDataTrigger>
+
+                        <!--
+                          11-high-contrast.md: "40% opacity is illegal here - transparency is not a
+                          contrast guarantee. Disabled = GrayText for border and label at full
+                          opacity, even though HC Black makes that bright green. Do not override it."
+                          Declared after the plain IsEnabled=False trigger so it wins and restores
+                          Opacity to 1; Foreground here targets the Button itself (no TargetName),
+                          which is what carries through to the label TextBlock (Foreground is an
+                          inherited property) and to any icon Path bound to
+                          RelativeSource AncestorType=Button, Path=Foreground.
+                        -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="False">
+                                    <Condition.Binding>
+                                        <Binding Path="IsEnabled" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Foreground" Value="{DynamicResource WlMuted}" />
+                        </MultiDataTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -198,6 +260,41 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
                         </Trigger>
+
+                        <!-- See WlGhostButton's own comment on this trigger pair. -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="IsMouseOver" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource WlHotTrack}" />
+                            <Setter TargetName="Surface" Property="BorderThickness" Value="1" />
+                        </MultiDataTrigger>
+
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="False">
+                                    <Condition.Binding>
+                                        <Binding Path="IsEnabled" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Foreground" Value="{DynamicResource WlMuted}" />
+                        </MultiDataTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -226,6 +323,41 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
                         </Trigger>
+
+                        <!-- See WlGhostButton's own comment on this trigger pair. -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="IsMouseOver" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource WlHotTrack}" />
+                            <Setter TargetName="Surface" Property="BorderThickness" Value="1" />
+                        </MultiDataTrigger>
+
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="False">
+                                    <Condition.Binding>
+                                        <Binding Path="IsEnabled" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Foreground" Value="{DynamicResource WlMuted}" />
+                        </MultiDataTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
