@@ -101,9 +101,23 @@ The row belongs beside WHERE BACKUPS ARE KEPT because it is a fact about that fo
 
 ## Task 7 — Empty-trash action + confirmation (only where irreversible)
 
-- [ ] **Step 1:** Local drive: "Empty trash" runs immediately with **no** confirmation, calling the existing `SnapshotStore.EmptyTrash` (Recycle Bin path).
-- [ ] **Step 2:** Network/removable: open a 480px confirmation in the delete-dialog shape, focus on Cancel — Title "Empty the trash?", body naming the count and that Windows can't keep them, meta line, footer Cancel + "Delete N backups" (`--wl-danger` fill). On confirm, call `SnapshotStore.EmptyTrash`.
-- [ ] **Step 3:** After emptying, refresh the row to the `Empty` state. Unit test the branch: local → no dialog; non-local → dialog required. Commit: `feat(app): empty-trash action + confirmation where irreversible`.
+- [x] **Step 1:** Local drive: "Empty trash" runs immediately with **no** confirmation, calling the existing `SnapshotStore.EmptyTrash` (Recycle Bin path).
+- [x] **Step 2:** Network/removable: open a 480px confirmation in the delete-dialog shape, focus on Cancel — Title "Empty the trash?", body naming the count and that Windows can't keep them, meta line, footer Cancel + "Delete N backups" (`--wl-danger` fill). On confirm, the caller calls `SnapshotStore.EmptyTrash`.
+- [x] **Step 3:** After emptying, refresh the row to the `Empty` state. Unit test the branch: local → no dialog; non-local → dialog required. Commit: `feat(app): empty-trash action + confirmation where irreversible`.
+
+> **Implementation note (Task 7):** the branch decision already lives in
+> `TrashRowModel.RequiresConfirmation` (`HasItems && Volume == NoRecycleBin`), pinned by Task 6's
+> tests — so Step 1/Step 3's "local → no dialog, non-local → dialog required" is a single property
+> read, not new logic. This task adds the two halves that branch opens: `EmptyTrashDialogModel`
+> (a pure projection like `DeleteDialogModel`/`TrashRowModel` — count, size, `.trash` path in; title,
+> one-sentence consequence naming the count and "no Recycle Bin / no undo", mono line, and the
+> "Delete N backups" confirm label out) and `EmptyTrashDialog.xaml(.cs)` (the same 480px borderless
+> modal as DeleteDialog — scrim + WlCard, focus starts on Cancel, Escape = Cancel, IsDefault confirm
+> with the danger fill). The dialog names the Recycle Bin only to say it is *absent* ("Windows keeps
+> no Recycle Bin here"), matching the delete confirmation's rule; the trash ROW remains the one place
+> that names it as a destination. `EmptyTrashDialogModelTests` (9 tests) pins the branch in both
+> directions plus the copy. The row's live home (Settings folder section, post-action refresh to Empty)
+> is Plan 8 — this task ships the model + view + branch so Plan 8 wires them.
 
 ## Task 8 — Keyboard, focus, SR parity + full verification
 
