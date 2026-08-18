@@ -318,13 +318,9 @@ public partial class App : Application
     {
         var result = service!.BackUpNow("Manual");
 
-        if (!result.IsSuccess)
-        {
-            // The twelve designed error screens are a later session; until then the failure is
-            // reported plainly rather than swallowed.
-            MessageBox.Show(result.Error!.Message, "Wave Link Backup",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
+        // No message box here: MainWindow.BackUpNowAsync renders the failure as one of the twelve
+        // designed errors (06-errors.md) - inline strip for 3/5, message box otherwise. The tray
+        // menu's own entry point discards this Result and needs no reporting of its own.
 
         RefreshTray();
         RefreshShellFacts();

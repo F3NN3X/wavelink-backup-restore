@@ -220,6 +220,10 @@ public partial class MainWindow : Window
         var liveResult = inspectLive();
         if (!liveResult.IsSuccess)
         {
+            // 06-errors.md: an unreadable settings file (3) at the moment of the press is an
+            // inline strip, not a message box. The catalog decides placement; only inline forwards.
+            if (TryShowInlineError(liveResult.Error)) return;
+
             MessageBox.Show(liveResult.Error!.Message, "Wave Link Backup",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -230,6 +234,11 @@ public partial class MainWindow : Window
         var planResult = await restoreService.PlanAsync(row.Id, live, CancellationToken.None);
         if (!planResult.IsSuccess)
         {
+            // A snapshot that is gone or unreadable (7 manifest, 11 not found) at the moment of
+            // the press is an inline strip. Newer-format (8) and malformed-settings (4) are
+            // dialogs - Task 4 builds those; until then they keep the message box.
+            if (TryShowInlineError(planResult.Error)) return;
+
             MessageBox.Show(planResult.Error!.Message, "Wave Link Backup",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -277,12 +286,45 @@ public partial class MainWindow : Window
 
         if (view.Result == RestoreResult.Failed)
         {
+            // A failed restore is a CONSEQUENCE of the press, so 06 renders it as an inline strip
+            // (not the old generic "Restore failed" danger row). The typed CoreError behind the
+            // failure decides WHICH of the twelve: damaged -> 10, newer format -> 8, unreadable
+            // manifest -> 7, nothing else. Anything with no designed code keeps the danger row.
+            if (view.CoreError is { } error)
+            {
+                var appError = AppErrorMapper.FromCoreSignal(new CoreSignal(error));
+                if (appError is not null && appError.Placement == ErrorPlacement.InlineStrip)
+                {
+                    shell.Strip.ShowError(appError, monoMeta: view.FailureMessage);
+                    return;
+                }
+            }
+
             shell.Strip.ShowFailure(view.FailureMessage ?? "The restore failed.");
         }
         else
         {
             shell.Strip.ShowResult(view.Result);
         }
+    }
+
+    /// <summary>
+    /// 06-errors.md: the live-settings errors that surface at the moment of a press are inline
+    /// strips (3, 5) - "the consequence of something the user just pressed" - all neutral fill.
+    /// This is the ONE place a typed CoreError becomes the strip it renders as; the catalog decides
+    /// placement and weight, so this only forwards when the design says inline. Returns true when
+    /// an inline strip was shown (the caller then stops), false otherwise (the caller keeps its own
+    /// path - e.g. error 4's malformed-settings is a dialog, not a strip).
+    /// </summary>
+    private bool TryShowInlineError(CoreError? error)
+    {
+        if (error is null) return false;
+
+        var appError = AppErrorMapper.FromCoreSignal(new CoreSignal(error));
+        if (appError is null || appError.Placement != ErrorPlacement.InlineStrip) return false;
+
+        shell.Strip.ShowError(appError, monoMeta: error.Message);
+        return true;
     }
 
     private async Task BackUpNowAsync()
@@ -296,7 +338,20 @@ public partial class MainWindow : Window
 
         await shell.List.RefreshAsync();
 
-        if (result.IsSuccess) shell.List.Select(result.Value.Id);
+        if (!result.IsSuccess)
+        {
+            // 06-errors.md: a failed "Back up now" is the consequence of the press, so its
+            // live-settings errors (3 unreadable, 5 still running) render as inline strips - not
+            // the old message box. AppErrorMapper decides placement; only inline forwards here.
+            if (TryShowInlineError(result.Error)) return;
+
+            MessageBox.Show(result.Error!.Message, "Wave Link Backup",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        else
+        {
+            shell.List.Select(result.Value.Id);
+        }
     }
 
     // ================================================================================

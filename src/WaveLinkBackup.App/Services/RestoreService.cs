@@ -33,11 +33,18 @@ public enum RestoreResult
 /// Not a failure, but the outcome line says so.
 /// </param>
 /// <param name="FailureMessage">Present only on Failed: what went wrong, in the user's words.</param>
+/// <param name="CoreError">
+/// Present only on Failed: the typed Core error behind the failure. The window maps it to one of
+/// the twelve designed errors (06-errors.md) - a damaged backup renders as inline strip 10, an
+/// unreadable manifest as 7 - which a plain message string cannot distinguish. Null on every
+/// non-Failed outcome and on a cancellation (which is not an expected failure).
+/// </param>
 public sealed record RestoreResultView(
     RestoreResult Result,
     string? PreRestoreSnapshotId,
     bool Relaunched,
-    string? FailureMessage);
+    string? FailureMessage,
+    CoreError? CoreError = null);
 
 /// <summary>
 /// The shell-facing seam over Core's restore. The view-model and the window never touch a Wave
@@ -119,7 +126,7 @@ public sealed class RestoreService(
                     // closed and not relaunched - the user is told plainly rather than left guessing.
                     progress?.Report(RestoreStage.Checking);
                     return new RestoreResultView(
-                        RestoreResult.Failed, null, false, result.Error!.Message);
+                        RestoreResult.Failed, null, false, result.Error!.Message, result.Error);
                 }
 
                 var outcome = result.Value;

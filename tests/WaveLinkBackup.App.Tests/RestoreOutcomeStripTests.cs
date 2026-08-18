@@ -292,4 +292,158 @@ public sealed class RestoreOutcomeStripTests
         // the design decision lives rather than in a test that stands up a timer.
         Assert.Equal(TimeSpan.FromSeconds(6), RestoreOutcomeStrip.AutoDismissAfter);
     }
+
+    // -------------------------------------------------------------- inline-strip errors (06)
+
+    // 06-errors.md: six of the twelve errors are inline strips - "the consequence of something
+    // the user just pressed" - and they are ALL neutral fill. These tests pin, per code, the
+    // designed sentence, the error number, the weight (no left edge / no amber), dismissibility,
+    // and the action - exactly what the XAML binds to.
+
+    [Fact]
+    public void Error_3_reads_the_settings_file_is_neutral_and_offers_try_again()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        strip.ShowError(AppError.ByCode(3), monoMeta: "FILE LOCKED BY ANOTHER PROGRAM · RETRYING AT 23:15", actionLabel: "Try again");
+
+        Assert.Equal(RestoreStripKind.InlineError, strip.Kind);
+        Assert.True(strip.IsInlineError);
+        Assert.True(strip.IsVisible);
+        Assert.False(strip.HasLeftEdge);
+        Assert.False(strip.TurnsStatusAmber);
+        Assert.Equal(3, strip.ErrorNumber);
+        Assert.Equal("Could not read the settings file", strip.Title);
+        Assert.Equal("Could not read the settings file, so nothing was backed up.", strip.Detail);
+        Assert.Equal("FILE LOCKED BY ANOTHER PROGRAM · RETRYING AT 23:15", strip.MonoMeta);
+        Assert.True(strip.Dismissible);
+        Assert.False(strip.AutoDismisses);
+        Assert.True(strip.HasAction);
+        Assert.Equal("Try again", strip.ActionLabel);
+    }
+
+    [Fact]
+    public void Error_5_wave_link_still_running_is_neutral_and_offers_close_it()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        strip.ShowError(AppError.ByCode(5), monoMeta: "NO CHANGES MADE · WaveLink.exe PID 8124", actionLabel: "Close it and try again");
+
+        Assert.Equal(5, strip.ErrorNumber);
+        Assert.False(strip.HasLeftEdge);
+        Assert.False(strip.TurnsStatusAmber);
+        Assert.Equal("Wave Link is still running, so nothing was written.", strip.Detail);
+        Assert.True(strip.Dismissible);
+        Assert.True(strip.HasAction);
+        Assert.Equal("Close it and try again", strip.ActionLabel);
+    }
+
+    [Fact]
+    public void Error_6_settings_file_could_not_be_replaced_is_neutral_and_offers_try_again()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        strip.ShowError(AppError.ByCode(6), monoMeta: "ACCESS DENIED · %LOCALAPPDATA%\\Elgato\\WaveLink\\settings.json", actionLabel: "Try again");
+
+        Assert.Equal(6, strip.ErrorNumber);
+        Assert.False(strip.HasLeftEdge);
+        Assert.False(strip.TurnsStatusAmber);
+        Assert.Equal("The settings file couldn't be replaced. Your old settings are still in place.", strip.Detail);
+        Assert.True(strip.Dismissible);
+        Assert.True(strip.HasAction);
+        Assert.Equal("Try again", strip.ActionLabel);
+    }
+
+    [Fact]
+    public void Error_7_manifest_cannot_be_read_is_neutral_and_offers_open_folder()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        strip.ShowError(AppError.ByCode(7), monoMeta: "…\\manifest.json · UNREADABLE", actionLabel: "Open the folder");
+
+        Assert.Equal(7, strip.ErrorNumber);
+        Assert.False(strip.HasLeftEdge);
+        Assert.False(strip.TurnsStatusAmber);
+        Assert.Equal("This backup's manifest can't be read, so we can't tell what's inside it.", strip.Detail);
+        Assert.True(strip.Dismissible);
+        Assert.True(strip.HasAction);
+        Assert.Equal("Open the folder", strip.ActionLabel);
+    }
+
+    [Fact]
+    public void Error_10_damaged_backup_is_neutral_and_offers_pick_another()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        strip.ShowError(AppError.ByCode(10), monoMeta: "CHECKSUM MISMATCH ON settings.json · MANIFEST 470 KB, FILE 12 KB", actionLabel: "Pick another backup");
+
+        Assert.Equal(10, strip.ErrorNumber);
+        Assert.False(strip.HasLeftEdge);
+        Assert.False(strip.TurnsStatusAmber);
+        Assert.Equal("This backup is damaged and was not restored. Your mixer hasn't changed.", strip.Detail);
+        Assert.True(strip.Dismissible);
+        Assert.True(strip.HasAction);
+        Assert.Equal("Pick another backup", strip.ActionLabel);
+    }
+
+    [Fact]
+    public void Error_11_no_backup_with_that_id_is_neutral_and_has_no_action()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        // 06: error 11's action column is "none" - the only thing to do is pick another from the
+        // list, which there is no button for. Dismissible so it can be cleared once read.
+        strip.ShowError(AppError.ByCode(11), monoMeta: "ASKED FOR 8f21c0 · 14 BACKUPS HERE");
+
+        Assert.Equal(11, strip.ErrorNumber);
+        Assert.False(strip.HasLeftEdge);
+        Assert.False(strip.TurnsStatusAmber);
+        Assert.Equal("No backup with that id was found", strip.Title);
+        Assert.True(strip.Dismissible);
+        Assert.False(strip.AutoDismisses);
+        Assert.False(strip.HasAction);
+    }
+
+    [Fact]
+    public void An_inline_error_dismisses_and_clears_its_number_and_meta()
+    {
+        var strip = new RestoreOutcomeStrip();
+        strip.ShowError(AppError.ByCode(3), monoMeta: "FILE LOCKED", actionLabel: "Try again");
+
+        strip.Dismiss();
+
+        Assert.Equal(RestoreStripKind.None, strip.Kind);
+        Assert.False(strip.IsVisible);
+        Assert.False(strip.IsInlineError);
+        Assert.Equal(0, strip.ErrorNumber);
+        Assert.Equal(string.Empty, strip.MonoMeta);
+        Assert.False(strip.HasAction);
+    }
+
+    [Fact]
+    public void Showing_an_inline_error_raises_kind_and_the_derived_booleans()
+    {
+        var strip = new RestoreOutcomeStrip();
+        var raised = new List<string?>();
+
+        strip.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        strip.ShowError(AppError.ByCode(5), monoMeta: "PID 8124", actionLabel: "Close it and try again");
+
+        Assert.Contains(nameof(RestoreOutcomeStrip.Kind), raised);
+        Assert.Contains(nameof(RestoreOutcomeStrip.IsInlineError), raised);
+        Assert.Contains(nameof(RestoreOutcomeStrip.ErrorNumber), raised);
+        Assert.Contains(nameof(RestoreOutcomeStrip.MonoMeta), raised);
+        Assert.Contains(nameof(RestoreOutcomeStrip.Dismissible), raised);
+    }
+
+    [Fact]
+    public void ShowError_refuses_a_placement_that_is_not_inline()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        // The catalog decides placement; the strip must not silently render a dialog or status
+        // error inline. A non-inline code is a caller bug, so it throws rather than mis-renders.
+        Assert.Throws<ArgumentException>(() => strip.ShowError(AppError.ByCode(4)));
+    }
 }

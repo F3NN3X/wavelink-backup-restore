@@ -39,6 +39,14 @@ public enum RestoreStripKind
     /// WlDanger. Dismissible - the failure message already said what went wrong.
     /// </summary>
     Failed,
+
+    /// <summary>
+    /// One of 06-errors.md's inline-strip errors (3, 5, 6, 7, 10, 11) - the consequence of
+    /// something the user just pressed. All neutral fill: no left edge, no amber status. The
+    /// strip carries the error number and the designed sentence; a machine-specific mono meta
+    /// line (path, checksum, PID) rides along when the trigger has one.
+    /// </summary>
+    InlineError,
 }
 
 /// <summary>
@@ -61,6 +69,8 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     private bool _dismissible;
     private bool _hasAction;
     private string _actionLabel = string.Empty;
+    private int _errorNumber;
+    private string _monoMeta = string.Empty;
 
     /// <summary>
     /// The one thing the strip does when its action button is pressed. Set by the shell; null
@@ -106,6 +116,22 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     public bool HasAction => _hasAction;
 
     public string ActionLabel { get => _actionLabel; private set => Set(ref _actionLabel, value); }
+
+    /// <summary>
+    /// The 22px mono error number on the left of an inline-strip error (06-errors.md anatomy).
+    /// Zero when the strip is not showing an inline error.
+    /// </summary>
+    public int ErrorNumber { get => _errorNumber; private set => Set(ref _errorNumber, value); }
+
+    /// <summary>
+    /// The mono meta line under the sentence (a path, a checksum, a PID). Empty when the trigger
+    /// carried none - 06 prints one per inline error, but it is machine-specific and arrives at
+    /// render time rather than from the catalog.
+    /// </summary>
+    public string MonoMeta { get => _monoMeta; private set => Set(ref _monoMeta, value); }
+
+    /// <summary>True only while showing one of 06's inline-strip errors.</summary>
+    public bool IsInlineError => _kind == RestoreStripKind.InlineError;
 
     /// <summary>
     /// Show the strip for a restore that produced an outcome. Maps Core's verdict to one of the
@@ -235,6 +261,39 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         Raise(nameof(HasAction));
     }
 
+    /// <summary>
+    /// Show the strip for one of 06-errors.md's inline-strip errors (3, 5, 6, 7, 10, 11) - the
+    /// consequence of something the user just pressed. All neutral fill: no left edge, no amber
+    /// status. The sentence comes from the catalog (the designed copy); <paramref name="monoMeta"/>
+    /// is the machine-specific mono line (path, checksum, PID) that 06 prints under the sentence,
+    /// supplied at render time because it is not in the catalog; <paramref name="actionLabel"/> is
+    /// the designed action (or null for error 11, which has none). Dismissible - these are
+    /// refusals, and the user may clear them once read.
+    /// </summary>
+    public void ShowError(AppError error, string? monoMeta = null, string? actionLabel = null)
+    {
+        if (error.Placement != ErrorPlacement.InlineStrip)
+            throw new ArgumentException(
+                $"Error {error.Code} is not an inline-strip error; use its own placement.", nameof(error));
+
+        Kind = RestoreStripKind.InlineError;
+        Title = error.Title;
+        Detail = error.Body;
+        _errorNumber = error.Code;
+        _monoMeta = monoMeta ?? string.Empty;
+        _autoDismisses = false;
+        _dismissible = true;
+        _hasAction = actionLabel is not null;
+        ActionLabel = actionLabel ?? string.Empty;
+
+        Raise(nameof(AutoDismisses));
+        Raise(nameof(Dismissible));
+        Raise(nameof(HasAction));
+        Raise(nameof(ErrorNumber));
+        Raise(nameof(MonoMeta));
+        Raise(nameof(IsInlineError));
+    }
+
     /// <summary>Hide the strip. Rejected ignores this until acted on - see Dismissible.</summary>
     public void Dismiss()
     {
@@ -247,10 +306,15 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         _dismissible = false;
         _hasAction = false;
         ActionLabel = string.Empty;
+        _errorNumber = 0;
+        _monoMeta = string.Empty;
 
         Raise(nameof(AutoDismisses));
         Raise(nameof(Dismissible));
         Raise(nameof(HasAction));
+        Raise(nameof(ErrorNumber));
+        Raise(nameof(MonoMeta));
+        Raise(nameof(IsInlineError));
     }
 
     /// <summary>
@@ -267,10 +331,15 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         _autoDismisses = false;
         _dismissible = false;
         _hasAction = false;
+        _errorNumber = 0;
+        _monoMeta = string.Empty;
 
         Raise(nameof(AutoDismisses));
         Raise(nameof(Dismissible));
         Raise(nameof(HasAction));
+        Raise(nameof(ErrorNumber));
+        Raise(nameof(MonoMeta));
+        Raise(nameof(IsInlineError));
     }
 
     private static string VersionDetail(RestoreVerdict verdict)

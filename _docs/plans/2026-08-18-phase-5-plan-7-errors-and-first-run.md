@@ -84,11 +84,13 @@ Model the twelve errors as data so placement and weight are decided in one testa
 
 ## Task 3 — Inline result-strip errors (3, 5, 6, 7, 10, 11)
 
-These reuse the existing `RestoreOutcomeStrip` host but with amber weight where the config is not whole.
+These reuse the existing `RestoreOutcomeStrip` host. All inline strips are **neutral fill**
+(they are refusals: nothing was written, nothing changed) — the weight rule says only error 4's
+malformed-settings dialog is amber.
 
-- [ ] **Step 1:** Generalise `RestoreOutcomeStrip` (or add a sibling `ResultStrip`) so it can render an `AppError` from the inline set, not just restore outcomes. Amber treatment for 3,5,6,7,11; neutral for 10 when it appears inline.
-- [ ] **Step 2:** Wire each trigger: unwritable folder (3), generic write failure (5), corrupt-on-restore (6), relaunch-failed (7), rejected-by-analysis/SUSPECT input drop (11). Each shows the right copy and weight.
-- [ ] **Step 3:** Unit tests pinning each code's strip text + weight, and that `Dismiss()`/auto-dismiss behaves as for outcomes. Commit: `feat(app): inline result-strip errors 3,5,6,7,10,11`.
+- [x] **Step 1:** Generalise `RestoreOutcomeStrip` so it can render an `AppError` from the inline set, not just restore outcomes. Added a `RestoreStripKind.InlineError` member, `ShowError(AppError, string? monoMeta, string? actionLabel)` (throws `ArgumentException` for a non-inline placement), and `ErrorNumber`/`MonoMeta`/`IsInlineError` properties; `Dismiss()`/`AcknowledgeReject()` clear the error state. All neutral fill per the weight rule.
+- [x] **Step 2:** Wire each trigger in `MainWindow.xaml.cs`. A new `TryShowInlineError(CoreError?)` helper is the one place a typed CoreError becomes the strip it renders as — it maps through `AppErrorMapper.FromCoreSignal` and forwards only when the catalog says inline. Wired at: restore live-inspect failure (3), restore plan failure (7, 11), failed-restore outcome (7, 10 via the new `RestoreResultView.CoreError`), and Back-up-now failure (3, 5). Errors 4/8 are dialogs (Task 4) and keep the message box until then; error 6 (write-failed) has no reachable trigger in the current restore path.
+- [x] **Step 3:** Unit tests pinning each code's strip text + weight (`RestoreOutcomeStripTests.cs` inline-error section: per-code copy/number/neutral/dismiss/action for 3,5,6,7,10,11, dismiss-clears, PropertyChanged-raises, non-inline-placement-throws). Build 0/0; 894 tests green (296 Core + 91 Cli + 507 App).
 
 ## Task 4 — Dialog errors (2, 4, 8)
 
