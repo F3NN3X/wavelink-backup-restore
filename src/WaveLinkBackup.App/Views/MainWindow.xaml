@@ -432,6 +432,105 @@
 
         <!--
           ================================================================================
+          Row 2 - the restore IN-PROGRESS strip (04-in-progress.md). Same slot as the outcome
+          strip above: below the status strip, above the column header. The two are mutually
+          exclusive by construction - this one shows while IsRestoring is true, the outcome one
+          only once a restore has finished and fed Strip - so they never occupy the row at once.
+
+          No spinner anywhere (04): a spinner implies uncertainty that does not exist here. A
+          restore is four named steps, so the work is shown as four named stages advancing left
+          to right: done = 14px check in WlOk, current = accent bottom rule, pending = muted at
+          40%. The model (RestoreProgressModel) owns the frontier; this markup only renders each
+          stage's status and the strip's chrome.
+          ================================================================================
+        -->
+        <Border x:Name="RestoreInProgressStrip" Grid.Row="2" Background="{DynamicResource WlChrome}"
+                BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1" Padding="20,14">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsRestoring}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- status line -->
+                    <RowDefinition Height="Auto" /> <!-- reassurance line -->
+                    <RowDefinition Height="Auto" /> <!-- the stage row -->
+                </Grid.RowDefinitions>
+
+                <!--
+                  Row 0 - the status line: hollow dot + RESTORING "NAME" · WAVE LINK IS CLOSED, in
+                  the same type as the window's own status strip. 10px below it comes the
+                  reassurance line; 12px below that, the stage row.
+                -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal">
+                    <!-- Hollow dot: 11px, 1px WlLine2 - the "in progress" marker, not a spinner. -->
+                    <Ellipse Width="11" Height="11" VerticalAlignment="Center"
+                             Stroke="{DynamicResource WlLine2}" StrokeThickness="1" Fill="Transparent" />
+                    <views:TrackedText Margin="8,0,0,0" Tracking=".14" VerticalAlignment="Center"
+                                        Text="{Binding RestoreStatusLabel}">
+                        <views:TrackedText.Style>
+                            <Style TargetType="views:TrackedText" BasedOn="{StaticResource WlStatusStripTrackedText}" />
+                        </views:TrackedText.Style>
+                    </views:TrackedText>
+                </StackPanel>
+
+                <!-- Row 1 - the reassurance line: Rubik 400 12.5px/1.5, WlMuted, max 600px. -->
+                <TextBlock Grid.Row="1" Text="{Binding RestoreProgress.Reassurance}" Margin="0,10,0,0"
+                           FontFamily="{DynamicResource WlDisplayFont}" FontSize="12.5" LineHeight="19"
+                           Foreground="{DynamicResource WlMuted}" MaxWidth="600"
+                           HorizontalAlignment="Left" TextWrapping="Wrap" />
+
+                <!--
+                  Row 2 - the stage row: four named stages, 26px 1px WlLine connectors between them,
+                  and the mono readout pinned to the right end. Each stage is an Auto cell; the
+                  connector between it and the next is its own Auto cell (a 26px-wide hairline).
+                  The last stage has no connector after it.
+                -->
+                <Grid Grid.Row="2" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" /> <!-- stage 0 -->
+                        <ColumnDefinition Width="Auto" /> <!-- connector 1 -->
+                        <ColumnDefinition Width="Auto" /> <!-- stage 1 -->
+                        <ColumnDefinition Width="Auto" /> <!-- connector 2 -->
+                        <ColumnDefinition Width="Auto" /> <!-- stage 2 -->
+                        <ColumnDefinition Width="Auto" /> <!-- connector 3 -->
+                        <ColumnDefinition Width="Auto" /> <!-- stage 3 -->
+                        <ColumnDefinition Width="*" />    <!-- spacer to push the readout right -->
+                        <ColumnDefinition Width="Auto" /> <!-- STEP n OF 4 · N SECONDS SO FAR -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Stage 0: CLOSING WAVE LINK. -->
+                    <views:RestoreStageViewHost Grid.Column="0" Stage="{Binding RestoreProgress.Stages[0]}" />
+                    <Border Grid.Column="1" Width="26" BorderBrush="{DynamicResource WlLine}"
+                            BorderThickness="0,0,0,1" VerticalAlignment="Bottom" Margin="0,0,0,8" />
+                    <!-- Stage 1: WRITING SETTINGS. -->
+                    <views:RestoreStageViewHost Grid.Column="2" Stage="{Binding RestoreProgress.Stages[1]}" />
+                    <Border Grid.Column="3" Width="26" BorderBrush="{DynamicResource WlLine}"
+                            BorderThickness="0,0,0,1" VerticalAlignment="Bottom" Margin="0,0,0,8" />
+                    <!-- Stage 2: STARTING WAVE LINK. -->
+                    <views:RestoreStageViewHost Grid.Column="4" Stage="{Binding RestoreProgress.Stages[2]}" />
+                    <Border Grid.Column="5" Width="26" BorderBrush="{DynamicResource WlLine}"
+                            BorderThickness="0,0,0,1" VerticalAlignment="Bottom" Margin="0,0,0,8" />
+                    <!-- Stage 3: CHECKING. -->
+                    <views:RestoreStageViewHost Grid.Column="6" Stage="{Binding RestoreProgress.Stages[3]}" />
+
+                    <!-- Right end: mono 11.5px WlMuted. "STEP 3 OF 4 · 2 SECONDS SO FAR", or DONE. -->
+                    <TextBlock Grid.Column="8" Text="{Binding RestoreProgress.RightEndReadout}"
+                               Style="{StaticResource WlMonoMetaText}" FontSize="11.5"
+                               Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!--
+          ================================================================================
           Row 3 - the column header. 11,20,9,20 padding, hairline bottom, the same shared-size
           grid the row and this template both key off. Stays during a search (07); hides when
           the list has nothing to have columns FOR (Empty/FolderMissing), each of which renders
@@ -720,6 +819,13 @@
                                Foreground="{DynamicResource WlMuted}" />
                 </StackPanel>
 
+                <!--
+                  While a restore runs the list actions and Back up now hold at 40% (04). Each
+                  button's IsEnabled is bound to its own CanX, which already folds in not-IsRestoring
+                  in the view model - so the disabled visual WPF applies IS the dim the design asks
+                  for, and the same fact greys the keyboard shortcuts too (their CommandBinding
+                  CanExecute reads these same properties). No converter needed: one source of truth.
+                -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="RenameButton" Style="{StaticResource WlGhostButton}"
                             IsEnabled="{Binding CanRename}" AutomationProperties.Name="Rename">

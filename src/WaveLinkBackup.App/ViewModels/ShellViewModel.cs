@@ -41,6 +41,8 @@ public sealed class ShellViewModel : ObservableObject
 {
     private ShellFacts facts = new(true, false, null, true, false, string.Empty, null);
     private bool isHighContrast;
+    private bool isRestoring;
+    private RestoreProgressModel restoreProgress = new();
     private SnapshotRowViewModel? watchedRow;
 
     public ShellViewModel(SnapshotListViewModel list)
@@ -58,6 +60,70 @@ public sealed class ShellViewModel : ObservableObject
     /// failure, and its own dismiss rules decide when it goes away.
     /// </summary>
     public RestoreOutcomeStrip Strip { get; }
+
+    /// <summary>
+    /// The four-stage in-progress strip's state (04-in-progress.md). One instance for the window's
+    /// life: a restore that begins calls <see cref="BeginRestore"/>, which swaps in a fresh model,
+    /// and the orchestrator drives it via <see cref="RestoreProgressModel.Advance"/>. The view binds
+    /// to this; nothing here reaches for the store or the process - Task 6's Restore command is
+    /// what calls Begin/Complete and feeds the stages.
+    /// </summary>
+    public RestoreProgressModel RestoreProgress
+    {
+        get => restoreProgress;
+        private set => Set(ref restoreProgress, value);
+    }
+
+    /// <summary>
+    /// True while a restore runs. The window uses it to (a) show the in-progress strip instead of
+    /// the outcome strip, and (b) hold the list actions and Back up now at 40% so the window cannot
+    /// be driven mid-restore (Task 5 Step 2).
+    /// </summary>
+    public bool IsRestoring
+    {
+        get => isRestoring;
+        private set => Set(ref isRestoring, value);
+    }
+
+    /// <summary>
+    /// The in-progress strip's status line: RESTORING "NAME" · WAVE LINK IS CLOSED. Null when no
+    /// restore runs - the XAML shows the plain status strip in that case. Uppercase name, matching
+    /// how SelectedLine already prints a row's name on the bottom bar.
+    /// </summary>
+    public string? RestoreStatusLabel { get; private set; }
+
+    /// <summary>
+    /// Begin a restore: swap in a fresh four-stage model (stage 0 current) and mark the window as
+    /// restoring. The window calls this when the user confirms the dialog, before the orchestrator
+    /// starts closing Wave Link.
+    /// </summary>
+    public void BeginRestore(string snapshotName)
+    {
+        RestoreProgress = new RestoreProgressModel();
+        RestoreStatusLabel = $"RESTORING \"{snapshotName.ToUpper(CultureInfo.InvariantCulture)}\" · WAVE LINK IS CLOSED";
+        isRestoring = true;
+
+        Raise(nameof(RestoreProgress));
+        Raise(nameof(IsRestoring));
+        Raise(nameof(RestoreStatusLabel));
+        // The four CanX facts all fold in not-IsRestoring, so re-raise them: the buttons and their
+        // keyboard shortcuts go quiet for the duration of the restore.
+        RaiseAll();
+    }
+
+    /// <summary>
+    /// End a restore: mark every stage done (the strip hands off to the outcome) and release the
+    /// window. The window calls this once the orchestrator returns, before it feeds the outcome
+    /// into <see cref="Strip"/>.
+    /// </summary>
+    public void CompleteRestore()
+    {
+        RestoreProgress.Complete();
+        isRestoring = false;
+
+        Raise(nameof(IsRestoring));
+        RaiseAll();
+    }
 
     /// <summary>
     /// The flag every structural high-contrast difference switches on: the 3px left edge, the
@@ -166,17 +232,21 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    public bool CanRename => !facts.FolderMissing && List.Selected?.CanRename == true;
+    // Every one of these folds in not-IsRestoring (04): while a restore runs the list actions and
+    // Back up now hold at 40%, and the keyboard shortcuts that share these same CanX facts go
+    // quiet with them. IsRestoring flips via BeginRestore/CompleteRestore, which raise it directly.
+    public bool CanRename => !isRestoring && !facts.FolderMissing && List.Selected?.CanRename == true;
 
-    public bool CanDelete => !facts.FolderMissing && List.Selected?.CanDelete == true;
+    public bool CanDelete => !isRestoring && !facts.FolderMissing && List.Selected?.CanDelete == true;
 
-    public bool CanRestore => !facts.FolderMissing && List.Selected?.CanRestore == true;
+    public bool CanRestore => !isRestoring && !facts.FolderMissing && List.Selected?.CanRestore == true;
 
     /// <summary>
     /// Always live EXCEPT when the folder is gone - 08 puts all four buttons at 40% there,
-    /// "including Back up now", because there is nowhere to put a backup.
+    /// "including Back up now", because there is nowhere to put a backup. Also quiet while a
+    /// restore runs (04): a capture mid-restore would race the settings write.
     /// </summary>
-    public bool CanBackUpNow => !facts.FolderMissing;
+    public bool CanBackUpNow => !isRestoring && !facts.FolderMissing;
 
     /// <summary>Called by the window on load, on F5, after a capture, and on every host tick.</summary>
     public void Apply(ShellFacts facts)
