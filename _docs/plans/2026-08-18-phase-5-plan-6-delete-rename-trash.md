@@ -52,15 +52,15 @@ Rename is free text with no validation beyond non-empty and filesystem-safe. Kee
 
 The dialog never says "Recycle Bin" (05 §"Why the dialog never says Recycle Bin"). Its variant depends on facts about the selected backup and the rest of the list.
 
-- [ ] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/DeleteDialogModel.cs` with:
+- [x] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/DeleteDialogModel.cs` with:
   - `Title` (`Delete "X"?`), `Body`, and an optional context block (label + body).
   - A `Variant` enum: `Normal`, `OnlyBackup`, `PreRestore`.
   - `MetaLine` (mono): size · taken datetime · trigger.
-- [ ] **Step 2:** Add `DeleteDialogModel.Build(Snapshot selected, int totalBackups)`:
+- [x] **Step 2:** Add `DeleteDialogModel.Build(Snapshot selected, int totalBackups)`:
   - `totalBackups == 1` → `OnlyBackup`: body "It moves to the trash in your backup folder. It is the only backup you have." + block label "WHAT YOU'D BE LEFT WITH" and the Wave-Link-copies body. Neutral, **not** amber (10-decisions.md §2).
   - `selected.Trigger == PreRestore` → `PreRestore`: normal body + block label "WHAT THIS ONE IS", body naming when it was taken and that it is the way back from that restore. No colour.
   - else → `Normal`: body "It moves to the trash in your backup folder and stops showing in the list. Your other N backups aren't affected." (N = totalBackups − 1).
-- [ ] **Step 3:** Unit tests (`DeleteDialogModelTests.cs`) pinning all three variants' exact copy, the meta line format, and that the OnlyBackup variant is neutral (no amber flag) while PreRestore carries its block. Commit: `feat(app): delete confirmation model, three variants`.
+- [x] **Step 3:** Unit tests (`DeleteDialogModelTests.cs`) pinning all three variants' exact copy, the meta line format, and that the OnlyBackup variant is neutral (no amber flag) while PreRestore carries its block. Commit: `feat(app): delete confirmation model, three variants`.
 
 ## Task 4 — Delete dialog view (XAML), 480px
 
