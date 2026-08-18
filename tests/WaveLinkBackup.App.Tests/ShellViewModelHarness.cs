@@ -37,7 +37,8 @@ internal static class ShellViewModelHarness
         bool autoBackupEnabled,
         long? freeBytes,
         string storePath,
-        DateTimeOffset savedAt)
+        DateTimeOffset savedAt,
+        bool emptyStore = false)
     {
         var fs = new FakeFileSystem { FreeBytes = freeBytes };
         var clock = new FakeClock(savedAt);
@@ -49,7 +50,8 @@ internal static class ShellViewModelHarness
 
         // folderMissing: true -> the store is never written to, so its directory never comes
         // into being (Write() is what creates it) and SummaryLine has nothing to count.
-        if (!folderMissing)
+        // emptyStore: true -> a found Wave Link with an empty store: the first-run screen.
+        if (!folderMissing && !emptyStore)
         {
             for (var i = 0; i < 3; i++)
             {

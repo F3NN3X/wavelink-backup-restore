@@ -17,12 +17,14 @@ public sealed class ShellViewModelTests
         bool folderMissing = false,
         bool autoBackup = true,
         long? freeBytes = 126701535232,
-        string storePath = @"C:\Users\t\AppData\Local\WaveLinkBackup")
+        string storePath = @"C:\Users\t\AppData\Local\WaveLinkBackup",
+        bool emptyStore = false)
     {
         // The harness the plan builds in Step 3; it wraps the five facts the strip reports so a
         // test does not have to stand up a store, a process and an inspector to assert a string.
         return ShellViewModelHarness.Build(
-            waveLinkRunning, waveLinkFound, folderMissing, autoBackup, freeBytes, storePath, SavedAt);
+            waveLinkRunning, waveLinkFound, folderMissing, autoBackup, freeBytes, storePath, SavedAt,
+            emptyStore);
     }
 
     // -- the status strip -------------------------------------------------------------------
@@ -77,6 +79,60 @@ public sealed class ShellViewModelTests
         Assert.EndsWith("BACKUP FOLDER UNAVAILABLE", shell.StatusStrip, StringComparison.Ordinal);
         Assert.DoesNotContain("AUTOMATIC BACKUP", shell.StatusStrip, StringComparison.Ordinal);
         Assert.Equal(StripTone.Neutral, shell.StatusTone);
+    }
+
+    // 10-decisions section 6: "Automatic backup while the folder is missing does nothing at all,
+    // and the status strip says so. It must not fail silently every hour and it must not queue."
+    // The strip half is pinned above; this pins the action half - with the folder gone there is
+    // nowhere to put a backup, so Back up now goes dark too (the no-queue guarantee at the shell).
+    [Fact]
+    public void A_missing_folder_leaves_nothing_to_queue_a_backup_into()
+    {
+        var shell = Shell(folderMissing: true);
+        shell.List.Refresh();
+
+        Assert.False(shell.CanBackUpNow);
+        Assert.False(shell.CanRestore);
+        Assert.False(shell.CanRename);
+        Assert.False(shell.CanDelete);
+    }
+
+    // 06's first-run variant of error 1 (lines 24-27): with the store empty and Wave Link not
+    // found, the strip says "WAVE LINK NOT FOUND · NO SETTINGS FILE IN THE USUAL PLACE" and the
+    // empty state below carries the mono looked-in line. Null otherwise - a found machine or a
+    // non-empty store has no first-run variant to show.
+    [Fact]
+    public void The_first_run_variant_shows_only_when_the_store_is_empty_and_wave_link_is_missing()
+    {
+        var shell = Shell(waveLinkFound: false, emptyStore: true);
+        shell.List.Refresh();
+
+        Assert.Equal("WAVE LINK NOT FOUND · NO SETTINGS FILE IN THE USUAL PLACE",
+            shell.FirstRunError1Label);
+        Assert.Equal("LOOKED IN %LOCALAPPDATA%\\Packages\\Elgato.WaveLink_*",
+            shell.FirstRunLookedInLabel);
+    }
+
+    [Fact]
+    public void The_first_run_variant_is_absent_when_wave_link_is_found()
+    {
+        var shell = Shell(waveLinkFound: true, emptyStore: true);
+        shell.List.Refresh();
+
+        Assert.Null(shell.FirstRunError1Label);
+        Assert.Null(shell.FirstRunLookedInLabel);
+    }
+
+    // A non-empty store is not first-run even when Wave Link is missing: the error-1 sentence
+    // stands on its own in the status strip and there is no empty state to carry the variant.
+    [Fact]
+    public void The_first_run_variant_is_absent_when_the_store_has_backups()
+    {
+        var shell = Shell(waveLinkFound: false);
+        shell.List.Refresh();
+
+        Assert.Null(shell.FirstRunError1Label);
+        Assert.Null(shell.FirstRunLookedInLabel);
     }
 
     // 10-decisions section 6: "Automatic backup while the folder is missing does nothing at all,

@@ -171,6 +171,21 @@ public sealed class ShellViewModel : ObservableObject
         : StripTone.Ok;
 
     /// <summary>
+    /// 06's first-run variant of error 1: when the store is empty, the status strip says
+    /// "WAVE LINK NOT FOUND · NO SETTINGS FILE IN THE USUAL PLACE" and the empty state below it
+    /// carries the mono "looked in" line. The window swaps this in for <see cref="StatusStrip"/>
+    /// while the first-run screen is showing (Task 6); otherwise StatusStrip stands on its own.
+    /// </summary>
+    public string? FirstRunError1Label => facts.WaveLinkFound || List.TotalCount != 0
+        ? null
+        : "WAVE LINK NOT FOUND · NO SETTINGS FILE IN THE USUAL PLACE";
+
+    /// <summary>The mono line beneath the first-run label: where we looked, verbatim.</summary>
+    public string? FirstRunLookedInLabel => FirstRunError1Label is null
+        ? null
+        : "LOOKED IN %LOCALAPPDATA%\\Packages\\Elgato.WaveLink_*";
+
+    /// <summary>
     /// Re-raise the status tone so a binding re-reads it. The window calls this when the restore
     /// strip's TurnsStatusAmber flips: 03-restore-outcomes.md says a Rejected strip turns the
     /// status strip amber too, and that is an ADDITIONAL condition on top of StatusTone's own
@@ -279,6 +294,7 @@ public sealed class ShellViewModel : ObservableObject
         foreach (var property in (string[])
         [
             nameof(StatusStrip), nameof(StatusTone), nameof(SelectedLine), nameof(SummaryLine),
+            nameof(FirstRunError1Label), nameof(FirstRunLookedInLabel),
             nameof(CanRename), nameof(CanDelete), nameof(CanRestore), nameof(CanBackUpNow),
         ])
         {

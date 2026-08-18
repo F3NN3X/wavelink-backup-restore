@@ -79,8 +79,8 @@ Model the twelve errors as data so placement and weight are decided in one testa
 
 ## Task 2 — Status-strip errors (1, 10)
 
-- [ ] **Step 1:** Extend the status strip in `MainWindow.xaml` to render an error variant: dot colour + text from `AppError`. Error 1 (Wave Link not running / settings file missing) → neutral dot, "WAVE LINK NOT RUNNING · …". Error 10 (automatic backup skipped — folder missing) → the strip says so explicitly; the automatic backup does nothing while the folder is missing and must not queue.
-- [ ] **Step 2:** Unit test: with the folder-missing signal the strip text names the skip and no queued run is scheduled. Commit: `feat(app): status-strip errors 1 + 10`.
+- [x] **Step 1:** Status-strip error variants. Error 1 (Wave Link not found) already renders as amber dot + "WAVE LINK NOT FOUND ON THIS COMPUTER" via `ShellViewModel.StatusStrip`/`StatusTone` (pinned by `ShellViewModelTests.Wave_link_not_found_is_amber_and_says_so`). Added the design's first-run variant (`06-errors.md` lines 24–27): `FirstRunError1Label` + `FirstRunLookedInLabel` on `ShellViewModel`, shown only when the store is empty AND Wave Link is missing. Error 10 (folder missing) already renders as neutral dot + "BACKUP FOLDER UNAVAILABLE" replacing the auto-backup segment (pinned by `A_missing_folder_replaces_the_last_segment_and_is_neutral`).
+- [x] **Step 2:** Unit tests: `A_missing_folder_leaves_nothing_to_queue_a_backup_into` pins that with the folder gone all four actions are dark (the no-queue guarantee at the shell — Core's `AutoBackupCoordinator.Tick` clears the pending write on failure, covered by `WatcherFailureTests`). `The_first_run_variant_shows_only_when_the_store_is_empty_and_wave_link_is_missing`, `..._absent_when_wave_link_is_found`, `..._absent_when_the_store_has_backups` pin the first-run variant. Committed `a1c2e90`. 885 tests green (296 Core + 91 Cli + 498 App).
 
 ## Task 3 — Inline result-strip errors (3, 5, 6, 7, 10, 11)
 
