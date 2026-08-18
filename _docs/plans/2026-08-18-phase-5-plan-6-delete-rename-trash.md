@@ -87,9 +87,17 @@ The dialog never says "Recycle Bin" (05 §"Why the dialog never says Recycle Bin
 
 The row belongs beside WHERE BACKUPS ARE KEPT because it is a fact about that folder's volume. It stays visible even when empty (08 §"Empty").
 
-- [ ] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/TrashRowModel.cs` with three states: `HasItems`, `Empty`, and a `VolumeKind` (`LocalRecycleBin`, `NoRecycleBin`). Expose Title, Description (volume-dependent), MonoLine (size + `.trash` path), and whether the action needs confirmation.
-- [ ] **Step 2:** Add per-volume detection: use `GetDriveType` + a UNC check on the backup folder's volume; re-detect when the folder changes. If detection fails, treat as `NoRecycleBin` (confirm). Never assume.
-- [ ] **Step 3:** Unit tests (`TrashRowModelTests.cs`): local drive with items → "hands them to the Windows Recycle Bin", no confirmation; network/removable with items → "deletes them for good", confirmation required; empty → action at 40% opacity, not interactive, row still present. Commit: `feat(app): empty-trash row model + per-volume detection`.
+- [x] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/TrashRowModel.cs` with three states: `HasItems`, `Empty`, and a `VolumeKind` (`LocalRecycleBin`, `NoRecycleBin`). Expose Title, Description (volume-dependent), MonoLine (size + `.trash` path), and whether the action needs confirmation.
+- [x] **Step 2:** Add per-volume detection: use `GetDriveType` + a UNC check on the backup folder's volume; re-detect when the folder changes. If detection fails, treat as `NoRecycleBin` (confirm). Never assume.
+- [x] **Step 3:** Unit tests (`TrashRowModelTests.cs`): local drive with items → "hands them to the Windows Recycle Bin", no confirmation; network/removable with items → "deletes them for good", confirmation required; empty → action at 40% opacity, not interactive, row still present. Commit: `feat(app): empty-trash row model + per-volume detection`.
+
+> **Implementation note (Task 6):** the volume is NOT re-derived here — it comes in as the
+> store's `TrashGoesToRecycleBin` answer (`IRecycleBin.IsAvailableFor` on the trash path), which
+> already does exactly this step: UNC → false, fixed drive → true, cannot-tell → false. So the
+> model is a pure projection (like `DeleteDialogModel`) and the per-volume detection is reused,
+> not duplicated; the caller re-calls it whenever the folder changes. The network description
+> honestly names the reason ("Windows keeps no Recycle Bin") — that is the one place allowed to
+> say it; the delete *confirmation* still never does (pinned in `DeleteDialogModelTests`).
 
 ## Task 7 — Empty-trash action + confirmation (only where irreversible)
 
