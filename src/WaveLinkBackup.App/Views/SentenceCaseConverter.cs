@@ -19,9 +19,14 @@ public sealed class SentenceCaseConverter : IValueConverter
     {
         if (value is not string { Length: > 0 } text) return value;
 
-        var lower = text.ToLower(culture);
+        // InvariantCulture, not the culture WPF hands in: the text this reads is always one of
+        // the design's own fixed strings (README: "WAVE LINK RUNNING · SETTINGS LAST SAVED
+        // 23:07 · AUTOMATIC BACKUP ON"), never user-entered text - the same rule this plan
+        // already applied to Readable.Upper, the tier badges and MatchSummary. CurrentCulture
+        // would mangle it under e.g. tr-TR, where 'I'.ToLower() is a dotless 'ı'.
+        var lower = text.ToLower(CultureInfo.InvariantCulture);
 
-        return char.ToUpper(lower[0], culture) + lower[1..];
+        return char.ToUpper(lower[0], CultureInfo.InvariantCulture) + lower[1..];
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
