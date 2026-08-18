@@ -46,10 +46,18 @@ public sealed class ShellViewModel : ObservableObject
     public ShellViewModel(SnapshotListViewModel list)
     {
         List = list;
+        Strip = new RestoreOutcomeStrip();
         list.PropertyChanged += OnListPropertyChanged;
     }
 
     public SnapshotListViewModel List { get; }
+
+    /// <summary>
+    /// The inline restore-result strip (03-restore-outcomes.md), below the status strip and above
+    /// the column header. Hidden until a restore finishes; the window feeds it the outcome or the
+    /// failure, and its own dismiss rules decide when it goes away.
+    /// </summary>
+    public RestoreOutcomeStrip Strip { get; }
 
     /// <summary>
     /// The flag every structural high-contrast difference switches on: the 3px left edge, the
@@ -95,6 +103,16 @@ public sealed class ShellViewModel : ObservableObject
         !facts.WaveLinkFound ? StripTone.Warn
         : facts.FolderMissing ? StripTone.Neutral
         : StripTone.Ok;
+
+    /// <summary>
+    /// Re-raise the status tone so a binding re-reads it. The window calls this when the restore
+    /// strip's TurnsStatusAmber flips: 03-restore-outcomes.md says a Rejected strip turns the
+    /// status strip amber too, and that is an ADDITIONAL condition on top of StatusTone's own
+    /// ShellFacts-derived value. The XAML ORs the two (the strip's TurnsStatusAmber DataTrigger
+    /// overrides the dot fill), so the window only needs to tell the binding to re-evaluate -
+    /// it does not compute a second tone here, which would give the VM two sources of truth.
+    /// </summary>
+    public void RaiseStatusTone() => Raise(nameof(StatusTone));
 
     /// <summary>
     /// README: "SELECTED · BEFORE 3.3 BETA · 11 AUG 21:36". Absent with no selection.

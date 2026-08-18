@@ -22,8 +22,24 @@ heading here.
 
 ## [Unreleased]
 
-Nothing yet. Phase 5 — the WPF shell — is planned in
+Phase 5 — the WPF shell — is in progress. See
 [dev-phases/phase-5-wpf.md](_docs/dev-phases/phase-5-wpf.md).
+
+### Added
+
+- **The restore-outcome strip** (the window's Row 2, per `03-restore-outcomes.md`). Four states —
+  *succeeded confirmed*, *succeeded unconfirmed*, *rejected* and *failed* — each deciding its own
+  left edge, glyph, auto-dismiss and action. A restore whose log verdict could not be read lands in
+  *unconfirmed*, never silently passing as success; a restore the user turned down stays visible
+  until acknowledged rather than clearing on the timer. Shipped **dormant**: fully built, themed and
+  tested (18 App tests + one Core test pinning the null-verdict branch), but the restore button still
+  shows the placeholder this repo uses for every unwired action, so nothing feeds it yet. It is a seam
+  waiting for plan 4's real restore flow, not a bug — see
+  [`technical-debt.md`](_docs/technical-debt.md) §4.9.
+- **`WlDangerSoft`**, a soft red for the *failed* state, added to all three theme dictionaries and
+  `ThemeManager.BrushKeys`. In HighContrast it binds to Transparent — in that theme the tint layer is
+  not ours to author, so only the edge and text remain. The existing "every theme declares every
+  brush" test now covers it for free across Dark, Light and HighContrast.
 
 ---
 

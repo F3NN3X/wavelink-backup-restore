@@ -32,7 +32,7 @@ public static class ThemeManager
         "WlBg", "WlChrome", "WlCard", "WlRaised", "WlSunken",
         "WlText", "WlStrong", "WlMuted",
         "WlLine", "WlLine2", "WlHover", "WlHotTrack",
-        "WlAccent", "WlAccentInk", "WlAccentSoft", "WlAccentLine", "WlDanger",
+        "WlAccent", "WlAccentInk", "WlAccentSoft", "WlAccentLine", "WlDanger", "WlDangerSoft",
         "WlOk", "WlOkSoft", "WlWarn", "WlWarnSoft",
         "WlScrim",
         "WlTransparent", "WlCaptionCloseHover",

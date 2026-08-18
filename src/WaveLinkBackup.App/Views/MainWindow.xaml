@@ -66,6 +66,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="34" />   <!-- caption: left unpainted, so Mica shows -->
             <RowDefinition Height="Auto" /> <!-- status strip -->
+            <RowDefinition Height="Auto" /> <!-- restore-outcome strip (03) -->
             <RowDefinition Height="Auto" /> <!-- column header -->
             <RowDefinition Height="*" />    <!-- the list -->
             <RowDefinition Height="Auto" /> <!-- bottom bar -->
@@ -73,7 +74,7 @@
 
         <!-- Solid WlBg behind everything BELOW the bar. README: "Mica/SystemBackdrop on the
              bar, solid wl-bg behind the list." -->
-        <Border Grid.Row="1" Grid.RowSpan="4" Background="{DynamicResource WlBg}" />
+        <Border Grid.Row="1" Grid.RowSpan="5" Background="{DynamicResource WlBg}" />
 
         <Border x:Name="CaptionBar" Grid.Row="0"
                 BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1">
@@ -126,6 +127,11 @@
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding StatusTone}" Value="Neutral">
                                         <Setter Property="Fill" Value="{DynamicResource WlMuted}" />
+                                    </DataTrigger>
+                                    <!-- 03: a Rejected strip turns the status strip amber too, on top of
+                                         StatusTone's own ShellFacts-derived value. Declared last so it wins. -->
+                                    <DataTrigger Binding="{Binding Strip.TurnsStatusAmber}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource WlWarn}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -252,13 +258,187 @@
 
         <!--
           ================================================================================
-          Row 2 - the column header. 11,20,9,20 padding, hairline bottom, the same shared-size
-          grid the row and this template both key off. Stays during a search (07); hides when
-          the list has nothing to have columns FOR (Empty/FolderMissing), each of which renders
-          its own copy of this same DataTemplate inside its row-3 stand-in instead.
+          Row 2 - the restore-outcome strip (03-restore-outcomes.md). One inline strip below
+          the status strip, above the column header, full width. Four outcomes, each a distinct
+          visual state and a distinct dismiss rule:
+
+            SucceededConfirmed   quiet: ringed check in WlOk, auto-dismisses after 6s
+            SucceededUnconfirmed neutral hollow circle (NOT amber), "Check again" action
+            Rejected             amber WlWarnSoft fill, 3px left edge, status strip turns amber,
+                                 NOT dismissible until acted on (AcknowledgeReject)
+            Failed               WlDanger, dismissible
+
+          The XAML binds to the booleans RestoreOutcomeStrip exposes (IsVisible, HasLeftEdge,
+          TurnsStatusAmber, Dismissible, HasAction) so the visual rules live in one place and
+          the tests can assert them without standing up a window.
           ================================================================================
         -->
-        <Border x:Name="ColumnHeaderBorder" Grid.Row="2" BorderBrush="{DynamicResource WlLine}"
+        <Border x:Name="RestoreOutcomeStripBorder" Grid.Row="2" Padding="20,10"
+                BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Setter Property="Background" Value="Transparent" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Strip.IsVisible}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+
+                        <!-- Rejected: amber fill + 3px left edge. The status strip above turns
+                             amber too - that is driven from code-behind on TurnsStatusAmber so
+                             the existing StatusTone DataTrigger keeps its single source of truth. -->
+                        <DataTrigger Binding="{Binding Strip.Kind}" Value="Rejected">
+                            <Setter Property="Background" Value="{DynamicResource WlWarnSoft}" />
+                            <Setter Property="BorderThickness" Value="3,0,0,1" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource WlWarn}" />
+                        </DataTrigger>
+
+                        <!-- Failed: danger fill. -->
+                        <DataTrigger Binding="{Binding Strip.Kind}" Value="Failed">
+                            <Setter Property="Background" Value="{DynamicResource WlDangerSoft}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- The outcome glyph: a ringed check (confirmed), a hollow circle
+                     (unconfirmed - neutral, NOT amber), a warning triangle (rejected), or a
+                     close-in-circle (failed). Each is shown only for its own Kind. -->
+                <Grid Grid.Column="0" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
+
+                    <!-- SucceededConfirmed: ringed check in WlOk. -->
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="SucceededConfirmed">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <Ellipse Stroke="{DynamicResource WlOk}" StrokeThickness="1.5" Fill="Transparent" />
+                        <Path Data="{StaticResource WlCheckGeometry}" Stroke="{DynamicResource WlOk}"
+                              StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Width="10" Height="10" Stretch="Uniform"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <!-- SucceededUnconfirmed: neutral hollow circle - NOT amber. -->
+                    <Ellipse>
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Setter Property="Stroke" Value="{DynamicResource WlMuted}" />
+                                <Setter Property="Fill" Value="Transparent" />
+                                <Setter Property="StrokeThickness" Value="1.5" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="SucceededUnconfirmed">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+
+                    <!-- Rejected: warning triangle in WlWarn. -->
+                    <Path Data="{StaticResource WlWarningTriangleGeometry}" Stroke="{DynamicResource WlWarn}"
+                          StrokeThickness="1.5" StrokeLineJoin="Round" Fill="Transparent"
+                          Width="16" Height="16" Stretch="Uniform">
+                        <Path.Style>
+                            <Style TargetType="Path">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="Rejected">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Path.Style>
+                    </Path>
+
+                    <!-- Failed: close-in-circle in WlDanger. -->
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="Failed">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <Ellipse Stroke="{DynamicResource WlDanger}" StrokeThickness="1.5" Fill="Transparent" />
+                        <Path Data="{StaticResource WlCloseGeometry}" Stroke="{DynamicResource WlDanger}"
+                              StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Width="9" Height="9" Stretch="Uniform"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                </Grid>
+
+                <!-- Title + detail: title in the body role, detail in mono meta. -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Strip.Title}" Style="{StaticResource WlBodyText}"
+                               FontSize="13" Foreground="{DynamicResource WlStrong}" />
+                    <TextBlock Text="{Binding Strip.Detail}" Style="{StaticResource WlMonoMetaText}"
+                               Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0" />
+                </StackPanel>
+
+                <!-- "Check again" secondary action: SucceededUnconfirmed only. -->
+                <Button Grid.Column="2" x:Name="StripActionButton"
+                        Content="{Binding Strip.ActionLabel}"
+                        Margin="16,0,0,0" VerticalAlignment="Center"
+                        AutomationProperties.Name="{Binding Strip.ActionLabel}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource WlSecondaryButton}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Strip.HasAction}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <!-- Close (X): shown whenever Dismissible. Rejected is never Dismissible, so it
+                     cannot be closed - only AcknowledgeReject clears it. -->
+                <Button Grid.Column="3" x:Name="StripDismissButton"
+                        Margin="8,0,0,0" VerticalAlignment="Center"
+                        AutomationProperties.Name="Dismiss">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource WlSearchClearButton}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Strip.Dismissible}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!--
+          ================================================================================
+          Row 3 - the column header. 11,20,9,20 padding, hairline bottom, the same shared-size
+          grid the row and this template both key off. Stays during a search (07); hides when
+          the list has nothing to have columns FOR (Empty/FolderMissing), each of which renders
+          its own copy of this same DataTemplate inside its row-4 stand-in instead.
+          ================================================================================
+        -->
+        <Border x:Name="ColumnHeaderBorder" Grid.Row="3" BorderBrush="{DynamicResource WlLine}"
                 BorderThickness="0,0,0,1" Padding="11,20,9,20">
             <Border.Style>
                 <Style TargetType="Border">
@@ -278,12 +458,12 @@
 
         <!--
           ================================================================================
-          Row 3 - the list, and its three stand-ins, one Grid with all four states stacked and
+          Row 4 - the list, and its three stand-ins, one Grid with all four states stacked and
           switched by List.State. ONE state is ever visible at a time, so there is no visual
           overlap even though all four live in the same cell.
           ================================================================================
         -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="4">
 
             <!--
               Loaded: the groups, each a date header followed by its rows. Groups is already
@@ -518,12 +698,12 @@
 
         <!--
           ================================================================================
-          Row 4 - the bottom bar. 12,20 padding (WPF order: left/right 20, top/bottom 12),
+          Row 5 - the bottom bar. 12,20 padding (WPF order: left/right 20, top/bottom 12),
           WlChrome, hairline top, space-between: SelectedLine over SummaryLine on the left,
           the four action buttons 7px apart on the right.
           ================================================================================
         -->
-        <Border Grid.Row="4" Background="{DynamicResource WlChrome}"
+        <Border Grid.Row="5" Background="{DynamicResource WlChrome}"
                 BorderBrush="{DynamicResource WlLine}" BorderThickness="0,1,0,0" Padding="20,12">
             <Grid>
                 <Grid.ColumnDefinitions>

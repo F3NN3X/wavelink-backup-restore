@@ -51,6 +51,7 @@ public partial class MainWindow : Window
 
         WireBottomBar();
         WireSearch();
+        WireRestoreOutcomeStrip();
 
         // The HWND does not exist before SourceInitialized, and DwmSetWindowAttribute needs
         // one. Re-applied on every theme change because the dark-frame attribute is a colour
@@ -84,6 +85,55 @@ public partial class MainWindow : Window
         // clear-search entry points above.
         ShowAllButton.Click += (_, _) => shell.List.ClearSearch();
     }
+
+    /// <summary>
+    /// The inline restore-result strip (03-restore-outcomes.md). Two things live here that do
+    /// not belong in the view model:
+    ///
+    ///   1. Auto-dismiss. SucceededConfirmed clears itself after RestoreOutcomeStrip.AutoDismissAfter.
+    ///      A DispatcherTimer is a WPF concern; the VM only declares the interval.
+    ///   2. The status strip turning amber with a Rejected strip. StatusTone is derived from
+    ///      ShellFacts in the VM; the strip's TurnsStatusAmber is an ADDITIONAL condition, so the
+    ///      window ORs them together rather than giving the VM a second source of truth for tone.
+    /// </summary>
+    private void WireRestoreOutcomeStrip()
+    {
+        StripDismissButton.Click += (_, _) => shell.Strip.Dismiss();
+        StripActionButton.Click += (_, _) => shell.Strip.OnAction?.Invoke();
+
+        autoDismissTimer = new DispatcherTimer { Interval = RestoreOutcomeStrip.AutoDismissAfter };
+        autoDismissTimer.Tick += (_, _) =>
+        {
+            autoDismissTimer.Stop();
+            shell.Strip.Dismiss();
+        };
+
+        shell.Strip.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(RestoreOutcomeStrip.Kind))
+            {
+                // Restart the timer only for the one outcome that auto-dismisses; stop it for any
+                // other kind so a later Rejected cannot be swept away by a stale tick.
+                if (shell.Strip.AutoDismisses)
+                {
+                    autoDismissTimer.Start();
+                }
+                else
+                {
+                    autoDismissTimer.Stop();
+                }
+            }
+
+            if (e.PropertyName == nameof(RestoreOutcomeStrip.TurnsStatusAmber))
+            {
+                // Re-raise the tone so the status strip's DataTrigger re-evaluates. StatusTone is
+                // a computed property; raising it here is what tells the binding to re-read it.
+                shell.RaiseStatusTone();
+            }
+        };
+    }
+
+    private DispatcherTimer? autoDismissTimer;
 
     // Shared by the bottom-bar Click handlers above and ShellCommands' Executed handlers below -
     // F2/Delete/Enter and their matching buttons do exactly the same thing, so there is only ever

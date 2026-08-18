@@ -2,7 +2,7 @@
 title: "Technical Debt"
 status: published
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-18
 tags: [meta, technical-debt]
 ---
 
@@ -11,11 +11,16 @@ tags: [meta, technical-debt]
 What is built and not right, what has never run, and what is known-wrong deliberately.
 Distinct from [dev-phases/](dev-phases/README.md), which is for things not built yet.
 
-**As of 2026-08-16 there is no application code**, so this document is unusual: nothing here
-has been *incurred*. What it holds instead is debt we have agreed to take on, and assumptions
-the project rests on that nobody has checked. Both are worth writing down now, because the
-moment the fork lands the first list becomes real, and the second list is the set of things
-that will look obvious in hindsight.
+**As of 2026-08-16 there was no application code**, so this document began unusual: nothing had
+been *incurred*. What it held instead was debt we had agreed to take on, and assumptions the
+project rests on that nobody had checked. Both were worth writing down now, because the moment
+the fork landed the first list would become real, and the second list is the set of things that
+will look obvious in hindsight.
+
+**That has since changed.** Phases 1–5 have shipped real code — `Core`, `Cli`, and a WPF shell
+that is now the process — so §1 and §7 entries have been resolved against it, and §4.8/§4.9 hold
+genuine deferred work from the app. The unverified-assumption list in §2 is unchanged in kind:
+the code made some of those assumptions load-bearing rather than hypothetical.
 
 Be blunt. A debt list that flatters the project is useless.
 
@@ -504,6 +509,27 @@ Two related items are **not** debt and are recorded elsewhere because they are t
 shortfalls: [the tray menu keeping its startup
 theme](knowledge-base/gotchas/tray-menu-keeps-the-theme-it-started-with.md) and [the tray icon
 refusing generated images](knowledge-base/gotchas/the-tray-icon-refuses-every-image-you-draw.md).
+
+### 4.9 The restore-outcome strip is built but nothing feeds it — **dormant, 2026-08-18**
+
+`RestoreOutcomeStrip` ships fully: the four `03-restore-outcomes.md` states, per-state chrome
+(left edge, amber status warm-up, auto-dismiss, the *Rejected* state that refuses to clear until
+acknowledged), the XAML DataTriggers, and the new `WlDangerSoft` brush in all three themes.
+Eighteen App tests plus a Core test pinning the null-verdict branch hold it down.
+
+**But no production code calls `Strip.Show` or `Strip.ShowFailure`.** The restore button still
+runs `ShowRestorePlaceholder()`, so the strip cannot light up from a user gesture. It is a seam,
+not a feature — deliberately, for the same reason *Settings…* shows a placeholder rather than
+silently doing nothing (§4.8 item 4): wiring it to a fake restore now would mean unwiring it when
+the real flow lands.
+
+**What closes this:** plan 4's restore row action calling `RestoreOrchestrator` and then feeding
+its `RestoreOutcome` (or the failure message) into the strip. Until then the strip is correct but
+invisible, which is the intended state — a tested seam waiting for its caller, not a bug.
+
+**One sub-item is genuinely open rather than merely unwired:** the *Failed* state's `WlDangerSoft`
+is Transparent in HighContrast per `11-high-contrast.md`, and nobody has watched that read as
+"failed" in a real high-contrast theme. The rule is applied; the pixels are not yet checked.
 
 ---
 

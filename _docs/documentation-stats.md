@@ -2,7 +2,7 @@
 title: "Documentation Stats"
 status: published
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-18
 tags: [meta, stats]
 ---
 
@@ -20,7 +20,7 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of 2026-08-16.*
+*As of 2026-08-18.*
 
 | Artifact | Count |
 |---|---|
@@ -29,10 +29,10 @@ Update this file **in the same commit** as the document it counts. See
 | Patterns | 4 |
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
-| Sessions | 8 |
+| Sessions | 9 |
 | Plans | 2 |
 | Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
-| **Tests** | **351 passing** — Core 85.7% line / 82.3% branch · CLI 84.1% / 82.0% |
+| **Tests** | **764 passing** — Core 296 · CLI 91 · App 377 |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
@@ -44,6 +44,37 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Phase 5: the restore-outcome strip (2026-08-18)
+
+**764 tests green** (296 Core, 91 CLI, 377 App). The App project's first WPF test surface for a
+shell-level view model lands here: `RestoreOutcomeStripTests` pins the four designed outcomes —
+succeeded-and-confirmed (quiet, auto-dismiss), succeeded-unconfirmed (neutral, "Check again"),
+rejected (amber, not dismissible until acted on), and failed (danger, dismissible) — plus the
+dismiss rules and the 6-second auto-dismiss constant.
+
+**One Core test added from a list I nearly skipped.** `RestoreOutcome.Confirmed` is a computed
+projection over `Verdict.Succeeded`, and its null-verdict branch (log unreadable) was never
+asserted directly — only through `outcome.Confirmed == false`. The new test pins that the
+unreadable-log path returns `Confirmed == false` without a `NullReferenceException`, which is
+exactly the branch the strip's `Show(RestoreOutcome)` maps to *succeeded-unconfirmed*.
+
+**A brush added, and the guard test caught it.** `WlDangerSoft` (the failed-outcome fill) was
+added to all three theme dictionaries. The existing `ThemeTests.Every_theme_declares_every_brush`
+guard would have failed on the missing key in any one of them — so the three-theme check is done
+by the suite, not by eye. High contrast gets a transparent tint per `11-high-contrast.md`.
+
+**Documented, and tracked as dormant.** Session note —
+[phase 5 restore-outcome strip](sessions/2026-08-18-phase-5-restore-outcome-strip.md). The strip
+is fully built but nothing feeds it yet (the restore button still shows the placeholder), so it is
+recorded in [technical-debt.md](technical-debt.md) §4.9 as a *dormant seam*, not a bug — the same
+shape as the `Settings…` placeholder in §4.8 item 4. The debt register's opening paragraph was
+also refreshed: "no application code" is no longer true, and §1/§7 entries have since been
+resolved against shipped code.
+
+**Counts moved:** sessions 8 → 9 · tests 746 → 764.
+
+---
 
 ### Phase 5, part 1: the four Core changes + design v5 (2026-08-17)
 

@@ -36,6 +36,9 @@
     <SolidColorBrush x:Key="WlAccentSoft" Color="Transparent" />
     <SolidColorBrush x:Key="WlAccentLine" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="WlDanger"     Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <!-- No tint in high contrast - every fill goes transparent (11-high-contrast.md). The Failed
+         strip separates by its border and glyph, not by a fill. -->
+    <SolidColorBrush x:Key="WlDangerSoft" Color="Transparent" />
 
     <SolidColorBrush x:Key="WlOk"       Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="WlOkSoft"   Color="Transparent" />

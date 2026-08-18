@@ -29,6 +29,9 @@
     <SolidColorBrush x:Key="WlAccentSoft" Color="#F01616" Opacity="0.12" />
     <SolidColorBrush x:Key="WlAccentLine" Color="#F01616" Opacity="0.32" />
     <SolidColorBrush x:Key="WlDanger"     Color="#F01616" />
+    <!-- The Failed strip's fill. WlAccentSoft is the same red at 12% - a tint, not the full
+         accent, so the strip reads as a state rather than a button. -->
+    <SolidColorBrush x:Key="WlDangerSoft" Color="#F01616" Opacity="0.12" />
 
     <!-- Health -->
     <SolidColorBrush x:Key="WlOk"        Color="#5FD3A6" />

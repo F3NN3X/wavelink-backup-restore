@@ -159,6 +159,27 @@ public sealed class RestoreOrchestratorTests
         Assert.False(result.Value.Confirmed);
     }
 
+    [Fact]
+    public void Confirmed_tracks_the_verdicts_success_including_a_null_verdict()
+    {
+        // RestoreOutcome.Confirmed is a computed projection over Verdict.Succeeded. The three
+        // branches: confirmed (Succeeded true), unconfirmed (Succeeded false), and null verdict
+        // (log unreadable) - the last being the one the orchestrator tests above never assert
+        // directly, only through outcome.Confirmed == false.
+        var h = new Harness();
+        var good = h.AddSnapshot(Healthy, "good");
+
+        var confirmed = h.Orchestrator.Restore(good.Id, h.Live()).Value;
+        Assert.True(confirmed.Confirmed);
+        Assert.True(confirmed.Verdict!.Succeeded);
+
+        // Unreadable log: Confirmed must be false without a NullReferenceException.
+        h.Fs.DeleteDirectory(LocalState + @"\Logs");
+        var unconfirmed = h.Orchestrator.Restore(good.Id, h.Live()).Value;
+        Assert.False(unconfirmed.Confirmed);
+        Assert.Null(unconfirmed.Verdict);
+    }
+
     // -------------------------------------------------------------- refusals
 
     [Fact]
