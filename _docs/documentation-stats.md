@@ -30,7 +30,7 @@ Update this file **in the same commit** as the document it counts. See
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
 | Sessions | 9 |
-| Plans | 6 |
+| Plans | 8 |
 | Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
 | **Tests** | **764 passing** — Core 296 · CLI 91 · App 377 |
 
@@ -44,6 +44,35 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Phase 5: the last two plans — tray shell and high contrast (2026-08-18)
+
+The phase is now **fully planned end to end.** The two surfaces that remained after plans 5–8
+each got a dated plan under [`plans/`](plans/):
+
+| Plan | Surface | Design source |
+|---|---|---|
+| [plan-9](plans/2026-08-18-phase-5-plan-9-the-tray-shell.md) | The tray shell: the app icon (tray **and** window — no `.ico` existed, so this authors one and sets `<ApplicationIcon>` + `Window.Icon`), second-launch activation, the autostart toggle with its Task Manager veto, live-host icon states on every tick, hide-on-close + context menu verification | `screens/12-tray-autostart-update.md` |
+| [plan-10](plans/2026-08-18-phase-5-plan-10-high-contrast.md) | High contrast: a verification pass over the already-built third theme, pinning the runtime swap end to end, a guard that `HighContrast.xaml` carries no hard-coded colour, the HC contract plans 5–8 must sign before their surfaces are done, and a both-schemes sweep | `screens/11-high-contrast.md` |
+
+**Both plans are shaped by what already exists, and that is the point of reading the code
+before planning it.** Plan 9 *extends* rather than rebuilds: single-instance, hide-on-close,
+the context menu, the four icon states and autostart are all implemented — the new work is the
+shared app icon asset, second-launch activation, the Settings toggle and pinning the live-host
+state changes. Plan 10 found high contrast **~90% built and tested** (`HighContrast.xaml`
+matches spec key for key; shape-encoded health, verdict words, focus ring and the PAUSED tray
+glyph are all pinned), so it is a gap-filling pass: the runtime-swap chain was never pinned
+end to end, the no-hard-coded-colour rule had no guard, and nothing enforced that plans 5–8's
+new surfaces arrive HC-complete.
+
+The status line in [phase-5-wpf.md](dev-phases/phase-5-wpf.md) now says what it has not said
+since 2026-08-17: every surface in the phase is planned; what remains is execution.
+
+Doc-only commit; no code, so the test count is unchanged at 764.
+
+**Counts moved:** plans 6 → 8.
+
+---
 
 ### Phase 5: execution plans for every remaining surface (2026-08-18)
 
