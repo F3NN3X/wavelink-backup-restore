@@ -416,4 +416,34 @@ public sealed class RowTemplateTests
         Assert.True(unknown.Length == 0,
             $"Not theme brushes: {string.Join(", ", unknown)}");
     }
+
+    // Design section C makes five-always-five structural in the view model precisely so it
+    // cannot become an accident of a template. This asserts the template agrees, on a row that
+    // only has two inputs - the case where a template that skips empties would look fine.
+    [Fact]
+    public void The_slot_strip_renders_five_containers_for_a_two_input_row()
+    {
+        var rendered = Wpf.Run(() =>
+        {
+            var dictionary = new System.Windows.ResourceDictionary
+            {
+                Source = new Uri("pack://application:,,,/WaveLinkBackup;component/Views/RowStyles.xaml"),
+            };
+
+            var items = new System.Windows.Controls.ItemsControl
+            {
+                ItemsSource = ViewModels.InputSlots.Build(["Elgato Wave:3", "System"], peakInputCount: 5),
+                ItemTemplate = (System.Windows.DataTemplate)dictionary["WlSlotTemplate"],
+            };
+
+            // A container per item only exists once the control has been through a layout pass.
+            items.Measure(new System.Windows.Size(300, 40));
+            items.Arrange(new System.Windows.Rect(0, 0, 300, 40));
+            items.UpdateLayout();
+
+            return items.Items.Count;
+        });
+
+        Assert.Equal(ViewModels.InputSlots.SlotCount, rendered);
+    }
 }
