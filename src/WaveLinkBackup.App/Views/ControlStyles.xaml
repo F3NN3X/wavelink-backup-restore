@@ -364,6 +364,73 @@
         </Setter>
     </Style>
 
+    <!--
+      Restore this backup: the app's single destructive action. WlDanger per the token table - and,
+      unlike WlPrimaryButton above, it NEVER follows the user accent: the danger brush is a fixed red in
+      every theme precisely because a destructive button that changes
+      colour with the OS accent would stop reading as "this one is irreversible". Same hover dip as
+      the primary rather than a second danger shade - there is no WlDangerHover key and none is
+      needed for one button. The rotate-ccw glyph sits in the content, not here: this style only
+      owns the surface, so the icon's colour can follow Foreground (WlAccentInk) from the caller.
+    -->
+    <Style x:Key="WlDangerButton" TargetType="Button" BasedOn="{StaticResource WlGhostButton}">
+        <Setter Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Surface" Background="{DynamicResource WlDanger}" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Surface" Property="Opacity" Value="0.88" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+
+                        <!-- See WlGhostButton's own comment on this trigger pair. -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="IsMouseOver" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource WlHotTrack}" />
+                            <Setter TargetName="Surface" Property="BorderThickness" Value="1" />
+                        </MultiDataTrigger>
+
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="False">
+                                    <Condition.Binding>
+                                        <Binding Path="IsEnabled" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Foreground" Value="{DynamicResource WlMuted}" />
+                        </MultiDataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- The search field's 18px round clear button: WlLine fill, an 8px x glyph in WlText. -->
     <Style x:Key="WlSearchClearButton" TargetType="Button">
         <Setter Property="Width" Value="18" />
