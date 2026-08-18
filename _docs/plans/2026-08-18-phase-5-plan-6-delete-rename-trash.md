@@ -70,9 +70,18 @@ The dialog never says "Recycle Bin" (05 §"Why the dialog never says Recycle Bin
 
 ## Task 5 — Wire Delete to the two-stage move
 
-- [ ] **Step 1:** In `ShellViewModel`, replace the Delete placeholder with: build `DeleteDialogModel`, show the dialog; on confirm, call the existing Core delete (plain move into `.trash`), then refresh the list. The deleted row disappears from the list, search, and every count/size readout immediately.
-- [ ] **Step 2:** Confirm `.trash` is excluded from: the list, the search index, the status-strip counts, the bottom-bar total size, and the keep-count (05 §".trash must be invisible to"). A folder containing only `.trash` still reads as a valid backup folder.
-- [ ] **Step 3:** Unit test: after a delete the selected id clears, counts drop by one, and the trash is not counted. Commit: `feat(app): wire two-stage delete, hide .trash from all readouts`.
+- [x] **Step 1:** In `ShellViewModel`, replace the Delete placeholder with: build `DeleteDialogModel`, show the dialog; on confirm, call the existing Core delete (plain move into `.trash`), then refresh the list. The deleted row disappears from the list, search, and every count/size readout immediately.
+- [x] **Step 2:** Confirm `.trash` is excluded from: the list, the search index, the status-strip counts, the bottom-bar total size, and the keep-count (05 §".trash must be invisible to"). A folder containing only `.trash` still reads as a valid backup folder.
+- [x] **Step 3:** Unit test: after a delete the selected id clears, counts drop by one, and the trash is not counted. Commit: `feat(app): wire two-stage delete, hide .trash from all readouts`.
+
+> **Implementation note (Task 5):** the store half of the command lives on
+> `SnapshotListViewModel.Delete(id)` — it owns the store and the list, exactly like
+> `CommitRename` — and a `FindSnapshot(id)` accessor lets the window build the dialog's model
+> without the view reaching into Core types. The window (`MainWindow.DeleteSelected`) mirrors
+> the restore flow: build model → show `DeleteDialog` → on confirm call `List.Delete`, surface a
+> store failure, restore focus either way. `.trash` invisibility (Step 2) is satisfied by
+> construction — `SnapshotStore.ReadSnapshotsIn` skips the trash folder, and `all` is populated
+> solely from `store.List()` — so it is pinned by test (`DeleteCommandTests`) rather than changed.
 
 ## Task 6 — Empty-trash row (inside Settings' folder section)
 

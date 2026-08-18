@@ -89,7 +89,7 @@ public partial class MainWindow : Window
     private void WireBottomBar()
     {
         RenameButton.Click += (_, _) => BeginRename();
-        DeleteButton.Click += (_, _) => ShowDeletePlaceholder();
+        DeleteButton.Click += (_, _) => DeleteSelected();
         RestoreButton.Click += async (_, _) => await RestoreSelectedAsync();
         BackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
 
@@ -165,9 +165,38 @@ public partial class MainWindow : Window
         FocusRenameBox(row);
     }
 
-    private static void ShowDeletePlaceholder() => MessageBox.Show(
-        "Deleting a backup arrives in the next plan.", "Wave Link Backup",
-        MessageBoxButton.OK, MessageBoxImage.Information);
+    /// <summary>
+    /// The delete flow, end to end (05-delete-dialogs.md): build the confirmation's model from
+    /// the selected snapshot and the total count, show the 480px dialog, and on confirm move the
+    /// snapshot into <c>.trash</c> via the list. Cancel or Escape leaves everything untouched; a
+    /// failed move surfaces the store's reason rather than pretending it landed. Focus returns to
+    /// the list either way - after a delete that is usually the empty-list state, which is fine:
+    /// there is simply no row left to focus.
+    /// </summary>
+    private void DeleteSelected()
+    {
+        if (shell.List.Selected is not { } row) return;
+
+        var snapshot = shell.List.FindSnapshot(row.Id);
+        if (snapshot is null) return; // Stale selection - the list moved out from under it.
+
+        var model = DeleteDialogModel.Build(snapshot, shell.List.TotalCount);
+        var dialog = new DeleteDialog(model) { Owner = this };
+
+        if (dialog.ShowDialog() != true)
+        {
+            RestoreFocusToList();
+            return; // Cancel or Escape - nothing was touched.
+        }
+
+        var error = shell.List.Delete(row.Id);
+        if (error is not null)
+        {
+            MessageBox.Show(error, "Wave Link Backup", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        RestoreFocusToList();
+    }
 
     /// <summary>
     /// The restore flow, end to end (09-restore-dialog-additions.md + 04-in-progress.md):
@@ -296,7 +325,7 @@ public partial class MainWindow : Window
     private void Rename_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
         e.CanExecute = shell.CanRename;
 
-    private void Delete_Executed(object sender, ExecutedRoutedEventArgs e) => ShowDeletePlaceholder();
+    private void Delete_Executed(object sender, ExecutedRoutedEventArgs e) => DeleteSelected();
 
     private void Delete_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
         e.CanExecute = shell.CanDelete;

@@ -190,6 +190,33 @@ public sealed class SnapshotListViewModel(
         });
 
     /// <summary>
+    /// The store half of two-stage delete (05-delete-dialogs.md): move the snapshot into
+    /// <c>.trash</c> inside the backup folder - a plain directory move, nothing destroyed. On
+    /// success the list re-reads, and because <see cref="SnapshotStore.List"/> skips the trash
+    /// folder, the row vanishes from the list, the search index and every count/size readout in
+    /// one step; selection was on the deleted row, so it clears. Returns the store's reason when
+    /// the move failed, null when it landed.
+    /// </summary>
+    public string? Delete(string id)
+    {
+        var result = store.Delete(id);
+        if (!result.IsSuccess) return result.Error!.Message;
+
+        Refresh();
+        return null;
+    }
+
+    /// <summary>
+    /// The raw store snapshot behind an id, or null if it is no longer listed (it was deleted,
+    /// or the list went stale). Exposed so the window can build the delete confirmation's model
+    /// - which needs the manifest and the total count - without the view reaching into Core
+    /// types itself. The trash folder is already excluded from <c>all</c>, so a trashed id never
+    /// resolves here.
+    /// </summary>
+    public Snapshot? FindSnapshot(string id) =>
+        all.FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.Ordinal));
+
+    /// <summary>
     /// Selection is by ID, not by object: Refresh builds new rows, and "Back up now inserts a
     /// row at the top of TODAY and selects it" needs a name for the thing to select.
     /// </summary>

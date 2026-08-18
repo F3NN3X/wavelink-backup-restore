@@ -704,3 +704,143 @@ public sealed class RenameCommandTests
         Assert.True(row.CanRename);
     }
 }
+
+/// <summary>
+/// Two-stage delete, plan 6 task 5 step 3: the store half of the command against a stubbed store.
+/// The window shows the confirmation dialog; this is what happens AFTER the confirm - the snapshot
+/// moves into <c>.trash</c>, and because the store's listing skips that folder, it disappears from
+/// the list, the search index and every count/size readout in one step. The trash-only case pins
+/// the state a user sees after deleting their last backup: a valid, empty folder - not an error.
+/// </summary>
+public sealed class DeleteCommandTests
+{
+    private const string StorePath = @"C:\store";
+
+    private static byte[] SettingsFor(params string[] inputs)
+    {
+        var entries = inputs.Select((n, i) =>
+            $"\"K{i}\":{{\"InputName\":\"{n}\",\"AudioPluginConfigurations\":[]}}");
+
+        return Encoding.UTF8.GetBytes(
+            $"{{\"MixerConfiguration\":{{\"InputSettings\":{{{string.Join(",", entries)}}}}}}}");
+    }
+
+    private sealed class Rig
+    {
+        public FakeFileSystem Fs { get; } = new();
+        public FakeClock Clock { get; } = new() { UtcNow = new DateTimeOffset(2026, 8, 15, 23, 7, 0, TimeSpan.Zero) };
+        public SnapshotStore Store => new(Fs, Clock, StorePath);
+
+        public SnapshotListViewModel List() =>
+            new(Store, new HealthProbe(Store, Fs, Clock), Fs, Clock) { Marshal = action => action() };
+
+        public void Add(string name, DateTimeOffset at)
+        {
+            Clock.UtcNow = at;
+            var bytes = SettingsFor(["Wave Mic 1", "Voice", "Browser", "Game", "System"]);
+            Store.Write(bytes, SettingsAnalysis.Analyse(bytes).Value, SnapshotTrigger.Manual, name);
+        }
+
+        public (SnapshotListViewModel List, SnapshotRowViewModel Row) OneRow()
+        {
+            Fs.CreateDirectory(StorePath);
+            Add("Before 3.3 beta", new DateTimeOffset(2026, 8, 15, 22, 0, 0, TimeSpan.Zero));
+            Clock.UtcNow = new DateTimeOffset(2026, 8, 15, 23, 7, 0, TimeSpan.Zero);
+
+            var list = List();
+            list.Refresh();
+
+            return (list, list.Groups[0].Rows[0]);
+        }
+
+        public (SnapshotListViewModel List, SnapshotRowViewModel Row) TwoRows()
+        {
+            Fs.CreateDirectory(StorePath);
+            Add("Newer", new DateTimeOffset(2026, 8, 15, 22, 30, 0, TimeSpan.Zero));
+            Add("Older", new DateTimeOffset(2026, 8, 14, 22, 0, 0, TimeSpan.Zero));
+            Clock.UtcNow = new DateTimeOffset(2026, 8, 15, 23, 7, 0, TimeSpan.Zero);
+
+            var list = List();
+            list.Refresh();
+
+            return (list, list.Groups.SelectMany(g => g.Rows).Single(r => r.Name == "Older"));
+        }
+    }
+
+    [Fact]
+    public void Deleting_a_selected_row_clears_the_selection_and_drops_the_counts()
+    {
+        var (list, row) = new Rig().TwoRows();
+        list.Select(row.Id);
+
+        Assert.Equal(2, list.TotalCount);
+        Assert.NotNull(list.Selected);
+
+        Assert.Null(list.Delete(row.Id));
+
+        // The row is gone from the list and every readout that counts it.
+        Assert.Equal(1, list.TotalCount);
+        Assert.DoesNotContain(list.Groups.SelectMany(g => g.Rows), r => r.Id == row.Id);
+        Assert.Null(list.Selected);
+    }
+
+    [Fact]
+    public void A_deleted_snapshot_lands_in_the_trash_not_destroyed()
+    {
+        var rig = new Rig();
+        var (list, row) = rig.OneRow();
+
+        Assert.Null(list.Delete(row.Id));
+
+        // The move is recoverable: the snapshot is still in the store's trash, intact.
+        var trashed = rig.Store.ListTrash();
+        Assert.Single(trashed);
+        Assert.Equal(row.Id, trashed[0].Id);
+    }
+
+    [Fact]
+    public void A_trashed_snapshot_is_not_counted_anywhere()
+    {
+        var rig = new Rig();
+        var (list, row) = rig.TwoRows();
+        var bytesBefore = list.TotalBytes;
+
+        Assert.Null(list.Delete(row.Id));
+
+        // The trash folder is invisible to the listing, so it drops out of the search index and
+        // the total size as well - not just the visible count.
+        Assert.Equal(1, list.TotalCount);
+        Assert.NotEqual(bytesBefore, list.TotalBytes);
+        Assert.DoesNotContain(rig.Store.List(), s => s.Id == row.Id);
+    }
+
+    [Fact]
+    public void Deleting_the_last_backup_leaves_a_valid_empty_folder_not_an_error()
+    {
+        var rig = new Rig();
+        var (list, row) = rig.OneRow();
+
+        Assert.Null(list.Delete(row.Id));
+
+        // The folder still exists and holds only .trash - a valid store with nothing to show,
+        // which is the EMPTY state, not FolderMissing or an exception.
+        Assert.Equal(ListState.Empty, list.State);
+        Assert.Equal(0, list.TotalCount);
+        Assert.True(rig.Fs.DirectoryExists(StorePath));
+    }
+
+    [Fact]
+    public void Deleting_a_snapshot_that_is_already_gone_reports_the_store_reason()
+    {
+        var (list, row) = new Rig().OneRow();
+
+        Assert.Null(list.Delete(row.Id));
+
+        // A second delete of the same id finds nothing - the store's own reason comes back, and
+        // the list is left untouched.
+        var error = list.Delete(row.Id);
+
+        Assert.NotNull(error);
+        Assert.Equal(0, list.TotalCount);
+    }
+}
