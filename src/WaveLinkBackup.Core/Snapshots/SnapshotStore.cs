@@ -39,7 +39,9 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
 
     public string StorePath => storePath;
 
-    private string TrashPath => Path.Combine(storePath, TrashFolderName);
+    // Public: the settings dialog's trash row prints it in its mono line (TrashRowModel.Build takes
+    // it), and emptying re-detects per volume through it.
+    public string TrashPath => Path.Combine(storePath, TrashFolderName);
 
     /// <summary>Writes a snapshot from settings bytes that have already been analysed.</summary>
     public Result<Snapshot> Write(

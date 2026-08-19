@@ -94,7 +94,9 @@ public partial class MainWindow : Window
         RestoreButton.Click += async (_, _) => await RestoreSelectedAsync();
         BackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
 
-        SettingsButton.Click += (_, _) => App.OpenSettings();
+        // The gear opens the real settings dialog (Plan 8) through the app instance - not the old
+        // static placeholder. Application.Current is always set by the time a button can be clicked.
+        SettingsButton.Click += (_, _) => (Application.Current as App)?.OpenSettings();
 
         // Screen 4 (first-run / empty state): its own "Back up now" and "Choose where to keep
         // them" live in the stand-in region, so they are wired here rather than on the bottom bar.

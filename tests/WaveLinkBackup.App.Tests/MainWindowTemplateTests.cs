@@ -141,7 +141,7 @@ public sealed class MainWindowTemplateTests
                         && !name.EndsWith("Template", StringComparison.Ordinal)
                         && !name.EndsWith("Visibility", StringComparison.Ordinal)
                         && name != "WlCaptionButton" && name != "WlCaptionCloseButton"
-                        && name != "WlShieldCheckGeometry")
+                        && name != "WlShieldCheckGeometry" && name != "WlFocusVisual")
             .ToArray();
 
         Assert.True(unknown.Length == 0, $"Not theme brushes: {string.Join(", ", unknown)}");

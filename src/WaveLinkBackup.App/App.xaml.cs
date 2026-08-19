@@ -336,7 +336,9 @@ public partial class App : Application
         return result;
     }
 
-    private void OpenStoreFolder() =>
+    // Internal so the settings dialog's "Open" button launches Explorer at the same folder the tray
+    // menu's "Open folder" item does - one seam, two entry points.
+    internal void OpenStoreFolder() =>
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{settings.StorePath}\""));
 
     private void ToggleAutoBackup()
@@ -357,10 +359,127 @@ public partial class App : Application
         RefreshTray();
     }
 
-    /// <summary>Internal so MainWindow's own gear button can call the same placeholder.</summary>
-    internal static void OpenSettings() =>
-        MessageBox.Show("Settings arrive in the next plan.", "Wave Link Backup",
-            MessageBoxButton.OK, MessageBoxImage.Information);
+    /// <summary>
+    /// Internal so MainWindow's own gear button can open the same dialog. Builds a fresh view-model
+    /// each time (the file may have changed while the window was closed) and shows it modally over
+    /// the main window when one is open, otherwise as a standalone modal.
+    /// </summary>
+    internal void OpenSettings()
+    {
+        var vm = BuildSettingsViewModel();
+        var dialog = new Views.SettingsDialog(vm);
+        var owner = MainWindow != null ? (Window)MainWindow : null;
+        if (owner is not null && owner.IsLoaded)
+        {
+            dialog.Owner = owner;
+            dialog.ShowDialog();
+        }
+        else
+        {
+            dialog.Show();
+        }
+    }
+
+    /// <summary>
+    /// The settings view-model, built from the live store and current settings. Exposed separately
+    /// so tests can drive the two sections (folder + when-to-back-up) without a window: they read
+    /// the same seams the dialog binds to - the trash row and the free-space figure - and write
+    /// through <see cref="SetStorePath"/> on a folder change.
+    /// </summary>
+    internal SettingsViewModel BuildSettingsViewModel()
+    {
+        var repo = settingsRepository!;
+        // The size is the file's own byte count - read it through the same seam the rest of the
+        // app uses (ReadSharedBytes), so a Wave Link lock can't make the figure lie. "not written
+        // yet" when the file has never been saved: honest, and matches the mono line's tone.
+        var whereLive = new WhereSettingsLiveModel(
+            repo.FilePath,
+            fileSystem!.FileExists(repo.FilePath)
+                ? Readable.Bytes(fileSystem!.ReadSharedBytes(repo.FilePath).Length)
+                : "not written yet");
+
+        var vm = SettingsViewModel.Build(
+            settings,
+            s => repo.Save(s).IsSuccess,
+            whereLive);
+
+        // The toggle and stepper carry high-contrast triggers that bind to this through the
+        // window's DataContext - the same value MainWindow hands ShellViewModel.
+        vm.IsHighContrast = systemTheme?.IsHighContrast ?? SystemParameters.HighContrast;
+
+        // WHERE BACKUPS ARE KEPT: the trash row is computed BEFORE anything is shown (Plan 6's
+        // projection), re-detected per volume - never cached across a folder move.
+        if (store is not null)
+        {
+            var (count, bytes) = store.TrashSize();
+            vm.TrashRow = TrashRowModel.Build(
+                count, bytes, store.TrashPath,
+                store.TrashGoesToRecycleBin(new RecycleBin()));
+            vm.FreeSpaceBytes = fileSystem!.GetAvailableFreeBytes(settings.StorePath);
+        }
+
+        return vm;
+    }
+
+    /// <summary>
+    /// The settings dialog's "Change folder…": opens the picker, and on pick writes the new folder
+    /// through (re-pointing every consumer that holds a store reference) then re-detects the trash
+    /// row's volume - the Plan-6 rule that a folder move must never reuse a cached Recycle-Bin answer.
+    /// </summary>
+    internal void ChangeBackupFolder(Window owner, SettingsViewModel vm)
+    {
+        var picker = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Choose a folder for Wave Link backups",
+            InitialDirectory = settings.StorePath,
+        };
+
+        if (picker.ShowDialog(owner) != true) return;
+
+        SetStorePath(picker.FolderName);
+
+        // Re-detect: the trash row and free-space figure both describe the NEW volume.
+        if (store is not null)
+        {
+            var (count, bytes) = store.TrashSize();
+            vm.TrashRow = TrashRowModel.Build(
+                count, bytes, store.TrashPath,
+                store.TrashGoesToRecycleBin(new RecycleBin()));
+            vm.FreeSpaceBytes = fileSystem!.GetAvailableFreeBytes(settings.StorePath);
+        }
+    }
+
+    /// <summary>
+    /// The settings dialog's "Empty trash" (Plan 6's action, hosted in Plan 8). Local volumes run
+    /// straight through - the Recycle Bin makes it reversible, and a confirmation guarding a
+    /// reversible action is exactly the noise that teaches people to click through the ones that
+    /// matter. Network/removable confirm first via <see cref="Views.EmptyTrashDialog"/>: there is no
+    /// Recycle Bin to catch them, so emptying deletes for good. After either path the row and the
+    /// free-space figure are re-read - both describe the volume's current state, not a cached one.
+    /// </summary>
+    internal void EmptyTrash(Window owner, SettingsViewModel vm)
+    {
+        if (store is null || vm.TrashRow is not { } row) return;
+
+        if (row.RequiresConfirmation)
+        {
+            var (count, bytes) = store.TrashSize();
+            var dialog = new Views.EmptyTrashDialog(
+                EmptyTrashDialogModel.Build(count, bytes, store.TrashPath));
+            dialog.Owner = owner;
+            if (dialog.ShowDialog() != true) return;
+        }
+
+        store.EmptyTrash(new RecycleBin());
+
+        // Re-detect: the row now reports whatever is left (usually "the trash is empty"), and the
+        // free-space figure may have moved. Never reuse the pre-empty numbers.
+        var (newCount, newBytes) = store.TrashSize();
+        vm.TrashRow = TrashRowModel.Build(
+            newCount, newBytes, store.TrashPath,
+            store.TrashGoesToRecycleBin(new RecycleBin()));
+        vm.FreeSpaceBytes = fileSystem!.GetAvailableFreeBytes(settings.StorePath);
+    }
 
     /// <summary>
     /// Error 12's "Choose a folder…". Persists the new path and re-points every consumer that

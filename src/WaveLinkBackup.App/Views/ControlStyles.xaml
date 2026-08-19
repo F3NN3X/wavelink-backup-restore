@@ -88,6 +88,7 @@
     <Geometry x:Key="WlTrashGeometry">M5 7 L19 7 M9 7 L9 4 L15 4 L15 7 M7 7 L7.6 20 L16.4 20 L17 7 M10 11 L10 16 M14 11 L14 16</Geometry>
     <Geometry x:Key="WlRotateCcwGeometry">M4 4 L4 9 L9 9 M4.6 15 A8 8 0 1 0 6.2 6.2</Geometry>
     <Geometry x:Key="WlDownloadTrayGeometry">M12 3 L12 14 M7 9 L12 14 L17 9 M4 18 L4 20 L20 20 L20 18</Geometry>
+    <Geometry x:Key="WlFolderGeometry">M3 6 A1.5 1.5 0 0 1 4.5 4.5 H9 L11 7 H19.5 A1.5 1.5 0 0 1 21 8.5 V17 A1.5 1.5 0 0 1 19.5 18.5 H4.5 A1.5 1.5 0 0 1 3 17 Z</Geometry>
 
     <!--
       Reused three times verbatim (row 2's real column header, and the Empty/FolderMissing
@@ -448,6 +449,157 @@
                               Width="8" Height="8" Stretch="Uniform"
                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      The settings dialog's toggle (WHEN TO BACK UP). A CheckBox restyled as a 34x20 pill: off is
+      transparent with a hairline-24% border and a muted knob; on fills WlAccent with the knob in
+      WlAccentInk sliding right. Radius 999px per the design's "chip + toggle" rule. The knob's
+      travel is expressed as a margin swap on IsChecked rather than an animation - the design's
+      motion table gives no easing for a settings control, and a 220ms slide on something you flip
+      once would read as decoration.
+
+      High contrast: WlAccent maps to Highlight there (HighContrast.xaml), so the ON state already
+      carries a guaranteed-contrast fill; the knob uses WlAccentInk (HighlightText) for the same
+      reason WlFocusVisual switches to it on a Highlight-filled row. The OFF border steps up from
+      WlLine2 to WlHotTrack in HC because 11-high-contrast.md forbids relying on a low-opacity hairline
+      alone to define an interactive control's boundary there.
+    -->
+    <Style x:Key="WlToggle" TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource WlFocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid Width="34" Height="20" Background="Transparent">
+                        <Border x:Name="Track" CornerRadius="10" BorderThickness="1"
+                                BorderBrush="{DynamicResource WlLine2}"
+                                Background="Transparent" SnapsToDevicePixels="True" />
+                        <Ellipse x:Name="Knob" Width="14" Height="14"
+                                 Fill="{DynamicResource WlMuted}"
+                                 HorizontalAlignment="Left" Margin="3,0,0,0" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource WlAccent}" />
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource WlAccent}" />
+                            <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource WlAccentInk}" />
+                            <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                            <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource WlLine2}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+
+                        <!-- See WlGhostButton's own comment on this trigger pair. -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="IsMouseOver" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource WlHotTrack}" />
+                        </MultiDataTrigger>
+
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="False">
+                                    <Condition.Binding>
+                                        <Binding Path="IsEnabled" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Opacity" Value="1" />
+                        </MultiDataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      The keep-count stepper's − / + segments: 32x34, hairline-24% border (WlLine2, the same stand-in
+      WlSecondaryButton uses for its "hairline-24% border"), shared by both buttons so they read as
+      one control with a value between them. The middle segment is not a Button - it is a plain
+      Border in SettingsDialog.xaml carrying the mono value, which is why only this style lives here.
+    -->
+    <Style x:Key="WlStepperButton" TargetType="Button">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource WlText}" />
+        <Setter Property="FontFamily" Value="{DynamicResource WlDisplayFont}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource WlFocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
+                            CornerRadius="8" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{DynamicResource WlHover}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+
+                        <!-- See WlGhostButton's own comment on this trigger pair. -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="IsMouseOver" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource WlHotTrack}" />
+                        </MultiDataTrigger>
+
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="False">
+                                    <Condition.Binding>
+                                        <Binding Path="IsEnabled" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Foreground" Value="{DynamicResource WlMuted}" />
+                        </MultiDataTrigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

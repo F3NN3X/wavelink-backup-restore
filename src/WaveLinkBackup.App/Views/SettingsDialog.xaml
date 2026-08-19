@@ -1,0 +1,263 @@
+<Window x:Class="WaveLinkBackup.App.Views.SettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
+        Title="Settings"
+        Width="680" Height="540" MinWidth="680" MinHeight="320"
+        WindowStyle="None" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Background="Transparent">
+
+    <Window.Resources>
+        <!-- The trash row hides itself when there is no store to read (TrashRow is null). A
+             DataTrigger cannot say "when it is NOT null show it", so the converter carries the
+             predicate - see NotNullToVisibilityConverter. -->
+        <views:NotNullToVisibilityConverter x:Key="TrashRowVisible" />
+        <!-- The free-space line omits itself when the figure cannot be read (empty string) rather
+             than print a number that is not there. Reuses the existing string converter from Views. -->
+        <views:StringNotNullToVisibilityConverter x:Key="FreeSpaceLineVisible" />
+    </Window.Resources>
+
+    <!--
+      The settings dialog (Screen 3), in its real shape - no Save button. Every control commits on
+      change, so the footer's "CHANGES APPLY AS YOU MAKE THEM" is a fact, not a promise.
+
+      The same borderless-modal surface treatment as EmptyTrashDialog / DeleteDialog / RestoreDialog:
+      WindowStyle=None, Background=Transparent, AllowsTransparency FALSE (keeps the window non-layered
+      so DWM draws its drop shadow instead of the card having to fake one with a brush). This dialog
+      is wider than those (680px per the design) and taller, and it scrolls internally when its
+      content exceeds the window height - the ScrollViewer below owns that.
+
+      The scrim: EmptyTrashDialog's WlScrim fills edge-to-edge because the card floats over a live
+      window. Here the dialog IS the surface, so the card is the whole window and there is nothing
+      behind it to dim - the WlCard background covers everything and no scrim border is drawn.
+
+      The DataContext is a SettingsViewModel set by the caller; every element below binds to it and
+      computes nothing. Nothing here touches Core or does I/O - rendering only. The Change folder… /
+      Open / Empty trash buttons call back into App through code-behind, which is the one place this
+      view crosses the VM boundary (a command would just wrap the same two lines).
+
+      Task 2 builds WHERE BACKUPS ARE KEPT and WHEN TO BACK UP. WHAT GOES IN A BACKUP (Task 3),
+      WHICH WAVE LINK + WHERE THESE SETTINGS LIVE (Task 4) and the unbuilt-tier rows (Task 5) land
+      in later tasks, each as a new section between these two and the footer. The 22px inter-section
+      gap is the convention; keep it when adding.
+    -->
+    <Border Background="{DynamicResource WlCard}"
+            BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" /> <!-- header -->
+                <RowDefinition Height="*" />    <!-- scrolling body -->
+                <RowDefinition Height="Auto" /> <!-- footer -->
+            </Grid.RowDefinitions>
+
+            <!-- Header: "Settings" (dialog title) + a 30x30 close button. Hairline bottom. -->
+            <Border Grid.Row="0" Background="{DynamicResource WlBg}"
+                    BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1"
+                    Padding="24,16">
+                <Grid>
+                    <TextBlock Text="Settings" Style="{StaticResource WlDialogTitleText}"
+                               Foreground="{DynamicResource WlStrong}"
+                               VerticalAlignment="Center"
+                               AutomationProperties.Name="Settings dialog title" />
+                    <!-- Close: 30x30 ghost. IsCancel so Escape and the X are equivalent; the
+                         code-behind's OnKeyDown is a belt-and-braces for the standalone case. -->
+                    <Button x:Name="CloseButton" Width="30" Height="30" IsCancel="True"
+                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Style="{StaticResource WlIconGhostButton}"
+                            AutomationProperties.Name="Close settings">
+                        <Path Data="M5 5 L19 19 M19 5 L5 19" StrokeThickness="1.75"
+                              Stroke="{DynamicResource WlMuted}" Stretch="None" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Body: scrolls internally when it exceeds the window height (Task 6's requirement,
+                 wired here so later tasks inherit it). Padding 0 24px 20px; 22px between sections. -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="24,22,24,20">
+
+                    <!-- ============ WHERE BACKUPS ARE KEPT ============ -->
+                    <TextBlock Text="WHERE BACKUPS ARE KEPT" Style="{StaticResource WlColumnHeaderText}"
+                               Foreground="{DynamicResource WlMuted}" Margin="0,0,0,10"
+                               AutomationProperties.Name="Where backups are kept section" />
+
+                    <!-- Read-only path field: WlSunken fill, hairline border, 8px radius,
+                         10px x 12px padding, 15px folder icon + mono 12.5px ellipsised path. -->
+                    <Border Background="{DynamicResource WlSunken}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8"
+                            Padding="12,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /> <!-- folder icon -->
+                                <ColumnDefinition Width="*" />    <!-- path -->
+                            </Grid.ColumnDefinitions>
+
+                            <Path Grid.Column="0" Data="{StaticResource WlFolderGeometry}"
+                                  Fill="{DynamicResource WlMuted}" Stretch="Uniform"
+                                  Width="15" Height="15" VerticalAlignment="Center" Margin="0,0,9,0" />
+
+                            <TextBlock Grid.Column="1" Text="{Binding BackupFolder}"
+                                       Style="{StaticResource WlMonoReadoutText}"
+                                       Foreground="{DynamicResource WlText}"
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding BackupFolder}"
+                                       AutomationProperties.Name="Backup folder path" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Change folder… (secondary) + Open (ghost), right-aligned, 9px apart. -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,9,0,0">
+                        <Button x:Name="ChangeFolderButton" Content="Change folder…"
+                                Style="{StaticResource WlSecondaryButton}"
+                                AutomationProperties.Name="Change the backup folder" />
+                        <Button x:Name="OpenFolderButton" Content="Open" Margin="9,0,0,0"
+                                Style="{StaticResource WlGhostButton}"
+                                AutomationProperties.Name="Open the backup folder" />
+                    </StackPanel>
+
+                    <!-- Drive stats line: mono 11.5px, muted. The design's full line is
+                         "N BACKUPS · X MB USED · Y GB FREE ON THIS DRIVE", but the backup count and
+                         used bytes live on the shell view-model, not here - Task 2 owns only the free
+                         figure (FreeSpaceBytes). It prints what it has and omits itself when the
+                         figure cannot be read (FreeSpaceText empty), matching the bottom bar's
+                         convention. The fuller line lands with the sections that own those numbers. -->
+                    <TextBlock Margin="0,10,0,0" Style="{StaticResource WlMonoMetaText}"
+                               Foreground="{DynamicResource WlMuted}"
+                               Text="{Binding FreeSpaceText, Mode=OneWay}"
+                               Visibility="{Binding FreeSpaceText, Converter={StaticResource FreeSpaceLineVisible}}"
+                               AutomationProperties.Name="Free space on the backup drive" />
+
+                    <!-- The Plan-6 trash row, hosted directly under the folder controls. It is a fact
+                         about this folder (its volume decides whether emptying confirms), which is why
+                         it lives here rather than in its own section. Hides itself when TrashRow is null
+                         (no store to read). -->
+                    <Border Margin="0,14,0,0" Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8"
+                            Visibility="{Binding TrashRow, Converter={StaticResource TrashRowVisible}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />    <!-- title + description + mono -->
+                                <ColumnDefinition Width="Auto" /> <!-- Empty trash -->
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="16,12">
+                                <TextBlock Text="{Binding TrashRow.Title}" Style="{StaticResource WlRowNameText}"
+                                           Foreground="{DynamicResource WlStrong}"
+                                           AutomationProperties.Name="Trash row title" />
+                                <TextBlock Text="{Binding TrashRow.Description}" Style="{StaticResource WlSecondaryText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                           AutomationProperties.Name="Trash row description" />
+                                <TextBlock Text="{Binding TrashRow.MonoLine}" Style="{StaticResource WlMonoMetaText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,6,0,0"
+                                           AutomationProperties.Name="Trash row statistics" />
+                            </StackPanel>
+
+                            <!-- Empty trash: secondary. 40% opacity + not interactive when the trash is
+                                 empty (ActionEnabled false) - the row STAYS VISIBLE, per the design. -->
+                            <Button x:Name="EmptyTrashButton" Grid.Column="1" Content="Empty trash"
+                                    VerticalAlignment="Center" Margin="16,0"
+                                    Style="{StaticResource WlSecondaryButton}"
+                                    IsEnabled="{Binding TrashRow.ActionEnabled}"
+                                    AutomationProperties.Name="Empty the trash" />
+                        </Grid>
+                    </Border>
+
+                    <!-- ============ WHEN TO BACK UP ============ -->
+                    <TextBlock Text="WHEN TO BACK UP" Style="{StaticResource WlColumnHeaderText}"
+                               Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
+                               AutomationProperties.Name="When to back up section" />
+
+                    <!-- Row 1: the auto-backup toggle. WlBg fill, hairline border, 8px radius. -->
+                    <Border Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />    <!-- label + description -->
+                                <ColumnDefinition Width="Auto" /> <!-- toggle -->
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="16,14">
+                                <TextBlock Text="Back up on its own when my settings change"
+                                           Style="{StaticResource WlRowNameText}"
+                                           Foreground="{DynamicResource WlStrong}"
+                                           AutomationProperties.Name="Automatic backup label" />
+                                <TextBlock Text="Wave Link writes its file the moment you touch a channel. This notices, waits a minute, then keeps a copy — at most one an hour."
+                                           Style="{StaticResource WlSecondaryText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                           AutomationProperties.Name="Automatic backup description" />
+                            </StackPanel>
+
+                            <!-- The toggle commits on change through the VM (no Save button). -->
+                            <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="16,0"
+                                      Style="{StaticResource WlToggle}"
+                                      IsChecked="{Binding AutoBackupEnabled, Mode=TwoWay}"
+                                      AutomationProperties.Name="Back up on its own when my settings change" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 2: the keep-count stepper. Same row shape, 10px below row 1. -->
+                    <Border Margin="0,10,0,0" Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />    <!-- label + description -->
+                                <ColumnDefinition Width="Auto" /> <!-- stepper -->
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="16,14">
+                                <TextBlock Text="Keep the last automatic backups"
+                                           Style="{StaticResource WlRowNameText}"
+                                           Foreground="{DynamicResource WlStrong}"
+                                           AutomationProperties.Name="Keep count label" />
+                                <TextBlock Text="Backups you took yourself are never deleted."
+                                           Style="{StaticResource WlSecondaryText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                           AutomationProperties.Name="Keep count description" />
+                            </StackPanel>
+
+                            <!-- Stepper: − / value / +. The middle segment is a plain Border (not a
+                                 Button) carrying the mono value - see WlStepperButton's own comment.
+                                 32x34 segments, hairline-24% border, 8px radius, joined into one control. -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+                                <Button x:Name="DecrementKeepCountButton" Content="−"
+                                        Style="{StaticResource WlStepperButton}"
+                                        AutomationProperties.Name="Decrease how many automatic backups to keep" />
+                                <Border Width="52" Height="34" Background="{DynamicResource WlSunken}"
+                                        BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
+                                        CornerRadius="8">
+                                    <TextBlock Text="{Binding AutoBackupKeepCount, Mode=OneWay}"
+                                               Style="{StaticResource WlMonoReadoutText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               AutomationProperties.Name="How many automatic backups to keep" />
+                                </Border>
+                                <Button x:Name="IncrementKeepCountButton" Content="+" Margin="-1,0,0,0"
+                                        Style="{StaticResource WlStepperButton}"
+                                        AutomationProperties.Name="Increase how many automatic backups to keep" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Footer: "CHANGES APPLY AS YOU MAKE THEM" (mono 11.5px, muted) left, Close (primary)
+                 right. No Save button - every control commits immediately, so there is nothing to save. -->
+            <Border Grid.Row="2" Background="{DynamicResource WlBg}"
+                    BorderBrush="{DynamicResource WlLine}" BorderThickness="0,1,0,0"
+                    Padding="24,18">
+                <Grid>
+                    <TextBlock Text="CHANGES APPLY AS YOU MAKE THEM" Style="{StaticResource WlMonoMetaText}"
+                               Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center"
+                               AutomationProperties.Name="Changes apply as you make them" />
+                    <Button x:Name="FooterCloseButton" Content="Close" IsCancel="True"
+                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Style="{StaticResource WlPrimaryButton}"
+                            AutomationProperties.Name="Close settings" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

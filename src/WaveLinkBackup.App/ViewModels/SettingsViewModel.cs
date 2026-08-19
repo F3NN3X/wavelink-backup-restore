@@ -50,6 +50,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string backupFolder;
     private bool autoBackupEnabled;
     private int autoBackupKeepCount;
+    private bool isHighContrast;
 
     public SettingsViewModel(
         BackupSettings settings,
@@ -136,6 +137,28 @@ public sealed class SettingsViewModel : ObservableObject
     public WhichWaveLinkModel? WhichWaveLink { get; private set; }
 
     /// <summary>
+    /// The empty-trash row hosted under WHERE BACKUPS ARE KEPT (Plan 6's projection). Set by the
+    /// app before the dialog opens and re-set on a folder change - never cached across a move.
+    /// Null when there is no store to read (the row hides itself).
+    /// </summary>
+    public TrashRowModel? TrashRow { get; set; }
+
+    /// <summary>
+    /// Free bytes on the volume holding the backup folder, for the mono stats line. Null when the
+    /// figure cannot be read (the line omits it, matching the bottom bar's convention).
+    /// </summary>
+    public long? FreeSpaceBytes { get; set; }
+
+    /// <summary>
+    /// The free-space figure as the mono stats line prints it: "118 GB FREE". Empty when the
+    /// figure cannot be read - the XAML then collapses the whole line rather than print a number
+    /// that is not there. Formatted here (not in the view) so the view stays a pure binding and
+    /// the format is unit-testable without a window.
+    /// </summary>
+    public string FreeSpaceText =>
+        FreeSpaceBytes is { } bytes ? $"{Readable.Bytes(bytes)} FREE" : string.Empty;
+
+    /// <summary>
     /// Change folder…: persist the new store path and re-point the read-only display. The
     /// caller (Task 2) is responsible for re-pointing the live store and re-detecting the trash
     /// row's volume; this only owns the settings value.
@@ -146,6 +169,18 @@ public sealed class SettingsViewModel : ObservableObject
 
         Set(ref backupFolder, path);
         return true;
+    }
+
+    /// <summary>
+    /// Whether the OS is in high-contrast mode. The dialog's controls (the toggle, the stepper)
+    /// carry high-contrast triggers that bind to this through the window's DataContext - the same
+    /// convention MainWindow uses via ShellViewModel.IsHighContrast. Set by the app at construction;
+    /// a false default is safe because on a non-HC OS every trigger stays inert.
+    /// </summary>
+    public bool IsHighContrast
+    {
+        get => isHighContrast;
+        set => Set(ref isHighContrast, value);
     }
 
     /// <summary>
