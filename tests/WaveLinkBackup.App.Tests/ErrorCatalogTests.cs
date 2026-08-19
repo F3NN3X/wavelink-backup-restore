@@ -23,6 +23,7 @@ public sealed class ErrorCatalogTests
     [InlineData(10, ErrorPlacement.InlineStrip, ErrorWeight.Neutral)]
     [InlineData(11, ErrorPlacement.InlineStrip, ErrorWeight.Neutral)]
     [InlineData(12, ErrorPlacement.ReplacesList, ErrorWeight.Neutral)]
+    [InlineData(13, ErrorPlacement.InlineStrip, ErrorWeight.Neutral)]
     public void Each_error_has_its_designed_placement_and_weight(int code, ErrorPlacement placement, ErrorWeight weight)
     {
         var error = AppError.ByCode(code);
@@ -33,11 +34,41 @@ public sealed class ErrorCatalogTests
     }
 
     [Fact]
-    public void Catalog_holds_exactly_twelve_errors_numbered_one_through_twelve()
+    public void Catalog_holds_exactly_thirteen_errors_numbered_one_through_thirteen()
     {
-        Assert.Equal(12, AppError.All.Count);
-        for (var code = 1; code <= 12; code++)
+        // Twelve from 06-errors.md, plus the declined-elevation strip from 13-elevation.md.
+        Assert.Equal(13, AppError.All.Count);
+        for (var code = 1; code <= 13; code++)
             Assert.Equal(code, AppError.ByCode(code).Code);
+    }
+
+    [Fact]
+    public void Declining_administrator_rights_is_neutral_because_nothing_changed()
+    {
+        // The weight rule at its sharpest. A declined UAC prompt LOOKS like a failure and is not:
+        // the settings and presets went back, the plug-ins on this machine are exactly as they
+        // were, and the backup still holds them. Amber would claim the configuration is not whole
+        // when the user's own refusal is the only thing that happened.
+        var declined = AppError.ElevationDeclined;
+
+        Assert.Equal(13, declined.Code);
+        Assert.Equal(ErrorWeight.Neutral, declined.Weight);
+        Assert.Equal(ErrorPlacement.InlineStrip, declined.Placement);
+    }
+
+    [Fact]
+    public void No_Core_error_maps_to_the_declined_strip()
+    {
+        // Nothing in Core failed and nothing in Core can know what a person clicked, so 13 is the
+        // one error with no CoreError behind it. If the mapper ever started producing it, that
+        // would mean a real failure was being reported as the user's own choice.
+        foreach (var error in AppError.All)
+        {
+            if (error.Code == 13) continue;
+            Assert.NotEqual(13, error.Code);
+        }
+
+        Assert.NotEqual(13, AppErrorMapper.FromCoreSignal(new CoreSignal(new WriteFailed("x")))?.Code);
     }
 
     [Fact]
@@ -54,7 +85,7 @@ public sealed class ErrorCatalogTests
 
         // Every other error is neutral: refusals (nothing written/changed), missing locations
         // (nothing lost), or a format this copy doesn't understand yet (the backup is fine).
-        for (var code = 1; code <= 12; code++)
+        for (var code = 1; code <= 13; code++)
         {
             if (code is 1 or 4)
                 continue;

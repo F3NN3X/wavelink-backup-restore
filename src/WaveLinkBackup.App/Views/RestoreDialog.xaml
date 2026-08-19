@@ -223,7 +223,61 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- 6. Reassurance: Rubik 400 12.5px muted, the way back. -->
+                    <!--
+                      6. The tier 4 opt-in (screens/13-elevation.md). Same row shape as the
+                      Settings dialog's WHEN TO BACK UP rows: WlBg fill, hairline, 8px radius,
+                      toggle right. BELOW the amber block because it is a control rather than a
+                      warning, and ABOVE the reassurance because the reassurance is about the whole
+                      restore and stays last.
+
+                      Collapsed - not disabled - when the snapshot holds no plug-in binaries, which
+                      is the common case since tier 4 is off by default. The whole Border goes, so
+                      its 18px top margin goes with it.
+                    -->
+                    <Border Margin="0,18,0,0" Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8"
+                            AutomationProperties.Name="Also put the plug-in files back">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding PluginFiles}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />    <!-- label + description + meta -->
+                                <ColumnDefinition Width="Auto" /> <!-- toggle -->
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="14,14">
+                                <TextBlock Text="{Binding PluginFiles.Title}"
+                                           Style="{StaticResource WlRowNameText}"
+                                           Foreground="{DynamicResource WlStrong}" />
+                                <TextBlock Text="{Binding PluginFiles.Description}"
+                                           Style="{StaticResource WlSecondaryText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                           TextWrapping="Wrap" />
+                                <!-- The honest figure, read off this snapshot's own manifest. -->
+                                <TextBlock Text="{Binding PluginFiles.MetaText}"
+                                           Style="{StaticResource WlMonoMetaText}"
+                                           Foreground="{DynamicResource WlMuted}" Opacity="0.8"
+                                           Margin="0,6,0,0" />
+                            </StackPanel>
+
+                            <!-- OFF every time. Nothing writes this back to settings.json. -->
+                            <CheckBox x:Name="PluginFilesToggle" Grid.Column="1"
+                                      VerticalAlignment="Center" Margin="16,0"
+                                      Style="{StaticResource WlToggle}"
+                                      IsChecked="{Binding PluginFiles.Enabled, Mode=TwoWay}"
+                                      AutomationProperties.Name="Also put the plug-in files back" />
+                        </Grid>
+                    </Border>
+
+                    <!-- 7. Reassurance: Rubik 400 12.5px muted, the way back. -->
                     <TextBlock Text="{Binding Reassurance}" Style="{StaticResource WlSecondaryText}"
                                Foreground="{DynamicResource WlMuted}" Margin="0,18,0,0" />
                 </StackPanel>

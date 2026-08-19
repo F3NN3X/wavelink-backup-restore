@@ -113,9 +113,9 @@ deliberately not in 1.0).
 | 1 · Settings + Wave Link's own backups (~470 KB) | ✅ | Phase 6 §8 |
 | 2 · Plugin manifest (~4 KB) | ✅ | `plugins.json`, phase 6 §1–2 |
 | 3 · Plugin presets (~10 MB, opt-in, on) | ✅ | Phase 6 §3 — captured and restored from **both** `%APPDATA%` and Documents. The heuristic was measured against the reference rig and was wrong; the fix took a snapshot from 61 preset files to 491 ([technical-debt.md](../technical-debt.md) §4.18) |
-| 4 · Plugin binaries (~40 MB, opt-in, off) | ✅ | Phase 6 §4 — restore is CLI-only until elevation has a designed surface (§4.17) |
+| 4 · Plugin binaries (~40 MB, opt-in, off) | ✅ | Phase 6 §4 — and restorable from the shell since the elevation surface was designed ([13-elevation.md](../operations/design/screens/13-elevation.md), §4.17) |
 | A `.vst3` may be a **directory** — synthetic bundle fixture | ✅ | Fixtures on both sides: capture recurses, restore rebuilds the tree. [[vst3-backs-up-as-nothing]] |
-| Elevation for tier 4 restore only; tiers 1–3 admin-free | ✅ | Reported as *needs elevation* rather than an access-denied trace, and it never fails the restore |
+| Elevation for tier 4 restore only; tiers 1–3 admin-free | ✅ | Reported as *needs elevation* rather than an access-denied trace, and it never fails the restore. The shell asks for it through an opt-in row and a real UAC prompt; declining is error 13, neutral, and costs nothing |
 | Version drift flagged on restore | ✅ | Phase 6 §5 — only when both versions are known |
 | Licences are never captured, and the UI says so | ✅ | The Settings dialog's first plain-language note |
 

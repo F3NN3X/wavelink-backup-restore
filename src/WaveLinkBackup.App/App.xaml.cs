@@ -109,6 +109,20 @@ public partial class App : Application
             return;
         }
 
+        // BEFORE the mutex, because this copy is not an instance of the app - it is one restore,
+        // started elevated by the copy the user is looking at, and the mutex would make it exit
+        // without doing the thing it was started for (screens/13-elevation.md).
+        if (arguments.IsHeadlessRestore)
+        {
+            var elevatedFileSystem = new FileSystem();
+            var elevatedSettings = arguments.ApplyTo(
+                new SettingsRepository(elevatedFileSystem, SettingsRepository.DefaultDirectory).Read());
+
+            Shutdown(HeadlessRestore.Run(
+                arguments, elevatedSettings, elevatedFileSystem, new WaveLinkProcess(), new SystemClock()));
+            return;
+        }
+
         // BEFORE any Core object is built: a second instance must cost nothing.
         instance = SingleInstance.TryAcquire(InstanceName);
         if (!instance.IsFirst)

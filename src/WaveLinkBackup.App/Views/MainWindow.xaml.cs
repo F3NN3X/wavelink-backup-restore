@@ -23,21 +23,29 @@ public partial class MainWindow : Window
     private readonly ShellViewModel shell;
     private readonly IRestoreService restoreService;
     private readonly Func<Result<SettingsInspection>> inspectLive;
+    private readonly IElevation elevation;
     private CancellationTokenSource? restoreCts;
 
+    /// <param name="elevation">
+    /// How the window asks Windows for administrator rights, for the one restore that can need
+    /// them (screens/13-elevation.md). A seam because no test can answer a UAC prompt, and a
+    /// restore path only a human can exercise is one nobody exercises.
+    /// </param>
     public MainWindow(
         IWindowChrome chrome,
         ISystemTheme systemTheme,
         ShellState state,
         ShellViewModel shell,
         IRestoreService restoreService,
-        Func<Result<SettingsInspection>> inspectLive)
+        Func<Result<SettingsInspection>> inspectLive,
+        IElevation? elevation = null)
     {
         this.chrome = chrome;
         this.systemTheme = systemTheme;
         this.shell = shell;
         this.restoreService = restoreService;
         this.inspectLive = inspectLive;
+        this.elevation = elevation ?? new ShellExecuteElevation();
 
         InitializeComponent();
 
@@ -355,7 +363,80 @@ public partial class MainWindow : Window
             return; // Cancel or Escape - nothing was touched.
         }
 
+        // The tier 4 opt-in. Off unless the user moved it in the dialog just now, and never
+        // remembered - the Settings dialog's plug-in-files switch decides what goes INTO a backup
+        // and is deliberately not read here (screens/13-elevation.md).
+        if (model.PluginFiles?.Enabled == true)
+        {
+            await RunElevatedRestoreAsync(row.Id, row.Name);
+            return;
+        }
+
         await RunRestoreAsync(row.Id, row.Name, live);
+    }
+
+    /// <summary>
+    /// The restore the shell cannot do itself: tier 4 writes into
+    /// `C:\Program Files\Common Files\VST3`, which needs administrator rights this process does
+    /// not have and cannot acquire in place. A second, elevated copy of this same executable does
+    /// the whole restore and exits with a code (screens/13-elevation.md).
+    ///
+    /// The in-progress strip runs throughout, already at "Closing Wave Link". The restore has begun
+    /// as far as the user is concerned, and a separate "waiting for permission" state would be a
+    /// screen nobody sees for more than a second. Nothing has been written while Windows is asking:
+    /// the elevated copy takes the pre-restore snapshot itself.
+    /// </summary>
+    private async Task RunElevatedRestoreAsync(string snapshotId, string snapshotName)
+    {
+        shell.BeginRestore(snapshotName);
+        shell.RestoreProgress.Advance(RestoreStage.ClosingWaveLink);
+
+        restoreCts = new CancellationTokenSource();
+        var token = restoreCts.Token;
+
+        ElevationOutcome outcome;
+        try
+        {
+            // Off the UI thread: RunElevated blocks until the elevated copy exits, and the strip
+            // has to keep animating while Windows shows its consent dialog.
+            outcome = await Task.Run(
+                () => elevation.RunElevated(["--restore", snapshotId, "--with-plugins"], token), token);
+        }
+        finally
+        {
+            shell.CompleteRestore();
+        }
+
+        switch (outcome.Result)
+        {
+            case ElevationResult.Declined:
+                // Error 13. Neutral, because declining changed nothing - the settings and presets
+                // went back, and the plug-ins are exactly as they were. The action re-runs the same
+                // restore rather than firing a second UAC prompt on its own.
+                shell.Strip.OnAction = () => _ = RunElevatedRestoreAsync(snapshotId, snapshotName);
+                shell.Strip.ShowError(
+                    AppError.ElevationDeclined,
+                    monoMeta: "ADMINISTRATOR RIGHTS DECLINED · YOUR PLUG-INS ARE STILL IN THE BACKUP",
+                    actionLabel: "Try again as administrator");
+                break;
+
+            case ElevationResult.Completed:
+                // The elevated copy verified from the log and we cannot see its verdict from here,
+                // so this reports the honest one: the write went through, this process did not
+                // confirm it. Never Confirmed - claiming a confirmation nobody read would be the
+                // exact dishonesty 03-restore-outcomes.md exists to prevent.
+                shell.Strip.ShowResult(RestoreResult.Unconfirmed);
+                break;
+
+            default:
+                shell.Strip.ShowFailure(
+                    outcome.ExitCode is { } code
+                        ? $"The restore failed (code {code}). Your current settings are still in place."
+                        : "The restore could not be started with administrator rights.");
+                break;
+        }
+
+        await shell.List.RefreshAsync();
     }
 
     /// <summary>

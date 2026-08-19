@@ -131,6 +131,30 @@ public sealed class RestoreOrchestrator(
     /// What <see cref="Restore"/> would do. Cheap, read-only, and safe to call while Wave
     /// Link runs - this is what the confirmation dialog shows.
     /// </summary>
+    /// <summary>
+    /// The plug-ins whose binaries this snapshot holds, and what they weigh. Zero for every
+    /// snapshot taken with tier 4 off, which is the default and therefore the common case.
+    /// </summary>
+    private static PluginBinaryPayload BinaryPayload(SnapshotManifest manifest, PluginManifest plugins)
+    {
+        var roots = plugins.Plugins
+            .Where(p => p.BinaryPath is not null)
+            .Select(p => p.BinaryPath!)
+            .ToList();
+
+        if (roots.Count == 0) return PluginBinaryPayload.None;
+
+        // Summed over the manifest's own file entries, so a bundle counts every file inside it and
+        // a snapshot whose binaries were pruned reports what is actually there.
+        var bytes = manifest.Files
+            .Where(f => roots.Any(root =>
+                string.Equals(f.Key, root, StringComparison.OrdinalIgnoreCase)
+                || f.Key.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase)))
+            .Sum(f => f.Value.SizeBytes);
+
+        return new PluginBinaryPayload(roots.Count, bytes);
+    }
+
     public Result<RestorePlan> Plan(string snapshotId, SettingsInspection live)
     {
         var found = store.Get(snapshotId);
@@ -149,6 +173,11 @@ public sealed class RestoreOrchestrator(
         {
             Plugins = new PluginResolution(fileSystem)
                 .Check(recorded, new PluginCacheReader(fileSystem).Read(live.Location)),
+
+            // Read off the manifest rather than the disk: the sizes are already recorded, and the
+            // restore dialog must not spend forty megabytes of reads to decide whether to draw a
+            // row.
+            Binaries = BinaryPayload(found.Value.Manifest, recorded),
         };
     }
 }

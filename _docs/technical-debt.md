@@ -695,24 +695,40 @@ with an invalidation rule, so it is worth having a measurement before writing on
 being missed on a rig with a large plugin set. **Worse since 0.6.0**, where tier 4 can read the
 same 40 MB a second time to copy it.
 
-### 4.17 The shell cannot restore plug-in binaries — **open, 2026-08-19**
+### 4.17 ~~The shell cannot restore plug-in binaries~~ — **CLOSED 2026-08-19**
 
-Tier 4 restore is built, tested and reachable from the CLI (`wlbackup restore <id> --with-plugins`).
-The WPF shell never asks for it: `RestoreOptions.Default` is presets-on, binaries-off, and no
-control offers otherwise.
-
-**Why:** `C:\Program Files\Common Files\VST3` needs administrator rights, and elevation has no
-designed surface — no UAC prompt in any screen, and no error state for a declined one among the
-twelve in `06-errors.md`. Building one in XAML during phase 6 would have been inventing design in
-code, which is the thing [[ADR-004]] and the design package both exist to prevent.
-
-**What the user gets meanwhile:** the binaries are IN the snapshot and the restore dialog names any
-plug-in that is missing, which is the design's own answer — *"Install it and restore again to get
-it back."*
-
-**What closes this:** a designed elevation flow (a row in the restore dialog, and the "we asked and
-you said no" state), then `RestoreOptions` wired to it. **Phase:** 7 at the earliest; it is not on
-the 1.0 gate list.
+> The blocker was never the code — tier 4 restore has been built and tested since phase 6. It was
+> that elevation had no designed surface, and inventing one in XAML is the thing [[ADR-004]] and the
+> design package exist to prevent. So the surface was designed first:
+> [13-elevation.md](operations/design/screens/13-elevation.md), in 06-errors.md's own shape and
+> under its own rules.
+>
+> **What was designed.** One row in the restore dialog — *"Also put the plug-in files back"*, the
+> Settings dialog's row shape, off every time, **absent** rather than disabled when the snapshot
+> holds no binaries. And a thirteenth error for the declined prompt: an inline result strip,
+> **neutral**, because declining changed nothing — the settings and presets went back, the plug-ins
+> on this machine are as they were, and the backup still holds them.
+>
+> **How it elevates.** The shell starts a second copy of ITSELF with `--restore <id>
+> --with-plugins` and waits; Windows draws its own consent dialog. We never paint an administrator
+> prompt — a program that draws its own is teaching people to trust a thing they should not. The
+> elevated copy takes the pre-restore snapshot itself, so at the moment Windows asks, nothing has
+> been touched and a decline costs exactly nothing.
+>
+> **The one non-obvious part** is that the elevated copy must skip the single-instance mutex. It is
+> `Local\` and per-user, so the elevated copy runs as the *same* user, would find the mutex held by
+> the window that started it, conclude it is a second launch and exit without restoring anything.
+> It is not a second instance — it is one operation, and the race the mutex prevents is two watchers
+> over one settings file. `ShellArguments.IsHeadlessRestore` is that distinction, with the reasoning
+> on it.
+>
+> **Pinned by** `ElevatedRestoreTests` (13 tests: the flags, what the elevated copy does and
+> refuses to do without the flag, the pre-restore snapshot, the exit codes against the CLI's, the
+> row's presence rule and its measured size) and two `RestoreDialogViewTests` that render the row in
+> all three themes — the guard that exists because this dialog once could not open at all.
+>
+> **Left deliberately undone:** a "don't ask again" (Windows will not remember it and neither
+> should the row), and elevating the whole app at launch.
 
 ### 4.18 ~~Tier 3's preset heuristic has never met a real vendor folder~~ — **MEASURED AND FIXED 2026-08-19**
 

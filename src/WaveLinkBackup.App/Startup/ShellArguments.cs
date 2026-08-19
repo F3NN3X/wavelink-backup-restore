@@ -12,14 +12,38 @@ namespace WaveLinkBackup.App.Startup;
 /// (operations/design/screens/08-settings-persistence.md).
 /// </summary>
 /// <param name="Error">Non-null when parsing failed. The shell shows it and exits.</param>
+/// <param name="RestoreSnapshotId">
+/// Set only by the elevated copy this app starts of ITSELF, to put tier 4's plug-in files back
+/// (operations/design/screens/13-elevation.md). Not a documented flag and not in any help text:
+/// it names one snapshot and means "do this restore and exit", which is not something a user has
+/// any reason to type.
+/// </param>
+/// <param name="WithPlugins">
+/// Whether that restore includes tier 4. Only meaningful alongside
+/// <paramref name="RestoreSnapshotId"/> — it is the entire reason the elevated copy exists.
+/// </param>
 public sealed record ShellArguments(
     bool StartInTray = false,
     string? StorePath = null,
     string? SettingsPath = null,
     int? KeepCount = null,
-    string? Error = null)
+    string? Error = null,
+    string? RestoreSnapshotId = null,
+    bool WithPlugins = false)
 {
     public bool IsValid => Error is null;
+
+    /// <summary>
+    /// True when this process exists to perform one restore and exit — no window, no tray, no
+    /// watcher, and no single-instance mutex.
+    ///
+    /// The mutex is the important omission. It is `Local\` and per-user, so the elevated copy runs
+    /// as the SAME user and would find the mutex already taken by the window that started it, see
+    /// itself as a second launch, and exit without restoring anything. That is correct behaviour
+    /// for a second launch and wrong for this one, because this process is not a second instance —
+    /// it is one operation, and the race the mutex prevents is two watchers over one settings file.
+    /// </summary>
+    public bool IsHeadlessRestore => RestoreSnapshotId is not null;
 
     private static ShellArguments Failed(string error) => new(Error: error);
 
@@ -45,6 +69,15 @@ public sealed record ShellArguments(
                 case "--settings":
                     if (!TryValue(args, ref i, out var settings)) return Failed("--settings needs a path.");
                     result = result with { SettingsPath = settings };
+                    break;
+
+                case "--restore":
+                    if (!TryValue(args, ref i, out var id)) return Failed("--restore needs a backup id.");
+                    result = result with { RestoreSnapshotId = id };
+                    break;
+
+                case "--with-plugins":
+                    result = result with { WithPlugins = true };
                     break;
 
                 case "--keep":
