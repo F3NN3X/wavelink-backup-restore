@@ -95,6 +95,40 @@ public sealed class TrayMenuStyleTests
         Assert.True(others);
     }
 
+    /// <summary>
+    /// screens/12: "Quit stops the backups, and the item says so rather than a dialog afterwards."
+    /// The label carries the consequence on the face of the menu — there is no confirmation step
+    /// to catch someone who did not read it. Pinning the exact string means a copy edit that drops
+    /// "stops backing up" (leaving a bare "Quit") fails here instead of shipping.
+    /// </summary>
+    [Fact]
+    public void The_quit_item_says_it_stops_backing_up()
+    {
+        var header = Wpf.Run(() => LoadMenu().Items
+            .OfType<MenuItem>()
+            .Single(i => i.Name == "Quit")
+            .Header);
+
+        Assert.Equal("Quit — stops backing up", header);
+    }
+
+    /// <summary>
+    /// The PauseResume item's designed starting label. App.RefreshTray rewrites it to "Resume"
+    /// while a pause is active and back to this on resume (App.xaml.cs, RefreshTray), so the XAML
+    /// default is what a freshly built menu shows — the state the user sees before any tick has
+    /// run. Pinning it keeps the swap's two endpoints distinct and the un-paused label exact.
+    /// </summary>
+    [Fact]
+    public void The_pause_item_starts_labeled_as_a_pause()
+    {
+        var header = Wpf.Run(() => LoadMenu().Items
+            .OfType<MenuItem>()
+            .Single(i => i.Name == "PauseResume")
+            .Header);
+
+        Assert.Equal("Pause for an hour", header);
+    }
+
     /// <summary>Only one item is checkable — the automatic-backup toggle.</summary>
     [Fact]
     public void Exactly_one_item_is_checkable()

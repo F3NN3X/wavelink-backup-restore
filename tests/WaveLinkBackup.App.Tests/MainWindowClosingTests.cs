@@ -70,6 +70,18 @@ public sealed class MainWindowClosingTests
     // that was never Show()n still runs OnClosing (confirmed here: IsClosed flips to true and no
     // exception surfaces), so this drives the real bug without violating the suite's
     // never-Show()/ShowDialog() rule.
+    //
+    // What is NOT covered here, and why: the hide branch of OnClosing (Application.Current IS an
+    // App, ClosingHidesToTray on, not shutting down -> e.Cancel = true; Hide()). That path needs a
+    // real App installed as Application.Current, and WPF allows exactly one Application per
+    // AppDomain - Wpf.cs's shared bare Application occupies the slot, and `new App()` throws
+    // InvalidOperationException (confirmed empirically with a throwaway probe before writing this
+    // note; Application.Current is not settable). So the hide-vs-exit behaviour is a "look at it"
+    // item for the tray shell, same class of exclusion as the DWM interop and unshown-window
+    // geometry already documented in MainWindowGeometryTests. The exit branch (IsShuttingDown or
+    // ClosingHidesToTray off -> close normally) is exercised by the test below, because on this
+    // harness Application.Current is never an App and OnClosing returns before reaching it - which
+    // is also why that branch's own logic is not independently pinned here.
     [Fact]
     public void Closing_a_window_when_Application_Current_is_not_an_App_closes_normally()
     {
