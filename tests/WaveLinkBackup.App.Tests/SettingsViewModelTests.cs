@@ -256,6 +256,48 @@ public sealed class SettingsViewModelTests
         Assert.Equal("43 KB", model.WhereSettingsLive.SizeText);
     }
 
+    // -------------------------------------------------------------- WHICH WAVE LINK: the CHOSEN date line
+
+    [Fact]
+    public void The_chosen_date_line_prints_the_local_date_upper_cased()
+    {
+        // "CHOSEN 14 AUG" - the mono micro-label convention. The date is local (the moment the
+        // user made the choice), upper-cased, and formatted d MMM. A UTC input at midnight on a
+        // positive-offset machine lands on the same calendar day, so the assertion is stable.
+        var model = new WhichWaveLinkModel(
+            "3.2.1", @"C:\WL\Settings.json",
+            new DateTimeOffset(2026, 8, 14, 0, 0, 0, TimeSpan.Zero), Visible: true);
+
+        Assert.StartsWith("CHOSEN ", model.ChosenAtText);
+        Assert.Equal(model.ChosenAtText, model.ChosenAtText.ToUpperInvariant());
+    }
+
+    [Fact]
+    public void The_chosen_date_line_carries_the_day_and_month()
+    {
+        var model = new WhichWaveLinkModel(
+            "3.2.1", @"C:\WL\Settings.json",
+            new DateTimeOffset(2026, 8, 14, 12, 0, 0, TimeSpan.Zero), Visible: true);
+
+        Assert.Contains("AUG", model.ChosenAtText);
+    }
+
+    // -------------------------------------------------------------- WHICH WAVE LINK: ChooseWaveLink persists + updates
+
+    [Fact]
+    public void Choosing_a_wave_link_updates_the_visible_section_immediately()
+    {
+        var (model, _, _) = Rig(whichWaveLink: null);
+        var chosen = new WhichWaveLinkModel("3.2.1", @"D:\WL\Settings.json",
+            new DateTimeOffset(2026, 8, 19, 12, 0, 0, TimeSpan.Zero), Visible: true);
+
+        Assert.True(model.ChooseWaveLink(chosen));
+
+        Assert.NotNull(model.WhichWaveLink);
+        Assert.Equal("3.2.1", model.WhichWaveLink!.Version);
+        Assert.Equal(@"D:\WL\Settings.json", model.WhichWaveLink.Path);
+    }
+
     // -------------------------------------------------------------- WHAT GOES IN A BACKUP: the proportion bar
 
     // The bar is a pure projection of the enabled tiers (Task 3 step 2): it recomputes from what

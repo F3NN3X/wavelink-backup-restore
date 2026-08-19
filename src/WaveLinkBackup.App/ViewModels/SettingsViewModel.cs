@@ -12,7 +12,17 @@ public sealed record WhichWaveLinkModel(
     string Version,
     string Path,
     DateTimeOffset ChosenAt,
-    bool Visible);
+    bool Visible)
+{
+    /// <summary>
+    /// The "CHOSEN 14 AUG" line, upper-cased to match the mono micro-label convention. Formatted
+    /// here (not in the view) so the format is unit-testable without a window - the same reason
+    /// <see cref="FreeSpaceText"/> and the proportion-bar labels live on their models. The date is
+    /// local, not UTC: "chosen" is when the user made the choice, and that is a local moment.
+    /// </summary>
+    public string ChosenAtText =>
+        $"CHOSEN {ChosenAt.ToLocalTime():d MMM}".ToUpperInvariant();
+}
 
 /// <summary>
 /// The WHERE THESE SETTINGS LIVE block: where the file is, how big it is, and the line that

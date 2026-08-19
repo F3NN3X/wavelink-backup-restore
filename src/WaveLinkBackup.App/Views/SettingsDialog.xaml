@@ -405,6 +405,86 @@
                         </Grid>
                     </Border>
 
+                    <!-- ============ WHICH WAVE LINK ============ -->
+                    <!-- Hidden entirely when there is only one installation (WhichWaveLink is null):
+                         with nothing to choose, the section has no reason to exist. A DataTrigger
+                         cannot say "when it is NOT null show it", so the converter carries the
+                         predicate - the same convention as the trash row above. -->
+                    <StackPanel Visibility="{Binding WhichWaveLink, Converter={StaticResource TrashRowVisible}}">
+                        <TextBlock Text="WHICH WAVE LINK" Style="{StaticResource WlColumnHeaderText}"
+                                   Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
+                                   AutomationProperties.Name="Which Wave Link section" />
+
+                        <!-- The row: version strong, path ellipsised mono, CHOSEN date mono at 80%,
+                             Change… secondary on the right. -->
+                        <Border Background="{DynamicResource WlBg}"
+                                BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />    <!-- version + path + chosen date -->
+                                    <ColumnDefinition Width="Auto" /> <!-- Change… -->
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="16,14">
+                                    <TextBlock Text="{Binding WhichWaveLink.Version}"
+                                               Style="{StaticResource WlRowNameText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               AutomationProperties.Name="Wave Link version" />
+                                    <!-- The path is long and must not push the button; ellipsize it. -->
+                                    <TextBlock Text="{Binding WhichWaveLink.Path}"
+                                               Style="{StaticResource WlMonoMetaText}"
+                                               Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                               TextTrimming="CharacterEllipsis"
+                                               AutomationProperties.Name="Wave Link settings file path" />
+                                    <TextBlock Text="{Binding WhichWaveLink.ChosenAtText}"
+                                               Style="{StaticResource WlMonoMetaText}"
+                                               Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0" Opacity="0.8"
+                                               AutomationProperties.Name="When this installation was chosen" />
+                                </StackPanel>
+
+                                <!-- Change… re-opens the error-2 chooser; App.ChangeWaveLink owns it. -->
+                                <Button x:Name="ChangeWaveLinkButton" Content="Change…" Grid.Column="1"
+                                        VerticalAlignment="Center" Margin="16,0"
+                                        Style="{StaticResource WlSecondaryButton}"
+                                        AutomationProperties.Name="Choose a different Wave Link installation" />
+                            </Grid>
+                        </Border>
+
+                        <!-- The note: why this section exists at all. -->
+                        <TextBlock Text="Two installations were found on this computer. This is the one being watched and restored into."
+                                   Style="{StaticResource WlSecondaryText}" Foreground="{DynamicResource WlMuted}"
+                                   Margin="0,8,0,0" TextWrapping="Wrap" LineHeight="17.25"
+                                   AutomationProperties.Name="Which Wave Link note" />
+                    </StackPanel>
+
+                    <!-- ============ WHERE THESE SETTINGS LIVE ============ -->
+                    <!-- Always visible: it is a fact about where the file is, not a choice. The mono
+                         line carries the path and its own size; the second line keeps "a command-line
+                         flag overrides this for one run" honest (08-settings-persistence.md). -->
+                    <TextBlock Text="WHERE THESE SETTINGS LIVE" Style="{StaticResource WlColumnHeaderText}"
+                               Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
+                               AutomationProperties.Name="Where these settings live section" />
+
+                    <Border Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8"
+                            Padding="16,14">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource WlSecondaryText}" TextWrapping="Wrap" LineHeight="19.575">
+                                <Run FontWeight="Medium" Foreground="{DynamicResource WlStrong}">On this computer, for this account.</Run><Run Foreground="{DynamicResource WlMuted}"> The folder, the automatic-backup switch, how many to keep and which Wave Link you picked are kept in one small file. It travels with your Windows profile, not with your backups.</Run>
+                            </TextBlock>
+                            <!-- Path + own size, mono 11.5px muted. -->
+                            <TextBlock Margin="0,10,0,0" Style="{StaticResource WlMonoMetaText}"
+                                       Foreground="{DynamicResource WlMuted}" TextTrimming="CharacterEllipsis">
+                                <Run><Run.Text>{Binding WhereSettingsLive.FilePath}</Run.Text></Run><Run> · </Run><Run><Run.Text>{Binding WhereSettingsLive.SizeText}</Run.Text></Run>
+                            </TextBlock>
+                            <!-- The flag-override line, at 80% opacity. -->
+                            <TextBlock Text="A COMMAND-LINE FLAG OVERRIDES THIS FILE FOR THAT ONE RUN AND ISN'T SAVED"
+                                       Style="{StaticResource WlMonoMetaText}" Foreground="{DynamicResource WlMuted}"
+                                       Margin="0,4,0,0" Opacity="0.8"
+                                       AutomationProperties.Name="Command-line flag override note" />
+                        </StackPanel>
+                    </Border>
+
                 </StackPanel>
             </ScrollViewer>
 

@@ -40,6 +40,13 @@ public partial class SettingsDialog : Window
         EmptyTrashButton.Click += (_, _) =>
             (Application.Current as App)?.EmptyTrash(this, model);
 
+        // Change… re-opens the error-2 chooser (the same dialog that fires at startup when two
+        // installations are found and none is chosen). App.ChangeWaveLink owns the whole flow:
+        // re-inspect, show the chooser, persist the pick. The section itself is only visible when
+        // more than one installation exists, so this button always has a real choice to offer.
+        ChangeWaveLinkButton.Click += (_, _) =>
+            (Application.Current as App)?.ChangeWaveLink(this);
+
         // Focus the Close button when the dialog opens: it is the safe action and the only one that
         // needs no thought, so a keyboard user who hits Enter immediately dismisses rather than
         // changes something.

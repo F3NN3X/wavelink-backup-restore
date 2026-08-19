@@ -400,10 +400,21 @@ public partial class App : Application
             repo.FilePath,
             settingsFileBytes > 0 ? Readable.Bytes(settingsFileBytes) : "not written yet");
 
+        // WHICH WAVE LINK (Task 4): shown only when more than one installation exists and one has
+        // been chosen. The locator never guesses between two installs (it returns
+        // MultiplePackagesFound instead), so a successful inspect of the CHOSEN path is proof that
+        // exactly one install is present - which is precisely when the section must hide itself,
+        // because there is nothing to choose. A failure with no candidate is "not installed" or
+        // "unreadable", also not this section's business; only MultiplePackagesFound + a chosen
+        // path earns it. The version and path come from that live inspection; the CHOSEN date is
+        // when our own settings file last recorded the choice (the moment the user picked).
+        var whichLive = BuildWhichWaveLink(repo);
+
         var vm = SettingsViewModel.Build(
             settings,
             s => repo.Save(s).IsSuccess,
-            whereLive);
+            whereLive,
+            whichLive);
 
         // WHAT GOES IN A BACKUP: the only tier in a backup today is the settings file itself -
         // its size is the honest figure for "Your setup". The effects list rides inside that same
@@ -434,6 +445,77 @@ public partial class App : Application
         }
 
         return vm;
+    }
+
+    /// <summary>
+    /// The WHICH WAVE LINK section's model, or null when the section must hide itself. The rule is
+    /// "more than one installation AND one has been chosen": the locator never guesses between two
+    /// (it returns MultiplePackagesFound), so a successful inspect of the CHOSEN path proves exactly
+    /// one install is present - which is exactly when there is nothing to choose and the section
+    /// stays hidden. A failure with no candidate is "not installed" or "unreadable", also not this
+    /// section's business; only MultiplePackagesFound + a chosen path earns it (08-settings-
+    /// persistence.md: hide the whole section when only one installation exists).
+    /// </summary>
+    private WhichWaveLinkModel? BuildWhichWaveLink(SettingsRepository repo)
+    {
+        if (fileSystem is null || settings.ChosenWaveLinkPath is null) return null;
+
+        var inspection = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
+            .Inspect(settings.ChosenWaveLinkPath);
+
+        // Only a genuine "more than one" finding shows the section. One install or none is the
+        // ordinary found / not-found fact the status strip already reports - not a choice.
+        if (inspection.Error is not MultiplePackagesFound { Candidates.Count: > 1 }) return null;
+
+        var chosen = settings.ChosenWaveLinkPath;
+        if (!fileSystem.FileExists(chosen)) return null;
+
+        // The version and path come from the live inspection of the CHOSEN install - the same seam
+        // RefreshShellFacts uses, so the section never disagrees with the status strip. The version
+        // is null-tolerant: a file without Update.LastUpdateVersion still shows its path and date.
+        var version = inspection.Value.Analysis.WaveLinkVersion ?? "version unknown";
+
+        // CHOSEN date = when our own settings file last recorded the choice (the moment the user
+        // picked it), not when Wave Link's file was written. The repo file is the honest source:
+        // it is what stores ChosenWaveLinkPath, so its last-write IS the choice time.
+        var chosenAt = new DateTimeOffset(
+            fileSystem.GetLastWriteTimeUtc(repo.FilePath), TimeSpan.Zero).ToLocalTime();
+
+        return new WhichWaveLinkModel(version, chosen, chosenAt, Visible: true);
+    }
+
+    /// <summary>
+    /// The WHICH WAVE LINK "Change…" action (Task 4): re-opens the error-2 chooser. It is the same
+    /// dialog that fires at startup when two installations are found and none is chosen - here it
+    /// is reached deliberately, so a user who picked the wrong install can correct it without
+    /// uninstalling one. The pick persists through vm.ChooseWaveLink (which stores
+    /// ChosenWaveLinkPath), which is what stops the chooser asking again on the next launch.
+    /// </summary>
+    internal void ChangeWaveLink(Window owner)
+    {
+        if (fileSystem is null || settingsRepository is null) return;
+
+        var inspection = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
+            .Inspect(settings.ChosenWaveLinkPath);
+
+        // Only a genuine "more than one" finding offers a choice. One install or none has nothing
+        // to switch between - the button's section is hidden in those cases anyway, but this is
+        // the seam's own guard against a stale reference re-entering it.
+        if (inspection.Error is not MultiplePackagesFound { Candidates: var candidates }
+            || candidates.Count <= 1)
+            return;
+
+        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error))
+        {
+            Owner = owner,
+        };
+        dialog.ShowDialog();
+
+        if (dialog.Confirmed && dialog.SelectedInstallPath is not null)
+        {
+            settings = settings with { ChosenWaveLinkPath = dialog.SelectedInstallPath };
+            settingsRepository.Save(settings);
+        }
     }
 
     /// <summary>
