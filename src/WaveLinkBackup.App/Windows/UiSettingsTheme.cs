@@ -98,7 +98,17 @@ public sealed class UiSettingsTheme : ISystemTheme
     /// </summary>
     private void OnColorValuesChanged(UISettings sender, object args) => RaiseOnUiThread();
 
-    private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e)
+    private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e) =>
+        HandleUserPreference(e);
+
+    /// <summary>
+    /// The one decision this class makes about a preference change: only Category.Color means
+    /// anything to us (high contrast going on or off), and only then do we re-raise. Exposed as
+    /// an internal method rather than left private so a test can pin the runtime swap without
+    /// changing the developer's own Windows settings — the subscription in Start() is unchanged,
+    /// this is a testability seam not a design change.
+    /// </summary>
+    internal void HandleUserPreference(UserPreferenceChangedEventArgs e)
     {
         // Category.Color covers high contrast turning on and off. The other categories fire
         // often and mean nothing to us.
@@ -109,8 +119,17 @@ public sealed class UiSettingsTheme : ISystemTheme
     {
         if (disposed) return;
 
-        // BeginInvoke rather than Invoke: this is called from a thread we do not own, and
-        // blocking it on our own dispatcher is a deadlock waiting for a slow tick.
+        // BeginInvoke rather than Invoke: in production this is called from a thread we do not
+        // own (the WinRT pool, or a SystemEvents worker), and blocking that thread on our own
+        // dispatcher is a deadlock waiting for a slow tick. When the raise already arrives ON
+        // the UI thread there is nothing to marshal — raising straight through is what lets a
+        // test pin the swap deterministically without pumping the loop.
+        if (dispatcher.CheckAccess())
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
         dispatcher.BeginInvoke(() =>
         {
             if (!disposed) Changed?.Invoke(this, EventArgs.Empty);

@@ -80,4 +80,55 @@ public sealed class ThemeTests
             $"a theme switch a resource swap rather than a window rebuild. Found:" +
             $"{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
     }
+
+    /// <summary>
+    /// The companion to the test above: that one keeps literals OUT of the view XAML, this one
+    /// keeps them out of HighContrast.xaml specifically. In a high-contrast theme the palette is
+    /// not ours — Windows forces the colours and we bind to SystemColors.*ColorKey so they track
+    /// whichever scheme (Black or White) the user has chosen. A literal hex here would freeze one
+    /// scheme's values into the dictionary, and the other scheme would render wrong with nothing
+    /// in the suite to catch it. The only legal values are a SystemColors static or Transparent.
+    /// </summary>
+    [Fact]
+    public void High_contrast_carries_no_hard_coded_colour()
+    {
+        var root = Assembly.GetExecutingAssembly()
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(a => a.Key == "AppSourceRoot").Value!;
+
+        var path = Path.Combine(root, "Theming", "HighContrast.xaml");
+        Assert.True(File.Exists(path), $"Expected the HC dictionary at {path}");
+
+        var xaml = File.ReadAllText(path);
+
+        // 1. No hex literal anywhere — #RGB, #RRGGBB or #AARRGGBB. The existing guard skips the
+        //    theme folder; this is the one that watches it.
+        var hex = new Regex("#[0-9A-Fa-f]{3,8}\\b");
+        var hexOffenders = hex.Matches(xaml).Select(m => m.Value).ToList();
+
+        Assert.True(hexOffenders.Count == 0,
+            $"HighContrast.xaml must bind to SystemColors.*ColorKey or be Transparent — a literal " +
+            $"hex freezes one scheme's palette and the other renders wrong. Found:" +
+            $"{Environment.NewLine}{string.Join(Environment.NewLine, hexOffenders)}");
+
+        // 2. Every SolidColorBrush in the file resolves to exactly one of the two legal shapes:
+        //    Color="{DynamicResource {x:Static SystemColors.*ColorKey}}" or Color="Transparent".
+        //    Anything else — a named colour (Red), a raw value, a DynamicResource that is not a
+        //    SystemColors static — is a third category sneaking in.
+        var brush = new Regex(
+            "<SolidColorBrush\\b[^>]*/>", RegexOptions.Singleline);
+        var legalValue = new Regex(
+            "Color=\"(Transparent|\\{DynamicResource \\{x:Static SystemColors\\.\\w+ColorKey\\}\\})\"");
+
+        var offenders = new List<string>();
+        foreach (Match m in brush.Matches(xaml))
+        {
+            if (!legalValue.IsMatch(m.Value))
+                offenders.Add($"  {m.Value}");
+        }
+
+        Assert.True(offenders.Count == 0,
+            $"Every HC brush must be a SystemColors.*ColorKey static or Transparent. Found:" +
+            $"{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
+    }
 }
