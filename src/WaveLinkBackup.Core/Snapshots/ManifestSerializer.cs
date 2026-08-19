@@ -152,7 +152,7 @@ public static class ManifestSerializer
         {
             result[entry.Name] = new SnapshotFile(
                 RequiredString(entry.Value, "sha256"),
-                RequiredInt(entry.Value, "sizeBytes"));
+                RequiredLong(entry.Value, "sizeBytes"));
         }
         return result;
     }
@@ -177,6 +177,18 @@ public static class ManifestSerializer
 
     private static int RequiredInt(JsonElement root, string name) =>
         TryInt(root, name, out var value) ? value : throw new ManifestFieldException($"{name} is missing");
+
+    /// <summary>
+    /// Sizes are read as 64-bit. Tier 4 puts real binaries in the manifest - a 24 MB plugin is
+    /// nowhere near the 32-bit ceiling, but a file size read as an int is a trap that only springs
+    /// once, on someone else's machine.
+    /// </summary>
+    private static long RequiredLong(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var element)
+        && element.ValueKind == JsonValueKind.Number
+        && element.TryGetInt64(out var value)
+            ? value
+            : throw new ManifestFieldException($"{name} is missing");
 
     private static bool TryInt(JsonElement root, string name, out int value)
     {

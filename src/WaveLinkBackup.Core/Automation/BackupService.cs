@@ -25,11 +25,21 @@ public sealed record CaptureResult(Snapshot? Snapshot, bool SkippedAsDuplicate)
 /// the install (technical-debt.md 2.2). Threaded here rather than resolved at construction
 /// so the whole service honours it, including the watcher's captures.
 /// </param>
+/// <param name="gatherPayload">
+/// What to capture beyond the settings file, asked for at capture time rather than held.
+///
+/// A delegate rather than a <c>TierCapture</c> and a settings record, because the tier toggles
+/// live in a file the user can change while this service is running: a closure reading the
+/// shell's current settings means switching a tier on takes effect on the next capture instead of
+/// on the next launch. Null means this caller never looked - no plugins.json, no extra tiers
+/// (<see cref="SnapshotStore.Write"/>).
+/// </param>
 public sealed class BackupService(
     SettingsInspector inspector,
     SnapshotStore store,
     int keepCount = SnapshotRetention.DefaultKeepCount,
-    string? explicitSettingsPath = null)
+    string? explicitSettingsPath = null,
+    Func<SettingsInspection, SnapshotPayload?>? gatherPayload = null)
 {
     /// <summary>
     /// A backup the user asked for. NEVER deduplicated.
@@ -45,7 +55,8 @@ public sealed class BackupService(
         if (!live.IsSuccess) return live.Propagate<Snapshot>();
 
         var written = store.Write(
-            live.Value.Bytes, live.Value.Analysis, SnapshotTrigger.Manual, displayName, notes);
+            live.Value.Bytes, live.Value.Analysis, SnapshotTrigger.Manual, displayName, notes,
+            gatherPayload?.Invoke(live.Value));
 
         if (written.IsSuccess) Prune();
         return written;
@@ -71,7 +82,8 @@ public sealed class BackupService(
         }
 
         var written = store.Write(
-            live.Value.Bytes, live.Value.Analysis, SnapshotTrigger.Automatic, displayName);
+            live.Value.Bytes, live.Value.Analysis, SnapshotTrigger.Automatic, displayName,
+            payload: gatherPayload?.Invoke(live.Value));
 
         if (!written.IsSuccess) return written.Propagate<CaptureResult>();
 

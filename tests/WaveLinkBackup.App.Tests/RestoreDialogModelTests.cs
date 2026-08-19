@@ -10,7 +10,8 @@ public class RestoreDialogModelTests
     private static RestorePlan Plan(
         string name = "Before 3.3 beta",
         IReadOnlyList<PlanRow>? rows = null,
-        string? versionWarning = null) =>
+        string? versionWarning = null,
+        PluginRestoreCheck? plugins = null) =>
         new(
             SnapshotName: name,
             SnapshotTakenUtc: Taken,
@@ -18,7 +19,65 @@ public class RestoreDialogModelTests
             LosesInputs: false,
             InputNamesLost: [],
             SnapshotIsSuspect: false,
-            VersionWarning: versionWarning);
+            VersionWarning: versionWarning,
+            Plugins: plugins);
+
+    private static PluginRestoreCheck Missing(string display, params string[] channels) =>
+        new([new PluginPresenceResult(display, @"C:\VST3\x.vst3", "4.1.2", null, channels,
+            PluginPresence.Missing)]);
+
+    private static PluginRestoreCheck Drifted(string display) =>
+        new([new PluginPresenceResult(display, @"C:\VST3\x.vst3", "4.1.2", "4.2.0", ["Voice"],
+            PluginPresence.VersionDrift)]);
+
+    // -------------------------------------------------------- the missing-plug-in warning
+
+    [Fact]
+    public void The_missing_plugin_block_renders_when_the_plan_found_one_missing()
+    {
+        // Phase 6 §5: it was null through all of phase 5 because there was nothing to compare
+        // against. Core resolves and words it; the dialog renders both clauses as one sentence.
+        var check = Missing("FabFilter Pro-Q 4", "Voice");
+
+        var model = RestoreDialogModel.Build(
+            Plan(plugins: check), Taken,
+            missingPluginLead: check.MissingLead,
+            missingPluginRest: check.MissingRest);
+
+        Assert.Equal("FabFilter Pro-Q 4 isn't installed on this computer.", model.MissingPluginLead);
+        Assert.StartsWith("The Voice channel will load", model.MissingPluginRest);
+        Assert.Contains("Install it and restore again", model.MissingPluginWarning);
+    }
+
+    [Fact]
+    public void A_snapshot_with_nothing_missing_renders_no_amber_block_at_all()
+    {
+        var model = RestoreDialogModel.Build(Plan(plugins: new PluginRestoreCheck([])), Taken);
+
+        Assert.Null(model.MissingPluginWarning);
+    }
+
+    [Fact]
+    public void Plugin_version_drift_joins_the_quiet_version_line_rather_than_the_amber_block()
+    {
+        // A plug-in that updated is not missing, and nothing about the restore is un-whole - so
+        // it is the same quiet mono line the Wave Link version mismatch uses, never amber.
+        var model = RestoreDialogModel.Build(
+            Plan(versionWarning: "Made with 3.2.9; you run 3.3.0.", plugins: Drifted("FabFilter Pro-Q 4")),
+            Taken);
+
+        Assert.Contains("Made with 3.2.9", model.VersionMismatchNote);
+        Assert.Contains("FabFilter Pro-Q 4 4.1.2 → 4.2.0", model.VersionMismatchNote);
+        Assert.Null(model.MissingPluginWarning);
+    }
+
+    [Fact]
+    public void Drift_alone_still_fills_the_quiet_line()
+    {
+        var model = RestoreDialogModel.Build(Plan(plugins: Drifted("FabFilter Pro-Q 4")), Taken);
+
+        Assert.StartsWith("Plug-in versions have changed", model.VersionMismatchNote);
+    }
 
     /// <summary>The three rows Core always emits, in its order.</summary>
     private static IReadOnlyList<PlanRow> DefaultRows() =>

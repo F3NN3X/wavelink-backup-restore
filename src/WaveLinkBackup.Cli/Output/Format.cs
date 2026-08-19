@@ -48,6 +48,42 @@ public static class Format
         return sb.ToString();
     }
 
+    /// <summary>
+    /// What tiers 3 and 4 put back, after the fact. Silent when there was nothing to say: a
+    /// restore that only ever held settings should not print a line about presets.
+    /// </summary>
+    public static IEnumerable<string> TierRestoreLines(TierRestoreResult? tiers, bool wantedPlugins)
+    {
+        if (tiers is null) yield break;
+
+        if (tiers.PresetFilesRestored > 0)
+        {
+            yield return $"Put back {tiers.PresetFilesRestored} preset file(s).";
+        }
+
+        if (tiers.PluginFilesRestored > 0)
+        {
+            yield return $"Put back {tiers.PluginFilesRestored} plug-in file(s).";
+        }
+
+        // The one place administrator rights matter, said plainly rather than as an access-denied
+        // trace. Everything else has already been restored by the time this prints.
+        if (tiers.NeedsElevation)
+        {
+            yield return "Some plug-in files need administrator rights - run this again from an "
+                       + "elevated prompt with --with-plugins. Your settings are already restored.";
+        }
+        else if (tiers.Skipped.Count > 0)
+        {
+            yield return $"{tiers.Skipped.Count} file(s) could not be written: {string.Join(", ", tiers.Skipped.Take(3))}";
+        }
+
+        if (wantedPlugins && tiers.PluginFilesRestored == 0 && !tiers.NeedsElevation)
+        {
+            yield return "This backup does not contain the plug-in files.";
+        }
+    }
+
     public static IEnumerable<string> PlanLines(RestorePlan plan)
     {
         yield return $"Restore \"{plan.SnapshotName}\", taken {plan.SnapshotTakenUtc.ToLocalTime():yyyy-MM-dd HH:mm}?";
@@ -74,6 +110,20 @@ public static class Format
         if (plan.VersionWarning is not null)
         {
             yield return $"  NOTE: {plan.VersionWarning}";
+        }
+
+        // Tier 2's payoff: naming the plug-in beats a channel that silently loads with its
+        // effect switched off (ADR-006).
+        if (plan.Plugins?.MissingLead is { } missing)
+        {
+            yield return "";
+            yield return $"  WARNING: {missing}";
+            yield return $"           {plan.Plugins.MissingRest}";
+        }
+
+        if (plan.Plugins?.DriftNote is { } drift)
+        {
+            yield return $"  NOTE: {drift}";
         }
 
         yield return "";

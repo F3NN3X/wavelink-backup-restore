@@ -38,6 +38,12 @@ public static class SettingsSerializer
             if (settings.ChosenWaveLinkPath is null) writer.WriteNull("chosenWaveLinkPath");
             else writer.WriteString("chosenWaveLinkPath", settings.ChosenWaveLinkPath);
 
+            // Added in phase 6 with NO schema bump. Adding a field whose absence means its
+            // default is exactly what the tolerant read already handles; the version exists for
+            // a field whose MEANING changes, which is a different and much rarer event.
+            writer.WriteBoolean("includePresets", settings.IncludePresets);
+            writer.WriteBoolean("includePluginFiles", settings.IncludePluginFiles);
+
             writer.WriteEndObject();
         }
 
@@ -69,7 +75,9 @@ public static class SettingsSerializer
                 StorePath: String(root, "storePath") ?? defaults.StorePath,
                 AutoBackupEnabled: Bool(root, "autoBackupEnabled") ?? defaults.AutoBackupEnabled,
                 AutoBackupKeepCount: Int(root, "autoBackupKeepCount") ?? defaults.AutoBackupKeepCount,
-                ChosenWaveLinkPath: String(root, "chosenWaveLinkPath"));
+                ChosenWaveLinkPath: String(root, "chosenWaveLinkPath"),
+                IncludePresets: Bool(root, "includePresets") ?? defaults.IncludePresets,
+                IncludePluginFiles: Bool(root, "includePluginFiles") ?? defaults.IncludePluginFiles);
         }
     }
 

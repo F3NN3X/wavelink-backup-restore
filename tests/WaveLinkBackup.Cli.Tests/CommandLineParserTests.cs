@@ -86,6 +86,15 @@ public sealed class CommandLineParserTests
     }
 
     [Fact]
+    public void Restoring_the_plugin_files_is_opt_in()
+    {
+        // The only thing in this program that writes outside the user's own folders, so it is
+        // never the default ([[ADR-006]]).
+        Assert.False(CommandLineParser.Parse(["restore", "abc"]).WithPlugins);
+        Assert.True(CommandLineParser.Parse(["restore", "abc", "--with-plugins"]).WithPlugins);
+    }
+
+    [Fact]
     public void An_option_missing_its_value_is_a_usage_error()
     {
         Assert.False(CommandLineParser.Parse(["backup", "--name"]).IsValid);

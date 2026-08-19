@@ -2,6 +2,7 @@ using WaveLinkBackup.Cli.CommandLine;
 using WaveLinkBackup.Cli.Output;
 using WaveLinkBackup.Core.Abstractions;
 using WaveLinkBackup.Core.Automation;
+using WaveLinkBackup.Core.Capture;
 using WaveLinkBackup.Core.Discovery;
 using WaveLinkBackup.Core.Io;
 using WaveLinkBackup.Core.Process;
@@ -37,9 +38,13 @@ public sealed class CommandRunner(
     IOutput output,
     string localAppDataPath,
     IRecycleBin recycleBin,
-    BackupSettings? settings = null)
+    BackupSettings? settings = null,
+    string? appDataPath = null)
 {
     private readonly BackupSettings settings = settings ?? BackupSettings.Default;
+
+    /// <summary>Roaming AppData, where tier 3 looks. Same reason as localAppDataPath.</summary>
+    private readonly string appDataPath = appDataPath ?? TierCapture.SystemAppData;
 
     public int Run(ParsedCommand command)
     {
@@ -113,7 +118,8 @@ public sealed class CommandRunner(
 
         var store = Store(command);
         var orchestrator = new RestoreOrchestrator(
-            fileSystem, process, store, new SettingsWriter(fileSystem, process), new SettingsReader(fileSystem));
+            fileSystem, process, store, new SettingsWriter(fileSystem, process),
+            new SettingsReader(fileSystem), GatherPayload, appDataPath);
 
         var plan = orchestrator.Plan(command.Arguments[0], live.Value);
         if (!plan.IsSuccess) return Fail(plan.Error);
@@ -127,10 +133,20 @@ public sealed class CommandRunner(
             return ExitCode.Declined;
         }
 
-        var result = orchestrator.Restore(command.Arguments[0], live.Value);
+        // Presets always; binaries only when asked. Writing into Program Files needs
+        // administrator rights, and everything that matters restores without them ([[ADR-006]]).
+        var result = orchestrator.Restore(
+            command.Arguments[0], live.Value,
+            new RestoreOptions(Presets: true, PluginBinaries: command.WithPlugins));
+
         if (!result.IsSuccess) return Fail(result.Error);
 
         output.Write($"Restored. Your previous settings are saved as \"{result.Value.PreRestoreSnapshot.Manifest.DisplayName}\".");
+
+        foreach (var line in Format.TierRestoreLines(result.Value.Tiers, command.WithPlugins))
+        {
+            output.Write(line);
+        }
 
         if (!result.Value.Relaunched)
         {
@@ -351,7 +367,16 @@ public sealed class CommandRunner(
         Inspector(),
         Store(command),
         command.KeepCount ?? settings.AutoBackupKeepCount,
-        command.SettingsPath ?? settings.ChosenWaveLinkPath);
+        command.SettingsPath ?? settings.ChosenWaveLinkPath,
+        GatherPayload);
+
+    /// <summary>
+    /// Tiers 1-extra, 2, 3 and 4, resolved at capture time against the settings this run is
+    /// using. Every capture path goes through here so a `wlbackup backup` and a backup taken by
+    /// the GUI put the same things in a snapshot.
+    /// </summary>
+    private SnapshotPayload? GatherPayload(SettingsInspection live) =>
+        new TierCapture(fileSystem, appDataPath).Gather(live, settings);
 
     private int Fail(CoreError error)
     {

@@ -48,7 +48,46 @@ public sealed record SnapshotManifest(
     /// <summary>The file every snapshot has. Tiers 2-4 add more (phase 6).</summary>
     public const string SettingsFileName = "settings.json";
 
+    /// <summary>
+    /// Tier 2's file: the plugins the settings referenced, with the versions they were
+    /// captured against (ADR-006). Written whenever the capture path resolved the plugin set,
+    /// which is every capture the application makes.
+    /// </summary>
+    public const string PluginsFileName = "plugins.json";
+
     public const string ManifestFileName = "manifest.json";
+
+    /// <summary>The tier every snapshot carries.</summary>
+    public const string SettingsTier = "settings";
+
+    /// <summary>
+    /// Recorded in <see cref="Tiers"/> when <see cref="PluginsFileName"/> was written. Its
+    /// ABSENCE means the capture never looked, not that the rig has no plugins - an empty
+    /// plugins.json says that, and says it explicitly.
+    /// </summary>
+    public const string PluginManifestTier = "plugin-manifest";
+
+    /// <summary>
+    /// Tier 3. Claimed only when at least one preset file was actually captured — the badge says
+    /// what is IN the snapshot, and a tier claimed over an empty capture is a badge that lies.
+    /// </summary>
+    public const string PresetsTier = "presets";
+
+    /// <summary>
+    /// Tier 4. All or nothing: claimed only when every referenced plugin's binary was captured,
+    /// because a snapshot that can restore five plugins out of six cannot do what this badge
+    /// promises.
+    /// </summary>
+    public const string PluginsTier = "plugins";
+
+    /// <summary>
+    /// A file's real path inside a snapshot. Manifest keys use forward slashes so they read the
+    /// same on any machine and need no JSON escaping; the filesystem gets the platform separator.
+    /// Both the store and <see cref="SnapshotGuard"/> resolve through here so a key can never mean
+    /// two different files.
+    /// </summary>
+    public static string PathIn(string snapshotDirectory, string relativePath) =>
+        Path.Combine(snapshotDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar));
 
     /// <summary>
     /// True when validation found case-insensitively duplicated keys. Marks the entry suspect

@@ -88,17 +88,23 @@ public interface IRestoreService
 /// The in-order guarantee RestoreProgressModel enforces (it throws on a backwards Advance) holds
 /// because this reports strictly forward, never twice to the same stage.
 /// </summary>
+/// <param name="gatherPayload">
+/// What the pre-restore snapshot captures beyond the settings file. Passed through to the
+/// orchestrator: the copy the user comes back to should be as complete as any other.
+/// </param>
 public sealed class RestoreService(
     IFileSystem fileSystem,
     IWaveLinkProcess process,
-    SnapshotStore store) : IRestoreService
+    SnapshotStore store,
+    Func<SettingsInspection, SnapshotPayload?>? gatherPayload = null) : IRestoreService
 {
     public Task<Result<RestorePlan>> PlanAsync(string snapshotId, SettingsInspection live, CancellationToken ct)
     {
         // Read-only and cheap, but it touches the store - run off the UI thread like RestoreAsync
         // so a slow disk never freezes the confirmation dialog's own window.
         return Task.Run(() => new RestoreOrchestrator(
-            fileSystem, process, store, new SettingsWriter(fileSystem, process), new SettingsReader(fileSystem))
+            fileSystem, process, store, new SettingsWriter(fileSystem, process),
+            new SettingsReader(fileSystem), gatherPayload)
             .Plan(snapshotId, live), ct);
     }
 
@@ -106,7 +112,8 @@ public sealed class RestoreService(
         string snapshotId, SettingsInspection live, IProgress<RestoreStage>? progress, CancellationToken ct)
     {
         var orchestrator = new RestoreOrchestrator(
-            fileSystem, process, store, new SettingsWriter(fileSystem, process), new SettingsReader(fileSystem));
+            fileSystem, process, store, new SettingsWriter(fileSystem, process),
+            new SettingsReader(fileSystem), gatherPayload);
 
         // Run the synchronous Core sequence off the UI thread so the strip can animate while it
         // runs. The stages are reported from this background context; IProgress<T> marshals each

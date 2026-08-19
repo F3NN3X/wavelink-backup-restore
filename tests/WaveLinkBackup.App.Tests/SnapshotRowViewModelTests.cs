@@ -207,6 +207,27 @@ public sealed class SnapshotRowViewModelTests
         Assert.True(Row(Snapshot(tiers: ["settings"])).Tiers[0].IsPresent);
     }
 
+    [Fact]
+    public void A_four_tier_snapshot_lights_every_badge()
+    {
+        // Phase 6 §7: no badge code was needed once snapshots actually carried the tiers. This
+        // pins that, so a later change to the tier names cannot silently blank the column.
+        var row = Row(Snapshot(tiers: ["settings", "plugin-manifest", "presets", "plugins"]));
+
+        Assert.Equal([true, true, true], row.Tiers.Select(t => t.IsPresent));
+    }
+
+    [Fact]
+    public void The_plugin_manifest_tier_has_no_badge_of_its_own()
+    {
+        // It rides inside "settings" for the user: 4 KB that is always there and never a choice.
+        // Three slots, "always three wide, so the column is scannable".
+        var row = Row(Snapshot(tiers: ["settings", "plugin-manifest"]));
+
+        Assert.Equal(["SETTINGS", "PRESETS", "PLUGINS"], row.Tiers.Select(t => t.Label));
+        Assert.Equal([true, false, false], row.Tiers.Select(t => t.IsPresent));
+    }
+
     // -- actions --------------------------------------------------------------------------
 
     [Fact]

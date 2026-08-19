@@ -45,7 +45,7 @@ public sealed class SnapshotGuard(IFileSystem fileSystem)
         // Every recorded file must exist AND still hash to what the manifest says.
         foreach (var (name, expected) in manifest.Value.Files)
         {
-            var path = Path.Combine(snapshotDirectory, name);
+            var path = SnapshotManifest.PathIn(snapshotDirectory, name);
 
             if (!fileSystem.FileExists(path))
             {

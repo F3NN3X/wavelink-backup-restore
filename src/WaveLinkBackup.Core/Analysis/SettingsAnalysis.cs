@@ -136,7 +136,8 @@ public static class SettingsAnalysis
     private static IReadOnlyList<ReferencedPlugin> ReadReferencedPlugins(JsonElement inputs)
     {
         var plugins = new List<ReferencedPlugin>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var channels = new List<List<string>>();
+        var index = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var input in inputs.EnumerateObject())
         {
@@ -147,23 +148,38 @@ public static class SettingsAnalysis
                 continue;
             }
 
+            var channel = ReadName(input);
+
             foreach (var effect in effects.EnumerateArray())
             {
                 if (effect.ValueKind != JsonValueKind.Object) continue;
 
                 var path = ReadString(effect, "FilePath");
-                if (path is null || !seen.Add(path)) continue;
+                if (path is null) continue;
+
+                // Seen before: same plugin, another channel. The set stays deduplicated by path
+                // and the channel list grows, which is what lets the restore warning say *which*
+                // channels lose an effect rather than only how many.
+                if (index.TryGetValue(path, out var at))
+                {
+                    if (!channels[at].Contains(channel, StringComparer.Ordinal)) channels[at].Add(channel);
+                    continue;
+                }
+
+                index[path] = plugins.Count;
+                channels.Add([channel]);
 
                 plugins.Add(new ReferencedPlugin(
                     // A plugin with a path but no name is still capturable, and the file name
                     // is a better label for it than an empty string.
                     Name: ReadString(effect, "Name") ?? Path.GetFileNameWithoutExtension(path),
                     Vendor: ReadString(effect, "Vendor"),
-                    FilePath: path));
+                    FilePath: path,
+                    Channels: []));
             }
         }
 
-        return plugins;
+        return [.. plugins.Select((p, i) => p with { Channels = channels[i] })];
     }
 
     /// <summary>A string property, or null when absent, wrong-typed or blank.</summary>

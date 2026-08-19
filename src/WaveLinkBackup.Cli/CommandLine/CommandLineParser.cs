@@ -43,6 +43,10 @@ public static class CommandLineParser
                     command = command with { Json = true };
                     break;
 
+                case "--with-plugins":
+                    command = command with { WithPlugins = true };
+                    break;
+
                 case "--name":
                     if (!TryValue(args, ref i, arg, out var name)) return Missing(arg);
                     command = command with { Name = name };

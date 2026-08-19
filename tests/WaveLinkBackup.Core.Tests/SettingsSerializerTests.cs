@@ -17,7 +17,9 @@ public sealed class SettingsSerializerTests
             StorePath: @"D:\Backups\WaveLink",
             AutoBackupEnabled: false,
             AutoBackupKeepCount: 7,
-            ChosenWaveLinkPath: @"C:\Program Files\Elgato\WaveLink\Settings.json");
+            ChosenWaveLinkPath: @"C:\Program Files\Elgato\WaveLink\Settings.json",
+            IncludePresets: false,
+            IncludePluginFiles: true);
 
         var read = SettingsSerializer.Read(SettingsSerializer.Write(settings));
 
@@ -38,6 +40,41 @@ public sealed class SettingsSerializerTests
         var read = SettingsSerializer.Read(SettingsSerializer.Write(BackupSettings.Default));
 
         Assert.Null(read.ChosenWaveLinkPath);
+    }
+
+    [Fact]
+    public void The_tier_toggles_default_to_presets_on_and_plugin_files_off()
+    {
+        // ADR-006's defaults, and the reason: presets are the user's own irreplaceable work at
+        // ~10 MB; the binaries are re-downloadable at ~40 MB and carry no licence.
+        Assert.True(BackupSettings.Default.IncludePresets);
+        Assert.False(BackupSettings.Default.IncludePluginFiles);
+    }
+
+    [Fact]
+    public void A_settings_file_written_before_the_tier_toggles_existed_still_reads()
+    {
+        // The two booleans were ADDED with no schema bump: a field whose absence means its
+        // default is exactly what the tolerant read already handles. Bumping the version is for
+        // a field whose MEANING changes, which is a different and much rarer event.
+        var read = SettingsSerializer.Read("""
+            {"schemaVersion":1,"storePath":"D:\\B","autoBackupEnabled":true,"autoBackupKeepCount":30}
+            """u8);
+
+        Assert.Equal(@"D:\B", read.StorePath);
+        Assert.True(read.IncludePresets);
+        Assert.False(read.IncludePluginFiles);
+    }
+
+    [Fact]
+    public void A_wrong_typed_tier_toggle_falls_back_on_its_own()
+    {
+        var read = SettingsSerializer.Read("""
+            {"storePath":"D:\\B","includePresets":"yes","includePluginFiles":true}
+            """u8);
+
+        Assert.True(read.IncludePresets);
+        Assert.True(read.IncludePluginFiles);
     }
 
     [Fact]

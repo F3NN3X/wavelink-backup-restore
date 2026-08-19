@@ -9,6 +9,12 @@ namespace WaveLinkBackup.Core.Snapshots;
 public sealed record Snapshot(string Id, string Directory, SnapshotManifest Manifest)
 {
     public string SettingsPath => Path.Combine(Directory, SnapshotManifest.SettingsFileName);
+
+    /// <summary>
+    /// Tier 2's plugins.json. Present only when <see cref="SnapshotManifest.Tiers"/> claims
+    /// the tier - every snapshot written before phase 6 has none.
+    /// </summary>
+    public string PluginsPath => Path.Combine(Directory, SnapshotManifest.PluginsFileName);
 }
 
 /// <summary>
@@ -43,13 +49,31 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     // it), and emptying re-detects per volume through it.
     public string TrashPath => Path.Combine(storePath, TrashFolderName);
 
-    /// <summary>Writes a snapshot from settings bytes that have already been analysed.</summary>
+    /// <summary>
+    /// Writes a snapshot from settings bytes that have already been analysed.
+    ///
+    /// **This method knows nothing about tiers.** It writes the settings file, then whatever the
+    /// payload carries, hashing and sizing every one of them into the manifest identically -
+    /// which is what lets <see cref="SnapshotGuard"/> verify a four-tier snapshot with the code it
+    /// already had for a one-tier one.
+    /// </summary>
+    /// <param name="payload">
+    /// What a capture gathered beyond the settings file. Non-null - INCLUDING
+    /// <see cref="SnapshotPayload.Empty"/> - writes tier 2's plugins.json and claims the tier;
+    /// null writes neither.
+    ///
+    /// The distinction is the honest one: an empty payload is "we looked and this rig runs nothing
+    /// but Elgato built-ins", null is "this caller never looked". Claiming the tier for a caller
+    /// that never resolved anything would put an empty file in the snapshot and let restore report
+    /// no missing plugins on a rig full of them.
+    /// </param>
     public Result<Snapshot> Write(
         byte[] settingsBytes,
         SettingsAnalysisResult analysis,
         SnapshotTrigger trigger,
         string displayName,
-        string notes = "")
+        string notes = "",
+        SnapshotPayload? payload = null)
     {
         try
         {
@@ -74,6 +98,10 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
             directory = Path.Combine(storePath, id);
         }
 
+        // Serialized before the manifest is built, because the manifest records its hash and
+        // its length.
+        var pluginBytes = payload is null ? null : PluginManifestSerializer.Write(payload.Plugins);
+
         var manifest = new SnapshotManifest(
             SchemaVersion: SnapshotManifest.CurrentSchemaVersion,
             DisplayName: displayName,
@@ -87,12 +115,8 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
             EffectCount: fingerprint.EffectCount,
             EffectChannelCount: fingerprint.EffectChannelCount,
             HasDuplicateKeys: analysis.Report.HasCaseInsensitiveDuplicateKeys,
-            Tiers: ["settings"],
-            Files: new Dictionary<string, SnapshotFile>(StringComparer.Ordinal)
-            {
-                [SnapshotManifest.SettingsFileName] =
-                    new(fingerprint.Sha256, settingsBytes.LongLength),
-            });
+            Tiers: Tiers(payload),
+            Files: Files(settingsBytes, fingerprint.Sha256, pluginBytes, payload));
 
         try
         {
@@ -102,6 +126,26 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
             // snapshot, so writing it last means an interrupted write leaves a directory
             // the guard rejects rather than one it half-accepts.
             fileSystem.WriteBytes(Path.Combine(directory, SnapshotManifest.SettingsFileName), settingsBytes);
+
+            if (pluginBytes is not null)
+            {
+                fileSystem.WriteBytes(Path.Combine(directory, SnapshotManifest.PluginsFileName), pluginBytes);
+            }
+
+            foreach (var file in payload?.Files ?? [])
+            {
+                var path = SnapshotManifest.PathIn(directory, file.RelativePath);
+
+                // Tiers 3 and 4 nest; the settings file never did, so nothing before this needed
+                // a parent directory to exist.
+                if (Path.GetDirectoryName(path) is { Length: > 0 } parent)
+                {
+                    fileSystem.CreateDirectory(parent);
+                }
+
+                fileSystem.WriteBytes(path, file.Bytes);
+            }
+
             fileSystem.WriteBytes(
                 Path.Combine(directory, SnapshotManifest.ManifestFileName),
                 ManifestSerializer.Write(manifest));
@@ -113,6 +157,41 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
 
         return new Snapshot(id, directory, manifest);
     }
+
+    /// <summary>
+    /// What the manifest records, hashed the same way for every file - the guard verifies
+    /// them all identically and has no idea which tier any of them belongs to.
+    /// </summary>
+    private static IReadOnlyDictionary<string, SnapshotFile> Files(
+        byte[] settingsBytes, string settingsSha256, byte[]? pluginBytes, SnapshotPayload? payload)
+    {
+        var files = new Dictionary<string, SnapshotFile>(StringComparer.Ordinal)
+        {
+            [SnapshotManifest.SettingsFileName] = new(settingsSha256, settingsBytes.LongLength),
+        };
+
+        if (pluginBytes is not null)
+        {
+            files[SnapshotManifest.PluginsFileName] = new(HashOf(pluginBytes), pluginBytes.LongLength);
+        }
+
+        foreach (var file in payload?.Files ?? [])
+        {
+            files[file.RelativePath] = new(HashOf(file.Bytes), file.Bytes.LongLength);
+        }
+
+        return files;
+    }
+
+    /// <summary>
+    /// What this snapshot actually holds. Every snapshot carries settings; a payload adds the
+    /// plugin manifest, and the payload's own list adds whichever of presets and plug-in files
+    /// were captured in full.
+    /// </summary>
+    private static IReadOnlyList<string> Tiers(SnapshotPayload? payload) =>
+        payload is null
+            ? [SnapshotManifest.SettingsTier]
+            : [SnapshotManifest.SettingsTier, SnapshotManifest.PluginManifestTier, .. payload.Tiers];
 
     /// <summary>
     /// Every readable snapshot, newest first. Unreadable directories are SKIPPED rather than

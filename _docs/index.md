@@ -26,7 +26,7 @@ small enough to keep one snapshot per distinct content hash, indefinitely, forev
 |---|---|
 | **[SPEC.md](SPEC.md)** | The build specification. Where the settings live, what's inside them, the restore sequence, the validation traps, the VST3 tiering. **The authority on what to build.** Read its Provenance section before treating any number as a constant. |
 | **[operations/design/README.md](operations/design/README.md)** | The visual and interaction design, part 1 — tokens, the four finished screens, copy. High fidelity: colours, type, spacing and wording are final. Part 2 is [screens/](operations/design/screens/00-index.md); read [CHANGES-SINCE-V1.md](operations/design/CHANGES-SINCE-V1.md) first. |
-| **[dev-phases/README.md](dev-phases/README.md)** | What is left to build, phase by phase, with entry and exit criteria. |
+| **[dev-phases/README.md](dev-phases/README.md)** | What is left to build, phase by phase, with entry and exit criteria. Every phase is now detailed, and [spec-coverage.md](dev-phases/spec-coverage.md) maps each `SPEC.md` requirement to where it stands. |
 
 Everything else in this folder explains *why*, records *what bit us*, or tracks *what
 happened*. See [README.md](README.md) for how the system is organised and how to add to it.
@@ -69,7 +69,9 @@ lands scope the original four screens did not carry.
 | | |
 |---|---|
 | What shipped | [Phase 5](dev-phases/phase-5-wpf.md) · [CHANGELOG](../CHANGELOG.md) |
-| What is next | Plugin tiers — [phase 6](dev-phases/phase-6-plugin-tiers.md) §2 onward |
+| What is next | [Release](dev-phases/phase-7-release.md) — the privacy gate first |
+| Did we build the spec | [spec-coverage.md](dev-phases/spec-coverage.md) — every `SPEC.md` requirement, line by line |
+| What is refused or deferred | [post-1.0.md](dev-phases/post-1.0.md) |
 | How Core is shaped | [Phase 1](plans/2026-08-16-phase-1-core-design.md) · [Phase 2](plans/2026-08-16-phase-2-store-design.md) designs |
 
 > **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three

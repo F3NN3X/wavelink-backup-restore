@@ -169,6 +169,63 @@ public sealed class FormatTests
     }
 
     [Fact]
+    public void Elevation_is_said_plainly_and_only_about_the_plugin_files()
+    {
+        // Not an access-denied trace: the answer is "run it again elevated", and everything that
+        // matters is already back.
+        var lines = string.Join("\n", Format.TierRestoreLines(
+            new TierRestoreResult(12, 0, [@"C:\Program Files\Common Files\VST3\x.vst3"], NeedsElevation: true),
+            wantedPlugins: true));
+
+        Assert.Contains("Put back 12 preset file(s).", lines, StringComparison.Ordinal);
+        Assert.Contains("administrator rights", lines, StringComparison.Ordinal);
+        Assert.Contains("Your settings are already restored.", lines, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_settings_only_restore_says_nothing_about_tiers()
+    {
+        Assert.Empty(Format.TierRestoreLines(TierRestoreResult.Nothing, wantedPlugins: false));
+        Assert.Empty(Format.TierRestoreLines(null, wantedPlugins: false));
+    }
+
+    [Fact]
+    public void Asking_for_plugins_a_backup_does_not_have_says_so()
+    {
+        var lines = string.Join("\n", Format.TierRestoreLines(TierRestoreResult.Nothing, wantedPlugins: true));
+
+        Assert.Contains("does not contain the plug-in files", lines, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_missing_plugin_is_named_in_the_plan_before_the_confirmation()
+    {
+        // The CLI gets tier 2's payoff too: "install FabFilter Pro-Q 4" beats a channel that
+        // silently loads with its effect switched off (phase 6 §5).
+        var check = new PluginRestoreCheck([
+            new PluginPresenceResult("FabFilter Pro-Q 4", @"C:\VST3\x.vst3", "4.1.2", null,
+                ["Voice"], PluginPresence.Missing)]);
+
+        var text = string.Join("\n", Format.PlanLines(Plan() with { Plugins = check }));
+
+        Assert.Contains("WARNING: FabFilter Pro-Q 4 isn't installed on this computer.", text, StringComparison.Ordinal);
+        Assert.Contains("The Voice channel will load", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Plugin_version_drift_is_a_note_rather_than_a_warning()
+    {
+        var check = new PluginRestoreCheck([
+            new PluginPresenceResult("FabFilter Pro-Q 4", @"C:\VST3\x.vst3", "4.1.2", "4.2.0",
+                ["Voice"], PluginPresence.VersionDrift)]);
+
+        var text = string.Join("\n", Format.PlanLines(Plan() with { Plugins = check }));
+
+        Assert.Contains("NOTE: Plug-in versions have changed", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("WARNING", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_clean_plan_carries_no_warnings()
     {
         var text = string.Join("\n", Format.PlanLines(Plan()));

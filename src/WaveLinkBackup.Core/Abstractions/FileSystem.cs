@@ -24,6 +24,24 @@ public sealed class FileSystem : IFileSystem
 
     public DateTime GetLastWriteTimeUtc(string path) => File.GetLastWriteTimeUtc(path);
 
+    /// <summary>
+    /// 0 rather than a throw for a file that has gone between the enumeration and the question.
+    /// Measuring a tier walks directories that Wave Link and plug-in installers also write to,
+    /// so a file disappearing mid-walk is ordinary rather than exceptional.
+    /// </summary>
+    public long GetFileSize(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Exists ? info.Length : 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
+    }
+
     public byte[] ReadSharedBytes(string path)
     {
         // FileShare.ReadWrite permits Wave Link's existing handle; FileShare.Delete

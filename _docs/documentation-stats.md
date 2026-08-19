@@ -45,6 +45,53 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### Recent additions (v0.6.0 — plugin tiers)
+
+**All four tiers capture and restore.** The documentation delta is mostly corrections, which is the
+interesting part:
+
+- **`technical-debt.md` §3 was stating a falsehood as settled fact** — *"Wave Link's own AutoBackups
+  are captured but never managed"* — since 2026-08-16. They were not captured at all. The
+  spec-coverage table found it; phase 6 §8 made the sentence true.
+- **§2.3 closed** (the VST3 bundle path) with fixtures on both sides: capture recurses a directory
+  `.vst3`, restore rebuilds the tree, and an empty bundle counts as a failure rather than a
+  zero-byte success.
+- **Three new entries**: §4.17 (the shell cannot ask for a tier 4 restore — elevation has no
+  designed surface), §4.18 (the preset heuristic has never met a real vendor folder), §4.19 (tier 4
+  reads whole binaries into memory). None gates 1.0.
+- **`spec-coverage.md` earned its keep on its first day** by finding the §8 gap, and now marks
+  `SPEC.md` §9's tier table complete.
+- [Session note](sessions/2026-08-19-phase-6-tiers-complete.md), and phase 6's file carries an
+  "as built" paragraph per section — including the two decisions the design does not specify
+  (where plug-in version drift renders, and what `Locked` means in the Settings dialog).
+
+### The rest of the road, written down (2026-08-19)
+
+Phase 7 and everything after it are now planned rather than sketched, in three new documents plus
+one new section:
+
+- **[phase-7-release.md](dev-phases/phase-7-release.md)** — nine work items, a test table, a risk
+  register, and a **1.0 gate table** stating for every open debt whether it blocks a release.
+  Two ADRs are named as deliverables of the phase rather than assumed: **ADR-010** (packaging and
+  distribution) and **ADR-011** (how notifications are delivered).
+- **[spec-coverage.md](dev-phases/spec-coverage.md)** — every requirement in `SPEC.md` §1–§11 plus
+  the corrections block, marked built / planned / refused with the code or decision that settles it.
+  It also lists what was built that the spec never asked for, so the table is not read as the whole
+  product.
+- **[post-1.0.md](dev-phases/post-1.0.md)** — split into *refused* (reopening needs a new argument)
+  and *deferred* (each names its promotion signal), so the two phases cannot quietly absorb work
+  that was decided against.
+- **phase 6 §8** — a gap the coverage pass found: [[ADR-006]], `SPEC.md` §1, the Settings dialog
+  and `technical-debt.md` §3 all describe tier 1 as `Settings.json` **plus Wave Link's own backup
+  copies**, ~470 KB. Only the 43 KB settings file is captured, and `technical-debt.md` states the
+  opposite as settled fact. It lands in phase 6 because §7's "honest, recomputed sizes" and that
+  figure are the same number.
+
+Three further findings, all of the same shape — **modelled, persisted, and with no control bound
+to them**: the `WHEN WINDOWS STARTS` settings section (so autostart cannot be switched on from
+anywhere in the app, though `ShellViewModel.ToggleAutostart` exists and is tested), the `UPDATES`
+section, and the close-to-tray preference.
+
 ### Recent additions (v0.5.1 — the design audit)
 
 **Four gotchas**, all from one audit of the shipped shell and all with the same shape: a view

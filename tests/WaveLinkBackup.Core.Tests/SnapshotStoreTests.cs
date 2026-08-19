@@ -154,6 +154,139 @@ public sealed class SnapshotStoreTests
         Assert.Equal(all[0].Manifest.SettingsSha256, all[1].Manifest.SettingsSha256);
     }
 
+    // -------------------------------------------------------------- tier 2
+
+    private static SnapshotPayload PluginPayload =>
+        SnapshotPayload.ForPlugins([
+            new("Pro-Q 4", "FabFilter",
+                @"C:\Program Files\Common Files\VST3\FabFilter\FabFilter Pro-Q 4.vst3",
+                "4.1.2", "a1b2c3d4", ["Wave Mic 1"])]);
+
+    [Fact]
+    public void A_resolved_plugin_set_is_written_as_plugins_json_beside_the_settings()
+    {
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var snapshot = store.Write(bytes, analysis, SnapshotTrigger.Manual, "x", payload: PluginPayload).Value;
+
+        Assert.True(fs.FileExists(snapshot.PluginsPath));
+        Assert.Equal("Pro-Q 4",
+            PluginManifestSerializer.Read(fs.Read(snapshot.PluginsPath)).Plugins.Single().Name);
+    }
+
+    [Fact]
+    public void A_snapshot_carrying_plugins_json_claims_the_plugin_manifest_tier()
+    {
+        var (store, _, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var manifest = store.Write(bytes, analysis, SnapshotTrigger.Manual, "x", payload: PluginPayload).Value.Manifest;
+
+        Assert.Equal(["settings", "plugin-manifest"], manifest.Tiers);
+        Assert.True(manifest.Files.ContainsKey("plugins.json"));
+    }
+
+    [Fact]
+    public void A_rig_with_no_third_party_plugins_still_claims_the_tier()
+    {
+        // "We looked and found none" - which is what makes the restore warning's silence
+        // trustworthy. A snapshot that never looked claims nothing.
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var snapshot = store.Write(bytes, analysis, SnapshotTrigger.Manual, "x", payload: SnapshotPayload.Empty).Value;
+
+        Assert.Contains("plugin-manifest", snapshot.Manifest.Tiers);
+        Assert.Empty(PluginManifestSerializer.Read(fs.Read(snapshot.PluginsPath)).Plugins);
+    }
+
+    [Fact]
+    public void A_caller_that_never_resolved_the_plugin_set_writes_no_plugins_json_and_claims_no_tier()
+    {
+        var (store, fs, _) = Subject();
+
+        var snapshot = Write(store);
+
+        Assert.Equal(["settings"], snapshot.Manifest.Tiers);
+        Assert.False(fs.FileExists(snapshot.PluginsPath));
+    }
+
+    [Fact]
+    public void Plugins_json_is_hashed_and_sized_in_the_manifest_like_every_other_file()
+    {
+        // The guard has no idea which tier a file belongs to, and must not need one.
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var snapshot = store.Write(bytes, analysis, SnapshotTrigger.Manual, "x", payload: PluginPayload).Value;
+        var recorded = snapshot.Manifest.Files["plugins.json"];
+
+        Assert.Equal(SnapshotStore.HashOf(fs.Read(snapshot.PluginsPath)), recorded.Sha256);
+        Assert.Equal(fs.Read(snapshot.PluginsPath).LongLength, recorded.SizeBytes);
+        Assert.True(new SnapshotGuard(fs).Verify(snapshot.Directory).IsSuccess);
+    }
+
+    [Fact]
+    public void Captured_files_are_written_under_the_snapshot_at_their_recorded_paths()
+    {
+        // The store knows nothing about tiers: it writes what the payload carries, hashes every
+        // one into the manifest, and the guard verifies them all with the code it already had.
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var payload = PluginPayload with
+        {
+            Files =
+            [
+                new("wavelink-backups/AutoBackup/Settings.auto.1.json", "auto"u8.ToArray()),
+                new("presets/FabFilter/Pro-Q 4/Vocals/Bright.ffp", "bright"u8.ToArray()),
+            ],
+            Tiers = ["presets"],
+        };
+
+        var snapshot = store.Write(bytes, analysis, SnapshotTrigger.Manual, "x", payload: payload).Value;
+
+        Assert.Equal(
+            "bright"u8.ToArray(),
+            fs.Read(SnapshotManifest.PathIn(snapshot.Directory, "presets/FabFilter/Pro-Q 4/Vocals/Bright.ffp")));
+        Assert.Equal(6, snapshot.Manifest.Files["presets/FabFilter/Pro-Q 4/Vocals/Bright.ffp"].SizeBytes);
+        Assert.Equal(
+            ["settings", "plugin-manifest", "presets"],
+            snapshot.Manifest.Tiers);
+        Assert.True(new SnapshotGuard(fs).Verify(snapshot.Directory).IsSuccess);
+    }
+
+    [Fact]
+    public void An_edited_preset_file_fails_verification_like_any_other()
+    {
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var payload = PluginPayload with
+        {
+            Files = [new("presets/FabFilter/one.ffp", "original"u8.ToArray())],
+            Tiers = ["presets"],
+        };
+
+        var snapshot = store.Write(bytes, analysis, SnapshotTrigger.Manual, "x", payload: payload).Value;
+        fs.AddFile(SnapshotManifest.PathIn(snapshot.Directory, "presets/FabFilter/one.ffp"), "tampered");
+
+        Assert.IsType<SnapshotCorrupted>(new SnapshotGuard(fs).Verify(snapshot.Directory).Error);
+    }
+
+    [Fact]
+    public void An_edited_plugins_json_fails_verification()
+    {
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var snapshot = store.Write(bytes, analysis, SnapshotTrigger.Manual, "x", payload: PluginPayload).Value;
+        fs.AddFile(snapshot.PluginsPath, """{"schemaVersion":1,"plugins":[]}""");
+
+        Assert.IsType<SnapshotCorrupted>(new SnapshotGuard(fs).Verify(snapshot.Directory).Error);
+    }
+
     // -------------------------------------------------------------- listing
 
     [Fact]

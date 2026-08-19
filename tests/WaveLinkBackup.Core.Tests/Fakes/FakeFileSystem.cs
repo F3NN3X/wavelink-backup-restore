@@ -80,7 +80,26 @@ public sealed class FakeFileSystem : IFileSystem
             .Order(StringComparer.OrdinalIgnoreCase)];
     }
 
-    public DateTime GetLastWriteTimeUtc(string path) => new(2026, 8, 16, 0, 0, 0, DateTimeKind.Utc);
+    /// <summary>
+    /// The default is one fixed instant for every file. <see cref="SetLastWriteTimeUtc"/> gives a
+    /// file its own, which is what "keep the newest ten" needs to be a test rather than an
+    /// assumption.
+    /// </summary>
+    public Dictionary<string, DateTime> LastWriteTimes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public FakeFileSystem SetLastWriteTimeUtc(string path, DateTime utc)
+    {
+        LastWriteTimes[path] = utc;
+        return this;
+    }
+
+    public DateTime GetLastWriteTimeUtc(string path) =>
+        LastWriteTimes.TryGetValue(path, out var written)
+            ? written
+            : new DateTime(2026, 8, 16, 0, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>Never throws for an absent file — the real one does not either.</summary>
+    public long GetFileSize(string path) => files.TryGetValue(path, out var content) ? content.LongLength : 0;
 
     public byte[] ReadSharedBytes(string path)
     {
@@ -151,7 +170,19 @@ public sealed class FakeFileSystem : IFileSystem
         }
     }
 
-    public void WriteBytes(string path, byte[] bytes) => AddFile(path, bytes);
+    /// <summary>
+    /// Queued per-path failures, popped one per write. Models the two that read differently to a
+    /// user: an UnauthorizedAccessException is Program Files without administrator rights, an
+    /// IOException is something else holding the file.
+    /// </summary>
+    public Dictionary<string, Queue<Exception>> WriteFailures { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public void WriteBytes(string path, byte[] bytes)
+    {
+        if (WriteFailures.TryGetValue(path, out var failures) && failures.Count > 0) throw failures.Dequeue();
+
+        AddFile(path, bytes);
+    }
 
     public void Replace(string source, string destination, string backup)
     {

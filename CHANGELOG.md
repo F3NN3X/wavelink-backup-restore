@@ -23,13 +23,85 @@ heading here.
 
 ## [Unreleased]
 
-Phase 6 — **plugin tiers** — is under way. §1 has landed: the referenced-plugin set is extracted
-from `AudioPluginConfigurations` and cross-referenced against Wave Link's plugin-scanner cache for
-version and uniqueId. Matching is by path before name, and a plugin the cache has never seen is
-still recorded with its version left unknown — the settings file's `FilePath` is the authority on
-what is in use. Nothing consumes it yet; §2 (`plugins.json`) is the first caller. See
-[dev-phases/phase-6-plugin-tiers.md](_docs/dev-phases/phase-6-plugin-tiers.md) and
-[the session note](_docs/sessions/2026-08-19-phase-6-plugin-discovery.md).
+Nothing yet. Phase 7 — **release** — is next: the privacy gate, the two notifications, the update
+mechanism and packaging. See [phase-7-release.md](_docs/dev-phases/phase-7-release.md).
+
+---
+
+## [0.6.0] — 2026-08-19
+
+**Plugin tiers.** A backup stops being one 43 KB file. It now carries what the settings *reference*
+— the plug-ins, their versions, the presets you saved inside them, and optionally the `.vst3` files
+themselves — and a restore puts them back. [[ADR-006]]'s four tiers, all of them, capturing and
+restoring end to end.
+
+The failure this exists to prevent: restore a settings file onto a machine without FabFilter
+Pro-Q 4 and the channel loads with that effect **switched off**, looking exactly like an incomplete
+backup. The restore dialog now names the plug-in before you press the button.
+
+**1,146 tests passing** (Core 399, CLI 97, App 650), up from 1,050. Release build clean, zero
+warnings.
+
+### Added
+
+- **Tier 2 · `plugins.json`** in every snapshot: name, vendor, version, uniqueId, path, the
+  SHA-256 of the binary at capture time, the channels the plug-in sits on, and what tiers 3 and 4
+  found for it. Hand-written serializer, no reflection, like `manifest.json`.
+- **Tier 3 · Effect presets** — `%APPDATA%\<Vendor>\<Plugin>\` for every referenced plug-in, on by
+  default. Discovery looks in the narrowest place first (`<Vendor>\<Plugin>`, then the plug-in's
+  file name, then the vendor folder) and **records which folder it read**, because a heuristic
+  whose result cannot be inspected is one nobody can improve.
+- **Tier 4 · Plug-in binaries** — the `.vst3` at each `FilePath`, off by default. **A `.vst3` may
+  be a directory**: the VST3 bundle case is checked first, recursed in full, and covered by a
+  synthetic fixture, because all six plug-ins on the author's machine are single files and that
+  path would otherwise ship untested ([[vst3-backs-up-as-nothing]]).
+- **Tier 1 is finally what four documents already said it was.** Wave Link's own backup copies —
+  the rolling `AutoBackup` files and the irregular `.bak` atomic-save artifacts — now travel with
+  `Settings.json`. That is the ~470 KB [[ADR-006]] describes and the Settings dialog prints; until
+  now a snapshot held 43 KB.
+- **The restore-side check.** For every plug-in a snapshot recorded: is it here, and at which
+  version? Missing plug-ins fill the restore dialog's amber block by name — *"FabFilter Pro-Q 4
+  isn't installed on this computer. The Voice channel will load with that effect switched off."* —
+  and version drift joins the quiet line instead, because a plug-in that updated is not missing.
+- **Tiers restore, not just capture.** Presets go back to `%APPDATA%` on an ordinary account.
+  Plug-in binaries are opt-in (`wlbackup restore <id> --with-plugins`) because
+  `C:\Program Files\Common Files\VST3` is the one location that can need administrator rights —
+  and when it does, the CLI says so plainly rather than surfacing an access-denied trace.
+- `--with-plugins` on the CLI, and the missing-plug-in warning in `wlbackup restore`'s plan.
+
+### Changed
+
+- **The Settings dialog's two locked rows are real controls.** *Effect presets* and *The effect
+  plug-ins themselves* switch, commit immediately like every other control on that screen, and the
+  **NOT BUILT YET badge is gone** — nothing on that screen is unbuilt any more.
+- **Every size in WHAT GOES IN A BACKUP is measured**, not the design mock's 470 KB / 4 KB / 10 MB
+  / 40 MB. The proportion bar recomputes live when a tier is switched, which is what
+  "recompute from the enabled tiers" was always supposed to mean.
+- `BackupSettings` gained `IncludePresets` (on) and `IncludePluginFiles` (off), **with no schema
+  bump** — a field whose absence means its default is exactly what the tolerant read already
+  handles.
+- `IFileSystem` gained `GetFileSize`, so "how big would a backup be?" can be answered without
+  reading 40 MB of plug-in binaries to find out.
+- Manifest file sizes are read as 64-bit. Tier 4 puts real binaries in the manifest, and a file
+  size read as an `int` is a trap that springs once, on someone else's machine.
+
+### Fixed
+
+- **The "Your setup" row was showing the wrong file's size** — Wave Link Backup's own preferences
+  file (a few hundred bytes) rather than the Wave Link settings the row describes. Found while
+  wiring the measured sizes.
+
+### Notes
+
+- **Nothing in tiers 1-extra, 3 or 4 can fail a capture.** A locked AutoBackup, an unreadable
+  preset, a plug-in that was uninstalled: each drops out of the snapshot and the snapshot still
+  gets written. The settings file is the product.
+- **A tier is claimed only when it is actually in there.** Tier 3 claims `presets` only if a file
+  was captured; tier 4 is all-or-nothing, because a snapshot that can restore five plug-ins out of
+  six cannot do what its `PLUGINS` badge promises.
+- The shell restores presets and never plug-in binaries — elevation has no designed surface yet.
+  The capability is in Core and reachable from the CLI. Recorded as
+  [technical-debt.md](_docs/technical-debt.md) §4.17.
 
 ---
 

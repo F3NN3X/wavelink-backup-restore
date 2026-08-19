@@ -173,7 +173,15 @@ yourself" rather than failing obscurely.
 designed** — see [README.md](operations/design/README.md) *Gaps*.
 **Phase:** 5 for the UI.
 
-### 2.3 Whether the VST3 bundle path works
+### 2.3 ~~Whether the VST3 bundle path works~~ — **ANSWERED 2026-08-19 (phase 6)**
+
+> **Both directions are covered by synthetic fixtures.** Capture tests for a directory FIRST and
+> recurses the tree; restore puts the whole tree back. An empty bundle directory is treated as a
+> failure rather than a zero-byte success, which is the shape the original worry took. The
+> author's machine still has six single-file plugins and still cannot exercise either path, which
+> is exactly why the fixtures exist. `TierCaptureTests` and `TierRestoreTests`.
+>
+> The original entry follows.
 
 All six referenced plugins on the author's machine are single files. The VST3 spec defines a
 *bundle* — `Plugin.vst3\Contents\x86_64-win\Plugin.vst3` — and installers increasingly ship
@@ -243,7 +251,10 @@ browser profile — shader caches, IndexedDB, code caches. Capturing it turns a 
 into a 100 MB one, and restoring it can wedge the UI.
 
 **Wave Link's own AutoBackups are captured but never managed.** We copy them as payload
-because they carry history our first run will not have. We do not prune, rotate or write them.
+because they carry history our first run will not have. We do not prune, rotate or write them, and
+a restore never puts them back — they are evidence, not payload. *(True since 0.6.0. It was stated
+here as settled fact from 2026-08-16, and the code did not do it until phase 6 §8 — found by the
+spec-coverage pass, which is the argument for having written one.)*
 
 ---
 
@@ -667,6 +678,64 @@ notices, because the fallback looks deliberate.
 **Check by eye**, alongside the rest of 0.5.1's visual work — the motion timings, the scrollbar,
 and the restored letter-spacing are all in the same category. **Fix if absent:** the fallback is
 already correct; the question is only whether to keep the call.
+
+### 4.16 Tier 2 rehashes every plugin binary on every capture — **open, 2026-08-19**
+
+`PluginManifestBuilder` reads each referenced `.vst3` in full to hash it, and it runs on every
+capture — including the automatic ones the watcher fires. On the reference rig that is ~40 MB per
+snapshot ([[ADR-006]]: the referenced set is 39.8 MB against a 4,887 MB VST3 tree), read from disk
+for a value that changes only when the user updates a plugin.
+
+Not a correctness problem, and not yet measured against a capture the user can feel. The obvious
+fix is to skip the hash when the path, size and last-write time match the newest snapshot's entry
+— `IFileSystem` already exposes `GetLastWriteTimeUtc` and would need a size — which is a cache
+with an invalidation rule, so it is worth having a measurement before writing one.
+
+**Signal it matters:** an automatic capture visibly lagging, or the watcher's debounce window
+being missed on a rig with a large plugin set. **Worse since 0.6.0**, where tier 4 can read the
+same 40 MB a second time to copy it.
+
+### 4.17 The shell cannot restore plug-in binaries — **open, 2026-08-19**
+
+Tier 4 restore is built, tested and reachable from the CLI (`wlbackup restore <id> --with-plugins`).
+The WPF shell never asks for it: `RestoreOptions.Default` is presets-on, binaries-off, and no
+control offers otherwise.
+
+**Why:** `C:\Program Files\Common Files\VST3` needs administrator rights, and elevation has no
+designed surface — no UAC prompt in any screen, and no error state for a declined one among the
+twelve in `06-errors.md`. Building one in XAML during phase 6 would have been inventing design in
+code, which is the thing [[ADR-004]] and the design package both exist to prevent.
+
+**What the user gets meanwhile:** the binaries are IN the snapshot and the restore dialog names any
+plug-in that is missing, which is the design's own answer — *"Install it and restore again to get
+it back."*
+
+**What closes this:** a designed elevation flow (a row in the restore dialog, and the "we asked and
+you said no" state), then `RestoreOptions` wired to it. **Phase:** 7 at the earliest; it is not on
+the 1.0 gate list.
+
+### 4.18 Tier 3's preset heuristic has never met a real vendor folder — **open, needs a machine, 2026-08-19**
+
+`PresetFiles` tries `<Vendor>\<Plugin>`, then `<Vendor>\<file name>`, then the vendor folder. Every
+test uses a synthetic tree. [[ADR-006]] measured `%APPDATA%\FabFilter` at 246 preset files and
+`%APPDATA%\Supertone\Clear` as crash reports only — but nobody has run the capture against either.
+
+**The risk is not a crash**; it is capturing the wrong thing quietly, or nothing at all. Which is
+why every plugin records `presetSource` and its file count in `plugins.json`: the check is one
+capture and one look at that file.
+
+**Check by eye**, alongside 0.5.1's visual items (§4.15). **Fix if wrong:** the order of the
+candidates, or a per-vendor exception list — the heuristic is deliberately in one class.
+
+### 4.19 Tier 4 reads whole binaries into memory — **open, 2026-08-19**
+
+Capture and restore both go `ReadSharedBytes` → `WriteBytes`, so a 24 MB `Clear.vst3` is a 24 MB
+array. One file at a time, so the peak is one plugin rather than the set — acceptable, and the
+reason `IFileSystem` has no streaming copy today.
+
+**Signal it matters:** a plugin large enough to be felt (sample-library instruments run to
+hundreds of megabytes, and nothing stops one being on a channel). **Fix:** a `CopyFile` on the
+seam, which also lets §4.16's hash-skip reuse it.
 
 ---
 

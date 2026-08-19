@@ -120,7 +120,12 @@ public sealed record RestoreDialogModel(
 
         // 09-restore-dialog-additions.md: a quiet mono line under the body, above the table. Present
         // only when the versions differ; Core already wrote the sentence (RestorePlanner).
-        var versionNote = plan.VersionWarning is { } warning && warning.Length > 0 ? warning : null;
+        //
+        // Plug-in version drift joins it here rather than getting a surface of its own. It is the
+        // same kind of fact — "something is a different version than when this was taken" — and it
+        // is deliberately NOT the amber block: a plug-in that updated is not missing, and nothing
+        // about the restore is un-whole.
+        var versionNote = Sentences(plan.VersionWarning, plan.Plugins?.DriftNote);
 
         return new RestoreDialogModel(
             Title: $"Restore “{plan.SnapshotName}”?",
@@ -133,6 +138,13 @@ public sealed record RestoreDialogModel(
             MissingPluginLead: missingPluginLead,
             MissingPluginRest: missingPluginRest,
             Reassurance: ReassuranceText);
+    }
+
+    /// <summary>The non-empty sentences as one line, or null when there are none.</summary>
+    private static string? Sentences(params string?[] parts)
+    {
+        var present = parts.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+        return present.Count == 0 ? null : string.Join(" ", present);
     }
 
     private static string Join(IReadOnlyList<string> names) =>

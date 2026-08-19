@@ -130,41 +130,87 @@ public sealed class SettingsViewModelTests
         Assert.Equal(999, repository.Read().AutoBackupKeepCount);
     }
 
-    // -------------------------------------------------------------- the unbuilt tiers: locked, not just off
+    // -------------------------------------------------------------- the tier toggles (phase 6)
 
     [Fact]
-    public void The_preset_tier_is_off_and_cannot_be_turned_on()
+    public void The_two_switchable_tiers_start_where_the_settings_file_left_them()
     {
-        var (model, _, _) = Rig();
-
-        model.IncludePresets = true;
+        var (model, _, _) = Rig(new BackupSettings(Store, IncludePresets: false, IncludePluginFiles: true));
 
         Assert.False(model.IncludePresets);
+        Assert.True(model.IncludePluginFiles);
     }
 
     [Fact]
-    public void The_plugin_tier_is_off_and_cannot_be_turned_on()
+    public void Switching_a_tier_commits_immediately_like_every_other_control()
     {
-        var (model, _, _) = Rig();
+        var (model, repository, _) = Rig();
 
         model.IncludePluginFiles = true;
 
-        Assert.False(model.IncludePluginFiles);
+        Assert.True(model.IncludePluginFiles);
+        Assert.True(repository.Read().IncludePluginFiles);
     }
 
     [Fact]
-    public void A_programmatic_tier_set_writes_nothing_to_the_file()
+    public void Switching_presets_off_persists_that_too()
     {
-        var (model, repository, fs) = Rig(new BackupSettings(Store, AutoBackupKeepCount: 30));
-        var before = fs.Replacements.Count;
+        var (model, repository, _) = Rig();
 
-        model.IncludePresets = true;
-        model.IncludePluginFiles = true;
+        model.IncludePresets = false;
 
-        Assert.Equal(before, fs.Replacements.Count);
-        // And the stored value is untouched, not just unwritten: nothing in BackupSettings
-        // has a field for these tiers yet.
-        Assert.Equal(30, repository.Read().AutoBackupKeepCount);
+        Assert.False(repository.Read().IncludePresets);
+    }
+
+    [Fact]
+    public void The_row_toggle_is_what_switches_the_tier()
+    {
+        // The design puts the control IN the row, so the row is where the user changes it. The
+        // view binds to the row; nothing would persist if the row and the setting were not wired.
+        var (model, repository, _) = Rig();
+        model.WhatGoesIn = new WhatGoesInModel(
+            setup: new WhatGoesInRow("Your setup", "", 470_000, true, true),
+            effectsList: new WhatGoesInRow("A list of your effects", "", 0, true, true),
+            presets: new WhatGoesInRow("Effect presets", "", 10_000_000, true, false),
+            pluginFiles: new WhatGoesInRow("The effect plug-ins themselves", "", 40_000_000, false, false));
+
+        model.WhatGoesIn.PluginFiles.Enabled = true;
+
+        Assert.True(model.IncludePluginFiles);
+        Assert.True(repository.Read().IncludePluginFiles);
+    }
+
+    [Fact]
+    public void A_locked_row_refuses_a_set_even_from_a_binding()
+    {
+        // The settings file and the effects list have no switch, deliberately (ADR-006).
+        var row = new WhatGoesInRow("Your setup", "", 470_000, true, true);
+
+        row.Enabled = false;
+
+        Assert.True(row.Enabled);
+    }
+
+    [Fact]
+    public void The_proportion_bar_recomputes_when_a_tier_is_switched()
+    {
+        // "Recompute from the enabled tiers, never hard-code the percentages" is only true if it
+        // recomputes when one is switched - otherwise it is a hard-coded percentage with steps.
+        var model = new WhatGoesInModel(
+            setup: new WhatGoesInRow("Your setup", "", 470_000, true, true),
+            effectsList: new WhatGoesInRow("A list of your effects", "", 0, true, true),
+            presets: new WhatGoesInRow("Effect presets", "", 10_000_000, false, false),
+            pluginFiles: new WhatGoesInRow("The effect plug-ins themselves", "", 40_000_000, false, false));
+
+        Assert.Equal(470_000, model.TotalBytes);
+        Assert.Single(model.Segments);
+
+        model.Presets.Enabled = true;
+
+        Assert.Equal(10_470_000, model.TotalBytes);
+        Assert.Equal(2, model.Segments.Count);
+        Assert.Equal("EACH BACKUP: ABOUT 10 MB", model.EachBackupLabel);
+        Assert.Equal("+ 38.1 MB IF YOU ADD THE PLUG-IN FILES", model.IfYouAddLabel);
     }
 
     // -------------------------------------------------------------- command-line flags: override, never save

@@ -12,6 +12,12 @@ public sealed record PlanRow(string Label, string Now, string After, bool Change
 /// PURE - two fingerprints in, a description out. This is exactly the restore dialog's
 /// "now vs. after" table, built here so phase 5 renders rather than computes.
 /// </summary>
+/// <param name="Plugins">
+/// What the snapshot's plug-ins would find on this machine, or null when the snapshot predates
+/// tier 2 and there is nothing to check against. Attached by
+/// <see cref="RestoreOrchestrator.Plan"/> rather than computed here, because answering it means
+/// touching the disk and this type is pure.
+/// </param>
 public sealed record RestorePlan(
     string SnapshotName,
     DateTimeOffset SnapshotTakenUtc,
@@ -19,10 +25,12 @@ public sealed record RestorePlan(
     bool LosesInputs,
     IReadOnlyList<string> InputNamesLost,
     bool SnapshotIsSuspect,
-    string? VersionWarning)
+    string? VersionWarning,
+    PluginRestoreCheck? Plugins = null)
 {
     /// <summary>Anything the user should read before pressing the button.</summary>
-    public bool HasWarnings => LosesInputs || SnapshotIsSuspect || VersionWarning is not null;
+    public bool HasWarnings =>
+        LosesInputs || SnapshotIsSuspect || VersionWarning is not null || Plugins?.HasMissing == true;
 }
 
 public static class RestorePlanner

@@ -8,13 +8,26 @@ tags: [dev-phase, index]
 
 # Development Phases
 
-What is left to build, in the order it should be built. This is the index; a phase gets its
-own detailed file **when it becomes the current or the next phase**.
+What is left to build, in the order it should be built. This is the index; each phase has its
+own detailed file.
 
-> **Why phases 2–7 are sketched rather than detailed.** Writing phase 6 in detail while phase
-> 1 is unbuilt produces fiction — plausible-looking work items derived from assumptions that
-> the first two phases will invalidate. Each sketch below carries enough to know what the
-> phase is *for* and what it depends on. Detail arrives when it can be accurate.
+> **Every phase is now detailed.** The original rule — detail a phase only when it becomes
+> current or next, because writing phase 6 while phase 1 is unbuilt produces fiction — held
+> until 2026-08-19. With phases 0–5 shipped and phase 6 half built, phase 7 can be written
+> against what exists rather than against assumptions, so it was.
+>
+> **What is still deliberately not written** is the per-section *build* plan: phase 5 wrote one
+> `plans/` document per plan, immediately before building it, and phases 6 and 7 should do the
+> same. The phase files below carry the decisions; a build plan carries the code.
+
+Three companion documents finish the picture:
+
+- [spec-coverage.md](spec-coverage.md) — every requirement in `SPEC.md` and where it stands.
+  The line-by-line answer to "did we build the spec".
+- [phase-7-release.md](phase-7-release.md) — the release phase in full, including the 1.0 gate
+  table: which open debts must close before a release and which may ship open.
+- [post-1.0.md](post-1.0.md) — what is refused, and what is deferred with the signal that
+  would promote it.
 
 Distinct from [technical-debt.md](../technical-debt.md), which is for things built and not
 right.
@@ -31,8 +44,10 @@ right.
 | **3** | Automation: watcher, dedup, retention | ✅ Complete — 235 tests, 84.9% | [phase-3-automation.md](phase-3-automation.md) |
 | **4** | CLI shell | ✅ Complete — 308 tests, AOT 3.2 MB | [phase-4-cli.md](phase-4-cli.md) |
 | **5** | WPF shell | ✅ Complete — 964 tests, all ten plans landed | [phase-5-wpf.md](phase-5-wpf.md) |
-| **6** | Plugin tiers | **Next** | [phase-6-plugin-tiers.md](phase-6-plugin-tiers.md) · sketched below |
-| 7 | Release | Not started | sketched below |
+| **6** | Plugin tiers | ✅ Complete — 1,146 tests, all four tiers capture and restore | [phase-6-plugin-tiers.md](phase-6-plugin-tiers.md) |
+| **7** | Release | **Next** | [phase-7-release.md](phase-7-release.md) |
+| — | Spec coverage | Living | [spec-coverage.md](spec-coverage.md) |
+| — | After 1.0 | Living | [post-1.0.md](post-1.0.md) |
 
 ---
 
@@ -152,7 +167,8 @@ high contrast, the tray shell works, and no Core logic has leaked into the shell
 
 ## Phase 6 — Plugin tiers
 
-**Depends on:** phase 2 (tier 2 manifest can start earlier).
+**Depends on:** phase 2 (tier 2 manifest can start earlier). ✅ **Complete 2026-08-19**, shipped as
+0.6.0.
 
 Tiers 2, 3 and 4 from [[ADR-006]]. Read `AudioPluginConfigurations`, cross-reference
 `AudioPluginCache\AvailablePlugins.cache`, build `plugins.json`, capture presets and binaries.
@@ -165,8 +181,16 @@ optional here.
 
 Tier 4 restore needs elevation; tiers 1–3 must not.
 
-**Exits when** all four tiers capture and restore, the bundle path is covered by a fixture
-test, and elevation is requested only for tier 4.
+**It also carried a tier 1 gap found while building §2.** [[ADR-006]], `SPEC.md` §1, the Settings
+dialog and `technical-debt.md` §3 all say tier 1 is `Settings.json` **plus Wave Link's own backup
+copies**, ~470 KB — and only the 43 KB settings file was captured. §8 closed it in this phase,
+because §7's "honest, recomputed sizes" and that figure are the same fact.
+
+**Exited when** all four tiers captured and restored, the bundle path was covered by fixtures on
+both sides, elevation was requested only for tier 4, and the Settings dialog's sizes became true.
+**Two things it deliberately did not do**, both recorded rather than dropped: the shell cannot ask
+for a tier 4 restore (elevation has no designed surface — `technical-debt.md` §4.17) and the preset
+heuristic has never met a real vendor folder (§4.18).
 
 [Full detail →](phase-6-plugin-tiers.md)
 
@@ -195,8 +219,16 @@ framework-dependent, or NativeAOT for the CLI. **NativeAOT is verified working a
 because no COM interop has been ported. MIT attribution. README stating Windows-only above the
 fold ([[ADR-008]]). Icon from the brand mark.
 
+**Three surfaces are modelled in code with no control bound to them**, all found on 2026-08-19:
+the `WHEN WINDOWS STARTS` section (so **autostart cannot be switched on from anywhere in the app**,
+though `ToggleAutostart` exists and is tested), the `UPDATES` section, and the close-to-tray
+preference. That is XAML plus bindings, not new machinery.
+
 **Exits when** a stranger can download it, run it, and not accidentally publish their own
 hardware serial number.
+
+[Full detail →](phase-7-release.md) · including the **1.0 gate table** — which open debts must
+close before a release, and which may ship open.
 
 ---
 
@@ -212,6 +244,10 @@ and none of it is needed for the app to be useful.
 
 **Why release is a phase and not a step.** It contains a hard gate: the privacy work. Treating
 it as a checklist at the end of phase 6 is how it gets skipped.
+
+**What happens after 1.0** is written down too, in [post-1.0.md](post-1.0.md) — separated into
+*refused* (reopening one needs a new argument) and *deferred* (each names the signal that promotes
+it). It exists so that phases 6 and 7 cannot quietly absorb work that was decided against.
 
 ## References
 

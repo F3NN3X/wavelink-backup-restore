@@ -37,16 +37,47 @@ public sealed record WhereSettingsLiveModel(string FilePath, string SizeText);
 /// <param name="Name">The person-written row label (Rubik).</param>
 /// <param name="Description">The plain-language line under the label; empty for rows that need none.</param>
 /// <param name="SizeBytes">This tier's honest size; 0 when it is not in a backup.</param>
-/// <param name="Enabled">Whether this tier is currently in a backup. The locked rows are off.</param>
-/// <param name="Locked">True for the two "NOT BUILT YET" tiers - their toggle is off and unmovable (Task 5).</param>
-public sealed record WhatGoesInRow(string Name, string Description, long SizeBytes, bool Enabled, bool Locked)
+/// <param name="Enabled">Whether this tier is currently in a backup.</param>
+/// <param name="Locked">
+/// True for the two tiers that have no switch: the settings file and the effects list are always
+/// included, deliberately ([[ADR-006]]) - together they are under half a megabyte and they are the
+/// difference between a restore that works and one that leaves the user guessing. Phase 6 moved
+/// the presets and plug-in-files rows OUT of this state; they are ordinary toggles now.
+/// </param>
+public sealed class WhatGoesInRow(
+    string name, string description, long sizeBytes, bool enabled, bool locked) : ObservableObject
 {
+    private bool enabledValue = enabled;
+
+    public string Name { get; } = name;
+
+    public string Description { get; } = description;
+
+    public long SizeBytes { get; } = sizeBytes;
+
+    public bool Locked { get; } = locked;
+
+    /// <summary>
+    /// Settable, because the two switchable tiers are switched HERE — this is the control the
+    /// design puts in the row. A locked row's toggle is disabled in the view and its setter is
+    /// refused here as well, so the rule survives a binding someone rewires later.
+    /// </summary>
+    public bool Enabled
+    {
+        get => enabledValue;
+        set
+        {
+            if (Locked) return;
+            Set(ref enabledValue, value);
+        }
+    }
+
     /// <summary>
     /// The honest size figure, right-aligned in mono. "—" when the tier holds no bytes of its own:
-    /// the effects list rides inside the settings file (it is part of it), and the locked tiers are
-    /// not built yet, so neither carries a separate number. Formatted here, not in the view, for the
-    /// same reason <see cref="SettingsViewModel.FreeSpaceText"/> is - the view stays a pure binding
-    /// and the format is unit-testable without a window.
+    /// the effects list rides inside the settings file (it is part of it), and a tier that would
+    /// capture nothing on this machine has no number to print. Formatted here, not in the view,
+    /// for the same reason <see cref="SettingsViewModel.FreeSpaceText"/> is - the view stays a pure
+    /// binding and the format is unit-testable without a window.
     /// </summary>
     public string SizeText => SizeBytes > 0 ? Readable.Bytes(SizeBytes) : "—";
 }
@@ -63,9 +94,9 @@ public sealed record ProportionSegment(string Name, long Bytes, double Fraction)
 /// measured, and this only decides how they divide up the bar and what to print. That keeps the
 /// "recompute from the enabled tiers" rule unit-testable without a window (Task 3 step 4).
 /// </summary>
-public sealed class WhatGoesInModel
+public sealed class WhatGoesInModel : ObservableObject
 {
-    private readonly long totalBytes;
+    private long totalBytes;
 
     public WhatGoesInModel(
         WhatGoesInRow setup,
@@ -73,41 +104,68 @@ public sealed class WhatGoesInModel
         WhatGoesInRow presets,
         WhatGoesInRow pluginFiles)
     {
+        Presets = presets;
+        PluginFiles = pluginFiles;
         Rows = new ObservableCollection<WhatGoesInRow> { setup, effectsList, presets, pluginFiles };
+        Segments = [];
 
-        // The bar shows only what is actually in a backup. A tier that is off (or locked off)
-        // contributes nothing - the percentages are recomputed from the enabled tiers, so adding
-        // or removing one reflows every other segment rather than shifting a fixed share.
+        // The bar follows the toggles LIVE. "Recompute from the enabled tiers, never hard-code the
+        // percentages" is only true if it recomputes when a tier is switched - a bar that was
+        // right when the dialog opened and stale by the time the user reads it is a hard-coded
+        // percentage with extra steps.
+        foreach (var row in Rows) row.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(WhatGoesInRow.Enabled)) Recompute();
+        };
+
+        Recompute();
+    }
+
+    private void Recompute()
+    {
+        // A tier that is off contributes nothing, so switching one reflows every other segment
+        // rather than shifting a fixed share.
         var enabled = Rows.Where(r => r.Enabled && r.SizeBytes > 0).ToList();
         totalBytes = enabled.Sum(r => r.SizeBytes);
 
-        Segments = new ObservableCollection<ProportionSegment>(
-            enabled.Select(r => new ProportionSegment(
-                r.Name,
-                r.SizeBytes,
-                totalBytes > 0 ? (double)r.SizeBytes / totalBytes : 0.0)));
+        Segments.Clear();
+        foreach (var row in enabled)
+        {
+            Segments.Add(new ProportionSegment(
+                row.Name, row.SizeBytes, totalBytes > 0 ? (double)row.SizeBytes / totalBytes : 0.0));
+        }
 
         EachBackupLabel = $"EACH BACKUP: ABOUT {Readable.Bytes(totalBytes).ToUpperInvariant()}";
 
         // The "+ Y MB IF YOU ADD THE PLUG-IN FILES" figure is the size of the tiers that are NOT
-        // in a backup today - the honest answer to "what would turn this on cost".
+        // in a backup today - the honest answer to "what would turning this on cost".
         var notIncluded = Rows.Where(r => !r.Enabled && r.SizeBytes > 0).Sum(r => r.SizeBytes);
         IfYouAddLabel = notIncluded > 0
             ? $"+ {Readable.Bytes(notIncluded).ToUpperInvariant()} IF YOU ADD THE PLUG-IN FILES"
             : string.Empty;
+
+        Raise(nameof(EachBackupLabel));
+        Raise(nameof(IfYouAddLabel));
+        Raise(nameof(TotalBytes));
     }
 
     /// <summary>The four rows, top to bottom, for the group's grid.</summary>
     public ObservableCollection<WhatGoesInRow> Rows { get; }
 
+    /// <summary>Tier 3's row, named so the view model can bind its toggle to the setting.</summary>
+    public WhatGoesInRow Presets { get; }
+
+    /// <summary>Tier 4's row.</summary>
+    public WhatGoesInRow PluginFiles { get; }
+
     /// <summary>The stacked bar's segments, left to right, each a 0..1 fraction of the whole.</summary>
     public ObservableCollection<ProportionSegment> Segments { get; }
 
     /// <summary>Left mono label under the bar: "EACH BACKUP: ABOUT X MB".</summary>
-    public string EachBackupLabel { get; }
+    public string EachBackupLabel { get; private set; } = string.Empty;
 
     /// <summary>Right mono label under the bar, empty when nothing is left out.</summary>
-    public string IfYouAddLabel { get; }
+    public string IfYouAddLabel { get; private set; } = string.Empty;
 
     /// <summary>Total bytes in a backup today - the enabled tiers' sum.</summary>
     public long TotalBytes => totalBytes;
@@ -133,11 +191,9 @@ public sealed class WhatGoesInModel
 /// <see cref="SettingsRepository"/>). That is the whole of persistence here - read once at
 /// construction, write on every change, never on exit.
 ///
-/// The tier toggles (<see cref="IncludePresets"/>, <see cref="IncludePluginFiles"/>) are bound
-/// but LOCKED: they render off and unmovable (the "NOT BUILT YET" tiers) and a programmatic set
-/// is rejected, because <see cref="BackupSettings"/> has no field for them yet - writing one
-/// would be a setting nothing reads. They stay on screen so the backup does not look more
-/// complete than it is.
+/// The tier toggles (<see cref="IncludePresets"/>, <see cref="IncludePluginFiles"/>) commit like
+/// everything else here. They were locked and unmovable until phase 6 built the tiers behind
+/// them; a toggle that writes a setting nothing reads is worse than one that is visibly off.
 /// </summary>
 public sealed class SettingsViewModel : ObservableObject
 {
@@ -157,7 +213,10 @@ public sealed class SettingsViewModel : ObservableObject
     private string backupFolder;
     private bool autoBackupEnabled;
     private int autoBackupKeepCount;
+    private bool includePresets;
+    private bool includePluginFiles;
     private bool isHighContrast;
+    private WhatGoesInModel? whatGoesIn;
 
     public SettingsViewModel(
         BackupSettings settings,
@@ -170,6 +229,8 @@ public sealed class SettingsViewModel : ObservableObject
         backupFolder = settings.StorePath;
         autoBackupEnabled = settings.AutoBackupEnabled;
         autoBackupKeepCount = settings.AutoBackupKeepCount;
+        includePresets = settings.IncludePresets;
+        includePluginFiles = settings.IncludePluginFiles;
 
         WhereSettingsLive = whereSettingsLive;
         WhichWaveLink = whichWaveLink;
@@ -213,24 +274,34 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Effect presets tier. Locked off until it is built; a set is rejected.</summary>
+    /// <summary>
+    /// Tier 3 — effect presets. Commits on change like every other control here; phase 6 built
+    /// the tier behind it, so the toggle moves and the next capture obeys it.
+    /// </summary>
     public bool IncludePresets
     {
-        get => false;
-        set { /* not built yet - the toggle is unmovable */ }
+        get => includePresets;
+        set
+        {
+            if (Set(ref includePresets, value))
+                Commit(persisted with { IncludePresets = value });
+        }
     }
 
-    /// <summary>The plug-in-files tier. Locked off until it is built; a set is rejected.</summary>
+    /// <summary>Tier 4 — the plug-in files themselves. Off by default: ~40 MB, and no licence.</summary>
     public bool IncludePluginFiles
     {
-        get => false;
-        set { /* not built yet - the toggle is unmovable */ }
+        get => includePluginFiles;
+        set
+        {
+            if (Set(ref includePluginFiles, value))
+                Commit(persisted with { IncludePluginFiles = value });
+        }
     }
 
     /// <summary>
-    /// A backup today holds only the settings file, so the estimate is that file's size. When
-    /// the preset and plug-in tiers are built this becomes their sum - recomputed, never a
-    /// hard-coded percentage (Task 3's proportion bar reads this).
+    /// What one backup costs, summed from the tiers that are actually on - measured by
+    /// <c>TierCapture.Measure</c>, never the design mock's figures ([[ADR-006]]).
     /// </summary>
     public long EstimatedBackupBytes { get; internal set; }
 
@@ -242,7 +313,30 @@ public sealed class SettingsViewModel : ObservableObject
     /// app at construction from the sizes it has measured - the VM does not measure anything
     /// itself, so the projection stays pure and testable (Task 3).
     /// </summary>
-    public WhatGoesInModel? WhatGoesIn { get; set; }
+    public WhatGoesInModel? WhatGoesIn
+    {
+        get => whatGoesIn;
+        set
+        {
+            whatGoesIn = value;
+            if (value is null) return;
+
+            // The two switchable rows ARE the tier toggles: the design puts the control in the
+            // row, so the row is where the user changes it and this is where it becomes durable.
+            // Row -> setting only; nothing else moves these, and a two-way loop through a commit
+            // is how a toggle starts flickering.
+            value.Presets.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(WhatGoesInRow.Enabled)) IncludePresets = value.Presets.Enabled;
+            };
+
+            value.PluginFiles.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(WhatGoesInRow.Enabled))
+                    IncludePluginFiles = value.PluginFiles.Enabled;
+            };
+        }
+    }
 
     /// <summary>
     /// The WHICH WAVE LINK section, or null when there is only one installation and the section

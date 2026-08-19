@@ -1,5 +1,7 @@
 using System.Text;
 using WaveLinkBackup.Core.Analysis;
+using WaveLinkBackup.Core.Automation;
+using WaveLinkBackup.Core.Capture;
 using WaveLinkBackup.Core.Discovery;
 using WaveLinkBackup.Core.Io;
 using WaveLinkBackup.Core.Restore;
@@ -41,7 +43,7 @@ public sealed class RestoreOrchestratorTests
         public FakeWaveLinkProcess Process { get; } = new() { Running = true };
         public FakeClock Clock { get; } = new();
         public SnapshotStore Store { get; private set; } = null!;
-        public RestoreOrchestrator Orchestrator { get; private set; } = null!;
+        public RestoreOrchestrator Orchestrator { get; set; } = null!;
 
         public Harness(string liveJson = Collapsed)
         {
@@ -68,6 +70,104 @@ public sealed class RestoreOrchestratorTests
             Clock.Advance(TimeSpan.FromMinutes(1));
             return snapshot;
         }
+    }
+
+    // -------------------------------------------------------------- the tiers (phase 6)
+
+    private const string Roaming = @"C:\Users\test\AppData\Roaming";
+    private const string ProQPath = @"C:\Program Files\Common Files\VST3\FabFilter Pro-Q 4.vst3";
+
+    private const string WithPlugin = """
+        {"Update":{"LastUpdateVersion":"3.2.9"},
+         "MixerConfiguration":{"InputSettings":{
+           "a":{"InputName":"Wave Mic 1","AudioPluginConfigurations":[
+             {"Name":"Pro-Q 4","Vendor":"FabFilter",
+              "FilePath":"C:\\Program Files\\Common Files\\VST3\\FabFilter Pro-Q 4.vst3"}]}}}}
+        """;
+
+    /// <summary>A rig whose snapshot carries all four tiers, restored through the real sequence.</summary>
+    private static (Harness H, Snapshot Snapshot) FourTierRig()
+    {
+        var h = new Harness(WithPlugin);
+        h.Fs.AddFile(Roaming + @"\FabFilter\Pro-Q 4\My curve.ffp", "curve");
+        h.Fs.AddFile(ProQPath, "plugin bytes");
+
+        var capture = new TierCapture(h.Fs, Roaming);
+        var orchestrator = new RestoreOrchestrator(
+            h.Fs, h.Process, h.Store, new SettingsWriter(h.Fs, h.Process), new SettingsReader(h.Fs),
+            live => capture.Gather(live, BackupSettings.Default with { IncludePluginFiles = true }),
+            Roaming);
+
+        var live = h.Live();
+        var payload = capture.Gather(live, BackupSettings.Default with { IncludePluginFiles = true });
+        var snapshot = h.Store.Write(
+            live.Bytes, live.Analysis, SnapshotTrigger.Manual, "Four tiers", payload: payload).Value;
+
+        h.Clock.Advance(TimeSpan.FromMinutes(1));
+        h.Orchestrator = orchestrator;
+
+        return (h, snapshot);
+    }
+
+    [Fact]
+    public void A_restore_puts_the_presets_back_and_leaves_Program_Files_alone()
+    {
+        // The privilege model in one test: the default restore rewrites the settings and the
+        // presets, and never touches the one location that would need administrator rights.
+        var (h, snapshot) = FourTierRig();
+        h.Fs.DeleteDirectory(Roaming + @"\FabFilter");
+        h.Fs.Delete(ProQPath);
+
+        var result = h.Orchestrator.Restore(snapshot.Id, h.Live());
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.Tiers!.PresetFilesRestored);
+        Assert.False(result.Value.Tiers.NeedsElevation);
+        Assert.True(h.Fs.FileExists(Roaming + @"\FabFilter\Pro-Q 4\My curve.ffp"));
+        Assert.False(h.Fs.FileExists(ProQPath));
+    }
+
+    [Fact]
+    public void Asking_for_the_plugin_files_puts_them_back_too()
+    {
+        var (h, snapshot) = FourTierRig();
+        h.Fs.Delete(ProQPath);
+
+        var result = h.Orchestrator.Restore(
+            snapshot.Id, h.Live(), new RestoreOptions(PluginBinaries: true));
+
+        Assert.Equal(1, result.Value.Tiers!.PluginFilesRestored);
+        Assert.Equal("plugin bytes"u8.ToArray(), h.Fs.Read(ProQPath));
+    }
+
+    [Fact]
+    public void A_denied_plugin_write_does_not_fail_the_restore_that_already_happened()
+    {
+        // By the time tier 4 runs, the settings file - the product - is written. Rolling the
+        // restore back over a Program Files permission would be the worse outcome by far.
+        var (h, snapshot) = FourTierRig();
+        h.Fs.WriteFailures[ProQPath] = new Queue<Exception>([new UnauthorizedAccessException("denied")]);
+
+        var result = h.Orchestrator.Restore(
+            snapshot.Id, h.Live(), new RestoreOptions(PluginBinaries: true));
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.Tiers!.NeedsElevation);
+        Assert.Equal(WithPlugin, Encoding.UTF8.GetString(h.Fs.Read(SettingsPath)));
+    }
+
+    [Fact]
+    public void The_pre_restore_snapshot_carries_the_same_tiers_the_capture_would()
+    {
+        // It is what the user comes back to, so it must not be thinner than the backup they are
+        // escaping from.
+        var (h, snapshot) = FourTierRig();
+
+        var result = h.Orchestrator.Restore(snapshot.Id, h.Live());
+
+        Assert.Equal(
+            ["settings", "plugin-manifest", "presets", "plugins"],
+            result.Value.PreRestoreSnapshot.Manifest.Tiers);
     }
 
     // -------------------------------------------------------------- the happy path

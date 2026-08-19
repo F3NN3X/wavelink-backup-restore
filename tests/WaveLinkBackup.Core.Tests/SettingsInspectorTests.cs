@@ -16,8 +16,20 @@ public sealed class SettingsInspectorTests
         {"MixerConfiguration":{"InputSettings":{"a":{"InputName":"Wave Mic 1"}}}}
         """;
 
+    private const string Cache =
+        LocalAppData + @"\Packages\Elgato.WaveLink_g54w8ztgkx496\LocalState"
+        + @"\AudioPluginCache\AvailablePlugins.cache";
+
+    private const string WithPlugin = """
+        {"MixerConfiguration":{"InputSettings":{"a":{"InputName":"Wave Mic 1",
+          "AudioPluginConfigurations":[{"Name":"Pro-Q 4","FilePath":"C:\\VST3\\Pro-Q 4.vst3"}]}}}}
+        """;
+
     private static SettingsInspector Inspector(FakeFileSystem fs) =>
         new(new SettingsLocator(fs, LocalAppData), new SettingsReader(fs));
+
+    private static SettingsInspector WithCache(FakeFileSystem fs) =>
+        SettingsInspector.For(fs, LocalAppData);
 
     [Fact]
     public void Locates_reads_and_analyses_in_one_call()
@@ -78,6 +90,47 @@ public sealed class SettingsInspectorTests
 
         Assert.IsType<WaveLinkNotInstalled>(Inspector(fs).Inspect().Error);
         Assert.Empty(fs.ReadCounts);
+    }
+
+    [Fact]
+    public void An_inspection_carries_the_referenced_plugins_with_versions_from_the_cache()
+    {
+        // Tier 2 is built from this: the settings say what is in use, the scanner cache says
+        // which version it is. ADR-006.
+        var fs = new FakeFileSystem()
+            .AddFile(Settings, WithPlugin)
+            .AddFile(Cache, """
+                <KNOWNPLUGINS>
+                  <PLUGIN name="Pro-Q 4" manufacturer="FabFilter" version="4.1.2"
+                          file="C:\VST3\Pro-Q 4.vst3" uniqueId="a1b2c3d4"/>
+                </KNOWNPLUGINS>
+                """);
+
+        var plugin = Assert.Single(WithCache(fs).Inspect().Value.Plugins);
+
+        Assert.Equal("Pro-Q 4", plugin.Name);
+        Assert.Equal("4.1.2", plugin.Version);
+        Assert.Equal("a1b2c3d4", plugin.UniqueId);
+    }
+
+    [Fact]
+    public void An_absent_cache_leaves_the_version_unknown_and_the_plugin_recorded()
+    {
+        var fs = new FakeFileSystem().AddFile(Settings, WithPlugin);
+
+        var plugin = Assert.Single(WithCache(fs).Inspect().Value.Plugins);
+
+        Assert.Equal(@"C:\VST3\Pro-Q 4.vst3", plugin.FilePath);
+        Assert.False(plugin.VersionKnown);
+    }
+
+    [Fact]
+    public void An_inspector_built_without_a_cache_reader_still_reports_the_referenced_plugins()
+    {
+        // The cache only enriches; the settings file is the authority on what is in use.
+        var fs = new FakeFileSystem().AddFile(Settings, WithPlugin);
+
+        Assert.Single(Inspector(fs).Inspect().Value.Plugins);
     }
 
     [Fact]

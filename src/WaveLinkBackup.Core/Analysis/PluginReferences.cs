@@ -13,10 +13,26 @@ namespace WaveLinkBackup.Core.Analysis;
 /// location (ADR-006): the standard directories are a fallback for a path that no longer
 /// resolves, never the primary answer.
 /// </param>
+/// <param name="Channels">
+/// The friendly names of the inputs this plugin sits on, in the order the channels appear. The
+/// restore dialog's missing-plugin warning names them - *"The Voice channel will load with that
+/// effect switched off"* - which it cannot do from a set deduplicated by path alone.
+/// </param>
 public sealed record ReferencedPlugin(
     string Name,
     string? Vendor,
-    string FilePath);
+    string FilePath,
+    IReadOnlyList<string> Channels)
+{
+    public bool Equals(ReferencedPlugin? other) =>
+        other is not null
+        && Name == other.Name
+        && Vendor == other.Vendor
+        && FilePath == other.FilePath
+        && Channels.SequenceEqual(other.Channels);
+
+    public override int GetHashCode() => HashCode.Combine(Name, Vendor, FilePath, Channels.Count);
+}
 
 /// <summary>
 /// A referenced plugin after the plugin cache has been consulted - the row that becomes one
@@ -32,8 +48,20 @@ public sealed record ResolvedPlugin(
     string? Vendor,
     string FilePath,
     string? Version,
-    string? UniqueId)
+    string? UniqueId,
+    IReadOnlyList<string> Channels)
 {
+    public bool Equals(ResolvedPlugin? other) =>
+        other is not null
+        && Name == other.Name
+        && Vendor == other.Vendor
+        && FilePath == other.FilePath
+        && Version == other.Version
+        && UniqueId == other.UniqueId
+        && Channels.SequenceEqual(other.Channels);
+
+    public override int GetHashCode() => HashCode.Combine(Name, Vendor, FilePath, Version, UniqueId);
+
     /// <summary>
     /// False when the plugin is absent from the cache. Restore treats an unknown version as
     /// drift rather than as a match, and never as a hard failure (ADR-006).
@@ -84,7 +112,8 @@ public static class PluginReferences
                 Vendor: plugin.Vendor ?? match?.Manufacturer,
                 FilePath: plugin.FilePath,
                 Version: match?.Version,
-                UniqueId: match?.UniqueId));
+                UniqueId: match?.UniqueId,
+                Channels: plugin.Channels));
         }
 
         return resolved;

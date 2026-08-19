@@ -42,10 +42,10 @@ public sealed class SettingsDialogViewTests
 
         // The design's own four tiers and their measured sizes (README Screen 3).
         model.WhatGoesIn = new WhatGoesInModel(
-            new WhatGoesInRow("Your setup", "Channels, names, levels, routing.", 470_000, Enabled: true, Locked: true),
-            new WhatGoesInRow("A list of your effects", "So a restore can tell you what's missing.", 4_000, Enabled: true, Locked: true),
-            new WhatGoesInRow("Effect presets", "The settings you saved inside each effect.", 10_000_000, Enabled: true, Locked: false),
-            new WhatGoesInRow("The effect plug-ins themselves", "Copies of the VST3 files.", 40_000_000, Enabled: false, Locked: false));
+            new WhatGoesInRow("Your setup", "Channels, names, levels, routing.", 470_000, enabled: true, locked: true),
+            new WhatGoesInRow("A list of your effects", "So a restore can tell you what's missing.", 4_000, enabled: true, locked: true),
+            new WhatGoesInRow("Effect presets", "The settings you saved inside each effect.", 10_000_000, enabled: true, locked: false),
+            new WhatGoesInRow("The effect plug-ins themselves", "Copies of the VST3 files.", 40_000_000, enabled: false, locked: false));
 
         return model;
     }

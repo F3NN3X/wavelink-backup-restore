@@ -16,6 +16,7 @@ using WaveLinkBackup.App.Views;
 using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.Core.Abstractions;
 using WaveLinkBackup.Core.Automation;
+using WaveLinkBackup.Core.Capture;
 using WaveLinkBackup.Core.Discovery;
 using WaveLinkBackup.Core.Io;
 using WaveLinkBackup.Core.Process;
@@ -140,7 +141,8 @@ public partial class App : Application
 
         settings = arguments.ApplyTo(settingsRepository.Read());
 
-        (host, service, store, waveLinkProcess, restoreService, shell) = Compose(fileSystem, settings);
+        (host, service, store, waveLinkProcess, restoreService, shell) =
+            Compose(fileSystem, settings, GatherPayload);
         host.AutoBackupEnabled = settings.AutoBackupEnabled;
         host.Start();
 
@@ -179,14 +181,20 @@ public partial class App : Application
     private static (
         BackupHost Host, BackupService Service, SnapshotStore Store, IWaveLinkProcess WaveLinkProcess,
         IRestoreService RestoreService, ShellViewModel Shell)
-        Compose(IFileSystem fileSystem, BackupSettings settings)
+        Compose(
+            IFileSystem fileSystem,
+            BackupSettings settings,
+            Func<SettingsInspection, SnapshotPayload?> gatherPayload)
     {
         var clock = new SystemClock();
         var inspector = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData);
         var store = new SnapshotStore(fileSystem, clock, settings.StorePath);
 
+        // Tiers 1-extra, 2, 3 and 4. A closure rather than a held record, so switching a tier in
+        // the Settings dialog takes effect on the next capture instead of the next launch.
         var service = new BackupService(
-            inspector, store, settings.AutoBackupKeepCount, settings.ChosenWaveLinkPath);
+            inspector, store, settings.AutoBackupKeepCount, settings.ChosenWaveLinkPath,
+            gatherPayload);
 
         // Watch the installation we actually found. Falling back to LocalAppData means the
         // watcher still starts when Wave Link is missing — it just never fires, and the tray
@@ -217,7 +225,7 @@ public partial class App : Application
         // before any window is shown - the same reason the shell VM is built here. It wraps Core's
         // RestoreOrchestrator; the view-model never touches a Wave Link process API itself.
         var waveLinkProcess = new WaveLinkProcess();
-        var restoreService = new RestoreService(fileSystem, waveLinkProcess, store);
+        var restoreService = new RestoreService(fileSystem, waveLinkProcess, store, gatherPayload);
 
         return (new BackupHost(coordinator, clock), service, store, waveLinkProcess, restoreService, shell);
     }
@@ -425,18 +433,24 @@ public partial class App : Application
             whereLive,
             whichLive);
 
-        // WHAT GOES IN A BACKUP: the only tier in a backup today is the settings file itself -
-        // its size is the honest figure for "Your setup". The effects list rides inside that same
-        // file (it is part of it), so it carries no separate byte count and shows as included.
-        // Presets and plug-in files are NOT BUILT YET: 0 bytes, off, locked - the proportion bar
-        // then divides only over what a backup actually holds, which is the recompute-from-enabled
-        // rule rather than a hard-coded percentage (Task 3).
-        vm.EstimatedBackupBytes = settingsFileBytes;
+        // WHAT GOES IN A BACKUP: every figure MEASURED from what a capture would take on this
+        // machine right now (phase 6 §7) - never the design mock's 470 KB / 4 KB / 10 MB / 40 MB.
+        // A number the user is asked to decide on has to be their number ([[ADR-006]]).
+        //
+        // Tier 1 is the settings file PLUS Wave Link's own backup copies; the effects list rides
+        // inside the settings file, so it carries no separate byte count. The first two rows are
+        // locked ON - they have no switch, deliberately - and the other two are the real toggles.
+        var estimate = MeasureTiers();
+
+        vm.EstimatedBackupBytes = estimate.TierOneBytes
+            + (settings.IncludePresets ? estimate.PresetBytes : 0)
+            + (settings.IncludePluginFiles ? estimate.PluginBinaryBytes : 0);
+
         vm.WhatGoesIn = new WhatGoesInModel(
-            setup: new WhatGoesInRow("Your setup", "Every channel, routing and effect chain - the whole file.", settingsFileBytes, true, false),
-            effectsList: new WhatGoesInRow("A list of your effects", "The names of the effects in use. Travels inside the settings file above.", 0, true, false),
-            presets: new WhatGoesInRow("Effect presets", "Your saved preset values for each effect.", 0, false, true),
-            pluginFiles: new WhatGoesInRow("The effect plug-ins themselves", "The .vst3 files, so a new machine can load the effects.", 0, false, true));
+            setup: new WhatGoesInRow("Your setup", "Every channel, routing and effect chain - the whole file, plus Wave Link's own copies.", estimate.TierOneBytes, true, true),
+            effectsList: new WhatGoesInRow("A list of your effects", "The names of the effects in use. Travels inside the settings file above.", 0, true, true),
+            presets: new WhatGoesInRow("Effect presets", "Your saved preset values for each effect.", estimate.PresetBytes, settings.IncludePresets, false),
+            pluginFiles: new WhatGoesInRow("The effect plug-ins themselves", "The .vst3 files, so a new machine can load the effects.", estimate.PluginBinaryBytes, settings.IncludePluginFiles, false));
 
         // The toggle and stepper carry high-contrast triggers that bind to this through the
         // window's DataContext - the same value MainWindow hands ShellViewModel.
@@ -454,6 +468,31 @@ public partial class App : Application
         }
 
         return vm;
+    }
+
+    /// <summary>
+    /// What one backup would cost on this machine, per tier. Zero for every tier when Wave Link
+    /// cannot be inspected — the dialog then prints dashes rather than a guess, which is the same
+    /// answer the bottom bar gives when it cannot read free space.
+    /// </summary>
+    /// <summary>
+    /// What every capture puts in a snapshot beyond the settings file, read against the settings
+    /// as they stand at that moment. Shared by the manual button, the watcher and the pre-restore
+    /// snapshot, so all three produce the same shape of backup.
+    /// </summary>
+    private SnapshotPayload? GatherPayload(SettingsInspection live) =>
+        fileSystem is null ? null : TierCapture.For(fileSystem).Gather(live, settings);
+
+    private CaptureEstimate MeasureTiers()
+    {
+        if (fileSystem is null) return CaptureEstimate.Nothing;
+
+        var live = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
+            .Inspect(settings.ChosenWaveLinkPath);
+
+        return live.IsSuccess
+            ? TierCapture.For(fileSystem).Measure(live.Value)
+            : CaptureEstimate.Nothing;
     }
 
     /// <summary>
@@ -612,7 +651,8 @@ public partial class App : Application
         // where the user pointed it - not the dead path. The coordinator's reference is swapped
         // inside the host; the watcher and its two timestamps survive (a pending write is still
         // a pending write, even if the destination moved).
-        service = new BackupService(inspector, newStore, settings.AutoBackupKeepCount, settings.ChosenWaveLinkPath);
+        service = new BackupService(
+            inspector, newStore, settings.AutoBackupKeepCount, settings.ChosenWaveLinkPath, GatherPayload);
         host.SetStore(newStore, service);
 
         shell.List.SetStorePath(path);

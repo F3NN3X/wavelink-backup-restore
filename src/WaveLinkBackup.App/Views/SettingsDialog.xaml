@@ -29,11 +29,12 @@
              second converter. -->
         <Style x:Key="WhatGoesInToggle" TargetType="CheckBox" BasedOn="{StaticResource WlToggle}">
             <Style.Triggers>
+                <!-- Locked now means "always included, no switch" (the settings file and the
+                     effects list), not "not built yet" - phase 6 built the other two. So the
+                     toggle is disabled and stays at full opacity: it is ON and unchangeable, and
+                     the 40% off-treatment would read as the opposite of what it is. -->
                 <DataTrigger Binding="{Binding Locked}" Value="True">
                     <Setter Property="IsEnabled" Value="False" />
-                    <!-- A locked toggle renders at 40% opacity (the design's "off treatment at 40%"),
-                         matching the disabled convention - never a different colour. -->
-                    <Setter Property="Opacity" Value="0.4" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -49,21 +50,8 @@
             </Style.Triggers>
         </Style>
 
-        <!-- The "NOT BUILT YET" badge: transparent, 1px WlLine2, radius 4, mono 500 10px .12em,
-             WlMuted. Hidden on the two always-included rows. -->
-        <Style x:Key="WhatGoesInBadge" TargetType="Border">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="{DynamicResource WlLine2}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="5,2" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Locked}" Value="False">
-                    <Setter Property="Visibility" Value="Collapsed" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
+        <!-- The "NOT BUILT YET" badge is GONE, with phase 6. Every tier the dialog lists is now
+             real, and a badge saying otherwise would be the one thing on this screen that lies. -->
     </Window.Resources>
 
     <!--
@@ -344,24 +332,15 @@
                                                    Style="{StaticResource WhatGoesInSizeText}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center" />
 
-                                         <!-- Control cell: the toggle for EVERY tier, with the NOT BUILT YET badge
-                                              overlaid on the locked ones. The toggle stays PRESENT (never collapsed) so a screen reader
-                                              announces it as an off, disabled switch rather than dropping it from the tree; the
-                                              WhatGoesInToggle style's DataTrigger sets IsEnabled=false + 40% opacity when Locked - that is
-                                              the design's "off treatment at 40%, not interactive" (08-settings-persistence.md). The badge
-                                              sits ON TOP and, being non-hit-testable, passes pointer input through to the disabled toggle;
-                                              IsChecked binds OneWay so a locked tier's set is rejected by the view model regardless. -->
+                                         <!-- Control cell: the toggle for EVERY tier. The two always-included tiers keep a
+                                              PRESENT but disabled toggle rather than losing it, so a screen reader announces
+                                              "on, unavailable" instead of dropping the control from the tree. IsChecked is TwoWay:
+                                              this is where the user switches presets and plug-in files on, and WhatGoesInRow
+                                              refuses a set on a locked row regardless of what the view asks for. -->
                                           <Grid Grid.Column="2">
                                               <CheckBox VerticalAlignment="Center" HorizontalAlignment="Right"
                                                         Style="{StaticResource WhatGoesInToggle}"
-                                                        IsChecked="{Binding Enabled}" />
-
-                                              <Border Style="{StaticResource WhatGoesInBadge}"
-                                                      HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                  <views:TrackedText Text="NOT BUILT YET" Tracking=".12"
-                                                             Style="{StaticResource WlTierBadgeTrackedText}"
-                                                             Foreground="{DynamicResource WlMuted}" />
-                                              </Border>
+                                                        IsChecked="{Binding Enabled, Mode=TwoWay}" />
                                           </Grid>
 
 

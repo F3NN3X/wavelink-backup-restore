@@ -21,6 +21,11 @@ public enum Verb
 /// dispatcher - nothing in between touches the console or the filesystem.
 /// </summary>
 /// <param name="Error">Non-null when parsing failed. The command is then unusable.</param>
+/// <param name="WithPlugins">
+/// Restore the plug-in binaries too. Off unless asked for: it is the only thing in this program
+/// that writes outside the user's own folders, and `C:\Program Files\Common Files\VST3` needs
+/// administrator rights ([[ADR-006]]).
+/// </param>
 public sealed record ParsedCommand(
     Verb Verb,
     IReadOnlyList<string> Arguments,
@@ -31,6 +36,7 @@ public sealed record ParsedCommand(
     int? IntervalSeconds = null,
     bool AssumeYes = false,
     bool Json = false,
+    bool WithPlugins = false,
     string? Error = null)
 {
     public static ParsedCommand Failed(string error) =>

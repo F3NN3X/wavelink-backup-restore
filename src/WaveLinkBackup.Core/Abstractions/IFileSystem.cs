@@ -17,6 +17,15 @@ public interface IFileSystem
     DateTime GetLastWriteTimeUtc(string path);
 
     /// <summary>
+    /// A file's length, or 0 when it cannot be determined.
+    ///
+    /// Exists so that "how big would a backup be?" can be answered without reading 40 MB of
+    /// plug-in binaries into memory — the Settings dialog asks that question every time it
+    /// opens, and tiers 3 and 4 are large enough that measuring by reading would be felt.
+    /// </summary>
+    long GetFileSize(string path);
+
+    /// <summary>
     /// Reads with FileShare.ReadWrite | FileShare.Delete.
     ///
     /// A named method rather than a general Open(path, share) on purpose: callers cannot

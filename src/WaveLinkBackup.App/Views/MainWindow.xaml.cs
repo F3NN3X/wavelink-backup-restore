@@ -338,7 +338,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        var model = RestoreDialogModel.Build(planResult.Value, row.TakenAt);
+        // The missing-plug-in warning, real at last (phase 6 §5). Core did the resolving and wrote
+        // both clauses; the dialog renders them and decides nothing.
+        var plugins = planResult.Value.Plugins;
+        var model = RestoreDialogModel.Build(
+            planResult.Value, row.TakenAt,
+            missingPluginLead: plugins?.MissingLead,
+            missingPluginRest: plugins?.MissingRest);
         var dialog = new RestoreDialog(model) { Owner = this };
 
         // Focus returns to the list when the dialog closes (confirm or cancel), so a keyboard-only
