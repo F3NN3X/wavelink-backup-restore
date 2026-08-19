@@ -107,6 +107,50 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// Error 12's three actions (08-settings-persistence.md "The folder is gone"). The window
+    /// reaches the App through Application.Current - the same seam BackUpNowAsync and OnClosing
+    /// already use - so a bare test harness (no App) simply no-ops rather than exploding on the
+    /// cast. Each handler does exactly one thing: point the store at a new folder, or re-probe
+    /// the current one. The list's State flips off FolderMissing on its own once the folder is
+    /// found again, which collapses this full screen without any explicit hide call here.
+    /// </summary>
+    private void ChooseFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (Application.Current is not App app) return;
+
+        // Microsoft.Win32.OpenFolderDialog (WPF's own folder picker, .NET 8+) rather than the
+        // WinForms FolderBrowserDialog: UseWindowsForms is deliberately off in this project -
+        // pulling Forms into implicit scope collides with WPF's Color/Brush/Application and the
+        // like (see SystemScreens' comment). This needs no csproj change.
+        var picker = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Choose a folder for Wave Link backups",
+            InitialDirectory = shell.List.FolderMissingPath,
+        };
+
+        if (picker.ShowDialog(this) == true)
+        {
+            app.SetStorePath(picker.FolderName);
+        }
+    }
+
+    /// <summary>Error 12's "Look again": re-probe the CURRENT path. No settings change.</summary>
+    private void LookAgain_Click(object sender, RoutedEventArgs e)
+    {
+        if (Application.Current is not App app) return;
+
+        app.RecheckStore();
+    }
+
+    /// <summary>Error 12's "Use the default folder": same as ChooseFolder with the default.</summary>
+    private void UseDefaultFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (Application.Current is not App app) return;
+
+        app.UseDefaultStore();
+    }
+
+    /// <summary>
     /// The inline restore-result strip (03-restore-outcomes.md). Two things live here that do
     /// not belong in the view model:
     ///

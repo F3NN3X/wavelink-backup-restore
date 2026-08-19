@@ -177,12 +177,19 @@
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="BorderBrush" Value="{DynamicResource WlLine}" />
+                                <!-- 08: with the folder gone there is nothing to search, so the
+                                     field dims to 40% and stops taking input. -->
+                                <Setter Property="IsEnabled" Value="True" />
                                 <Style.Triggers>
                                     <DataTrigger Value="True">
                                         <DataTrigger.Binding>
                                             <Binding Path="IsKeyboardFocusWithin" ElementName="SearchBox" />
                                         </DataTrigger.Binding>
                                         <Setter Property="BorderBrush" Value="{DynamicResource WlLine2}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding List.State}" Value="FolderMissing">
+                                        <Setter Property="Opacity" Value="0.4" />
+                                        <Setter Property="IsEnabled" Value="False" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -778,11 +785,15 @@
                            VerticalAlignment="Center" />
             </Grid>
 
+            <!--
+              FolderMissing: error 12's full screen (08-settings-persistence.md "The folder is
+              gone"). It REPLACES the list entirely - no column header, no rows - and renders a
+              centred body: an h2, the reason, the mono path, the last-seen line, and three
+              actions. The status strip above (row 1) already says "BACKUP FOLDER UNAVAILABLE"
+              with its ok-dot; the search field dims to 40% via IsEnabled below; and all four
+              bottom-bar buttons hold at 40% because every CanX folds in not-FolderMissing.
+            -->
             <Grid x:Name="FolderMissingStandIn">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Collapsed" />
@@ -794,13 +805,36 @@
                     </Style>
                 </Grid.Style>
 
-                <Border Grid.Row="0" BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1"
-                        Padding="11,20,9,20">
-                    <ContentControl ContentTemplate="{StaticResource WlColumnHeaderRowTemplate}" Focusable="False" />
-                </Border>
-                <TextBlock Grid.Row="1" Text="The backup folder can't be used." Style="{StaticResource WlBodyText}"
-                           Foreground="{DynamicResource WlText}" HorizontalAlignment="Center"
-                           VerticalAlignment="Center" />
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="430">
+                    <TextBlock Text="{Binding List.FolderMissingTitle}" FontFamily="{DynamicResource WlDisplayFont}"
+                               FontWeight="Medium" FontSize="26" LineHeight="31.2"
+                               Foreground="{DynamicResource WlStrong}" HorizontalAlignment="Center"
+                               TextAlignment="Center" />
+
+                    <TextBlock Text="{Binding List.FolderMissingBody}" Style="{StaticResource WlBodyText}"
+                               FontSize="14" Foreground="{DynamicResource WlText}" Margin="0,14,0,0"
+                               HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+
+                    <TextBlock Text="{Binding List.FolderMissingPath}" FontFamily="{DynamicResource WlMonoFont}"
+                               FontSize="13" Foreground="{DynamicResource WlStrong}" Margin="0,18,0,0"
+                               HorizontalAlignment="Center" />
+
+                    <TextBlock Text="{Binding List.FolderMissingLastSeen}" FontFamily="{DynamicResource WlMonoFont}"
+                               FontSize="12" Foreground="{DynamicResource WlMuted}" Margin="0,6,0,0"
+                               HorizontalAlignment="Center" />
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,24,0,0">
+                        <Button x:Name="ChooseFolderButton" Style="{StaticResource WlPrimaryButton}"
+                                Content="Choose a folder…" Click="ChooseFolder_Click"
+                                AutomationProperties.Name="Choose a folder" />
+                        <Button x:Name="LookAgainButton" Style="{StaticResource WlSecondaryButton}"
+                                Margin="7,0,0,0" Content="Look again" Click="LookAgain_Click"
+                                AutomationProperties.Name="Look again" />
+                        <Button x:Name="UseDefaultFolderButton" Style="{StaticResource WlGhostButton}"
+                                Margin="7,0,0,0" Content="Use the default folder" Click="UseDefaultFolder_Click"
+                                AutomationProperties.Name="Use the default folder" />
+                    </StackPanel>
+                </StackPanel>
             </Grid>
         </Grid>
 
@@ -826,6 +860,24 @@
                     <TextBlock Text="{Binding SummaryLine}" FontFamily="{DynamicResource WlMonoFont}"
                                FontWeight="Normal" FontSize="11" Margin="0,4,0,0"
                                Foreground="{DynamicResource WlMuted}" />
+
+                    <!-- 08: when the folder is gone the bottom bar's left readout becomes this one
+                         mono line, and nothing else - the selection/summary lines are absent. -->
+                    <TextBlock x:Name="FolderMissingBottomLine"
+                               Text="NOTHING CAN BE LISTED, TAKEN OR RESTORED UNTIL A FOLDER IS SET"
+                               FontFamily="{DynamicResource WlMonoFont}" FontWeight="Normal" FontSize="11"
+                               Foreground="{DynamicResource WlMuted}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding List.State}" Value="FolderMissing">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </StackPanel>
 
                 <!--

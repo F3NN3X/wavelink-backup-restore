@@ -362,6 +362,54 @@ public partial class App : Application
         MessageBox.Show("Settings arrive in the next plan.", "Wave Link Backup",
             MessageBoxButton.OK, MessageBoxImage.Information);
 
+    /// <summary>
+    /// Error 12's "Choose a folder…". Persists the new path and re-points every consumer that
+    /// holds a store reference - the list, the service (next backup writes here), the host's
+    /// coordinator, and the tray readout. Without the re-point the app would keep reading and
+    /// writing the dead path after the user has told it where to go.
+    /// </summary>
+    internal void SetStorePath(string path)
+    {
+        // All three are set in OnStartup before any window exists, so this is a belt-and-braces
+        // guard rather than an expected branch - but the fields are nullable and the compiler
+        // will not see through the composition, so we narrow them to locals here.
+        if (fileSystem is null || host is null || shell is null) return;
+
+        settings = settings with { StorePath = path };
+        settingsRepository?.Save(settings);
+
+        var clock = new SystemClock();
+        var inspector = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData);
+        var newStore = new SnapshotStore(fileSystem, clock, path);
+        store = newStore;
+
+        // Rebuilt with the NEW store so that a backup taken after the folder change writes to
+        // where the user pointed it - not the dead path. The coordinator's reference is swapped
+        // inside the host; the watcher and its two timestamps survive (a pending write is still
+        // a pending write, even if the destination moved).
+        service = new BackupService(inspector, newStore, settings.AutoBackupKeepCount, settings.ChosenWaveLinkPath);
+        host.SetStore(newStore, service);
+
+        shell.List.SetStorePath(path);
+
+        RefreshTray();
+        RefreshShellFacts();
+    }
+
+    /// <summary>Error 12's "Use the default folder": same as SetStorePath with the default.</summary>
+    internal void UseDefaultStore() => SetStorePath(SnapshotStore.DefaultStorePath);
+
+    /// <summary>
+    /// Error 12's "Look again": re-probe the CURRENT path. No settings change - the user is
+    /// asking whether the drive came back, not where to put it. If the folder now exists the
+    /// list re-reads and the full screen collapses on its own (State flips off FolderMissing).
+    /// </summary>
+    internal void RecheckStore()
+    {
+        RefreshTray();
+        RefreshShellFacts();
+    }
+
     private void RefreshTray()
     {
         if (tray is null || host is null) return;

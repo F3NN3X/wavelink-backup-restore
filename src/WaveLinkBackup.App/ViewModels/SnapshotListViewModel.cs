@@ -40,6 +40,13 @@ public sealed class SnapshotListViewModel(
     SnapshotStore store, HealthProbe probe, IFileSystem fileSystem, IClock clock)
     : ObservableObject, IDisposable
 {
+    // Mutable on purpose: error 12's "Choose a folder…" re-points the store at a new path and
+    // every subsequent read (this list, the tray readout, the next backup) must follow it. The
+    // store is constructed once in App.Compose; changing its target is cheaper than rebuilding
+    // the whole composition graph on a folder change, and nothing else holds a second copy of
+    // the path that would go stale.
+    private SnapshotStore currentStore = store;
+
     private readonly List<Snapshot> all = [];
 
     private CancellationTokenSource? probing;
@@ -126,13 +133,61 @@ public sealed class SnapshotListViewModel(
         ? "1 BACKUP IS HERE · SEARCH LOOKS AT NAMES ONLY"
         : $"{TotalCount} BACKUPS ARE HERE · SEARCH LOOKS AT NAMES ONLY";
 
+    // Error 12's full screen (08-settings-persistence.md "The folder is gone"). These are the
+    // designed copy for the centred body; they render only when State == FolderMissing, and
+    // every one of them is asserted from a table in MainWindowListStateTests.
+
+    /// <summary>The h2: Rubik 500 26px, --wl-strong.</summary>
+    public string FolderMissingTitle => "The backup folder can't be used";
+
+    /// <summary>
+    /// The reason. Max 430px, centred, --wl-text. Explains the three ways this happens and makes
+    /// the one claim that matters: nothing has been deleted.
+    /// </summary>
+    public string FolderMissingBody =>
+        "It isn't there any more — a drive that isn't plugged in, a folder that moved, or one " +
+        "this account can't write to. Your backups are wherever that folder went; nothing has " +
+        "been deleted.";
+
+    /// <summary>The mono path line: the store path exactly as configured.</summary>
+    public string FolderMissingPath => currentStore.StorePath;
+
+    /// <summary>
+    /// Re-points the store at a new folder. Called from error 12's "Choose a folder…" and "Use
+    /// the default folder" (App.SetStorePath / App.UseDefaultStore) so that the list, the tray
+    /// readout and the next backup all follow the user's choice rather than the stale path. The
+    /// caller persists the new path to settings; this only swaps the in-memory target.
+    /// </summary>
+    public void SetStorePath(string path) => currentStore = new SnapshotStore(fileSystem, clock, path);
+
+    /// <summary>
+    /// The last-seen line, mono at 75%. Computed from the newest snapshot's manifest - the most
+    /// recent thing we know was written into that folder. Absent when there is no snapshot to
+    /// date (an empty or unreadable store), in which case the design prints nothing rather than
+    /// guess a time.
+    /// </summary>
+    public string? FolderMissingLastSeen
+    {
+        get
+        {
+            if (all.Count == 0) return null;
+
+            var newest = all.Max(s => s.Manifest.CreatedUtc).ToLocalTime();
+            var day = newest.ToString("d MMM", CultureInfo.CurrentCulture).ToUpper(CultureInfo.CurrentCulture);
+            var time = newest.ToString("HH:mm", CultureInfo.InvariantCulture);
+            var count = TotalCount == 1 ? "1 BACKUP" : $"{TotalCount} BACKUPS";
+
+            return $"LAST SEEN {day} {time} · {count} THEN";
+        }
+    }
+
     /// <summary>Reads the store and rebuilds the rows. F5, and every load.</summary>
     public void Refresh()
     {
         var selectedId = selected?.Id;
 
         all.Clear();
-        all.AddRange(store.List());
+        all.AddRange(currentStore.List());
 
         Rebuild();
 
@@ -181,7 +236,7 @@ public sealed class SnapshotListViewModel(
     public bool CommitRename(SnapshotRowViewModel row) =>
         row.TryCommitEdit(name =>
         {
-            var result = store.Rename(row.Id, name);
+            var result = currentStore.Rename(row.Id, name);
             if (!result.IsSuccess) return result.Error!.Message;
 
             Refresh();
@@ -199,7 +254,7 @@ public sealed class SnapshotListViewModel(
     /// </summary>
     public string? Delete(string id)
     {
-        var result = store.Delete(id);
+        var result = currentStore.Delete(id);
         if (!result.IsSuccess) return result.Error!.Message;
 
         Refresh();
@@ -250,7 +305,7 @@ public sealed class SnapshotListViewModel(
         // Asked here, on every refresh, rather than of the store: "is the folder there" is a
         // question about a MOMENT, and a stored answer would be stale before anyone read it.
         // It is also why this needs no Core change - nothing in this plan touches Core.
-        State = !fileSystem.DirectoryExists(store.StorePath) ? ListState.FolderMissing
+        State = !fileSystem.DirectoryExists(currentStore.StorePath) ? ListState.FolderMissing
             : all.Count == 0 ? ListState.Empty
             : matched.Count == 0 ? ListState.NoResults
             : ListState.Loaded;
@@ -260,6 +315,8 @@ public sealed class SnapshotListViewModel(
             nameof(TotalCount), nameof(MatchCount), nameof(HiddenCount), nameof(TotalBytes),
             nameof(MatchSummary), nameof(SearchFooter), nameof(ShowAllLabel),
             nameof(NoResultsTitle), nameof(NoResultsDetail),
+            nameof(FolderMissingTitle), nameof(FolderMissingBody), nameof(FolderMissingPath),
+            nameof(FolderMissingLastSeen),
         ])
         {
             Raise(property);

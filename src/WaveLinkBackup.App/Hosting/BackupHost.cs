@@ -1,6 +1,8 @@
 using WaveLinkBackup.Core.Abstractions;
 using WaveLinkBackup.Core.Automation;
+using WaveLinkBackup.Core.Discovery;
 using WaveLinkBackup.Core.Results;
+using WaveLinkBackup.Core.Snapshots;
 
 namespace WaveLinkBackup.App.Hosting;
 
@@ -13,10 +15,25 @@ namespace WaveLinkBackup.App.Hosting;
 /// putting a pause concept into AutoBackupPolicy would move a UI affordance into a library that
 /// has no UI (ADR-004).
 /// </summary>
-public sealed class BackupHost(AutoBackupCoordinator coordinator, IClock clock) : IDisposable
+public sealed class BackupHost : IDisposable
 {
+    private readonly IClock clock;
+
+    // Mutable on purpose: error 12's "Choose a folder…" re-points the store and service at a new
+    // path while the app is running. The watcher watches Wave Link's own settings file - not our
+    // backup folder - so it survives the move; only the service (and therefore the destination)
+    // changes. A pending write is cleared on the swap, but the next real settings write re-arms
+    // the coordinator and lands in the new folder.
+    private AutoBackupCoordinator currentCoordinator;
+
     private DateTimeOffset? pausedUntil;
     private bool disposed;
+
+    public BackupHost(AutoBackupCoordinator coordinator, IClock clock)
+    {
+        currentCoordinator = coordinator;
+        this.clock = clock;
+    }
 
     public bool AutoBackupEnabled { get; set; } = true;
 
@@ -31,9 +48,37 @@ public sealed class BackupHost(AutoBackupCoordinator coordinator, IClock clock) 
     public TrayConditions Conditions =>
         new(AutoBackupEnabled, IsPaused, IsCapturing, LastError);
 
-    public void Start() => coordinator.Start();
+    /// <summary>
+    /// The live coordinator, exposed so App can build a replacement that reuses the SAME watcher
+    /// when error 12's "Choose a folder…" moves the store.
+    /// </summary>
+    public AutoBackupCoordinator Coordinator => currentCoordinator;
 
-    public void Stop() => coordinator.Stop();
+    /// <summary>
+    /// Swaps the store and service the coordinator calls, keeping the SAME watcher (which watches
+    /// Wave Link's settings file, not our backup folder). Called from App.SetStorePath when error
+    /// 12's "Choose a folder…" re-points the backup folder. The old coordinator is disposed; the
+    /// new one starts immediately if the host was running.
+    /// </summary>
+    public void SetStore(SnapshotStore newStore, BackupService newService)
+    {
+        var wasRunning = currentCoordinator.IsRunning;
+
+        // Build a fresh watcher on the same path (Wave Link's settings file). The old coordinator
+        // is disposed after the new one is constructed so there is no gap where ticks are lost.
+        var watchPath = SettingsLocator.SystemLocalAppData;
+        var newWatcher = new FileSystemSettingsWatcher(watchPath);
+        var newCoordinator = new AutoBackupCoordinator(newWatcher, newService, clock);
+
+        currentCoordinator.Dispose();
+        currentCoordinator = newCoordinator;
+
+        if (wasRunning) newCoordinator.Start();
+    }
+
+    public void Start() => currentCoordinator.Start();
+
+    public void Stop() => currentCoordinator.Stop();
 
     public void PauseFor(TimeSpan duration) => pausedUntil = clock.UtcNow + duration;
 
@@ -53,7 +98,7 @@ public sealed class BackupHost(AutoBackupCoordinator coordinator, IClock clock) 
         IsCapturing = true;
         try
         {
-            var result = coordinator.Tick();
+            var result = currentCoordinator.Tick();
             Record(result);
             return result;
         }
@@ -70,7 +115,7 @@ public sealed class BackupHost(AutoBackupCoordinator coordinator, IClock clock) 
     /// </summary>
     public TickResult CaptureOnShutdown()
     {
-        var result = coordinator.CaptureOnShutdown();
+        var result = currentCoordinator.CaptureOnShutdown();
         Record(result);
         return result;
     }
@@ -89,6 +134,6 @@ public sealed class BackupHost(AutoBackupCoordinator coordinator, IClock clock) 
         if (disposed) return;
         disposed = true;
 
-        coordinator.Dispose();
+        currentCoordinator.Dispose();
     }
 }

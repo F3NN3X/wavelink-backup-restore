@@ -198,4 +198,168 @@ public sealed class MainWindowListStateTests
         Assert.Equal(Visibility.Collapsed, v.Empty);
         Assert.Equal(Visibility.Visible, v.FolderMissing);
     }
+
+    // --------------------------------------------------------------------------- error 12 (08)
+    //
+    // The folder-unavailable full screen is not just a stand-in: it REPLACES the list, dims the
+    // search field to 40% and makes it non-interactive, and holds ALL FOUR bottom-bar actions at
+    // 40% - "including Back up now" (08-settings-persistence.md). The enter/exit toggle below is
+    // the rendered half of that claim: one Apply flips FolderMissing on, a second flips it off,
+    // and the four buttons plus the search field follow.
+
+    private static ShellFacts Facts(bool folderMissing) => new(
+        WaveLinkFound: true, WaveLinkRunning: false, SettingsLastSavedLocal: null,
+        AutoBackupEnabled: true, FolderMissing: folderMissing, StorePath: StorePath, FreeBytes: null);
+
+    private sealed record BottomBarState(
+        bool CanRename, bool CanDelete, bool CanRestore, bool CanBackUpNow,
+        double SearchOpacity, bool SearchEnabled, Visibility FolderMissingLine);
+
+    private static BottomBarState ReadBottomBar(MainWindow window, ShellViewModel shell) =>
+        new(shell.CanRename, shell.CanDelete, shell.CanRestore, shell.CanBackUpNow,
+            window.SearchBoxBorder.Opacity, window.SearchBoxBorder.IsEnabled,
+            window.FolderMissingBottomLine.Visibility);
+
+    // ENTER: the folder goes missing. The full screen's own region comes up (driven by
+    // List.State == FolderMissing, exactly like the four existing state tests), and the SAME fact
+    // that shows it - ShellFacts.FolderMissing - holds ALL FOUR bottom-bar actions at 40%
+    // (IsEnabled false -> WPF's disabled visual) plus the search field, and lights the bottom-bar
+    // mono line. "Including Back up now" (08-settings-persistence.md).
+    [Fact]
+    public void FolderMissing_enter_dims_all_four_actions_and_the_search_field()
+    {
+        var v = Wpf.Run(() =>
+        {
+            EnsureResourcesLoaded();
+            // No directory -> List.State == FolderMissing after Refresh(), so the stand-in is up.
+            var shell = BuildShell(withDirectory: false, withSnapshot: false);
+            shell.List.Refresh();
+
+            var window = Build(shell);
+            PumpPendingBindings(window);
+
+            // The production path (App.RecheckStore -> RefreshShellFacts) hands the window the
+            // same FolderMissing fact that the list just derived. Apply it so the CanX facts and
+            // the bottom-bar line follow the stand-in.
+            shell.Apply(Facts(folderMissing: true));
+            PumpPendingBindings(window);
+
+            return new BottomBarState(
+                shell.CanRename, shell.CanDelete, shell.CanRestore, shell.CanBackUpNow,
+                window.SearchBoxBorder.Opacity, window.SearchBoxBorder.IsEnabled,
+                window.FolderMissingBottomLine.Visibility)
+            {
+                // Piggyback the region visibility on the record via a tuple return below.
+            };
+        });
+
+        // Re-read the region separately (the record above carries only the bottom-bar facts).
+        var standIn = Wpf.Run(() =>
+        {
+            EnsureResourcesLoaded();
+            var shell = BuildShell(withDirectory: false, withSnapshot: false);
+            shell.List.Refresh();
+            var window = Build(shell);
+            PumpPendingBindings(window);
+            shell.Apply(Facts(folderMissing: true));
+            PumpPendingBindings(window);
+            return window.FolderMissingStandIn.Visibility;
+        });
+
+        // The full screen is up...
+        Assert.Equal(Visibility.Visible, standIn);
+        // ...and every action + the search field are held at 40%, with the bottom line lit.
+        Assert.False(v.CanRename);
+        Assert.False(v.CanDelete);
+        Assert.False(v.CanRestore);
+        Assert.False(v.CanBackUpNow);
+        Assert.Equal(0.4, v.SearchOpacity);
+        Assert.False(v.SearchEnabled);
+        Assert.Equal(Visibility.Visible, v.FolderMissingLine);
+    }
+
+    // EXIT: "Look again" re-probes the current path and the folder is back. List.State flips off
+    // FolderMissing (the list's Refresh), which collapses the full screen; the matching
+    // ShellFacts.FolderMissing == false restores every action and the search field - no explicit
+    // hide call anywhere.
+    [Fact]
+    public void FolderMissing_exit_restores_all_four_actions_and_the_search_field()
+    {
+        var v = Wpf.Run(() =>
+        {
+            EnsureResourcesLoaded();
+            // Directory present -> List.State == Loaded, so the stand-in is down.
+            var shell = BuildShell(withDirectory: true, withSnapshot: false);
+            shell.List.Refresh();
+
+            var window = Build(shell);
+            PumpPendingBindings(window);
+
+            // Folder is back: the production re-probe hands FolderMissing == false.
+            shell.Apply(Facts(folderMissing: false));
+            PumpPendingBindings(window);
+
+            return (state: new BottomBarState(
+                shell.CanRename, shell.CanDelete, shell.CanRestore, shell.CanBackUpNow,
+                window.SearchBoxBorder.Opacity, window.SearchBoxBorder.IsEnabled,
+                window.FolderMissingBottomLine.Visibility),
+                standIn: window.FolderMissingStandIn.Visibility);
+        });
+
+        // Full screen collapsed...
+        Assert.Equal(Visibility.Collapsed, v.standIn);
+        // ...and everything is live again.
+        Assert.True(v.state.CanBackUpNow);
+        Assert.True(v.state.SearchEnabled);
+        Assert.Equal(1.0, v.state.SearchOpacity);
+        Assert.Equal(Visibility.Collapsed, v.state.FolderMissingLine);
+    }
+
+    // The full screen's own three actions (Choose a folder… / Look again / Use the default
+    // folder) live inside the stand-in Grid, so they are reachable ONLY while it is on screen -
+    // a Collapsed parent is not hit-testable. This pins that the buttons appear together with the
+    // region rather than floating over a hidden one.
+    private sealed record StandInActions(
+        Visibility StandIn, Visibility Choose, Visibility LookAgain, Visibility UseDefault);
+
+    [Fact]
+    public void FolderMissing_actions_are_visible_only_with_the_stand_in()
+    {
+        var inMissing = Wpf.Run(() =>
+        {
+            EnsureResourcesLoaded();
+            var shell = BuildShell(withDirectory: false, withSnapshot: false);
+            shell.List.Refresh();
+            var window = Build(shell);
+            PumpPendingBindings(window);
+            return new StandInActions(
+                window.FolderMissingStandIn.Visibility,
+                window.ChooseFolderButton.Visibility,
+                window.LookAgainButton.Visibility,
+                window.UseDefaultFolderButton.Visibility);
+        });
+
+        var after = Wpf.Run(() =>
+        {
+            EnsureResourcesLoaded();
+            var shell = BuildShell(withDirectory: true, withSnapshot: false);
+            shell.List.Refresh();
+            var window = Build(shell);
+            PumpPendingBindings(window);
+            return new StandInActions(
+                window.FolderMissingStandIn.Visibility,
+                window.ChooseFolderButton.Visibility,
+                window.LookAgainButton.Visibility,
+                window.UseDefaultFolderButton.Visibility);
+        });
+
+        // Folder missing: region up, all three of its actions with it.
+        Assert.Equal(Visibility.Visible, inMissing.StandIn);
+        Assert.Equal(Visibility.Visible, inMissing.Choose);
+        Assert.Equal(Visibility.Visible, inMissing.LookAgain);
+        Assert.Equal(Visibility.Visible, inMissing.UseDefault);
+
+        // Folder present: region collapsed - that is what makes the three buttons unreachable.
+        Assert.Equal(Visibility.Collapsed, after.StandIn);
+    }
 }
