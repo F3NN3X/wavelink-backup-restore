@@ -95,4 +95,5 @@ PRESETS and PLUGINS stay on screen, off, and unmovable (08 §"Unbuilt tiers").
 - WHERE THESE SETTINGS LIVE and WHICH WAVE LINK render per spec (the latter hidden when one install).
 - Unbuilt tiers are shown off + unmovable with the NOT BUILT YET badge and footnote.
 - The proportion bar is computed from enabled tiers, not hard-coded.
+- **High contrast:** every colour the surface uses in dark/light is replaced by a shape or a verdict word in HC; tints are transparent; surfaces separate on 1px WindowText borders; an HC test pins each. (Standing rule — source of truth: [plan 10](2026-08-18-phase-5-plan-10-high-contrast.md) Task 3.)
 - New tests green; full suite green; build clean.

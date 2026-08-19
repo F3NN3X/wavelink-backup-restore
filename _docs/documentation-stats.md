@@ -29,10 +29,10 @@ Update this file **in the same commit** as the document it counts. See
 | Patterns | 4 |
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
-| Sessions | 11 |
+| Sessions | 12 |
 | Plans | 8 |
 | Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
-| **Tests** | **959 passing** — Core 296 · CLI 91 · App 572 |
+| **Tests** | **964 passing** — Core 296 · CLI 91 · App 577 |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
@@ -44,6 +44,37 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Phase 5, plan 10: high contrast — the phase's last surface (2026-08-19)
+
+**964 tests green** (296 Core, 91 CLI, **577 App**) — up from 959. Build clean, zero warnings.
+This was a verification + gap-filling pass over a third theme that was already ~90% built and
+tested, not a build: `HighContrast.xaml` matches spec key for key (every fill Transparent, every
+text/line role a `SystemColors.*ColorKey`, no literal hex), the row template encodes health in
+shape plus a verdict word, and the focus ring, buttons and tray PAUSED glyph were already pinned.
+
+**Two real gaps closed.** The runtime-swap chain — *turn Windows high contrast on and watch the
+app swap without a restart* — was exercised in pieces but never end to end; `UiSettingsTheme` now
+exposes its preference handler as an internal seam (with a same-thread fast path so the test is
+deterministic) and `UiSettingsThemeTests` pins it: colour change fires once, non-colour change
+fires not at all, dispose stops firing. And the "no hard-coded hex in HighContrast.xaml" rule had
+no guard; a new `ThemeTests` case reads the file as source and fails the build if a literal colour
+ever appears or a brush resolves to anything but a `SystemColors` key or Transparent.
+
+**The HC contract is now a Definition-of-done line in plans 5–8.** Every surface those plans land
+must ship with its HC shape/word encoding and a pinning test, plan 10 as the source of truth — no
+new surface ships without it. The final sweep found **no gaps**: every plans 5–8 surface already
+encodes meaning by glyph shape or verdict word (the restore strip's "FAILED" is a word plus a
+dotted rule, not a red fill; the settings proportion bar labels every segment), so in both HC
+schemes the tints go transparent and nothing authored against a background luminance breaks.
+
+Session note — [phase 5 high contrast](sessions/2026-08-19-phase-5-high-contrast.md). Plan 10 is
+complete, and with it **phase 5 is complete** — every surface built and verified in both themes and
+high contrast.
+
+**Counts moved:** sessions 11 → 12 · tests 959 → 964.
+
+---
 
 ### Phase 5, plan 9: the tray shell (2026-08-19)
 

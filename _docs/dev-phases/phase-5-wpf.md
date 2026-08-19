@@ -9,11 +9,15 @@ tags: [dev-phase]
 
 # Phase 5 — WPF shell
 
-**Status:** In progress — plans 5–9 are complete: the real restore flow (plan 5), in-place
-rename / delete / empty-trash (plan 6), the twelve errors + first-run/empty state (plan 7), the
-settings dialog (plan 8, `0812c99`), and the tray shell (plan 9, `f801e5b`). Execution plans for
-**every** surface are written (2026-08-18, see below); what remains is execution of plan 10
-(high contrast). **next: plan 10.**
+**Status:** ✅ Complete — all ten plans landed. Plans 5–9: the real restore flow (plan 5),
+in-place rename / delete / empty-trash (plan 6), the twelve errors + first-run/empty state
+(plan 7), the settings dialog (plan 8, `0812c99`), and the tray shell (plan 9, `f801e5b`).
+Plan 10 (high contrast) closed the phase on 2026-08-19: a verification + gap-filling pass over
+the third theme that pinned the runtime swap end to end, guarded "no hard-coded colour in
+HighContrast.xaml", recorded the HC contract as a Definition-of-done line in plans 5–8, and swept
+every surface in both HC schemes. **964 tests green.** The exit criteria are met: the four screens
+and every state group match the handoff in both themes *and* high contrast, the tray shell works,
+and no Core logic has leaked into the shell. **next: phase 6 (plugin tiers).**
 **Entry criteria:** phase 4 complete. ✅ 2026-08-16.
 **Exit criteria:** the four designed screens match the handoff in **both themes**, the six
 undesigned surfaces are designed and built, and no Core logic has leaked into the shell.

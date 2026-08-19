@@ -134,4 +134,5 @@ The first-run **"Wave Link not found"** variant is specified only as "line 6 is 
 - The weight rule (amber only when the config is not whole) holds and is integration-tested.
 - Error 9/12 replace the list as one neutral full screen; the automatic backup stays silent-but-said while the folder is missing.
 - First-run/empty state matches Screen 4 (found variant); the not-found variant is logged as a gap, not half-built.
+- **High contrast:** every colour the surface uses in dark/light is replaced by a shape or a verdict word in HC; tints are transparent; surfaces separate on 1px WindowText borders; an HC test pins each. (Standing rule — source of truth: [plan 10](2026-08-18-phase-5-plan-10-high-contrast.md) Task 3.)
 - New tests green; full suite green; build clean.

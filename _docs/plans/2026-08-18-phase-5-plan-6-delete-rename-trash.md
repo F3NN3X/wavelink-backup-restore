@@ -143,4 +143,5 @@ The row belongs beside WHERE BACKUPS ARE KEPT because it is a fact about that fo
 - Delete shows the correct variant, moves into `.trash`, and the row vanishes from every readout.
 - The trash is invisible to list/search/counts; a `.trash`-only folder still counts as valid.
 - Empty trash: immediate on local drives, confirmed only where the Recycle Bin can't catch it; the Recycle Bin is named in exactly one place (the trash row).
+- **High contrast:** every colour the surface uses in dark/light is replaced by a shape or a verdict word in HC; tints are transparent; surfaces separate on 1px WindowText borders; an HC test pins each. (Standing rule — source of truth: [plan 10](2026-08-18-phase-5-plan-10-high-contrast.md) Task 3.)
 - New tests green; full suite green; build clean.

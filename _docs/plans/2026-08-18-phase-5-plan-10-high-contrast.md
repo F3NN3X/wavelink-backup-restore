@@ -1,8 +1,8 @@
 ---
 title: "Phase 5, plan 10: high contrast"
-status: planned
+status: completed
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-08-19
 tags: [plan, phase-5, wpf, high-contrast]
 ---
 
@@ -13,6 +13,13 @@ The third theme. The palette is not ours; the system owns it. Health is encoded 
 Windows high contrast on or off swaps the theme at runtime, no restart.
 
 **Design source:** `operations/design/screens/11-high-contrast.md`.
+
+> **Completed 2026-08-19.** A verification + gap-filling pass over a theme that was ~90% built
+> and tested already. Closed the two real gaps (the runtime-swap chain, the no-hard-coded-colour
+> rule), recorded the HC contract in plans 5–8's Definition-of-done, and swept every surface —
+> all of them encode meaning by shape or word, never colour alone. **964 tests green.** This is
+> the last plan in phase 5; the phase is complete. See
+> [the session note](../sessions/2026-08-19-phase-5-high-contrast.md).
 
 ---
 
@@ -63,11 +70,11 @@ not a build-from-scratch. What exists, verified 2026-08-18:
 **Goal:** turning Windows high contrast on or off re-applies the theme without a restart; the
 test does not need a real Windows session change.
 
-- [ ] `UiSettingsTheme` is already `sealed` and event-driven; add a thin seam if needed so the
+- [x] `UiSettingsTheme` is already `sealed` and event-driven; add a thin seam if needed so the
       `UserPreferenceChanged` handler can be invoked from a test (it currently subscribes to the
       static `SystemEvents` in `Start()`). Prefer exposing the handler as an internal method over
       re-architecting — this is a testability seam, not a design change.
-- [ ] New test file `tests/WaveLinkBackup.App.Tests/UiSettingsThemeTests.cs`:
+- [x] New test file `tests/WaveLinkBackup.App.Tests/UiSettingsThemeTests.cs`:
   - `High_contrast_on_replaces_the_active_theme_immediately` — start with Light, fire the
     `Color` preference-changed event, assert `Theme == AppTheme.HighContrast` and that
     `Changed` fired.
@@ -76,22 +83,22 @@ test does not need a real Windows session change.
   - `A_non_color_preference_change_does_not_reapply` — fire with a different
     `UserPreferenceCategory`, assert `Changed` did **not** fire (guards against re-applying on
     every unrelated Windows event).
-- [ ] Run the suite: `dotnet test tests/WaveLinkBackup.App.Tests`. New tests pass; no regressions.
-- [ ] Commit: `test(app): pin the high-contrast runtime swap end to end`.
+- [x] Run the suite: `dotnet test tests/WaveLinkBackup.App.Tests`. New tests pass; no regressions.
+- [x] Commit: `test(app): pin the high-contrast runtime swap end to end`.
 
 ### Task 2 — Guard "no hard-coded colour in HighContrast.xaml"
 
 **Goal:** a future edit that introduces a literal hex or `#RGB` value into the HC dictionary
 fails the build, not the user's eyes.
 
-- [ ] New test in `ThemeTests.cs` (or a dedicated `HighContrastThemeTests.cs`): parse
+- [x] New test in `ThemeTests.cs` (or a dedicated `HighContrastThemeTests.cs`): parse
       `Theming/HighContrast.xaml` as text and assert **no** occurrence of a colour literal —
       regex `#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})\b` and no `Color="#` / `SolidColorBrush Color=`
       with a non-`{DynamicResource SystemColors.` value. The file should contain only
       `{x:Static SystemColors.*ColorKey}` references and `Transparent`.
-- [ ] Assert every `Wl*` key in the HC dictionary resolves to either a `SystemColors` static or
+- [x] Assert every `Wl*` key in the HC dictionary resolves to either a `SystemColors` static or
       `Transparent` — i.e. no third category of value can sneak in.
-- [ ] Run the suite; commit: `test(app): guard that high contrast carries no hard-coded colour`.
+- [x] Run the suite; commit: `test(app): guard that high contrast carries no hard-coded colour`.
 
 ### Task 3 — The HC guard task for plans 5–8 surfaces
 
@@ -99,12 +106,12 @@ fails the build, not the user's eyes.
 follow-up. This is a standing rule recorded here and referenced from each of those plans'
 Definition of done.
 
-- [ ] For each new surface (restore strip · delete/rename/trash dialogs · the twelve errors +
+- [x] For each new surface (restore strip · delete/rename/trash dialogs · the twelve errors +
       first-run/empty state · settings dialog), the implementing plan's Definition of done gains:
       > *High contrast: every colour the surface uses in dark/light is replaced by a shape or a
       > verdict word in HC; tints are transparent; surfaces separate on 1px WindowText borders;
       > an HC test pins each.*
-- [ ] Concretely, per `11-high-contrast.md`:
+- [x] Concretely, per `11-high-contrast.md`:
   - **Health colour → shape.** SUSPECT amber and DAMAGED red have no meaning in HC. The row
         template already does this (dashed/dotted rule + word). Dialogs and the restore strip must
         do the same: a "failed" outcome is a **word** ("FAILED") plus a dotted border, not a red
@@ -115,7 +122,7 @@ Definition of done.
         trigger pattern from `RowStyles.xaml`.
   - **Disabled = GrayText at full opacity**, never 55%. The button rule exists; extend it to any
         new control type.
-- [ ] No code in this task — it is the contract the other four plans sign. Record it in each of
+- [x] No code in this task — it is the contract the other four plans sign. Record it in each of
       their Definition-of-done sections when those plans are next touched, and here as the source
       of truth.
 
@@ -125,41 +132,41 @@ Definition of done.
 high-contrast schemes (High Contrast Black and High Contrast White), with no hard-coded hex
 anywhere in the HC path.
 
-- [ ] Run the app under **High Contrast Black**: backup list (healthy / SUSPECT / DAMAGED rows),
+- [x] Run the app under **High Contrast Black**: backup list (healthy / SUSPECT / DAMAGED rows),
       restore-outcome strip, focus ring, buttons enabled/hover/disabled, tray icon in all four
       states. Confirm: no colour carries meaning; rules are solid/dashed/dotted; verdict words
       present; selected row is full Highlight with inverted ink; PAUSED tray glyph is full-opacity
       GrayText.
-- [ ] Repeat under **High Contrast White** (the scheme where the system palette inverts): confirm
+- [x] Repeat under **High Contrast White** (the scheme where the system palette inverts): confirm
       nothing was authored against a specific background luminance — everything should follow the
       `SystemColors` keys and therefore invert correctly for free.
-- [ ] If either scheme reveals a gap, fix it in this task and add the pinning test; do not carry
+- [x] If either scheme reveals a gap, fix it in this task and add the pinning test; do not carry
       it into plans 5–8.
-- [ ] Record the sweep outcome in the session note (see below).
+- [x] Record the sweep outcome in the session note (see below).
 
 ### Task 5 — Document
 
-- [ ] Session note: `_docs/sessions/2026-08-18-phase-5-high-contrast.md` — what was already built,
+- [x] Session note: `_docs/sessions/2026-08-18-phase-5-high-contrast.md` — what was already built,
       the two residual gaps found and closed (runtime-swap pin, no-hex guard), the HC guard task
       recorded for plans 5–8, and the both-schemes sweep outcome. Frontmatter per
       `_docs/templates.md`.
-- [ ] Update `_docs/documentation-stats.md`: Sessions 9 → 10; Plans 6 → 8 (with plan 9); add a
+- [x] Update `_docs/documentation-stats.md`: Sessions 9 → 10; Plans 6 → 8 (with plan 9); add a
       Recent additions entry. Same commit.
-- [ ] Refresh `phase-5-wpf.md` status: high contrast now planned (plan 10); the phase is fully
+- [x] Refresh `phase-5-wpf.md` status: high contrast now planned (plan 10); the phase is fully
       planned end to end.
 
 ---
 
 ## Definition of done
 
-- [ ] Turning Windows high contrast on/off re-applies the theme at runtime, pinned by a test that
+- [x] Turning Windows high contrast on/off re-applies the theme at runtime, pinned by a test that
       does not require a real session change.
-- [ ] `HighContrast.xaml` is provably free of hard-coded colour; a test fails the build if that
+- [x] `HighContrast.xaml` is provably free of hard-coded colour; a test fails the build if that
       changes.
-- [ ] Every existing screen verified in both HC schemes; any gap found is fixed and pinned here,
+- [x] Every existing screen verified in both HC schemes; any gap found is fixed and pinned here,
       not deferred.
-- [ ] The HC guard task is recorded as a Definition-of-done line for plans 5–8, so no new surface
+- [x] The HC guard task is recorded as a Definition-of-done line for plans 5–8, so no new surface
       ships without its HC shape/word encoding and tests.
-- [ ] Full suite green: `dotnet test` across Core, CLI and App; no regressions from the 764
+- [x] Full suite green: `dotnet test` across Core, CLI and App; no regressions from the 764
       baseline.
-- [ ] Session note + documentation stats committed together with the code.
+- [x] Session note + documentation stats committed together with the code.
