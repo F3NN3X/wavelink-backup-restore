@@ -599,9 +599,10 @@ public partial class MainWindow : Window
     /// Return keyboard focus to the selected snapshot's row after a dialog closes, so a
     /// keyboard-only user lands back where they started rather than on a dead window. Defers to
     /// the input dispatcher for the same reason FocusRow does: the container may not be realised
-    /// yet when the virtualizing panel is first asked to draw it.
+    /// yet when the virtualizing panel is first asked to draw it. Internal so the settings dialog
+    /// (opened from App, which does not own this window) can reuse the same seam after it closes.
     /// </summary>
-    private void RestoreFocusToList()
+    internal void RestoreFocusToList()
     {
         if (shell.List.Selected is not { } row) return;
 

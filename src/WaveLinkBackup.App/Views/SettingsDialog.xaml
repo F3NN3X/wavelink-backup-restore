@@ -17,10 +17,6 @@
         <!-- The free-space line omits itself when the figure cannot be read (empty string) rather
                than print a number that is not there. Reuses the existing string converter from Views. -->
         <views:StringNotNullToVisibilityConverter x:Key="FreeSpaceLineVisible" />
-        <!-- True → Collapsed, false → Visible. The WHAT GOES IN A BACKUP rows use it to hide the
-             toggle on the locked tiers (which carry the NOT BUILT YET badge instead). -->
-        <views:InverseBoolToVisibilityConverter x:Key="ToggleVisible" />
-
         <!-- True → Visible, false → Collapsed. Used for row dividers - show on all but the last row. -->
         <views:BoolToVisibilityConverter x:Key="DividerVisible" />
 
@@ -321,20 +317,24 @@
                                                    Style="{StaticResource WhatGoesInSizeText}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center" />
 
-                                        <!-- Control cell: the toggle for the two built tiers, the NOT BUILT YET badge
-                                             for the locked ones. The toggle binds IsChecked to Enabled and is disabled + 40% when Locked. -->
-                                         <Grid Grid.Column="2">
+                                         <!-- Control cell: the toggle for EVERY tier, with the NOT BUILT YET badge
+                                              overlaid on the locked ones. The toggle stays PRESENT (never collapsed) so a screen reader
+                                              announces it as an off, disabled switch rather than dropping it from the tree; the
+                                              WhatGoesInToggle style's DataTrigger sets IsEnabled=false + 40% opacity when Locked - that is
+                                              the design's "off treatment at 40%, not interactive" (08-settings-persistence.md). The badge
+                                              sits ON TOP and, being non-hit-testable, passes pointer input through to the disabled toggle;
+                                              IsChecked binds OneWay so a locked tier's set is rejected by the view model regardless. -->
+                                          <Grid Grid.Column="2">
                                               <CheckBox VerticalAlignment="Center" HorizontalAlignment="Right"
                                                         Style="{StaticResource WhatGoesInToggle}"
-                                                        IsChecked="{Binding Enabled, Mode=OneWay}"
-                                                        Visibility="{Binding Locked, Converter={StaticResource ToggleVisible}}" />
+                                                        IsChecked="{Binding Enabled, Mode=OneWay}" />
 
-                                             <Border Style="{StaticResource WhatGoesInBadge}"
-                                                     HorizontalAlignment="Right">
-                                                 <TextBlock Text="NOT BUILT YET" Style="{StaticResource WlTierBadgeText}"
-                                                            Foreground="{DynamicResource WlMuted}" />
-                                             </Border>
-                                         </Grid>
+                                              <Border Style="{StaticResource WhatGoesInBadge}"
+                                                      HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                  <TextBlock Text="NOT BUILT YET" Style="{StaticResource WlTierBadgeText}"
+                                                             Foreground="{DynamicResource WlMuted}" />
+                                              </Border>
+                                          </Grid>
 
 
 

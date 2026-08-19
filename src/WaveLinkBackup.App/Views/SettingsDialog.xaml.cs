@@ -51,5 +51,22 @@ public partial class SettingsDialog : Window
         // needs no thought, so a keyboard user who hits Enter immediately dismisses rather than
         // changes something.
         Loaded += (_, _) => FooterCloseButton.Focus();
+
+        // When the dialog closes (Escape, either Close button, or the window being dismissed), hand
+        // focus back to the main window's list - the same seam every other dialog uses after it
+        // returns (MainWindow.RestoreFocusToList). For a modal owner WPF already re-activates the
+        // owner on close; this just makes sure the LIST holds the focus, not some leftover control.
+        Closed += (_, _) => RestoreFocus();
+    }
+
+    /// <summary>
+    /// Returns keyboard focus to the main window's list after the dialog closes. No-op when the
+    /// dialog was shown standalone (no owner) - there is no list to return to in that case, and the
+    /// window is going away anyway.
+    /// </summary>
+    internal void RestoreFocus()
+    {
+        if (Owner is MainWindow main)
+            main.RestoreFocusToList();
     }
 }
