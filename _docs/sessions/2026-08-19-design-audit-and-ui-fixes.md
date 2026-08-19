@@ -10,6 +10,11 @@ tags: [session, design, wpf, audit]
 
 **Date:** 2026-08-19
 
+**Two commits** (`a504db4` the fixes, `e2353e2` the docs), released as **0.5.1**. Tests **964 →
+1,050** (Core 318, CLI 91, App 641); suite green and the Release build clean at zero warnings after
+each. No governing plan — this was an audit against
+[the design handoff](../operations/design/README.md), not a build phase.
+
 ## Goal
 
 An independent audit of the shipped shell against
@@ -97,7 +102,13 @@ claim a checkbox.
   intermediate state to interpolate; it needs a snapshot layer cross-faded over the window. Noted
   in §4.12 rather than carried as its own item.
 - **Arrow keys still do not cross date groups.** One flat `ListBox` with `GroupStyle` would fix
-  that and the selection bug in one stroke; it was too large a change to make as a bug fix.
+  that and the selection bug in one stroke; it was too large a change to make as a bug fix. Logged
+  as [technical-debt.md](../technical-debt.md) §4.14, which is where it stopped being an accepted
+  limitation and became a debt — the same structure caused a real defect.
+
+Each of the three is logged rather than left here: the blur in §4.15, which batches the by-eye
+verification 0.5.1 needs (the blur, the motion timings, the scrollbar and the restored
+letter-spacing together); the theme fade in §4.12; the flat list in §4.14.
 
 ## A fifth defect, found by writing the session note
 

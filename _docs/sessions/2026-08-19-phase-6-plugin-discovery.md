@@ -11,6 +11,10 @@ tags: [session, phase-6, core, vst3]
 
 **Date:** 2026-08-19
 
+**One commit** (`1e1f691`), 4 new Core files and 2 extended, **22 new tests** — Core 296 → 318.
+Suite green and the Release build clean at the commit. Governed by
+[dev-phases/phase-6-plugin-tiers.md](../dev-phases/phase-6-plugin-tiers.md) §1.
+
 ## Goal
 
 Build §1 of [phase 6](../dev-phases/phase-6-plugin-tiers.md): extract the **referenced-plugin

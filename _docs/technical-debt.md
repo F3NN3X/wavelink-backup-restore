@@ -440,7 +440,13 @@ System"*.
 
 ---
 
-## 4 · ~~Design gaps carried into the build~~ — **CLOSED 2026-08-17, except item 6**
+## 4 · ~~Design gaps carried into the build~~ — **the original six CLOSED 2026-08-17, except item 6**
+
+> **The heading is about items 1–6 only.** Everything from 4.7 down arrived later, as the build
+> found its own gaps, and several are open — check each item's own status line rather than this
+> one. Open as of 0.5.1: **4.7** (no icon set), **4.8** (tray minors), **4.10** (the first-run
+> not-found variant), **4.11** (duplicated total-size arithmetic), **4.14** (arrow keys stop at a
+> date group), **4.15** (0.5.1's frosting unseen).
 
 All six were undesigned. Five are now specified in
 [operations/design/screens/](operations/design/screens/00-index.md), which also designed
@@ -625,6 +631,42 @@ rather than two fragments. The view renders two `Run`s, lead in `WlStrong`.
 Phase 6 §5 still owns making it *appear*: both properties are null until there is a plug-in
 manifest to compare against, so the block renders nothing today. What changed is that §5 now has
 somewhere to put each half.
+
+### 4.14 The list is several Selectors, and arrow keys stop at a group boundary — **open, 2026-08-19**
+
+One `ListBox` per date group is what gives native row selection at all (Task 10b), and it is why
+`↑`/`↓` move within a group and stop at its edge. `Home`/`End` are the exception — they were given
+explicit code-behind handling to reach the true first and last row of the whole list.
+
+That was an accepted limitation. **0.5.1 made it a debt**, because the same structure turned out to
+be the cause of a real defect: a selection cannot span several Selectors, and the shared
+`SelectedItem` binding built to make it do so both failed and ping-ponged
+([[three-backups-look-selected-at-once]]). `GroupSelection` now carries that rule in explicit code.
+
+**Fix:** one flat `ListBox` with a `CollectionViewSource` and `GroupStyle`. It would delete
+`GroupSelection` entirely and fix arrow-key movement in the same stroke, because a single Selector
+is single-select and continuous by construction. It is a real change: `SnapshotListViewModel`
+pre-groups into `DateGroup`s, so the grouping would have to be re-derived through a
+`CollectionView`, and the row template's host changes with it.
+
+**Deliberately not done as a bug fix** — the defect had a smaller correct fix, and rebuilding the
+list's structure to close it would have been a refactor wearing a bug fix's clothes. **Phase:** its
+own task, whenever cross-group keyboard movement is wanted.
+
+### 4.15 0.5.1's dialog frosting has never been seen — **open, needs a human, 2026-08-19**
+
+`AcrylicDialogBackdrop` calls `SetWindowCompositionAttribute`, which is undocumented and the only
+route that blurs the *window behind* rather than the desktop material (`DwmSetWindowAttribute`'s
+system backdrops composite the wallpaper). Nothing in the suite can assert that a blur rendered.
+
+It is structured to fail safely: nothing throws, the return is advisory, two accent states are
+tried newest-first, and the dialog's own `WlScrim` fill guarantees a dimmed owner regardless. So
+the risk is not a crash — it is that the frost silently does nothing on some builds and nobody
+notices, because the fallback looks deliberate.
+
+**Check by eye**, alongside the rest of 0.5.1's visual work — the motion timings, the scrollbar,
+and the restored letter-spacing are all in the same category. **Fix if absent:** the fallback is
+already correct; the question is only whether to keep the call.
 
 ---
 
