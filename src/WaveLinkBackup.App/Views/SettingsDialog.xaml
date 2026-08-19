@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
         Title="Settings"
-        Width="680" Height="540" MinWidth="680" MinHeight="320"
-        WindowStyle="None" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False"
-        WindowStartupLocation="CenterOwner"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        AllowsTransparency="True"
+        WindowStartupLocation="Manual"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Background="Transparent">
 
@@ -19,6 +19,9 @@
         <views:StringNotNullToVisibilityConverter x:Key="FreeSpaceLineVisible" />
         <!-- True → Visible, false → Collapsed. Used for row dividers - show on all but the last row. -->
         <views:BoolToVisibilityConverter x:Key="DividerVisible" />
+        <!-- Fraction x track width -> segment width. The proportion bar's segments had no width
+             binding at all and every one measured to zero, so the bar rendered as an empty track. -->
+        <views:FractionToWidthConverter x:Key="FractionWidth" />
 
         <!-- WHAT GOES IN A BACKUP: each row's toggle binds IsChecked straight to the row's Enabled
              property (no converter needed). The locked rows also need IsEnabled=false, which is the
@@ -67,15 +70,18 @@
       The settings dialog (Screen 3), in its real shape - no Save button. Every control commits on
       change, so the footer's "CHANGES APPLY AS YOU MAKE THEM" is a fact, not a promise.
 
-      The same borderless-modal surface treatment as EmptyTrashDialog / DeleteDialog / RestoreDialog:
-      WindowStyle=None, Background=Transparent, AllowsTransparency FALSE (keeps the window non-layered
-      so DWM draws its drop shadow instead of the card having to fake one with a brush). This dialog
-      is wider than those (680px per the design) and taller, and it scrolls internally when its
-      content exceeds the window height - the ScrollViewer below owns that.
+      The same overlay treatment as EmptyTrashDialog / DeleteDialog / RestoreDialog: a layered,
+      owner-sized window carrying a WlScrim fill with the card centred on it, positioned and frosted
+      by DialogOverlay. This dialog's card is wider than theirs (680px per the design) and taller,
+      and it scrolls internally when its content exceeds the space - the ScrollViewer below owns
+      that, and the card's MaxHeight is what caps it so the ScrollViewer has something to scroll
+      WITHIN.
 
-      The scrim: EmptyTrashDialog's WlScrim fills edge-to-edge because the card floats over a live
-      window. Here the dialog IS the surface, so the card is the whole window and there is nothing
-      behind it to dim - the WlCard background covers everything and no scrim border is drawn.
+      This used to be the one dialog with no scrim: it was a fixed 680x540 window whose root WAS the
+      card, so the app behind it stayed fully lit and it read as a second window rather than as a
+      modal. It also carried ResizeMode=CanResizeWithGrip, which let the user drag a settings dialog
+      to a size the design never describes. Both are gone; the card is a fixed 680 and the overlay
+      handles the rest.
 
       The DataContext is a SettingsViewModel set by the caller; every element below binds to it and
       computes nothing. Nothing here touches Core or does I/O - rendering only. The Change folder… /
@@ -87,8 +93,26 @@
       new section between WHAT GOES IN A BACKUP and the footer. The 22px inter-section gap is the
       convention; keep it when adding.
     -->
-    <Border Background="{DynamicResource WlCard}"
-            BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8">
+    <Grid>
+        <!-- The scrim: what dims the app behind. Fills the overlay edge to edge, and the overlay
+             spans the owner (DialogOverlay.Cover), so this reaches the app's own edges. -->
+        <Border Background="{DynamicResource WlScrim}" />
+
+        <!--
+          The card: 680px per the design, centred, and never taller than 640.
+
+          Its height is min(its own content, 640, overlay - 48). Centred sizing is what keeps a
+          short dialog short instead of a 680-wide column down a 4K screen; MaxHeight is what keeps
+          a long one from becoming that column anyway; and the 24px margin keeps it off the
+          overlay's edges. Whichever of the three wins, the body ScrollViewer gets the remainder and
+          scrolls - which is the design's own "the settings dialog scrolls internally when it
+          exceeds the window height".
+        -->
+        <Border Width="680" MaxHeight="640"
+                HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,24"
+                Background="{DynamicResource WlCard}"
+                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8"
+                Effect="{StaticResource WlDialogShadow}">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" /> <!-- header -->
@@ -123,7 +147,8 @@
                 <StackPanel Margin="24,22,24,20">
 
                     <!-- ============ WHERE BACKUPS ARE KEPT ============ -->
-                    <TextBlock Text="WHERE BACKUPS ARE KEPT" Style="{StaticResource WlColumnHeaderText}"
+                    <views:TrackedText Text="WHERE BACKUPS ARE KEPT" Tracking=".18"
+                               Style="{StaticResource WlColumnHeaderTrackedText}"
                                Foreground="{DynamicResource WlMuted}" Margin="0,0,0,10"
                                AutomationProperties.Name="Where backups are kept section" />
 
@@ -169,7 +194,7 @@
                          convention. The fuller line lands with the sections that own those numbers. -->
                     <TextBlock Margin="0,10,0,0" Style="{StaticResource WlMonoMetaText}"
                                Foreground="{DynamicResource WlMuted}"
-                               Text="{Binding FreeSpaceText, Mode=OneWay}"
+                               Text="{Binding FreeSpaceText}"
                                Visibility="{Binding FreeSpaceText, Converter={StaticResource FreeSpaceLineVisible}}"
                                AutomationProperties.Name="Free space on the backup drive" />
 
@@ -209,7 +234,8 @@
                     </Border>
 
                     <!-- ============ WHEN TO BACK UP ============ -->
-                    <TextBlock Text="WHEN TO BACK UP" Style="{StaticResource WlColumnHeaderText}"
+                    <views:TrackedText Text="WHEN TO BACK UP" Tracking=".18"
+                               Style="{StaticResource WlColumnHeaderTrackedText}"
                                Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
                                AutomationProperties.Name="When to back up section" />
 
@@ -271,7 +297,7 @@
                                 <Border Width="52" Height="34" Background="{DynamicResource WlSunken}"
                                         BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
                                         CornerRadius="8">
-                                    <TextBlock Text="{Binding AutoBackupKeepCount, Mode=OneWay}"
+                                    <TextBlock Text="{Binding AutoBackupKeepCount}"
                                                Style="{StaticResource WlMonoReadoutText}"
                                                Foreground="{DynamicResource WlStrong}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -285,7 +311,8 @@
                     </Border>
 
                     <!-- ============ WHAT GOES IN A BACKUP ============ -->
-                    <TextBlock Text="WHAT GOES IN A BACKUP" Style="{StaticResource WlColumnHeaderText}"
+                    <views:TrackedText Text="WHAT GOES IN A BACKUP" Tracking=".18"
+                               Style="{StaticResource WlColumnHeaderTrackedText}"
                                Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
                                AutomationProperties.Name="What goes in a backup section" />
 
@@ -327,11 +354,12 @@
                                           <Grid Grid.Column="2">
                                               <CheckBox VerticalAlignment="Center" HorizontalAlignment="Right"
                                                         Style="{StaticResource WhatGoesInToggle}"
-                                                        IsChecked="{Binding Enabled, Mode=OneWay}" />
+                                                        IsChecked="{Binding Enabled}" />
 
                                               <Border Style="{StaticResource WhatGoesInBadge}"
                                                       HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                  <TextBlock Text="NOT BUILT YET" Style="{StaticResource WlTierBadgeText}"
+                                                  <views:TrackedText Text="NOT BUILT YET" Tracking=".12"
+                                                             Style="{StaticResource WlTierBadgeTrackedText}"
                                                              Foreground="{DynamicResource WlMuted}" />
                                               </Border>
                                           </Grid>
@@ -347,8 +375,8 @@
                     <!-- The 6px stacked proportion bar on WlSunken, derived from the enabled tiers
                          (recomputed, never hard-coded). Each segment's width is its Fraction of the
                          whole; a 1px hairline gap separates segments. Below it: the two mono labels. -->
-                    <Border Height="6" Margin="0,12,0,0" Background="{DynamicResource WlSunken}"
-                            CornerRadius="3">
+                    <Border x:Name="ProportionTrack" Height="6" Margin="0,12,0,0"
+                            Background="{DynamicResource WlSunken}" CornerRadius="3">
                         <Grid>
                             <ItemsControl ItemsSource="{Binding WhatGoesIn.Segments}">
                                 <ItemsControl.ItemsPanel>
@@ -358,7 +386,24 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Margin="0,0,1,0">
+                                        <Border x:Name="ProportionSegment" Margin="0,0,1,0">
+                                            <!--
+                                              Object-element syntax, so the MultiBinding is a real
+                                              binding rather than literal text - the same XAML rule
+                                              the two plain-language notes below fell foul of.
+
+                                              RelativeSource, not ElementName: an ItemTemplate is
+                                              its own namescope, so a name declared outside it does
+                                              not resolve from in here. The nearest ItemsControl
+                                              ancestor IS the bar, and it stretches to the track.
+                                            -->
+                                            <Border.Width>
+                                                <MultiBinding Converter="{StaticResource FractionWidth}">
+                                                    <Binding Path="Fraction" Mode="OneWay" />
+                                                    <Binding Path="ActualWidth" Mode="OneWay"
+                                                             RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                                                </MultiBinding>
+                                            </Border.Width>
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="{DynamicResource WlOk}" />
@@ -395,12 +440,35 @@
                     <Border Margin="0,12,0,0" Background="{DynamicResource WlBg}"
                             BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8"
                             Padding="16,14">
+                        <!--
+                          Text="{Binding ...}" in ATTRIBUTE syntax. These four Runs previously used
+                          <Run.Text>{Binding ...}</Run.Text> property-element syntax, and XAML only
+                          evaluates a markup extension in an attribute - inside a property element
+                          the braces are just characters. The dialog rendered the literal strings
+                          "{Binding WhatGoesIn.NoteOneLead}" and "{Binding WhatGoesIn.NoteOneRest}"
+                          to the user. The separating space is its own Run: a Run's leading
+                          whitespace is collapsed away, so it cannot ride on the second one.
+
+                          Mode=OneWay is NOT decoration. Run.Text is registered
+                          BindsTwoWayByDefault - a Run is editable inside a RichTextBox - so a
+                          plain binding to a computed, get-only model property throws
+                          "A TwoWay or OneWayToSource binding cannot work on the read-only
+                          property". That throw lands on the WPF thread during layout, where it
+                          reads as the window never appearing rather than as an error. TextBlock's
+                          own Text is already one-way, which is why nothing else here needs it.
+                        -->
                         <StackPanel>
                             <TextBlock Style="{StaticResource WlSecondaryText}" TextWrapping="Wrap" LineHeight="19.575">
-                                <Run FontWeight="Medium" Foreground="{DynamicResource WlStrong}"><Run.Text>{Binding WhatGoesIn.NoteOneLead}</Run.Text></Run><Run Foreground="{DynamicResource WlMuted}"> <Run.Text>{Binding WhatGoesIn.NoteOneRest}</Run.Text></Run>
+                                <Run FontWeight="Medium" Foreground="{DynamicResource WlStrong}"
+                                     Text="{Binding WhatGoesIn.NoteOneLead, Mode=OneWay}" /><Run Text=" " /><Run
+                                     Foreground="{DynamicResource WlMuted}"
+                                     Text="{Binding WhatGoesIn.NoteOneRest, Mode=OneWay}" />
                             </TextBlock>
                             <TextBlock Style="{StaticResource WlSecondaryText}" TextWrapping="Wrap" LineHeight="19.575" Margin="0,10,0,0">
-                                <Run FontWeight="Medium" Foreground="{DynamicResource WlStrong}"><Run.Text>{Binding WhatGoesIn.NoteTwoLead}</Run.Text></Run><Run Foreground="{DynamicResource WlMuted}"> <Run.Text>{Binding WhatGoesIn.NoteTwoRest}</Run.Text></Run>
+                                <Run FontWeight="Medium" Foreground="{DynamicResource WlStrong}"
+                                     Text="{Binding WhatGoesIn.NoteTwoLead, Mode=OneWay}" /><Run Text=" " /><Run
+                                     Foreground="{DynamicResource WlMuted}"
+                                     Text="{Binding WhatGoesIn.NoteTwoRest, Mode=OneWay}" />
                             </TextBlock>
                         </StackPanel>
                     </Border>
@@ -421,7 +489,8 @@
                          cannot say "when it is NOT null show it", so the converter carries the
                          predicate - the same convention as the trash row above. -->
                     <StackPanel Visibility="{Binding WhichWaveLink, Converter={StaticResource TrashRowVisible}}">
-                        <TextBlock Text="WHICH WAVE LINK" Style="{StaticResource WlColumnHeaderText}"
+                        <views:TrackedText Text="WHICH WAVE LINK" Tracking=".18"
+                               Style="{StaticResource WlColumnHeaderTrackedText}"
                                    Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
                                    AutomationProperties.Name="Which Wave Link section" />
 
@@ -471,7 +540,8 @@
                     <!-- Always visible: it is a fact about where the file is, not a choice. The mono
                          line carries the path and its own size; the second line keeps "a command-line
                          flag overrides this for one run" honest (08-settings-persistence.md). -->
-                    <TextBlock Text="WHERE THESE SETTINGS LIVE" Style="{StaticResource WlColumnHeaderText}"
+                    <views:TrackedText Text="WHERE THESE SETTINGS LIVE" Tracking=".18"
+                               Style="{StaticResource WlColumnHeaderTrackedText}"
                                Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
                                AutomationProperties.Name="Where these settings live section" />
 
@@ -483,9 +553,13 @@
                                 <Run FontWeight="Medium" Foreground="{DynamicResource WlStrong}">On this computer, for this account.</Run><Run Foreground="{DynamicResource WlMuted}"> The folder, the automatic-backup switch, how many to keep and which Wave Link you picked are kept in one small file. It travels with your Windows profile, not with your backups.</Run>
                             </TextBlock>
                             <!-- Path + own size, mono 11.5px muted. -->
+                            <!-- Attribute syntax, for the reason spelt out on the notes block above:
+                                 this line was rendering "{Binding WhereSettingsLive.FilePath}" as
+                                 text where the path belongs. -->
                             <TextBlock Margin="0,10,0,0" Style="{StaticResource WlMonoMetaText}"
                                        Foreground="{DynamicResource WlMuted}" TextTrimming="CharacterEllipsis">
-                                <Run><Run.Text>{Binding WhereSettingsLive.FilePath}</Run.Text></Run><Run> · </Run><Run><Run.Text>{Binding WhereSettingsLive.SizeText}</Run.Text></Run>
+                                <Run Text="{Binding WhereSettingsLive.FilePath, Mode=OneWay}" /><Run
+                                     Text=" · " /><Run Text="{Binding WhereSettingsLive.SizeText, Mode=OneWay}" />
                             </TextBlock>
                             <!-- The flag-override line, at 80% opacity. -->
                             <TextBlock Text="A COMMAND-LINE FLAG OVERRIDES THIS FILE FOR THAT ONE RUN AND ISN'T SAVED"
@@ -514,5 +588,6 @@
                 </Grid>
             </Border>
         </Grid>
-    </Border>
+        </Border>
+    </Grid>
 </Window>

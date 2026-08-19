@@ -1,4 +1,5 @@
 using System.Windows;
+using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.App.ViewModels;
 
 namespace WaveLinkBackup.App.Views;
@@ -23,6 +24,10 @@ public partial class SettingsDialog : Window
         this.model = model;
         InitializeComponent();
         DataContext = model;
+
+        // Cover the owner, dim it, frost it - the same overlay every other dialog uses. Without an
+        // owner (a standalone run, or a view test) this keeps its own geometry and gets no blur.
+        DialogOverlay.Attach(this);
 
         // Change folder… opens the picker and, on a pick, re-points the live store and re-detects the
         // trash row's volume + free space for the new folder (App.ChangeBackupFolder owns all of that).

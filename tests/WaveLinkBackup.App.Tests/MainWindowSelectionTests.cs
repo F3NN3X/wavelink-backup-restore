@@ -2,10 +2,10 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Data;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
+using WaveLinkBackup.App.Views;
 using WaveLinkBackup.Core.Analysis;
 using WaveLinkBackup.Core.Snapshots;
 using WaveLinkBackup.Core.Tests.Fakes;
@@ -13,13 +13,16 @@ using WaveLinkBackup.Core.Tests.Fakes;
 namespace WaveLinkBackup.App.Tests;
 
 /// <summary>
-/// Task 10b's fix replaced the hand-placed ListBoxItem-per-row with a real ListBox per date
-/// group, each one two-way bound to the SAME ShellViewModel.List.Selected
-/// (MainWindow.xaml: <c>SelectedItem="{Binding DataContext.List.Selected,
-/// RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"</c>). The fix brief asked
-/// for this specifically to be VERIFIED, not assumed: does selecting a row in one group's ListBox
-/// actually clear the container-level selection highlight in every OTHER group's ListBox, given
-/// that there is no code-behind syncing them by hand any more?
+/// Task 10b's fix replaced the hand-placed ListBoxItem-per-row with a real ListBox per date group,
+/// and asked for one thing to be VERIFIED rather than assumed: does selecting a row in one group
+/// clear the selection in every OTHER group?
+///
+/// The answer was no, and the tests below now say so in both directions. The mechanism it was built
+/// on - every group's SelectedItem two-way bound to one shared List.Selected - does not work at
+/// all: a Selector handed an item its own Items collection does not contain declines the write and
+/// keeps its existing container, and two of them wired that way write each other's rows back and
+/// forth through the shared property until WPF's loop detection intervenes. Selection is explicit
+/// now (GroupSelection), and these drive that helper directly.
 ///
 /// This drives the REAL, unmodified WlRowTemplate style (RowStyles.xaml) - the exact
 /// ItemContainerStyle MainWindow.xaml's row ListBox uses - through a minimal two-ListBox Window
@@ -82,24 +85,27 @@ public sealed class MainWindowSelectionTests
     }
 
     /// <summary>
-    /// One ListBox per group, wired EXACTLY the way MainWindow.xaml wires each one: the real
-    /// WlRowTemplate as ItemContainerStyle, SelectedItem two-way bound to the shared
-    /// List.Selected via a RelativeSource walk up to the Window's own DataContext - the identical
-    /// binding path MainWindow.xaml's row ListBox uses (<c>DataContext.List.Selected,
-    /// RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay</c>).
+    /// One ListBox per group, wired EXACTLY the way MainWindow wires each one: the real
+    /// WlRowTemplate as ItemContainerStyle, and GroupSelection.Apply on SelectionChanged. No
+    /// SelectedItem binding, because MainWindow has none either.
     /// </summary>
     private static (Window Window, ListBox First, ListBox Second) BuildTwoGroupWindow(ShellViewModel shell)
     {
         var rowTemplate = (Style)Application.Current.Resources["WlRowTemplate"];
+        var groups = new List<ListBox>();
 
         ListBox MakeListBox(IReadOnlyList<SnapshotRowViewModel> rows)
         {
             var box = new ListBox { ItemsSource = rows, ItemContainerStyle = rowTemplate };
-            BindingOperations.SetBinding(box, Selector.SelectedItemProperty, new Binding("DataContext.List.Selected")
-            {
-                RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Window), 1),
-                Mode = BindingMode.TwoWay,
-            });
+
+            // The same call MainWindow.GroupSelectionChanged makes, against the same helper - so
+            // this exercises the real mechanism rather than a re-implementation of it. There is no
+            // SelectedItem binding here for the same reason there is none in MainWindow.xaml: see
+            // GroupSelection's own summary.
+            box.SelectionChanged += (sender, e) =>
+                GroupSelection.Apply(shell.List, groups, (ListBox)sender, e.AddedItems);
+
+            groups.Add(box);
             return box;
         }
 
@@ -115,10 +121,73 @@ public sealed class MainWindowSelectionTests
         return (window, first, second);
     }
 
+    /// <summary>
+    /// The reported bug, in the order a user actually produces it: select a row in one group, then
+    /// click a row in another, and both stay highlighted - three groups, three highlighted rows.
+    ///
+    /// <see cref="Selecting_a_row_in_one_group_clears_the_others_container"/> below was supposed to
+    /// cover this and does not: it asserts from a state where NOTHING is selected yet, so the first
+    /// group's "cleared" assertion was already true before the act. The clearing path it claims to
+    /// prove was never exercised.
+    ///
+    /// This drives the containers the way a click does - ListBoxItem.IsSelected, which is what a
+    /// mouse actually sets - rather than assigning the shared view-model property, because the
+    /// failure is specifically in the container -> view model -> other container direction.
+    /// </summary>
     [Fact]
-    public void Selecting_a_row_in_one_group_clears_the_others_container()
+    public void Selecting_in_a_second_group_deselects_the_row_already_selected_in_the_first()
     {
-        var (firstGroupCleared, secondGroupSelected) = Wpf.Run(() =>
+        var (firstStillSelected, selectedRows) = Wpf.Run(() =>
+        {
+            EnsureRowResourcesLoaded();
+            var shell = BuildShellWithTwoGroups();
+            shell.List.Refresh();
+
+            var (window, first, second) = BuildTwoGroupWindow(shell);
+            window.Show();
+            window.UpdateLayout();
+
+            var firstRow = shell.List.Groups[0].Rows[0];
+            var secondRow = shell.List.Groups[1].Rows[0];
+
+            ListBoxItem Container(ListBox box, SnapshotRowViewModel row) =>
+                (ListBoxItem)box.ItemContainerGenerator.ContainerFromItem(row);
+
+            // Click group A's row, then group B's - as a mouse would, on the container itself.
+            Container(first, firstRow).IsSelected = true;
+            window.UpdateLayout();
+
+            Container(second, secondRow).IsSelected = true;
+            window.UpdateLayout();
+
+            var result = (
+                FirstStillSelected: Container(first, firstRow).IsSelected,
+                SelectedRows: shell.List.Groups.SelectMany(g => g.Rows).Count(r => r.IsSelected));
+
+            window.Close();
+            return result;
+        });
+
+        Assert.False(firstStillSelected,
+            "The first group's row is still highlighted after selecting a row in the second. " +
+            "Selection is single-select across the whole list, not per date group.");
+        Assert.Equal(1, selectedRows);
+    }
+
+    /// <summary>
+    /// The other direction: selecting through the shared view-model property - which is what
+    /// "Back up now selects the row it just wrote" and Home/End both do - must leave exactly one
+    /// row carrying IsSelected, across every group.
+    ///
+    /// This used to assert that the second group's ListBox showed the row as its SelectedItem. It
+    /// deliberately no longer does: nothing writes into a group's Selector any more, because the
+    /// binding that did could not be made to work (see the class summary). What the app renders is
+    /// the ROW's IsSelected, so that is what is asserted.
+    /// </summary>
+    [Fact]
+    public void Selecting_through_the_view_model_marks_exactly_one_row_across_the_groups()
+    {
+        var (selectedIds, firstRowSelected) = Wpf.Run(() =>
         {
             EnsureRowResourcesLoaded();
             var shell = BuildShellWithTwoGroups();
@@ -126,41 +195,27 @@ public sealed class MainWindowSelectionTests
 
             Assert.Equal(2, shell.List.Groups.Count);
 
-            var (window, first, second) = BuildTwoGroupWindow(shell);
-
-            // Show(), not Measure/Arrange: a virtualizing/non-virtualizing panel alike only
-            // generates item containers on an actual layout pass tied to a live PresentationSource
-            // - confirmed empirically while writing this test, Measure/Arrange alone on an unshown
-            // Window left the whole content subtree at zero visual children. This minimal window
-            // (no async Loaded handlers, no HealthProbe, no RefreshAsync) carries none of
-            // MainWindow's own reasons for avoiding Show() (see MainWindowListStateTests' comment).
+            var (window, _, _) = BuildTwoGroupWindow(shell);
             window.Show();
 
             var firstRow = shell.List.Groups[0].Rows[0];
             var secondRow = shell.List.Groups[1].Rows[0];
 
-            // Select the SECOND group's row through the exact shared property the SelectedItem
-            // bindings target - not through either ListBox directly - so this proves the BINDING
-            // is what drives both containers, not test code reaching in and doing it by hand.
+            shell.List.Selected = firstRow;
             shell.List.Selected = secondRow;
             window.UpdateLayout();
 
-            var firstContainer = first.ItemContainerGenerator.ContainerFromItem(firstRow) as ListBoxItem;
-            var secondContainer = second.ItemContainerGenerator.ContainerFromItem(secondRow) as ListBoxItem;
-
             var result = (
-                FirstCleared: first.SelectedItem is null && firstContainer is { IsSelected: false },
-                SecondSelected: ReferenceEquals(second.SelectedItem, secondRow)
-                    && secondContainer is { IsSelected: true });
+                SelectedIds: shell.List.Groups
+                    .SelectMany(g => g.Rows).Where(r => r.IsSelected).Select(r => r.Id).ToArray(),
+                FirstRowSelected: firstRow.IsSelected);
 
             window.Close();
             return result;
         });
 
-        Assert.True(firstGroupCleared,
-            "Selecting a row in the second group's ListBox must clear the first group's own " +
-            "ListBox - both SelectedItem and its row container's IsSelected.");
-        Assert.True(secondGroupSelected,
-            "The second group's own ListBox must show the newly selected row as selected.");
+        Assert.Single(selectedIds);
+        Assert.False(firstRowSelected, "The first group's row stayed selected after the second was.");
     }
+
 }

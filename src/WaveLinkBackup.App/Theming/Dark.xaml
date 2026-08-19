@@ -13,10 +13,15 @@
     <SolidColorBrush x:Key="WlStrong"    Color="#FFFFFF" />
     <SolidColorBrush x:Key="WlMuted"     Color="#8B9096" />
 
-    <!-- Lines -->
-    <SolidColorBrush x:Key="WlLine"      Color="#FFFFFF" Opacity="0.11" />
-    <SolidColorBrush x:Key="WlLine2"     Color="#FFFFFF" Opacity="0.20" />
-    <SolidColorBrush x:Key="WlHover"     Color="#FFFFFF" Opacity="0.04" />
+    <!--
+      Lines. The design's own values are rgba(200,203,210,.12) / .24 / .05 - grey-200 (WlText's
+      own hue), NOT white, and the alphas are the DARK ones. These three previously carried the
+      LIGHT theme's numbers (.11 / .20 / .04) over a white base, which reads as a colder, fainter
+      hairline everywhere the design draws a rule: every strip edge, every pill, every card.
+    -->
+    <SolidColorBrush x:Key="WlLine"      Color="#C8CBD2" Opacity="0.12" />
+    <SolidColorBrush x:Key="WlLine2"     Color="#C8CBD2" Opacity="0.24" />
+    <SolidColorBrush x:Key="WlHover"     Color="#C8CBD2" Opacity="0.05" />
     <!-- High contrast's hover outline (11-high-contrast.md: "Hover = 1px HotTrack outline, no
          fill"). WlHover goes transparent there, so hover needs its own key. Here it is unused -
          Dark/Light hover is still WlHover's fill - but the guard that all three theme
@@ -33,13 +38,22 @@
          accent, so the strip reads as a state rather than a button. -->
     <SolidColorBrush x:Key="WlDangerSoft" Color="#F01616" Opacity="0.12" />
 
-    <!-- Health -->
+    <!--
+      Health. Dark's warn tint is .13, not the .18 the LIGHT theme uses - amber-400 at 18% over
+      #111419 is a much heavier band than the design draws, and it is the tint that fills a whole
+      suspect row.
+    -->
     <SolidColorBrush x:Key="WlOk"        Color="#5FD3A6" />
-    <SolidColorBrush x:Key="WlOkSoft"    Color="#5FD3A6" Opacity="0.13" />
+    <SolidColorBrush x:Key="WlOkSoft"    Color="#5FD3A6" Opacity="0.14" />
     <SolidColorBrush x:Key="WlWarn"      Color="#F5B843" />
-    <SolidColorBrush x:Key="WlWarnSoft"  Color="#F5B843" Opacity="0.18" />
+    <SolidColorBrush x:Key="WlWarnSoft"  Color="#F5B843" Opacity="0.13" />
 
-    <SolidColorBrush x:Key="WlScrim"     Color="#0B0D0C" Opacity="0.22" />
+    <!--
+      rgba(4,6,6,.55). The light theme's scrim is a barely-there .22 because it dims a bright
+      window; dark's is more than twice that, and it is what makes a modal read as modal rather
+      than as a panel floating on a fully-lit list.
+    -->
+    <SolidColorBrush x:Key="WlScrim"     Color="#040606" Opacity="0.55" />
 
     <!-- The caption row's own material, when Mica does not take: MainWindow paints this instead. -->
     <SolidColorBrush x:Key="WlTransparent" Color="Transparent" />

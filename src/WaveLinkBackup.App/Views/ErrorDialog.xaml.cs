@@ -1,4 +1,5 @@
 using System.Windows;
+using WaveLinkBackup.App.Windows;
 using System.Windows.Controls;
 using WaveLinkBackup.App.ViewModels;
 
@@ -63,6 +64,11 @@ public partial class ErrorDialog : Window
         InitializeComponent();
 
         DataContext = model;
+
+        // Cover the owner, dim it, frost it. Everything happens on SourceInitialized inside
+        // Attach; a dialog with no owner (a standalone run, or a view test) keeps its own
+        // geometry and gets no blur, because there is nothing to cover.
+        DialogOverlay.Attach(this);
 
         // The note block's fill is a DECISION, not a trigger: error 4 (malformed settings) is the
         // only amber of the three - there the live configuration file is the thing that cannot be

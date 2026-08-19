@@ -3,6 +3,18 @@
                     xmlns:views="clr-namespace:WaveLinkBackup.App.Views">
 
     <!--
+      README's dialog shadow, verbatim: "0 30px 70px rgba(0,0,0,.5)".
+
+      Drawn by the card rather than by DWM. Every dialog is now a LAYERED window (see
+      DialogOverlay), and a layered window gets no system shadow - which is the better trade, since
+      the system shadow never matched this value and the design states it exactly. Black is a named
+      colour, not a hex literal, so it stays legal outside Theming/ under the colour-literal guard;
+      a shadow is not a theme role - it is the absence of light, and it is black in both themes.
+    -->
+    <DropShadowEffect x:Key="WlDialogShadow" Color="Black" Opacity="0.5"
+                      BlurRadius="70" ShadowDepth="30" Direction="270" />
+
+    <!--
       The window's shield-check mark. Same 24px-grid Lucide idiom TrayIconRenderer already draws
       for the tray icon - copied here as path data rather than drawn a second way. Technical-debt
       §4.7 names TrayIconRenderer as the substitution point once a real icon set exists; this
@@ -27,14 +39,35 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Surface" Background="{TemplateBinding Background}"
-                            SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                    <Grid>
+                        <Border x:Name="HoverLayer" Background="{DynamicResource WlHover}" Opacity="0" />
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Surface" Property="Background"
-                                    Value="{DynamicResource WlHover}" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -55,15 +88,41 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Surface" Background="{TemplateBinding Background}"
-                            SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                    <Grid>
+                        <!-- The red fill is its own layer so it can FADE. Painting it onto Surface
+                             would mean animating a frozen resource brush, which throws. -->
+                        <Border x:Name="CloseLayer" Background="{DynamicResource WlCaptionCloseHover}"
+                                Opacity="0" />
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Surface" Property="Background"
-                                    Value="{DynamicResource WlCaptionCloseHover}" />
+                            <!-- The glyph colour is a discrete swap, not a fade: it has two legible
+                                 states and nothing readable in between. -->
                             <Setter Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="CloseLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="CloseLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -146,32 +205,53 @@
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="10,7" />
         <Setter Property="Cursor" Value="Hand" />
+        <!-- README's type table: "Button | Rubik 500 (primary) or 400 (secondary/ghost), 13.5px".
+             Ghost and secondary keep weight 400 and inherit this size; WlPrimaryButton and
+             WlDangerButton step up to Medium below. 12.5px is the SECONDARY/description role and
+             was reaching every button label in the app, which is why they read a size small. -->
         <Setter Property="FontFamily" Value="{DynamicResource WlDisplayFont}" />
-        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontSize" Value="13.5" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="6"
-                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                    <Grid>
+                        <!-- The hover fill is a LAYER, not a Background swap: WlHover is a frozen
+                             theme resource and animating a frozen brush's Color throws. Fading a
+                             layer instead also means a live theme swap needs no special case. -->
+                        <Border x:Name="HoverLayer" Background="{DynamicResource WlHover}"
+                                CornerRadius="8" Opacity="0" />
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Surface" Property="Background" Value="{DynamicResource WlHover}" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
                         </Trigger>
 
-                        <!--
-                          11-high-contrast.md: "Hover = 1px HotTrack outline, no fill." WlHover
-                          resolves to Transparent in high contrast (HighContrast.xaml), so without
-                          this a hovered button gives no feedback at all there. IsMouseOver is
-                          expressed as a Binding (RelativeSource Self) rather than a plain Trigger
-                          Property, because it has to sit in a MultiDataTrigger alongside the
-                          IsHighContrast binding - the same reach WlFocusVisual and WlRowTemplate's
-                          own selected+HC triggers already use for exactly this reason.
-                        -->
                         <!--
                           11-high-contrast.md: "Hover = 1px HotTrack outline, no fill." WlHover
                           resolves to Transparent in high contrast (HighContrast.xaml), so without
@@ -249,14 +329,38 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Surface" Background="{TemplateBinding Background}"
-                            BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="6"
-                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                    <Grid>
+                        <!-- See WlGhostButton's own comment on why the hover is a layer. -->
+                        <Border x:Name="HoverLayer" Background="{DynamicResource WlHover}"
+                                CornerRadius="8" Opacity="0" />
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Surface" Property="Background" Value="{DynamicResource WlHover}" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
@@ -309,17 +413,41 @@
     -->
     <Style x:Key="WlPrimaryButton" TargetType="Button" BasedOn="{StaticResource WlGhostButton}">
         <Setter Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+        <!-- "Rubik 500 (primary)" - the one weight step that separates the filled action from the
+             three quiet ones beside it in the bottom bar. -->
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Padding" Value="14,8" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Surface" Background="{DynamicResource WlAccent}" CornerRadius="6"
+                    <Border x:Name="Surface" Background="{DynamicResource WlAccent}" CornerRadius="8"
                             Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- No hover LAYER here: this surface is an opaque fill, so a layer behind
+                             it would never show. The dip is animated on the fill's own Opacity. -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Surface" Property="Opacity" Value="0.88" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Surface"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0.88" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Surface"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
@@ -376,17 +504,40 @@
     -->
     <Style x:Key="WlDangerButton" TargetType="Button" BasedOn="{StaticResource WlGhostButton}">
         <Setter Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+        <!-- Primary weight: it is the confirm button of its dialog, filled and deliberate. -->
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Padding" Value="14,8" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Surface" Background="{DynamicResource WlDanger}" CornerRadius="6"
+                    <Border x:Name="Surface" Background="{DynamicResource WlDanger}" CornerRadius="8"
                             Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- No hover LAYER here: this surface is an opaque fill, so a layer behind
+                             it would never show. The dip is animated on the fill's own Opacity. -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Surface" Property="Opacity" Value="0.88" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Surface"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0.88" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Surface"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
@@ -553,14 +704,38 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Surface" Background="{TemplateBinding Background}"
-                            BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
-                            CornerRadius="8" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                    <Grid>
+                        <!-- See WlGhostButton's own comment on why the hover is a layer. -->
+                        <Border x:Name="HoverLayer" Background="{DynamicResource WlHover}"
+                                CornerRadius="8" Opacity="0" />
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
+                                CornerRadius="8" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Surface" Property="Background" Value="{DynamicResource WlHover}" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
@@ -603,6 +778,116 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!--
+      ============================================================================================
+      The scrollbar.
+
+      Windows' own is a 17px grey trough with two arrow buttons, and it is the loudest thing in the
+      settings dialog by some margin - a chrome-coloured column down the side of a design whose
+      whole vocabulary is hairlines at 12%. The design never draws one, so this is derived from the
+      rules rather than copied from a mock: 10px wide, no trough, no arrows, and a thumb that is a
+      999px-radius bar in the same WlLine2 a secondary button's border uses, stepping to WlMuted on
+      hover. That is the same "hairline steps to 24% when active" idiom the rest of the app follows.
+
+      Declared WITHOUT an x:Key on purpose. An implicit style reaches every ScrollViewer in the
+      app - the settings body, the backup list, and whatever a later screen adds - which is the
+      only way the two ever agree. A keyed style would have to be applied one call site at a time,
+      and the one that gets forgotten is the one the user sees.
+
+      High contrast: WlLine2 resolves to WindowText there, so the thumb stays a solid, guaranteed-
+      contrast bar rather than a low-opacity hairline. Nothing here needs an HC trigger.
+      ============================================================================================
+    -->
+    <Style x:Key="WlScrollBarThumb" TargetType="Thumb">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <!-- Margin 3 inside a 10px bar leaves a 4px thumb with room to breathe; the
+                         Grid keeps the full 10px hit target while only 4px of it is painted. -->
+                    <Grid Background="Transparent">
+                        <Border x:Name="Bar" Margin="3" CornerRadius="999"
+                                Background="{DynamicResource WlLine2}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bar" Property="Background" Value="{DynamicResource WlMuted}" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Bar" Property="Background" Value="{DynamicResource WlMuted}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      The page-up / page-down halves of the track. Invisible but hit-testable: clicking above or
+      below the thumb must still page, and a RepeatButton with no template at all would inherit
+      Windows' arrow button.
+    -->
+    <Style x:Key="WlScrollBarPageButton" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Width" Value="10" />
+        <Setter Property="MinWidth" Value="10" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}"
+                          SnapsToDevicePixels="True">
+                        <!-- No Track.Increase/DecreaseRepeatButton arrows: the design has no arrow
+                             buttons anywhere, and a scroll wheel or a drag covers both. -->
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand"
+                                              Style="{StaticResource WlScrollBarPageButton}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource WlScrollBarThumb}" />
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand"
+                                              Style="{StaticResource WlScrollBarPageButton}" />
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <!-- IsDirectionReversed flips with the axis: a vertical track counts down
+                             the screen, a horizontal one counts left to right. -->
+                        <Trigger Property="Orientation" Value="Horizontal">
+                            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- The Width/Height setters have to swap with the axis, and a Setter cannot read
+                 Orientation - hence a Style trigger rather than one more line above. -->
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Height" Value="10" />
+                <Setter Property="MinHeight" Value="10" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!--

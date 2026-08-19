@@ -8,6 +8,10 @@
                 <ResourceDictionary Source="Theming/Dark.xaml" />
                 <!-- Type scale and embedded font families. -->
                 <ResourceDictionary Source="Views/Typography.xaml" />
+                <!-- The shared easing curve. Merged before RowStyles/ControlStyles because both
+                     reference WlStandardEase by StaticResource inside their templates, and a
+                     StaticResource only resolves back to a dictionary already merged before it. -->
+                <ResourceDictionary Source="Views/Motion.xaml" />
                 <!-- Screen 1's row: the six-column grid, the health strip, the pills and the tier
                      badges (Task 10a), including WlColumnHeaderTrackedText - shared with 10b's
                      column header below. Merged before ControlStyles.xaml because

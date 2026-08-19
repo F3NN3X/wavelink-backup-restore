@@ -117,7 +117,7 @@ public sealed class RowTemplateTests
         var template = RowStyles();
 
         var multiTriggerIndex = template.IndexOf(
-            "Path=IsSelected", StringComparison.Ordinal);
+            "<Condition Binding=\"{Binding IsSelected}\" Value=\"True\" />", StringComparison.Ordinal);
         Assert.True(multiTriggerIndex >= 0, "The selected+high-contrast trigger is gone or renamed.");
 
         var blockStart = template.LastIndexOf("<MultiDataTrigger>", multiTriggerIndex, StringComparison.Ordinal);
@@ -197,7 +197,7 @@ public sealed class RowTemplateTests
         // the block has to be picked out by BOTH conditions together, not by the setter alone.
         var blocks = Regex.Matches(triggersSection, "<MultiDataTrigger>.*?</MultiDataTrigger>", RegexOptions.Singleline)
             .Select(m => m.Value)
-            .Where(b => b.Contains("Path=IsSelected", StringComparison.Ordinal)
+            .Where(b => b.Contains("<Condition Binding=\"{Binding IsSelected}\" Value=\"True\" />", StringComparison.Ordinal)
                      && b.Contains($"Value=\"{health}\"", StringComparison.Ordinal))
             .ToArray();
 
@@ -225,7 +225,7 @@ public sealed class RowTemplateTests
         // is likewise shared text between Suspect's and Damaged's base triggers.
         var baseBlocks = Regex.Matches(triggersSection, "<MultiDataTrigger>.*?</MultiDataTrigger>", RegexOptions.Singleline)
             .Select(m => m.Value)
-            .Where(b => !b.Contains("Path=IsSelected", StringComparison.Ordinal)
+            .Where(b => !b.Contains("<Condition Binding=\"{Binding IsSelected}\" Value=\"True\" />", StringComparison.Ordinal)
                      && b.Contains($"Value=\"{health}\"", StringComparison.Ordinal))
             .ToArray();
         Assert.True(baseBlocks.Length == 1,
@@ -254,7 +254,7 @@ public sealed class RowTemplateTests
 
         var blocks = Regex.Matches(template[triggersSectionIndex..], "<MultiDataTrigger>.*?</MultiDataTrigger>", RegexOptions.Singleline)
             .Select(m => m.Value)
-            .Where(b => b.Contains("Path=IsSelected", StringComparison.Ordinal)
+            .Where(b => b.Contains("<Condition Binding=\"{Binding IsSelected}\" Value=\"True\" />", StringComparison.Ordinal)
                      && b.Contains("TargetName=\"RowSurface\" Property=\"Background\"", StringComparison.Ordinal))
             .ToArray();
 
@@ -401,7 +401,7 @@ public sealed class RowTemplateTests
         Assert.Contains("Binding DamagedDetail", template, StringComparison.Ordinal);
 
         // Collapsed by default, and shown only by a Setter added to the EXISTING
-        // Trigger Property="IsSelected" - not a new trigger, and not a Binding-driven Visibility
+        // DataTrigger on the ROW's IsSelected - not a new trigger, and not a Binding-driven Visibility
         // on the element itself (which would sidestep the "no new trigger" constraint the other
         // way, by not using a trigger at all).
         var expansionIndex = template.IndexOf("x:Name=\"ExpansionRow\"", StringComparison.Ordinal);
@@ -409,9 +409,9 @@ public sealed class RowTemplateTests
         Assert.Contains("Visibility=\"Collapsed\"", expansionTag, StringComparison.Ordinal);
 
         var isSelectedTriggerIndex = template.IndexOf(
-            "<Trigger Property=\"IsSelected\" Value=\"True\">", StringComparison.Ordinal);
-        Assert.True(isSelectedTriggerIndex >= 0, "The plain IsSelected trigger is gone or reworded.");
-        var isSelectedTriggerEnd = template.IndexOf("</Trigger>", isSelectedTriggerIndex, StringComparison.Ordinal);
+            "<DataTrigger Binding=\"{Binding IsSelected}\" Value=\"True\">", StringComparison.Ordinal);
+        Assert.True(isSelectedTriggerIndex >= 0, "The plain IsSelected DataTrigger is gone or reworded.");
+        var isSelectedTriggerEnd = template.IndexOf("</DataTrigger>", isSelectedTriggerIndex, StringComparison.Ordinal);
         var isSelectedTrigger = template[isSelectedTriggerIndex..isSelectedTriggerEnd];
         Assert.Contains(
             "TargetName=\"ExpansionRow\" Property=\"Visibility\" Value=\"Visible\"",
@@ -425,7 +425,7 @@ public sealed class RowTemplateTests
     // RowSurface was inserted ahead of, or after, the load-bearing selected+high-contrast trigger.
     //
     // An earlier version of this test picked out the template's literal LAST <MultiDataTrigger>
-    // and asserted it contained "Path=IsSelected", "IsHighContrast" and "WlAccent". That is NOT
+    // and asserted it contained the selection condition, "IsHighContrast" and "WlAccent". That is NOT
     // the load-bearing trigger: the file's actual last MultiDataTrigger is one of the three
     // selected+HC+Health VerdictGlyph-colour triggers below it (declared after it on purpose - see
     // that trigger's own comment), and it satisfies all three substrings by accident (its own
@@ -449,7 +449,7 @@ public sealed class RowTemplateTests
 
         var blocks = Regex.Matches(triggersSection, "<MultiDataTrigger>.*?</MultiDataTrigger>", RegexOptions.Singleline)
             .Select(m => m.Value)
-            .Where(b => b.Contains("Path=IsSelected", StringComparison.Ordinal)
+            .Where(b => b.Contains("<Condition Binding=\"{Binding IsSelected}\" Value=\"True\" />", StringComparison.Ordinal)
                      && b.Contains("IsHighContrast", StringComparison.Ordinal)
                      && b.Contains("TargetName=\"RowSurface\" Property=\"Background\"", StringComparison.Ordinal))
             .ToArray();
@@ -505,6 +505,8 @@ public sealed class RowTemplateTests
                         && !name.EndsWith("Geometry", StringComparison.Ordinal)
                         && !name.EndsWith("Font", StringComparison.Ordinal)
                         && !name.EndsWith("Pill", StringComparison.Ordinal)
+                        // WlStandardEase is an easing function (Motion.xaml), not a brush.
+                        && !name.EndsWith("Ease", StringComparison.Ordinal)
                         && !name.StartsWith("WlSlot", StringComparison.Ordinal))
             .ToArray();
 

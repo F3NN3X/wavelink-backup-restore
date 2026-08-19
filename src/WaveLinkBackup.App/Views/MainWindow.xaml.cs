@@ -99,6 +99,12 @@ public partial class MainWindow : Window
     /// </summary>
     private void WireBottomBar()
     {
+        // Single-select across the date groups. Attached to GroupsHost so it survives the
+        // virtualizing panel creating and recycling each group's own ListBox.
+        GroupsHost.AddHandler(
+            System.Windows.Controls.Primitives.Selector.SelectionChangedEvent,
+            new SelectionChangedEventHandler(GroupSelectionChanged));
+
         RenameButton.Click += (_, _) => BeginRename();
         DeleteButton.Click += (_, _) => DeleteSelected();
         RestoreButton.Click += async (_, _) => await RestoreSelectedAsync();
@@ -533,6 +539,23 @@ public partial class MainWindow : Window
         e.Handled = true;
 
         Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => FocusRow(row)));
+    }
+
+    /// <summary>
+    /// Single-select across every date group. The list is one Selector per group, so nothing in
+    /// WPF makes a selection in one clear the others - see <see cref="GroupSelection"/> for why
+    /// binding them all to one property makes it worse rather than better.
+    ///
+    /// Bubbling: this is attached once to GroupsHost, the ItemsControl above every group's ListBox,
+    /// rather than to each ListBox as it is generated. A virtualizing panel creates and recycles
+    /// those, so per-ListBox subscription would need code that runs on container generation and
+    /// would leak handlers on recycle.
+    /// </summary>
+    private void GroupSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.OriginalSource is not ListBox source) return;
+
+        GroupSelection.Apply(shell.List, FindDescendants<ListBox>(GroupsHost), source, e.AddedItems);
     }
 
     private void FocusRow(SnapshotRowViewModel row)

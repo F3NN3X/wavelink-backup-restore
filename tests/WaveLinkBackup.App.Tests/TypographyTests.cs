@@ -95,4 +95,57 @@ public sealed class TypographyTests
         Assert.NotNull(style);
         Assert.Equal(typeof(System.Windows.Controls.TextBlock), targetType);
     }
+
+    /// <summary>
+    /// The trap that took the restore dialog off the air: every style in Typography.xaml is
+    /// TargetType="TextBlock", TrackedText is a FrameworkElement and deliberately not a TextBlock,
+    /// and WPF throws when the two meet - at Style-application time, inside InitializeComponent,
+    /// so the whole window fails to construct rather than one label rendering wrong.
+    ///
+    /// It is invisible on inspection: WlColumnHeaderText and WlColumnHeaderTrackedText are the same
+    /// role, described by the same words, four characters apart, and the tracked pair lives in a
+    /// different file. RestoreDialog.xaml reached for the wrong one and no test opened that window.
+    /// This is the cheap guard for the class - the view tests catch it per window, this catches it
+    /// per line, including in a window nobody has written a test for yet.
+    /// </summary>
+    [Fact]
+    public void No_TrackedText_wears_a_TextBlock_style()
+    {
+        var textBlockRoles = new[]
+        {
+            "WlDialogTitleText", "WlRowNameText", "WlBodyText", "WlSecondaryText",
+            "WlMonoReadoutText", "WlMonoMetaText", "WlStatusStripText", "WlColumnHeaderText",
+            "WlTierBadgeText", "WlSlotLabelText",
+        };
+
+        // <views:TrackedText ...> up to its closing bracket, then any Style= naming a TextBlock role.
+        var element = new System.Text.RegularExpressions.Regex(
+            "<views:TrackedText\\b[^>]*>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        var offenders = new List<string>();
+
+        foreach (var file in System.IO.Directory.EnumerateFiles(
+                     AppResources.SourceRoot, "*.xaml", System.IO.SearchOption.AllDirectories))
+        {
+            if (file.Contains($"{System.IO.Path.DirectorySeparatorChar}obj{System.IO.Path.DirectorySeparatorChar}")) continue;
+            if (file.Contains($"{System.IO.Path.DirectorySeparatorChar}bin{System.IO.Path.DirectorySeparatorChar}")) continue;
+
+            foreach (System.Text.RegularExpressions.Match match in
+                     element.Matches(System.IO.File.ReadAllText(file)))
+            {
+                foreach (var role in textBlockRoles)
+                {
+                    if (!match.Value.Contains($"StaticResource {role}}}", StringComparison.Ordinal)) continue;
+
+                    offenders.Add($"  {System.IO.Path.GetFileName(file)}: TrackedText styled {role}");
+                }
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            $"A TargetType=\"TextBlock\" style applied to a TrackedText throws when WPF applies it, " +
+            $"taking the whole window down at construction. Use the parallel *TrackedText style " +
+            $"(RowStyles.xaml). Found:{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
+    }
 }

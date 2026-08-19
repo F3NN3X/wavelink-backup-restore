@@ -4,7 +4,8 @@
         xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
         Title="Error"
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
-        WindowStartupLocation="CenterOwner"
+        AllowsTransparency="True"
+        WindowStartupLocation="Manual"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Background="Transparent">
 
@@ -23,15 +24,21 @@
       Weight: error 4 is amber (the live settings file is not whole); errors 2 and 8 are neutral.
       The note block's fill switches on the model's Weight via a trigger - amber uses WlWarnSoft,
       neutral uses WlSunken. No colour is painted for the chooser or the version readout.
+    
+      WindowStartupLocation is Manual, not CenterOwner: DialogOverlay positions this window over
+      its owner on SourceInitialized, and CenterOwner would re-centre a full-owner-sized overlay
+      afterwards, pushing it off by half the owner.
     -->
     <Grid>
-        <!-- The scrim: what dims the window behind. Fills this borderless window edge to edge. -->
+        <!-- The scrim: what dims the app behind. Fills the overlay edge to edge, and the overlay
+             spans the owner (DialogOverlay.Cover), so this reaches the app's own edges. -->
         <Border Background="{DynamicResource WlScrim}" />
 
         <!-- The card: width bound (620/560), WlCard surface, hairline-24% border, 8px radius. -->
         <Border Width="{Binding CardWidth}" HorizontalAlignment="Center" VerticalAlignment="Center"
                 Background="{DynamicResource WlCard}"
-                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8">
+                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8"
+                Effect="{StaticResource WlDialogShadow}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />    <!-- content -->

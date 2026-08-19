@@ -22,8 +22,9 @@
     <SolidColorBrush x:Key="WlAccentSoft" Color="#AA0000" Opacity="0.07" />
     <SolidColorBrush x:Key="WlAccentLine" Color="#AA0000" Opacity="0.24" />
     <SolidColorBrush x:Key="WlDanger"     Color="#AA0000" />
-    <!-- See Dark.xaml's WlDangerSoft comment - the Failed strip's tint fill. -->
-    <SolidColorBrush x:Key="WlDangerSoft" Color="#AA0000" Opacity="0.12" />
+    <!-- See Dark.xaml's WlDangerSoft comment - the Failed strip's tint fill. .07 here, matching
+         WlAccentSoft's own light-theme alpha (the reference's danger-soft token); .12 is dark's. -->
+    <SolidColorBrush x:Key="WlDangerSoft" Color="#AA0000" Opacity="0.07" />
 
     <!-- Darkened for contrast on #FFFFFF; NOT the green-400 token. -->
     <SolidColorBrush x:Key="WlOk"        Color="#0F6B4A" />

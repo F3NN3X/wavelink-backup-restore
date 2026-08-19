@@ -169,11 +169,16 @@
 
                     <!--
                       The search field. WlBg fill, hairline border (steps to WlLine2 while the
-                      box has keyboard focus), 8px radius, 8,11 padding, a 14px search icon, an
-                      18px round clear button that appears once there is a query.
+                      box has keyboard focus), 8px radius, a 14px search icon, an 18px round clear
+                      button that appears once there is a query.
+
+                      README's "8px x 11px padding" is 8 vertical / 11 horizontal, the same
+                      vertical-first convention as the status strip's own "10px x 20px" - so
+                      Padding="11,8". It carried "8,11", which squeezed the horizontal inset to 8
+                      and stretched the field 6px taller than the design draws it.
                     -->
                     <Border x:Name="SearchBoxBorder" Width="216" Background="{DynamicResource WlBg}"
-                            BorderThickness="1" CornerRadius="8" Padding="8,11">
+                            BorderThickness="1" CornerRadius="8" Padding="11,8">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="BorderBrush" Value="{DynamicResource WlLine}" />
@@ -547,14 +552,20 @@
 
         <!--
           ================================================================================
-          Row 3 - the column header. 11,20,9,20 padding, hairline bottom, the same shared-size
+          Row 3 - the column header. README: "11px top / 9px bottom x 20px padding" - which is
+          Padding="20,11,20,9" in WPF's left,top,right,bottom order, NOT the "11,20,9,20" this
+          carried, which read the CSS shorthand literally and put 11px on the LEFT. That was the
+          ~9px header-vs-row misalignment the by-eye checklist (Part D) asked design to sign off:
+          it is a transcription bug, not a design call - the rows' own 20px left inset was right
+          all along, and the header now shares it.
+          Hairline bottom, the same shared-size
           grid the row and this template both key off. Stays during a search (07); hides when
           the list has nothing to have columns FOR (Empty/FolderMissing), each of which renders
           its own copy of this same DataTemplate inside its row-4 stand-in instead.
           ================================================================================
         -->
         <Border x:Name="ColumnHeaderBorder" Grid.Row="3" BorderBrush="{DynamicResource WlLine}"
-                BorderThickness="0,0,0,1" Padding="11,20,9,20">
+                BorderThickness="0,0,0,1" Padding="20,11,20,9">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Visibility" Value="Visible" />
@@ -591,11 +602,14 @@
               Each group's own Rows is now a real ListBox (10b fix), not a hand-placed
               ListBoxItem per row - the expansion moved INTO WlRowTemplate (RowStyles.xaml) so
               nothing stops this from being a genuine Selector any more. One ListBox per group is
-              expected: every one of them two-way binds the SAME List.Selected, so selecting a row
-              in one group is what clears the others (Selector.SelectedItem, set to a value that
-              is not among a DIFFERENT ListBox's own Items, deselects that ListBox's own current
-              container without throwing or needing any code-behind to sync them - verified by
-              MainWindowSelectionTests.Selecting_a_row_in_one_group_clears_the_others_container).
+              expected, and every one of them two-way binds the SAME List.Selected. That binding
+              is what carries a CLICK up to the view model; it does NOT keep the groups in step
+              with each other, which is what it was once believed to do. A Selector handed an item
+              its own Items collection does not contain declines the write and keeps its existing
+              container selected, so clicking through three date groups left three rows highlighted
+              at once. What looks selected is decided by the ROW's own IsSelected instead - see
+              WlRowTemplate (RowStyles.xaml), and
+              MainWindowSelectionTests.Selecting_in_a_second_group_deselects_the_row_already_selected_in_the_first.
             -->
             <!--
               Loaded's own region: the scrollable rows above a fixed footer strip that appears
@@ -645,9 +659,13 @@
                         <DataTemplate>
                             <StackPanel>
                                 <!-- Group header: same tracked role and tracking as the column
-                                     header, no rule under it ("no separator line"). -->
+                                     header, no rule under it ("no separator line"). README gives
+                                     "padding 14-16px 20px 7px" - 14 top, 20 each side, 7 bottom,
+                                     i.e. Margin="20,14,20,7". The old "14,20,20,7" was the same
+                                     CSS-order slip as the column header above, and it left every
+                                     date header 6px left of the rows it introduces. -->
                                 <views:TrackedText Text="{Binding Header}" Tracking=".18"
-                                                    Margin="14,20,20,7"
+                                                    Margin="20,14,20,7"
                                                     Style="{StaticResource WlColumnHeaderTrackedText}"
                                                     Foreground="{DynamicResource WlMuted}" />
 
@@ -662,15 +680,29 @@
                                   selected-state fill - the ListBox itself should show nothing of
                                   its own.
 
-                                  SelectedItem binds through the WINDOW's DataContext rather than
-                                  this DataTemplate's own (which is the Row, then the Group) -
+                                  SelectedItem is OneWayToSource, and the direction is the whole
+                                  point. It carries a CLICK up to the shared List.Selected and
+                                  nothing back down.
+
+                                  TwoWay - what this was - cannot work with one Selector per group.
+                                  Selecting a row in group B writes it into group A's SelectedItem
+                                  too; A does not contain that item, so it declines the write and
+                                  writes its OWN current row back to the shared property; B then
+                                  declines that and writes back; the two ListBoxes ping-pong
+                                  through the one property until WPF's binding loop detection stops
+                                  them, leaving both rows selected. What looks selected is decided
+                                  by the ROW's own IsSelected instead (WlRowTemplate), which
+                                  SnapshotListViewModel.Selected keeps to exactly one row across
+                                  every group.
+
+                                  It binds through the WINDOW's DataContext rather than this
+                                  DataTemplate's own (which is the Row, then the Group) -
                                   List.Selected lives on the shared ShellViewModel, reached the
                                   same way the row template's own IsHighContrast checks already
                                   reach it (RelativeSource AncestorType=Window).
                                 -->
                                 <ListBox ItemsSource="{Binding Rows}"
                                          ItemContainerStyle="{StaticResource WlRowTemplate}"
-                                         SelectedItem="{Binding DataContext.List.Selected, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
                                          BorderThickness="0" Background="Transparent" Padding="0"
                                          FocusVisualStyle="{x:Null}"
                                          ScrollViewer.CanContentScroll="True"

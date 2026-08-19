@@ -182,7 +182,18 @@ public sealed class TrayRefreshIntegrationTests
     public void The_normal_theme_keeps_the_paused_dim()
     {
         var pausedAlpha = Wpf.Run(() =>
-            TrayIconRenderer.ColourFor(TrayStatus.Paused, highContrast: false).A);
+        {
+            // Load the theme first. Unlike the high-contrast path above - which answers from
+            // SystemColors and touches no dictionary - the normal path reads WlMuted out of
+            // Application.Current.Resources, and those are process-wide ambient state that every
+            // view test clears and rebuilds for its own theme. Relying on whatever the previously
+            // run class happened to leave behind is what made this fail the moment two new view
+            // test classes changed the running order: the resource was simply not there, and
+            // ColourFor dereferenced null.
+            AppResources.Load(Theming.AppTheme.Dark);
+
+            return TrayIconRenderer.ColourFor(TrayStatus.Paused, highContrast: false).A;
+        });
 
         Assert.Equal((byte)(255 * 0.55), pausedAlpha);
     }

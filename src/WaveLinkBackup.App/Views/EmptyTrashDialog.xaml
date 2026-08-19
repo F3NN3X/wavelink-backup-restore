@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Empty the trash"
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
-        WindowStartupLocation="CenterOwner"
+        AllowsTransparency="True"
+        WindowStartupLocation="Manual"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Background="Transparent">
 
@@ -13,24 +14,32 @@
       The same borderless-modal shape as DeleteDialog and RestoreDialog: WlScrim fills this window
       edge to edge and the 480px WlCard card sits centred on top of it. WindowStyle=None rather than
       a custom caption bar because a dialog has no caption to host - its title is in the content,
-      not the chrome. Background stays Transparent and AllowsTransparency stays FALSE (the same rule
-      MainWindow's own comment states): this keeps the window non-layered, which is what lets DWM
-      give it a drop shadow instead of the card having to draw one with a brush.
+      not the chrome. AllowsTransparency is TRUE
+      here and false on MainWindow, and the difference is the point: a layered window's transparent
+      regions really are transparent, so the scrim dims the app instead of compositing onto opaque
+      black. DialogOverlay sizes this window to cover its owner and frosts what shows through; the
+      card draws README's own shadow, since a layered window gets none from DWM.
 
       The DataContext is an EmptyTrashDialogModel set by the caller; every element below binds to it
       and computes nothing. Nothing here touches Core or does I/O - rendering only.
 
       There is no context block: unlike DeleteDialog's three variants, this dialog has exactly one
       shape (the irreversible case), so there is nothing to collapse. The meta line is always present.
+    
+      WindowStartupLocation is Manual, not CenterOwner: DialogOverlay positions this window over
+      its owner on SourceInitialized, and CenterOwner would re-centre a full-owner-sized overlay
+      afterwards, pushing it off by half the owner.
     -->
     <Grid>
-        <!-- The scrim: what dims the window behind. Fills this borderless window edge to edge. -->
+        <!-- The scrim: what dims the app behind. Fills the overlay edge to edge, and the overlay
+             spans the owner (DialogOverlay.Cover), so this reaches the app's own edges. -->
         <Border Background="{DynamicResource WlScrim}" />
 
         <!-- The card: 480px, WlCard surface, hairline-24% border (WlLine2), 8px radius. -->
         <Border Width="480" HorizontalAlignment="Center" VerticalAlignment="Center"
                 Background="{DynamicResource WlCard}"
-                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8">
+                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8"
+                Effect="{StaticResource WlDialogShadow}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />    <!-- content -->

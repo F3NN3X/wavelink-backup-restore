@@ -1,4 +1,5 @@
 using System.Windows;
+using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.App.ViewModels;
 
 namespace WaveLinkBackup.App.Views;
@@ -15,6 +16,11 @@ public partial class RestoreDialog : Window
         InitializeComponent();
 
         DataContext = model;
+
+        // Cover the owner, dim it, frost it. Everything happens on SourceInitialized inside
+        // Attach; a dialog with no owner (a standalone run, or a view test) keeps its own
+        // geometry and gets no blur, because there is nothing to cover.
+        DialogOverlay.Attach(this);
 
         // Focus starts on Cancel - the safe choice for an irreversible action - and Escape is the
         // same as clicking it. The destructive button is IsDefault, so Enter confirms only when the

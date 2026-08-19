@@ -85,16 +85,47 @@ public class RestoreDialogModelTests
         Assert.Null(match.VersionMismatchNote);
     }
 
+    private const string WarningLead = "FabFilter Pro-Q 3 isn't installed on this computer.";
+    private const string WarningRest =
+        "The Voice channel will load with that effect switched off. Install it and restore again to get it back.";
+
     [Fact]
     public void Missing_Plugin_Warning_Passes_Through_And_Is_Null_By_Default()
     {
-        const string copy = "FabFilter Pro-Q 3 isn't installed on this computer.";
-
-        var withWarning = RestoreDialogModel.Build(Plan(), Taken, missingPluginWarning: copy);
+        var withWarning = RestoreDialogModel.Build(
+            Plan(), Taken, missingPluginLead: WarningLead, missingPluginRest: WarningRest);
         var without = RestoreDialogModel.Build(Plan(), Taken);
 
-        Assert.Equal(copy, withWarning.MissingPluginWarning);
+        Assert.Equal($"{WarningLead} {WarningRest}", withWarning.MissingPluginWarning);
         Assert.Null(without.MissingPluginWarning);
+    }
+
+    /// <summary>
+    /// README Screen 2 weights the two clauses differently - the naming sentence is --wl-strong,
+    /// the consequence is body colour - so they have to reach the view as two values. One string
+    /// cannot be rendered in two weights.
+    /// </summary>
+    [Fact]
+    public void The_warning_reaches_the_view_as_a_lead_and_a_rest()
+    {
+        var model = RestoreDialogModel.Build(
+            Plan(), Taken, missingPluginLead: WarningLead, missingPluginRest: WarningRest);
+
+        Assert.Equal(WarningLead, model.MissingPluginLead);
+        Assert.Equal(WarningRest, model.MissingPluginRest);
+    }
+
+    /// <summary>
+    /// A lead with no consequence yet is still worth showing - it already names what is missing,
+    /// which is the whole point of the block. It must not print a trailing space.
+    /// </summary>
+    [Fact]
+    public void A_lead_on_its_own_is_the_whole_warning()
+    {
+        var model = RestoreDialogModel.Build(Plan(), Taken, missingPluginLead: WarningLead);
+
+        Assert.Equal(WarningLead, model.MissingPluginWarning);
+        Assert.Null(model.MissingPluginRest);
     }
 
     [Fact]

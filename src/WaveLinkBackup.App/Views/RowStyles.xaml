@@ -23,6 +23,9 @@
     -->
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/WaveLinkBackup;component/Views/Typography.xaml" />
+        <!-- Same reasoning as Typography above: the row's hover and expansion storyboards reference
+             WlStandardEase by StaticResource, and Task 12 loads this file standalone. -->
+        <ResourceDictionary Source="pack://application:,,,/WaveLinkBackup;component/Views/Motion.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
     <!--
@@ -99,7 +102,7 @@
     -->
     <DataTemplate x:Key="WlSlotNamed">
         <Border Background="{DynamicResource WlOkSoft}" BorderBrush="{DynamicResource WlOk}"
-                BorderThickness="0,0,0,2" Padding="6,5">
+                BorderThickness="0,0,0,2" Padding="0,5">
             <views:TrackedText Text="{Binding Label}" Tracking=".06"
                                 Style="{StaticResource WlSlotLabelTrackedText}"
                                 Foreground="{DynamicResource WlOk}"
@@ -109,7 +112,7 @@
 
     <DataTemplate x:Key="WlSlotGeneric">
         <Border Background="Transparent" BorderBrush="{DynamicResource WlWarn}"
-                BorderThickness="0,0,0,2" Padding="6,5">
+                BorderThickness="0,0,0,2" Padding="0,5">
             <views:TrackedText Text="{Binding Label}" Tracking=".06"
                                 Style="{StaticResource WlSlotLabelTrackedText}"
                                 Foreground="{DynamicResource WlWarn}"
@@ -124,7 +127,7 @@
     -->
     <DataTemplate x:Key="WlSlotMissing">
         <Grid>
-            <Border BorderThickness="0,0,0,2" BorderBrush="Transparent" Padding="6,5">
+            <Border BorderThickness="0,0,0,2" BorderBrush="Transparent" Padding="0,5">
                 <TextBlock x:Name="MissingLabel" Text="{Binding Label}" Style="{StaticResource WlSlotLabelText}"
                            Foreground="{DynamicResource WlMuted}" Opacity="0.45"
                            HorizontalAlignment="Center" />
@@ -275,12 +278,21 @@
         </DataTemplate.Triggers>
     </DataTemplate>
 
-    <!-- The CONTENTS column's present treatment: a solid card chip, WlText label. -->
+    <!--
+      The CONTENTS column's present treatment: a solid card chip, WlText label.
+
+      TrackedText at the TIER BADGE role (mono 500, 10px, .12em), not the untracked 9.5px slot
+      label these two carried. Tier badge and slot label are separate rows of README's type table
+      and the badges are the wider, looser pair - rendering them at the slot label's size with no
+      tracking made SETTINGS / PRESETS / PLUGINS read as a tight block rather than the spaced
+      micro-caps the design draws. 5px apart, per "Three tier badges, 5px apart".
+    -->
     <DataTemplate x:Key="WlTierPresent">
         <Border Background="{DynamicResource WlCard}" BorderBrush="{DynamicResource WlLine}"
-                BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,6,0">
-            <TextBlock Text="{Binding Label}" Style="{StaticResource WlSlotLabelText}"
-                       Foreground="{DynamicResource WlText}" />
+                BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,5,0">
+            <views:TrackedText Text="{Binding Label}" Tracking=".12"
+                                Style="{StaticResource WlTierBadgeTrackedText}"
+                                Foreground="{DynamicResource WlText}" />
         </Border>
     </DataTemplate>
 
@@ -291,11 +303,12 @@
       does not need to thin (1px both ways, per the per-cell HC table).
     -->
     <DataTemplate x:Key="WlTierAbsent">
-        <Grid Margin="0,0,6,0">
+        <Grid Margin="0,0,5,0">
             <Rectangle RadiusX="4" RadiusY="4" StrokeThickness="1" Stroke="{DynamicResource WlLine}"
                        StrokeDashArray="2,2" Fill="Transparent" />
-            <TextBlock x:Name="AbsentLabel" Text="{Binding Label}" Style="{StaticResource WlSlotLabelText}"
-                       Foreground="{DynamicResource WlMuted}" Opacity="0.5" Margin="8,4" />
+            <views:TrackedText x:Name="AbsentLabel" Text="{Binding Label}" Tracking=".12"
+                                Style="{StaticResource WlTierBadgeTrackedText}"
+                                Foreground="{DynamicResource WlMuted}" Opacity="0.5" Margin="8,4" />
         </Grid>
         <DataTemplate.Triggers>
             <DataTrigger Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
@@ -323,6 +336,29 @@
         <Setter Property="Padding" Value="20,15" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+
+        <!--
+          THE ROW'S OWN IsSelected DECIDES WHAT LOOKS SELECTED - not the container's.
+
+          The list is one ListBox per date group (Task 10b, so native mouse and keyboard row
+          selection work at all), which means several Selectors and one selection. Every group's
+          ListBox two-way binds the same List.Selected, on the assumption that writing a row from
+          group B into group A's SelectedItem clears group A. It does not: a Selector handed an
+          item its own Items collection does not contain declines the write and keeps the container
+          it already had selected. A user clicking through three date groups was left with three
+          highlighted rows.
+
+          The view model was always right - SnapshotListViewModel.Selected's setter clears the
+          outgoing row's IsSelected and sets the incoming one's, so exactly one row carries it
+          across the whole list. So the fix is to read selection from there. Every trigger below
+          that used to key off the CONTAINER's IsSelected now keys off the ROW's, and a stale
+          container in another group has nothing left to paint with.
+
+          Deliberately NOT a two-way Setter on the container's own IsSelected: that fights
+          Selector's container management and hangs on a real layout pass.
+          MainWindowSelectionTests.Selecting_in_a_second_group_deselects_the_row_already_selected_in_the_first
+          is the test that fails without this.
+        -->
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
@@ -335,6 +371,19 @@
                       lives here instead of being a separate Border bolted on beside a hand-placed
                       ListBoxItem in MainWindow.xaml.
                     -->
+                    <!--
+                      RowSurface sits inside a Grid now, over a HoverLayer sibling. The layer is
+                      what makes hover FADE (README: 140ms): WlHover is a frozen theme resource and
+                      animating a frozen brush's Color throws, so the fill has to be a separate
+                      element whose Opacity can move.
+
+                      It sits BEHIND RowSurface and touches none of RowSurface's own properties, so
+                      the health/selection/high-contrast trigger graph below - whose ORDER is
+                      load-bearing and pinned by RowTemplateTests - is completely unaffected. That
+                      is the whole reason hover became a layer and the selection fill did not.
+                    -->
+                    <Grid>
+                    <Border x:Name="HoverLayer" Background="{DynamicResource WlHover}" Opacity="0" />
                     <Border x:Name="RowSurface" Background="Transparent" BorderBrush="Transparent"
                             BorderThickness="3,0,0,0" Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
@@ -440,7 +489,8 @@
                                   place. The cue is WlDanger, not WlMuted - it is an error, and this
                                   file's own rule is that colour belongs to whichever usage needs it.
                                 -->
-                                <Grid Grid.Row="1" Margin="0,3,0,0">
+                                <!-- "sub-line 4px below" the name (README's row grid table). -->
+                                <Grid Grid.Row="1" Margin="0,4,0,0">
                                     <StackPanel Orientation="Horizontal">
                                         <Path x:Name="VerdictGlyph" Width="12" Height="12" Stretch="Uniform"
                                               Margin="0,0,4,0" Visibility="Collapsed" VerticalAlignment="Center" />
@@ -539,7 +589,9 @@
                             </ItemsControl>
 
                             <!-- overflow -->
-                            <TextBlock x:Name="OverflowText" Grid.Column="5" Text="···"
+                            <!-- README's row grid: the overflow affordance is 15px, a half-step
+                                 above the body role WlBodyText carries. -->
+                            <TextBlock x:Name="OverflowText" Grid.Column="5" Text="···" FontSize="15"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Style="{StaticResource WlBodyText}" Foreground="{DynamicResource WlMuted}" />
                         </Grid>
@@ -567,7 +619,17 @@
                           over the brief's literal left=0. Bottom ends up 15px (RowSurface's own),
                           a single pixel short of the brief's 16 - not worth a bespoke value for.
                         -->
-                        <Grid x:Name="ExpansionRow" Visibility="Collapsed" Margin="0,8,0,0">
+                        <!--
+                          MaxHeight="0" is not decoration. The reveal storyboard animates MaxHeight,
+                          and the collapse half has no From - so it reads the property's base value
+                          as its origin. MaxHeight's default is Infinity, and a DoubleAnimation
+                          throws on an infinite origin ("cannot use default origin value of
+                          Infinity") - which means every DESELECT threw until this was here. An
+                          explicit 0 gives the animation somewhere to start, and matches the state
+                          Visibility="Collapsed" already describes.
+                        -->
+                        <Grid x:Name="ExpansionRow" Visibility="Collapsed" MaxHeight="0"
+                              Opacity="0" Margin="0,8,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -611,13 +673,33 @@
                         </Grid>
                         </StackPanel>
                     </Border>
+                    </Grid>
 
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlHover}" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
 
-                        <Trigger Property="IsSelected" Value="True">
+                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
                             <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlCard}" />
                             <Setter TargetName="RowSurface" Property="BorderBrush" Value="{DynamicResource WlAccent}" />
                             <Setter TargetName="OverflowText" Property="Foreground" Value="{DynamicResource WlStrong}" />
@@ -625,7 +707,47 @@
                                  the container's own real IsSelected (a Selector-managed DP once a
                                  real ListBox generates this container), not a data-bound copy. -->
                             <Setter TargetName="ExpansionRow" Property="Visibility" Value="Visible" />
-                        </Trigger>
+
+                            <!--
+                              README: "The row expansion is a height/opacity change at 220ms, no
+                              slide." MaxHeight is what gives the height half - the real height is
+                              not known until layout runs, and 400 is a ceiling the two-line
+                              expansion never approaches, so the reveal ends before the cap does
+                              anything. Animating Height itself would need a number nobody has.
+
+                              Reveal only. The collapse is instant, because deselecting sets
+                              Visibility=Collapsed on the same trigger and a fade fighting a
+                              Collapsed element inside a virtualizing panel is how recycled rows
+                              start flickering. ExitActions resets both values so the NEXT
+                              selection starts closed rather than already open.
+                            -->
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ExpansionRow"
+                                                         Storyboard.TargetProperty="MaxHeight"
+                                                         From="0" To="400" Duration="0:0:0.22"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                        <DoubleAnimation Storyboard.TargetName="ExpansionRow"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         From="0" To="1" Duration="0:0:0.22"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ExpansionRow"
+                                                         Storyboard.TargetProperty="MaxHeight"
+                                                         To="0" Duration="0:0:0" />
+                                        <DoubleAnimation Storyboard.TargetName="ExpansionRow"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
 
                         <!--
                           In-place rename (README Interactions). While IsEditing the segmented name
@@ -794,7 +916,7 @@
                         -->
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
-                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
+                                <Condition Binding="{Binding IsSelected}" Value="True" />
                                 <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
                             </MultiDataTrigger.Conditions>
                             <Setter TargetName="RowSurface" Property="Background" Value="{DynamicResource WlAccent}" />
@@ -831,7 +953,7 @@
                         -->
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
-                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
+                                <Condition Binding="{Binding IsSelected}" Value="True" />
                                 <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
                                 <Condition Binding="{Binding Health}" Value="Whole" />
                             </MultiDataTrigger.Conditions>
@@ -839,7 +961,7 @@
                         </MultiDataTrigger>
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
-                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
+                                <Condition Binding="{Binding IsSelected}" Value="True" />
                                 <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
                                 <Condition Binding="{Binding Health}" Value="Suspect" />
                             </MultiDataTrigger.Conditions>
@@ -847,7 +969,7 @@
                         </MultiDataTrigger>
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
-                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True" />
+                                <Condition Binding="{Binding IsSelected}" Value="True" />
                                 <Condition Binding="{Binding DataContext.IsHighContrast, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
                                 <Condition Binding="{Binding Health}" Value="Damaged" />
                             </MultiDataTrigger.Conditions>

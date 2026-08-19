@@ -29,14 +29,39 @@ public sealed record RestoreDialogRow(string Label, string NowValue, string Afte
 /// them yet — they render only when values are supplied, and are simply absent until that data
 /// exists rather than invented.
 /// </summary>
+/// <param name="MissingPluginLead">
+/// The amber block's first clause, rendered in --wl-strong: the sentence that names what is
+/// missing ("FabFilter Pro-Q 3 isn't installed on this computer."). Null omits the whole block.
+///
+/// Split from the rest because README Screen 2 weights the two differently, and the naming clause
+/// is the one a user has to read - a paragraph in one uniform colour buries it.
+/// </param>
+/// <param name="MissingPluginRest">
+/// The consequence and the way out, in body colour ("The Voice channel will load with that effect
+/// switched off. Install it and restore again to get it back."). Null renders the lead alone.
+/// </param>
 public sealed record RestoreDialogModel(
     string Title,
     string Body,
     IReadOnlyList<RestoreDialogRow> Rows,
     string? VersionMismatchNote,
-    string? MissingPluginWarning,
+    string? MissingPluginLead,
+    string? MissingPluginRest,
     string Reassurance)
 {
+    /// <summary>
+    /// The two clauses as one sentence, or null when there is no warning. The view binds its
+    /// visibility to this rather than testing two properties, and a screen reader reads the whole
+    /// warning from it as one announcement instead of two fragments.
+    /// </summary>
+    public string? MissingPluginWarning => (MissingPluginLead, MissingPluginRest) switch
+    {
+        (null, null) => null,
+        ({ } lead, null) => lead,
+        (null, { } rest) => rest,
+        var (lead, rest) => $"{lead} {rest}",
+    };
+
     /// <summary>The fixed order Screen 2 prints its table in.</summary>
     public static readonly string[] RowOrder = ["Inputs", "Channel names", "Effects", "Saved presets", "Mixes"];
 
@@ -53,9 +78,12 @@ public sealed record RestoreDialogModel(
     /// <param name="presetCountAfter">The snapshot's saved-preset count. Null hides the row.</param>
     /// <param name="mixNamesNow">Current mix names. Null hides the row.</param>
     /// <param name="mixNamesAfter">The snapshot's mix names. Null hides the row.</param>
-    /// <param name="missingPluginWarning">
-    /// The amber block's copy, when an effect in the snapshot has no installed plug-in. Null omits it.
+    /// <param name="missingPluginLead">
+    /// The amber block's naming clause, when an effect in the snapshot has no installed plug-in.
+    /// Null omits the block. Phase 6 §5 is what starts supplying it - until the plug-in manifest
+    /// exists there is nothing to compare against, so it stays null and the block never renders.
     /// </param>
+    /// <param name="missingPluginRest">The consequence clause. Null renders the lead alone.</param>
     public static RestoreDialogModel Build(
         RestorePlan plan,
         DateTimeOffset takenLocal,
@@ -63,7 +91,8 @@ public sealed record RestoreDialogModel(
         int? presetCountAfter = null,
         IReadOnlyList<string>? mixNamesNow = null,
         IReadOnlyList<string>? mixNamesAfter = null,
-        string? missingPluginWarning = null)
+        string? missingPluginLead = null,
+        string? missingPluginRest = null)
     {
         // Core's three rows, in the order it emits them. The Changed flag is already computed there.
         var rows = new List<RestoreDialogRow>(plan.Rows.Count + 2);
@@ -101,7 +130,8 @@ public sealed record RestoreDialogModel(
                   + "Wave Link will close and reopen.",
             Rows: rows,
             VersionMismatchNote: versionNote,
-            MissingPluginWarning: missingPluginWarning,
+            MissingPluginLead: missingPluginLead,
+            MissingPluginRest: missingPluginRest,
             Reassurance: ReassuranceText);
     }
 

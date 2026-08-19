@@ -140,11 +140,94 @@ public sealed class MainWindowTemplateTests
                         && !name.EndsWith("Font", StringComparison.Ordinal)
                         && !name.EndsWith("Template", StringComparison.Ordinal)
                         && !name.EndsWith("Visibility", StringComparison.Ordinal)
+                        // WlScrollBarThumb is a Style; WlDialogShadow is a DropShadowEffect.
+                        // Neither is a brush, and both are referenced the same way one would be.
+                        && !name.EndsWith("Thumb", StringComparison.Ordinal)
+                        && !name.EndsWith("Shadow", StringComparison.Ordinal)
+                        // WlStandardEase is an easing function (Motion.xaml).
+                        && !name.EndsWith("Ease", StringComparison.Ordinal)
                         && name != "WlCaptionButton" && name != "WlCaptionCloseButton"
                         && name != "WlShieldCheckGeometry" && name != "WlFocusVisual")
             .ToArray();
 
         Assert.True(unknown.Length == 0, $"Not theme brushes: {string.Join(", ", unknown)}");
+    }
+
+    /// <summary>
+    /// A markup extension is evaluated in ATTRIBUTE syntax only. Written as a property element -
+    /// <c>&lt;Run.Text&gt;{Binding X}&lt;/Run.Text&gt;</c> - the braces are just characters, the
+    /// binding never happens, and the expression prints itself to the user. It builds and it
+    /// parses, so nothing but a scan or a pair of eyes catches it.
+    ///
+    /// It reached a shipped screen once: the settings dialog showed
+    /// "{Binding WhatGoesIn.NoteOneLead}" under WHAT GOES IN A BACKUP. SettingsDialogViewTests
+    /// catches it at render time for that one window; this catches it in every XAML file, including
+    /// the ones with no view test.
+    /// </summary>
+    [Fact]
+    public void No_xaml_puts_a_markup_extension_in_property_element_syntax()
+    {
+        var offenders = new List<string>();
+
+        foreach (var file in Directory.EnumerateFiles(SourceRoot, "*.xaml", SearchOption.AllDirectories))
+        {
+            if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+            if (file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")) continue;
+
+            var withoutComments = Regex.Replace(
+                File.ReadAllText(file), "<!--.*?-->", string.Empty, RegexOptions.Singleline);
+
+            // A '>' closing some property-element start tag, immediately followed by a brace that
+            // opens a markup extension. Whitespace between them is still the same mistake.
+            foreach (Match match in Regex.Matches(withoutComments, @"<\w[\w.]*\.\w+>\s*\{(Binding|DynamicResource|StaticResource)"))
+            {
+                offenders.Add($"  {Path.GetFileName(file)}: {match.Value}");
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            $"A markup extension only evaluates in attribute syntax. In a property element it is " +
+            $"literal text and the user reads it. Found:" +
+            $"{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
+    }
+
+    /// <summary>
+    /// Run.Text is registered BindsTwoWayByDefault - a Run is editable inside a RichTextBox - so a
+    /// plain binding to a computed, get-only view-model property throws "A TwoWay or
+    /// OneWayToSource binding cannot work on the read-only property". TextBlock.Text is one-way,
+    /// so the same expression is fine there and fails only on a Run.
+    ///
+    /// The failure mode is what makes this worth a guard: the throw lands on the WPF thread while
+    /// the window is being built, so it presents as the dialog never opening - not as a message.
+    /// It cost a bisect to find once.
+    /// </summary>
+    [Fact]
+    public void Every_Run_that_binds_its_text_asks_for_a_one_way_binding()
+    {
+        var offenders = new List<string>();
+
+        foreach (var file in Directory.EnumerateFiles(SourceRoot, "*.xaml", SearchOption.AllDirectories))
+        {
+            if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+            if (file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")) continue;
+
+            var withoutComments = Regex.Replace(
+                File.ReadAllText(file), "<!--.*?-->", string.Empty, RegexOptions.Singleline);
+
+            foreach (Match run in Regex.Matches(withoutComments, @"<Run\b[^>]*?/>", RegexOptions.Singleline))
+            {
+                var text = Regex.Match(run.Value, @"Text=""\{Binding[^""]*""");
+                if (!text.Success) continue;
+                if (text.Value.Contains("Mode=OneWay", StringComparison.Ordinal)) continue;
+
+                offenders.Add($"  {Path.GetFileName(file)}: {Regex.Replace(text.Value, @"\s+", " ")}");
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            $"Run.Text binds TwoWay by default and every model property behind one of these is " +
+            $"read-only. Add Mode=OneWay. Found:" +
+            $"{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
     }
 
     // 10b fix: each date group's Rows is now hosted by a real ListBox (Selector), not a
@@ -160,16 +243,40 @@ public sealed class MainWindowTemplateTests
         Assert.Contains("ItemContainerStyle=\"{StaticResource WlRowTemplate}\"", xaml, StringComparison.Ordinal);
     }
 
-    // The exact binding the fix brief specifies - reaching the shared ShellViewModel.List.Selected
-    // from inside the group DataTemplate's own DataContext (a Row, then a DateGroup) via the
-    // window's own DataContext, two-way so a click OR an arrow-key move writes back through it.
+    /// <summary>
+    /// The inverse of what this once asserted, and deliberately so.
+    ///
+    /// It used to pin <c>SelectedItem="{Binding DataContext.List.Selected, ... Mode=TwoWay}"</c> on
+    /// every group's ListBox, as the mechanism that made selection single across the date groups.
+    /// That mechanism does not work: a Selector handed an item its own Items collection does not
+    /// contain declines the write and keeps its existing container selected, so a user clicking
+    /// through three groups was left with three highlighted rows - and, with two of them bound that
+    /// way, each writing the other's row back through the shared property.
+    ///
+    /// The binding is gone; GroupSelection owns it. Re-adding one would reintroduce both faults, so
+    /// its ABSENCE is now the thing worth pinning.
+    /// </summary>
     [Fact]
-    public void The_row_lists_SelectedItem_is_two_way_bound_to_the_shared_selection()
+    public void No_group_binds_its_SelectedItem_to_the_shared_selection()
     {
-        Assert.Contains(
-            "SelectedItem=\"{Binding DataContext.List.Selected, "
-                + "RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}\"",
-            MainWindowXaml(), StringComparison.Ordinal);
+        var withoutComments = Regex.Replace(
+            MainWindowXaml(), "<!--.*?-->", string.Empty, RegexOptions.Singleline);
+
+        Assert.DoesNotContain("SelectedItem=", withoutComments, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// ...and the replacement is actually wired. GroupSelection is only reachable through this one
+    /// handler, attached to GroupsHost rather than to each ListBox so it survives the virtualizing
+    /// panel creating and recycling them.
+    /// </summary>
+    [Fact]
+    public void The_window_routes_group_selection_through_GroupSelection()
+    {
+        var code = MainWindowCodeBehind();
+
+        Assert.Contains("Selector.SelectionChangedEvent", code, StringComparison.Ordinal);
+        Assert.Contains("GroupSelection.Apply(", code, StringComparison.Ordinal);
     }
 
     // "No border, no background, no focus rectangle of its own - the row template owns the whole
