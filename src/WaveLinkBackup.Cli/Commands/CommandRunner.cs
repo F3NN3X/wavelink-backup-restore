@@ -311,7 +311,11 @@ public sealed class CommandRunner(
         var interval = TimeSpan.FromSeconds(command.IntervalSeconds ?? 15);
 
         using var watcher = new FileSystemSettingsWatcher(live.Value.Location.LocalStatePath);
-        using var coordinator = new AutoBackupCoordinator(watcher, Service(command), clock);
+        // The settings file's timings, not this verb's --interval: that flag is how often `watch`
+        // LOOKS, and the policy is how often it is allowed to CAPTURE. Two different numbers that
+        // would be confusing to conflate, which is why the flag keeps its own name.
+        using var coordinator = new AutoBackupCoordinator(
+            watcher, Service(command), clock, AutoBackupPolicy.For(settings));
 
         using var stopping = new CancellationTokenSource();
         ConsoleCancelEventHandler onCancel = (_, e) =>

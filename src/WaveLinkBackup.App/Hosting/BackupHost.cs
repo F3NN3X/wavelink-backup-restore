@@ -55,6 +55,17 @@ public sealed class BackupHost : IDisposable
     public AutoBackupCoordinator Coordinator => currentCoordinator;
 
     /// <summary>
+    /// The timings a rebuilt coordinator inherits. Set by App from the user's settings, and re-set
+    /// when they change one in the Settings dialog - a stepper that only took effect on the next
+    /// launch would be a control that appears not to work.
+    /// </summary>
+    public AutoBackupPolicy Policy
+    {
+        get => currentCoordinator.Policy;
+        set => currentCoordinator.Policy = value;
+    }
+
+    /// <summary>
     /// Swaps the store and service the coordinator calls, keeping the SAME watcher (which watches
     /// Wave Link's settings file, not our backup folder). Called from App.SetStorePath when error
     /// 12's "Choose a folder…" re-points the backup folder. The old coordinator is disposed; the
@@ -68,7 +79,9 @@ public sealed class BackupHost : IDisposable
         // is disposed after the new one is constructed so there is no gap where ticks are lost.
         var watchPath = SettingsLocator.SystemLocalAppData;
         var newWatcher = new FileSystemSettingsWatcher(watchPath);
-        var newCoordinator = new AutoBackupCoordinator(newWatcher, newService, clock);
+        // Carry the timings across. Moving the backup folder must not silently reset the
+        // interval the user chose or switch off their daily copy.
+        var newCoordinator = new AutoBackupCoordinator(newWatcher, newService, clock, currentCoordinator.Policy);
 
         currentCoordinator.Dispose();
         currentCoordinator = newCoordinator;

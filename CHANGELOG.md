@@ -26,8 +26,35 @@ heading here.
 Phase 7 — **release** — is next: the privacy gate, the two notifications, the update mechanism and
 packaging. See [phase-7-release.md](_docs/dev-phases/phase-7-release.md).
 
+### Added
+
+- **You can set how often automatic backups happen.** *At most one an hour* was a constant, and the
+  Settings dialog said so as though it were a fact about the world. It is a stepper now — 15 min,
+  30 min, 1 h, 2 h, 4 h, 12 h, 24 h — and the row's title is the value read back as a sentence, so
+  the label and the control cannot drift. It remains a **cap on change-driven backups, not a
+  timer**: nothing is written when nothing changes, so a shorter interval does not make the app
+  busier on a quiet machine.
+- **And a daily backup at a time you choose.** Off by default; on, it starts at 03:00 and steps in
+  half hours, wrapping at midnight. It takes a backup whether or not anything changed — dedup means
+  an unchanged one stores nothing — and it does not fight the interval cap: if an ordinary automatic
+  backup already happened after today's set time, the day is covered and the daily one is skipped.
+  A machine that was asleep at 03:00 captures when it wakes rather than losing the day. The row says
+  plainly that your computer has to be awake and the app running; this is not a scheduled task.
+- **The plug-in files can be restored from the app**, not only from the CLI. A row in the restore
+  dialog, off every time, absent when the backup holds no plug-in binaries. Confirming with it on
+  hands the restore to an elevated copy of the app and Windows shows its own consent dialog.
+  Declining leaves everything as it was and says so, and the settings and presets restore either
+  way. [technical-debt.md](_docs/technical-debt.md) §4.17, closed.
+
 ### Fixed
 
+- **Nothing in the Settings dialog took effect until the next launch.** Every control there commits
+  as you change it, and the commit reached the settings file but never the running app — so
+  switching a tier on, or automatic backups off, appeared to work and did nothing until you
+  restarted. Both are live now. §4.20.
+- **The keep-count stepper's − and + buttons did nothing.** They were declared, the number beside
+  them was bound, and no handler was ever wired. Found while adding two steppers next to them; a
+  view test now presses the `+` of every stepper in the dialog and asserts the value moved. §4.20.
 - **Tier 3 was capturing 2% of your presets.** Preset discovery only ever looked in
   `%APPDATA%\<Vendor>\`, and running it against a real rig for the first time
   ([technical-debt.md](_docs/technical-debt.md) §4.18) showed what that misses: for FabFilter

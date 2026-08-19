@@ -44,6 +44,13 @@ public static class SettingsSerializer
             writer.WriteBoolean("includePresets", settings.IncludePresets);
             writer.WriteBoolean("includePluginFiles", settings.IncludePluginFiles);
 
+            // Same argument, same absence of a schema bump: a missing interval means the hour it
+            // always was, and a missing daily time means the daily backup nobody had before.
+            writer.WriteNumber("autoBackupIntervalMinutes", settings.AutoBackupIntervalMinutes);
+
+            if (settings.DailyBackupMinutes is { } daily) writer.WriteNumber("dailyBackupMinutes", daily);
+            else writer.WriteNull("dailyBackupMinutes");
+
             writer.WriteEndObject();
         }
 
@@ -77,7 +84,10 @@ public static class SettingsSerializer
                 AutoBackupKeepCount: Int(root, "autoBackupKeepCount") ?? defaults.AutoBackupKeepCount,
                 ChosenWaveLinkPath: String(root, "chosenWaveLinkPath"),
                 IncludePresets: Bool(root, "includePresets") ?? defaults.IncludePresets,
-                IncludePluginFiles: Bool(root, "includePluginFiles") ?? defaults.IncludePluginFiles);
+                IncludePluginFiles: Bool(root, "includePluginFiles") ?? defaults.IncludePluginFiles,
+                AutoBackupIntervalMinutes:
+                    Int(root, "autoBackupIntervalMinutes") ?? defaults.AutoBackupIntervalMinutes,
+                DailyBackupMinutes: Int(root, "dailyBackupMinutes"));
         }
     }
 

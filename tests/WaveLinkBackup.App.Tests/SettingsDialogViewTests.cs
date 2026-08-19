@@ -212,4 +212,113 @@ public sealed class SettingsDialogViewTests
         Assert.Contains("Close", buttonLabels);
         Assert.DoesNotContain("Save", buttonLabels);
     }
+
+    // ------------------------------------------------- when to back up (screens/14-backup-timing)
+
+    /// <summary>
+    /// Shows the dialog over a caller-supplied model and hands back both the window's elements and
+    /// the model, so a test can press a button and then read what it did.
+    /// </summary>
+    private static void ShowModel(SettingsViewModel model, Action<FrameworkElement> assert) => Wpf.Run(() =>
+    {
+        AppResources.Load(AppTheme.Dark);
+
+        var dialog = new SettingsDialog(model)
+        {
+            Width = 1000,
+            Height = 900,
+            Left = -3000,
+            Top = -3000,
+            ShowInTaskbar = false,
+        };
+
+        dialog.Show();
+        dialog.UpdateLayout();
+        dialog.UpdateLayout();
+
+        try
+        {
+            foreach (var element in AppResources.Descendants(dialog)) assert(element);
+        }
+        finally
+        {
+            dialog.Close();
+        }
+
+        return true;
+    });
+
+    [Fact]
+    public void Every_stepper_button_is_wired_to_something()
+    {
+        // The keep-count pair rendered and did NOTHING for the whole of phase 5 and 6: the buttons
+        // were declared, the readout bound, and no handler existed. The view model's clamp was unit
+        // tested and the wiring never was, so nothing caught it. This presses all six.
+        var model = Model();
+        var pressed = new List<string>();
+
+        var keepBefore = model.AutoBackupKeepCount;
+        var intervalBefore = model.AutoBackupIntervalMinutes;
+
+        // Only the + halves, so an unwired handler cannot hide behind its opposite cancelling out.
+        ShowModel(model, e =>
+        {
+            if (e is System.Windows.Controls.Button { Name.Length: > 0 } button
+                && button.Name.StartsWith("Increment", StringComparison.Ordinal))
+            {
+                pressed.Add(button.Name);
+                button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            }
+        });
+
+        // Every stepper's + was found, so none was silently skipped by a rename.
+        Assert.Contains("IncrementKeepCountButton", pressed);
+        Assert.Contains("IncrementIntervalButton", pressed);
+
+        // And every one of them MOVED. This is the assertion the keep-count stepper would have
+        // failed since phase 5.
+        Assert.Equal(keepBefore + 1, model.AutoBackupKeepCount);
+        Assert.True(model.AutoBackupIntervalMinutes > intervalBefore);
+    }
+
+    [Fact]
+    public void The_daily_time_stepper_is_wired_too()
+    {
+        // Its row is hidden until the daily backup is on, so it needs its own pass - the test above
+        // never reaches a collapsed element.
+        var model = Model();
+        model.DailyBackupEnabled = true;
+        var before = model.DailyTimeText;
+        var found = false;
+
+        ShowModel(model, e =>
+        {
+            if (e.Name != "IncrementDailyTimeButton") return;
+
+            found = true;
+            e.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        });
+
+        Assert.True(found);
+        Assert.Equal("03:00", before);
+        Assert.Equal("03:30", model.DailyTimeText);
+    }
+
+    [Fact]
+    public void The_daily_time_row_appears_only_once_the_daily_backup_is_switched_on()
+    {
+        // The same rule the WHICH WAVE LINK section follows: a control with no effect is worse than
+        // no control.
+        var off = Model();
+        var visibleWhenOff = false;
+        ShowModel(off, e => visibleWhenOff |= e.Name == "DailyTimeRow" && e.IsVisible);
+
+        var on = Model();
+        on.DailyBackupEnabled = true;
+        var visibleWhenOn = false;
+        ShowModel(on, e => visibleWhenOn |= e.Name == "DailyTimeRow" && e.IsVisible);
+
+        Assert.False(visibleWhenOff);
+        Assert.True(visibleWhenOn);
+    }
 }

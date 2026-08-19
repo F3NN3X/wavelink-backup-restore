@@ -449,4 +449,145 @@ public sealed class SettingsViewModelTests
         Assert.Equal("—", EffectsList().SizeText);
         Assert.Equal("43 KB", Setup().SizeText);
     }
+
+    // ------------------------------------------------- when to back up (screens/14-backup-timing)
+
+    [Fact]
+    public void The_interval_stepper_moves_along_the_ladder_and_commits()
+    {
+        // A ladder rather than free-form minutes, so every position is a number a person would
+        // actually choose.
+        var (vm, saved) = Model();
+
+        vm.StepInterval(-1);
+        Assert.Equal(30, vm.AutoBackupIntervalMinutes);
+        Assert.Equal(30, saved[^1].AutoBackupIntervalMinutes);
+
+        vm.StepInterval(+1);
+        vm.StepInterval(+1);
+        Assert.Equal(120, vm.AutoBackupIntervalMinutes);
+    }
+
+    [Fact]
+    public void The_interval_stepper_stops_at_both_ends_rather_than_wrapping()
+    {
+        // A stepper that jumps from 24 h to 15 min on one press is a stepper that mis-sets itself.
+        var (vm, _) = Model();
+
+        for (var i = 0; i < 10; i++) vm.StepInterval(-1);
+        Assert.Equal(15, vm.AutoBackupIntervalMinutes);
+
+        for (var i = 0; i < 20; i++) vm.StepInterval(+1);
+        Assert.Equal(1440, vm.AutoBackupIntervalMinutes);
+    }
+
+    [Fact]
+    public void A_hand_edited_interval_snaps_onto_the_ladder()
+    {
+        // The settings file is a text file someone can edit. 47 minutes is not a rung, and the
+        // stepper has to know where it is standing before it can move.
+        var (vm, _) = Model(BackupSettings.Default with { AutoBackupIntervalMinutes = 47 });
+
+        vm.StepInterval(+1);
+
+        Assert.Contains(vm.AutoBackupIntervalMinutes, BackupSettings.IntervalLadder);
+    }
+
+    [Theory]
+    [InlineData(15, "15 MIN", "At most one automatic backup every 15 minutes")]
+    [InlineData(60, "1 H", "At most one automatic backup an hour")]
+    [InlineData(240, "4 H", "At most one automatic backup every 4 hours")]
+    [InlineData(1440, "24 H", "At most one automatic backup a day")]
+    public void The_row_title_is_the_value_read_back(int minutes, string readout, string label)
+    {
+        // The label and the control cannot drift, because the label IS the control's value. The old
+        // copy said "at most one an hour" beside a constant nobody could change, and that was the
+        // whole problem.
+        var (vm, _) = Model(BackupSettings.Default with { AutoBackupIntervalMinutes = minutes });
+
+        Assert.Equal(readout, vm.IntervalText);
+        Assert.Equal(label, vm.IntervalLabel);
+    }
+
+    [Fact]
+    public void Switching_the_daily_backup_on_starts_at_three_in_the_morning()
+    {
+        var (vm, saved) = Model();
+
+        Assert.False(vm.DailyBackupEnabled);
+
+        vm.DailyBackupEnabled = true;
+
+        Assert.Equal("03:00", vm.DailyTimeText);
+        Assert.Equal(180, saved[^1].DailyBackupMinutes);
+    }
+
+    [Fact]
+    public void Switching_it_off_forgets_the_time_rather_than_keeping_a_dead_value()
+    {
+        // null IS "off" in the settings file, and two ways to say off is one too many.
+        var (vm, saved) = Model(BackupSettings.Default with { DailyBackupMinutes = 5 * 60 });
+
+        vm.DailyBackupEnabled = false;
+
+        Assert.Null(saved[^1].DailyBackupMinutes);
+        Assert.Equal(string.Empty, vm.DailyTimeText);
+    }
+
+    [Fact]
+    public void The_daily_time_steps_by_half_an_hour_and_wraps_at_midnight()
+    {
+        // Wrapping is right here and wrong for the interval: a clock is a circle, a duration ladder
+        // has two ends.
+        var (vm, _) = Model(BackupSettings.Default with { DailyBackupMinutes = 23 * 60 + 30 });
+
+        Assert.Equal("23:30", vm.DailyTimeText);
+
+        vm.StepDailyTime(+1);
+        Assert.Equal("00:00", vm.DailyTimeText);
+
+        vm.StepDailyTime(-1);
+        Assert.Equal("23:30", vm.DailyTimeText);
+    }
+
+    [Fact]
+    public void Stepping_the_time_while_the_daily_backup_is_off_does_nothing()
+    {
+        var (vm, saved) = Model();
+        var before = saved.Count;
+
+        vm.StepDailyTime(+1);
+
+        Assert.Equal(before, saved.Count);
+        Assert.Null(vm.DailyBackupMinutes);
+    }
+
+    [Fact]
+    public void The_keep_count_stepper_moves_the_value()
+    {
+        // Its two buttons had no handler at all until the interval and daily steppers were added
+        // beside them: the control rendered, the readout bound, and pressing either did nothing.
+        var (vm, saved) = Model();
+        var start = vm.AutoBackupKeepCount;
+
+        vm.StepKeepCount(+1);
+        Assert.Equal(start + 1, vm.AutoBackupKeepCount);
+        Assert.Equal(start + 1, saved[^1].AutoBackupKeepCount);
+
+        vm.StepKeepCount(-1);
+        Assert.Equal(start, vm.AutoBackupKeepCount);
+    }
+
+    /// <summary>A view model over the given settings, plus every value it commits.</summary>
+    private static (SettingsViewModel Vm, List<BackupSettings> Saved) Model(BackupSettings? settings = null)
+    {
+        var saved = new List<BackupSettings>();
+
+        var vm = SettingsViewModel.Build(
+            settings ?? BackupSettings.Default,
+            s => { saved.Add(s); return true; },
+            new WhereSettingsLiveModel(@"C:\s.json", "1 KB"));
+
+        return (vm, saved);
+    }
 }

@@ -815,6 +815,32 @@ reason `IFileSystem` has no streaming copy today.
 hundreds of megabytes, and nothing stops one being on a channel). **Fix:** a `CopyFile` on the
 seam, which also lets §4.16's hash-skip reuse it.
 
+### 4.20 ~~The Settings dialog committed to a file nothing re-read, and one stepper did nothing at all~~ — **FIXED 2026-08-19**
+
+> Found while adding the two backup-timing controls, because both would have landed in the same
+> trap. Two defects, one cause: the dialog's "changes apply as you make them" was only half true.
+>
+> **The save callback wrote the file and stopped.** `App.BuildSettingsViewModel` passed
+> `s => repo.Save(s).IsSuccess`, so a committed change reached disk and never reached the running
+> app. `App.settings` — the record `GatherPayload` closes over — stayed stale, which means the tier
+> toggles shipped in 0.6.0 took effect on the **next launch**, not the next capture, despite a
+> comment in `Compose` saying the closure existed precisely so they would not. The automatic-backup
+> switch had the same problem, more quietly. `App.ApplySettings` is now the one place a settings
+> change becomes true: written, held, and re-applied to the host.
+>
+> **The keep-count stepper's buttons had no handler.** `DecrementKeepCountButton` and
+> `IncrementKeepCountButton` were declared in XAML with the readout bound and the view model's clamp
+> unit-tested — and nothing ever wired a `Click`. Pressing either did nothing, for the whole of
+> phases 5 and 6. Nothing caught it because the model was tested and the wiring was not.
+>
+> **Pinned by** `SettingsDialogViewTests.Every_stepper_button_is_wired_to_something`, which presses
+> the `+` of every stepper in the dialog and asserts each value MOVED — only the `+` halves, so an
+> unwired handler cannot hide behind its opposite cancelling out. Verified to fail when the wiring
+> is removed.
+>
+> **The lesson worth keeping:** a view-model property with a commit path is not evidence that a
+> control reaches it. These two suites now overlap on purpose.
+
 ---
 
 ## 5 · Numbers that are not constants

@@ -241,7 +241,9 @@
                                            Style="{StaticResource WlRowNameText}"
                                            Foreground="{DynamicResource WlStrong}"
                                            AutomationProperties.Name="Automatic backup label" />
-                                <TextBlock Text="Wave Link writes its file the moment you touch a channel. This notices, waits a minute, then keeps a copy — at most one an hour."
+                                <!-- "at most one an hour" left this sentence when it stopped being
+                                     a constant: the row below is where that number lives now. -->
+                                <TextBlock Text="Wave Link writes its file the moment you touch a channel. This notices, waits a minute, then keeps a copy."
                                            Style="{StaticResource WlSecondaryText}"
                                            Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0" TextWrapping="Wrap"
                                            AutomationProperties.Name="Automatic backup description" />
@@ -255,7 +257,129 @@
                         </Grid>
                     </Border>
 
-                    <!-- Row 2: the keep-count stepper. Same row shape, 10px below row 1. -->
+                    <!-- Row 2: how often, at most (screens/14-backup-timing.md). A cap on
+                         change-driven backups, not a timer: nothing is written when nothing changes,
+                         so lowering it does not make the app busier on a quiet machine. The title is
+                         the VALUE READ BACK - bound, not fixed - so label and control cannot drift. -->
+                    <Border Margin="0,10,0,0" Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="16,14">
+                                <TextBlock Text="{Binding IntervalLabel}"
+                                           Style="{StaticResource WlRowNameText}"
+                                           Foreground="{DynamicResource WlStrong}"
+                                           AutomationProperties.Name="Automatic backup interval label" />
+                                <TextBlock Text="A burst of changes still leaves you one copy, not thirty."
+                                           Style="{StaticResource WlSecondaryText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                           TextWrapping="Wrap"
+                                           AutomationProperties.Name="Automatic backup interval description" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+                                <Button x:Name="DecrementIntervalButton" Content="−"
+                                        Style="{StaticResource WlStepperButton}"
+                                        AutomationProperties.Name="Back up less often" />
+                                <Border Width="62" Height="34" Background="{DynamicResource WlSunken}"
+                                        BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
+                                        CornerRadius="8">
+                                    <TextBlock Text="{Binding IntervalText}"
+                                               Style="{StaticResource WlMonoReadoutText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               AutomationProperties.Name="Shortest gap between automatic backups" />
+                                </Border>
+                                <Button x:Name="IncrementIntervalButton" Content="+" Margin="-1,0,0,0"
+                                        Style="{StaticResource WlStepperButton}"
+                                        AutomationProperties.Name="Back up more often" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 3: the daily backup switch. -->
+                    <Border Margin="0,10,0,0" Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="16,14">
+                                <TextBlock Text="Also back up at a set time each day"
+                                           Style="{StaticResource WlRowNameText}"
+                                           Foreground="{DynamicResource WlStrong}"
+                                           AutomationProperties.Name="Daily backup label" />
+                                <TextBlock Text="Whether or not anything changed. If a backup already happened after that time, the day is covered and this one is skipped."
+                                           Style="{StaticResource WlSecondaryText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                           TextWrapping="Wrap"
+                                           AutomationProperties.Name="Daily backup description" />
+                            </StackPanel>
+
+                            <CheckBox x:Name="DailyBackupToggle" Grid.Column="1"
+                                      VerticalAlignment="Center" Margin="16,0"
+                                      Style="{StaticResource WlToggle}"
+                                      IsChecked="{Binding DailyBackupEnabled, Mode=TwoWay}"
+                                      AutomationProperties.Name="Also back up at a set time each day" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 4: the time itself. HIDDEN when the switch is off, the same rule the
+                         WHICH WAVE LINK section follows - a control with no effect is worse than no
+                         control. Half-hour steps, wrapping at midnight, 24-hour mono. -->
+                    <Border x:Name="DailyTimeRow" Margin="0,10,0,0" Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8"
+                            Visibility="{Binding DailyBackupEnabled, Converter={StaticResource DividerVisible}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="16,14">
+                                <TextBlock Style="{StaticResource WlRowNameText}"
+                                           Foreground="{DynamicResource WlStrong}"
+                                           AutomationProperties.Name="Daily backup time label">
+                                    <Run Text="Every day at" /><Run Text=" " /><Run Text="{Binding DailyTimeText, Mode=OneWay}" />
+                                </TextBlock>
+                                <!-- Said plainly rather than left for the user to discover by losing
+                                     a whole night. This is not a scheduled task. -->
+                                <TextBlock Text="Your computer has to be awake and this app running."
+                                           Style="{StaticResource WlSecondaryText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                           TextWrapping="Wrap"
+                                           AutomationProperties.Name="Daily backup time description" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+                                <Button x:Name="DecrementDailyTimeButton" Content="−"
+                                        Style="{StaticResource WlStepperButton}"
+                                        AutomationProperties.Name="Earlier daily backup time" />
+                                <Border Width="62" Height="34" Background="{DynamicResource WlSunken}"
+                                        BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
+                                        CornerRadius="8">
+                                    <TextBlock Text="{Binding DailyTimeText}"
+                                               Style="{StaticResource WlMonoReadoutText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               AutomationProperties.Name="Daily backup time" />
+                                </Border>
+                                <Button x:Name="IncrementDailyTimeButton" Content="+" Margin="-1,0,0,0"
+                                        Style="{StaticResource WlStepperButton}"
+                                        AutomationProperties.Name="Later daily backup time" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 5: the keep-count stepper. LAST, deliberately: it is about what happens
+                         to backups after they exist, and everything above it is about when they are
+                         made. Same row shape, 10px below the row before it. -->
                     <Border Margin="0,10,0,0" Background="{DynamicResource WlBg}"
                             BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
                         <Grid>

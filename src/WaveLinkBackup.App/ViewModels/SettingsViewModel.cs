@@ -213,6 +213,8 @@ public sealed class SettingsViewModel : ObservableObject
     private string backupFolder;
     private bool autoBackupEnabled;
     private int autoBackupKeepCount;
+    private int autoBackupIntervalMinutes;
+    private int? dailyBackupMinutes;
     private bool includePresets;
     private bool includePluginFiles;
     private bool isHighContrast;
@@ -229,6 +231,8 @@ public sealed class SettingsViewModel : ObservableObject
         backupFolder = settings.StorePath;
         autoBackupEnabled = settings.AutoBackupEnabled;
         autoBackupKeepCount = settings.AutoBackupKeepCount;
+        autoBackupIntervalMinutes = settings.AutoBackupIntervalMinutes;
+        dailyBackupMinutes = settings.DailyBackupMinutes;
         includePresets = settings.IncludePresets;
         includePluginFiles = settings.IncludePluginFiles;
 
@@ -273,6 +277,119 @@ public sealed class SettingsViewModel : ObservableObject
                 Commit(persisted with { AutoBackupKeepCount = clamped });
         }
     }
+
+    /// <summary>Move the keep-count stepper by one. The − / + buttons call this and nothing else.</summary>
+    public void StepKeepCount(int direction) => AutoBackupKeepCount = autoBackupKeepCount + direction;
+
+    // ---------------------------------------------------------------- how often (screens/14)
+
+    /// <summary>
+    /// The cap between two automatic backups, in minutes. Snapped to the ladder rather than
+    /// clamped to a range: every position has to be a number a person would choose, and a value
+    /// arriving from a hand-edited settings file must land on one of them too.
+    /// </summary>
+    public int AutoBackupIntervalMinutes
+    {
+        get => autoBackupIntervalMinutes;
+        set
+        {
+            var snapped = Snap(value);
+            if (!Set(ref autoBackupIntervalMinutes, snapped)) return;
+
+            Commit(persisted with { AutoBackupIntervalMinutes = snapped });
+            Raise(nameof(IntervalText));
+            Raise(nameof(IntervalLabel));
+        }
+    }
+
+    /// <summary>
+    /// Move one rung up (+1) or down (-1) the ladder. Stops at both ends rather than wrapping: a
+    /// stepper that jumps from 24 h to 15 min on one press is a stepper that mis-sets itself.
+    /// </summary>
+    public void StepInterval(int direction)
+    {
+        var ladder = BackupSettings.IntervalLadder;
+        var index = ladder.ToList().IndexOf(autoBackupIntervalMinutes);
+        if (index < 0) index = ladder.ToList().IndexOf(Snap(autoBackupIntervalMinutes));
+
+        AutoBackupIntervalMinutes = ladder[Math.Clamp(index + direction, 0, ladder.Count - 1)];
+    }
+
+    /// <summary>The stepper's mono readout: "15 MIN", "1 H", "24 H".</summary>
+    public string IntervalText => autoBackupIntervalMinutes < 60
+        ? $"{autoBackupIntervalMinutes} MIN"
+        : $"{autoBackupIntervalMinutes / 60} H";
+
+    /// <summary>
+    /// The row's title, which IS the value read back as a sentence. Written here rather than as a
+    /// fixed string in the XAML so the label and the control cannot drift - the old copy said "at
+    /// most one an hour" beside a constant nobody could change, and that was the whole problem.
+    /// </summary>
+    public string IntervalLabel => autoBackupIntervalMinutes switch
+    {
+        60 => "At most one automatic backup an hour",
+        1440 => "At most one automatic backup a day",
+        < 60 => $"At most one automatic backup every {autoBackupIntervalMinutes} minutes",
+        _ => $"At most one automatic backup every {autoBackupIntervalMinutes / 60} hours",
+    };
+
+    private static int Snap(int minutes) =>
+        BackupSettings.IntervalLadder.MinBy(rung => Math.Abs(rung - minutes));
+
+    // ----------------------------------------------------------- and at a set time (screens/14)
+
+    /// <summary>
+    /// Whether a daily backup is taken as well. Switching it on starts at 03:00; switching it off
+    /// forgets the time rather than keeping a value nothing reads - null IS "off" in the settings
+    /// file, and two ways to say off is one too many.
+    /// </summary>
+    public bool DailyBackupEnabled
+    {
+        get => dailyBackupMinutes is not null;
+        set
+        {
+            int? next = value ? dailyBackupMinutes ?? BackupSettings.DefaultDailyMinutes : null;
+            if (next == dailyBackupMinutes) return;
+
+            dailyBackupMinutes = next;
+            Commit(persisted with { DailyBackupMinutes = next });
+
+            Raise(nameof(DailyBackupEnabled));
+            Raise(nameof(DailyBackupMinutes));
+            Raise(nameof(DailyTimeText));
+        }
+    }
+
+    /// <summary>Minutes past local midnight, or null when the daily backup is off.</summary>
+    public int? DailyBackupMinutes => dailyBackupMinutes;
+
+    /// <summary>
+    /// Move the daily time by half an hour, wrapping at midnight. Wrapping is right here and wrong
+    /// for the interval: a clock is a circle and 23:30 + 30 min is 00:00, whereas a duration ladder
+    /// has two ends.
+    /// </summary>
+    public void StepDailyTime(int direction)
+    {
+        if (dailyBackupMinutes is not { } current) return;
+
+        const int day = 24 * 60;
+        var next = ((current + (direction * BackupSettings.DailyStepMinutes)) % day + day) % day;
+        if (next == current) return;
+
+        dailyBackupMinutes = next;
+        Commit(persisted with { DailyBackupMinutes = next });
+
+        Raise(nameof(DailyBackupMinutes));
+        Raise(nameof(DailyTimeText));
+    }
+
+    /// <summary>
+    /// "03:00". Twenty-four hour regardless of the OS clock format: this is a mono value in a
+    /// technical row, sitting next to "1 H" and "30", not a timestamp in prose.
+    /// </summary>
+    public string DailyTimeText => dailyBackupMinutes is { } minutes
+        ? $"{minutes / 60:D2}:{minutes % 60:D2}"
+        : string.Empty;
 
     /// <summary>
     /// Tier 3 — effect presets. Commits on change like every other control here; phase 6 built

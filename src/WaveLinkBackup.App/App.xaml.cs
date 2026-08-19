@@ -218,8 +218,11 @@ public partial class App : Application
             ? live.Value.Location.LocalStatePath
             : SettingsLocator.SystemLocalAppData;
 
+        // The user's own timings (screens/14-backup-timing.md): the interval cap they chose, and
+        // the daily copy if they switched one on. AutoBackupPolicy.Default is the pair of constants
+        // these two settings replaced.
         var coordinator = new AutoBackupCoordinator(
-            new FileSystemSettingsWatcher(watchPath), service, clock);
+            new FileSystemSettingsWatcher(watchPath), service, clock, AutoBackupPolicy.For(settings));
 
         // The window's own data model. Built here rather than in MainWindow's constructor so it
         // exists (and RefreshShellFacts can reach it) even before any window is ever shown - the
@@ -412,6 +415,31 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// Save a settings change AND make it true of the running app. The Settings dialog has no Save
+    /// button - every control commits immediately - so this is what "commits immediately" has to
+    /// mean: written to disk, and reflected in the objects already running.
+    ///
+    /// Only writing the file was the old behaviour, and it made every control on that screen a
+    /// control that appeared not to work until the next launch. The tier toggles were the visible
+    /// case (App holds the record GatherPayload closes over, and it stayed stale), the automatic-
+    /// backup switch the quiet one.
+    /// </summary>
+    private bool ApplySettings(BackupSettings next)
+    {
+        if (!settingsRepository!.Save(next).IsSuccess) return false;
+
+        settings = next;
+
+        if (host is not null)
+        {
+            host.AutoBackupEnabled = next.AutoBackupEnabled;
+            host.Policy = AutoBackupPolicy.For(next);
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// The settings view-model, built from the live store and current settings. Exposed separately
     /// so tests can drive the two sections (folder + when-to-back-up) without a window: they read
     /// the same seams the dialog binds to - the trash row and the free-space figure - and write
@@ -443,7 +471,7 @@ public partial class App : Application
 
         var vm = SettingsViewModel.Build(
             settings,
-            s => repo.Save(s).IsSuccess,
+            ApplySettings,
             whereLive,
             whichLive);
 

@@ -79,7 +79,7 @@ deliberately not in 1.0).
 |---|---|---|
 | Hash-dedup | ✅ | `BackupService.CaptureAutomatic`; manual captures are never deduped, deliberately |
 | Snapshot metadata | ✅ | `manifest.json` carries all seven fields |
-| Watch, don't poll | ✅ | `FileSystemSettingsWatcher` + ~60s debounce, at most one automatic capture an hour |
+| Watch, don't poll | ✅ | `FileSystemSettingsWatcher` + ~60s debounce. The hourly cap is now the user's to set (15 min – 24 h), alongside an optional daily backup ([14-backup-timing.md](../operations/design/screens/14-backup-timing.md)) |
 | Snapshot on shutdown | ✅ | `CaptureOnShutdown` |
 | Store outside `LocalState` | ✅ | [[ADR-003]] — the critical inherited defect |
 | Adjacent Elgato configs | ⛔ | Scope widening; not planned |

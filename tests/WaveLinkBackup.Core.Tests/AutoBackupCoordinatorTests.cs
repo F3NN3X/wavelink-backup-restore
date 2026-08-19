@@ -35,7 +35,8 @@ public sealed class AutoBackupCoordinatorTests
         public BackupService Service { get; }
         public AutoBackupCoordinator Coordinator { get; }
 
-        public Harness(int keepCount = SnapshotRetention.DefaultKeepCount)
+        public Harness(
+            int keepCount = SnapshotRetention.DefaultKeepCount, AutoBackupPolicy? policy = null)
         {
             Fs.AddFile(SettingsPath, Config("Wave Mic 1"));
 
@@ -43,7 +44,8 @@ public sealed class AutoBackupCoordinatorTests
             Service = new BackupService(
                 new SettingsInspector(new SettingsLocator(Fs, LocalAppData), new SettingsReader(Fs)),
                 Store, keepCount);
-            Coordinator = new AutoBackupCoordinator(Watcher, Service, Clock, AutoBackupPolicy.Default);
+            Coordinator = new AutoBackupCoordinator(
+                Watcher, Service, Clock, policy ?? AutoBackupPolicy.Default);
         }
 
         /// <summary>Changes the settings file so the next capture is not a duplicate.</summary>
@@ -51,6 +53,96 @@ public sealed class AutoBackupCoordinatorTests
             Fs.WriteBytes(SettingsPath, Encoding.UTF8.GetBytes(Config(micName)));
 
         public void Dispose() => Coordinator.Dispose();
+    }
+
+    // --------------------------------------------------- the daily copy (screens/14-backup-timing)
+
+    /// <summary>03:00 local, with the fake clock's own offset standing in for the user's.</summary>
+    private static AutoBackupPolicy DailyAtThree =>
+        new(TimeSpan.FromSeconds(60), TimeSpan.FromHours(1), new TimeOnly(3, 0));
+
+    [Fact]
+    public void The_daily_copy_captures_with_no_write_pending_at_all()
+    {
+        // The whole difference from the change-driven path: nothing touched the file, and a backup
+        // is taken anyway. Dedup decides whether it costs anything.
+        using var h = new Harness(policy: DailyAtThree);
+        h.Coordinator.Start();
+        h.Clock.UtcNow = new DateTimeOffset(2026, 8, 19, 3, 0, 0, TimeSpan.Zero);
+
+        var result = h.Coordinator.Tick();
+
+        Assert.Equal(CaptureDecision.Scheduled, result.Decision);
+        Assert.Single(h.Store.List());
+    }
+
+    [Fact]
+    public void A_daily_copy_that_dedups_still_counts_as_todays()
+    {
+        // The trap this exists for: dedup stores nothing, so the change-driven path deliberately
+        // does NOT record the capture - and if the daily path borrowed that rule, the decision
+        // would come back Scheduled on every tick and re-attempt a capture every fifteen seconds
+        // until midnight.
+        using var h = new Harness(policy: DailyAtThree);
+        h.Coordinator.Start();
+        h.Clock.UtcNow = new DateTimeOffset(2026, 8, 19, 3, 0, 0, TimeSpan.Zero);
+
+        h.Coordinator.Tick();
+        var second = h.Coordinator.Tick();
+
+        Assert.False(second.Captured);
+        Assert.Equal(CaptureDecision.NothingPending, second.Decision);
+        Assert.Single(h.Store.List());
+    }
+
+    [Fact]
+    public void An_edit_after_the_daily_time_means_no_daily_copy_that_day()
+    {
+        using var h = new Harness(policy: DailyAtThree);
+        h.Coordinator.Start();
+
+        // 03:30: an ordinary change-driven capture.
+        h.Clock.UtcNow = new DateTimeOffset(2026, 8, 19, 3, 30, 0, TimeSpan.Zero);
+        h.EditSettings("Wave Mic 2");
+        h.Watcher.RaiseChange();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+
+        Assert.True(h.Coordinator.Tick().Captured);
+
+        // Later the same day, the daily copy has nothing to add.
+        h.Clock.UtcNow = new DateTimeOffset(2026, 8, 19, 21, 0, 0, TimeSpan.Zero);
+
+        Assert.Equal(CaptureDecision.NothingPending, h.Coordinator.Tick().Decision);
+        Assert.Single(h.Store.List());
+    }
+
+    [Fact]
+    public void Changing_the_timings_takes_effect_on_the_next_tick()
+    {
+        // The Settings dialog commits on change and has no Save button, so a stepper whose new
+        // value only applied on the next launch would be a control that appears not to work.
+        using var h = new Harness();
+        h.Coordinator.Start();
+
+        h.EditSettings("Wave Mic 2");
+        h.Watcher.RaiseChange();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        Assert.True(h.Coordinator.Tick().Captured);
+
+        // Twenty minutes later, with a new edit settled: rate limited at the default hour.
+        h.EditSettings("Wave Mic 3");
+        h.Watcher.RaiseChange();
+        h.Clock.Advance(TimeSpan.FromMinutes(20));
+        Assert.Equal(CaptureDecision.RateLimited, h.Coordinator.Tick().Decision);
+
+        h.Coordinator.Policy = AutoBackupPolicy.For(
+            BackupSettings.Default with { AutoBackupIntervalMinutes = 15 });
+
+        h.EditSettings("Wave Mic 4");
+        h.Watcher.RaiseChange();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+
+        Assert.True(h.Coordinator.Tick().Captured);
     }
 
     // ------------------------------------------------------------------ debounce

@@ -52,6 +52,23 @@ public partial class SettingsDialog : Window
         ChangeWaveLinkButton.Click += (_, _) =>
             (Application.Current as App)?.ChangeWaveLink(this);
 
+        // The three steppers. Two lines each, calling a method on the view model that owns the
+        // ladder, the clamp and the wrap - the same reason the buttons above are code-behind rather
+        // than commands.
+        //
+        // The keep-count pair had NO handler at all until the other two were added beside it: the
+        // buttons rendered, the readout bound, and pressing either did nothing. Nothing caught it
+        // because the view model's clamp was unit-tested and the wiring never was, which is what
+        // SettingsDialogViewTests now asserts by clicking them.
+        DecrementKeepCountButton.Click += (_, _) => model.StepKeepCount(-1);
+        IncrementKeepCountButton.Click += (_, _) => model.StepKeepCount(+1);
+
+        DecrementIntervalButton.Click += (_, _) => model.StepInterval(-1);
+        IncrementIntervalButton.Click += (_, _) => model.StepInterval(+1);
+
+        DecrementDailyTimeButton.Click += (_, _) => model.StepDailyTime(-1);
+        IncrementDailyTimeButton.Click += (_, _) => model.StepDailyTime(+1);
+
         // Focus the Close button when the dialog opens: it is the safe action and the only one that
         // needs no thought, so a keyboard user who hits Enter immediately dismisses rather than
         // changes something.
