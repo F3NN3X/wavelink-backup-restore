@@ -329,6 +329,16 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- The unbuilt-tier footnote (08-settings-persistence.md "Unbuilt tiers"): the two
+                         NOT BUILT YET rows stay on screen, off and unmovable, and this line says why -
+                         hiding them would make the backup look more complete than it is. It is a fact
+                         about the section above, not a control, so it is plain muted body text, 8px below
+                         the notes block. -->
+                    <TextBlock Text="Both switches are off and can't be moved yet. They stay on screen because hiding them would make the backup look more complete than it is."
+                               Style="{StaticResource WlSecondaryText}" Foreground="{DynamicResource WlMuted}"
+                               Margin="0,8,0,0" TextWrapping="Wrap" LineHeight="17.25"
+                               AutomationProperties.Name="Unbuilt tiers footnote" />
+
                     <!-- ============ WHEN TO BACK UP ============ -->
                     <TextBlock Text="WHEN TO BACK UP" Style="{StaticResource WlColumnHeaderText}"
                                Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
