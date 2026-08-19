@@ -2,7 +2,7 @@
 title: "Technical Debt"
 status: published
 created: 2026-08-16
-updated: 2026-08-18
+updated: 2026-08-19
 tags: [meta, technical-debt]
 ---
 
@@ -530,6 +530,28 @@ invisible, which is the intended state — a tested seam waiting for its caller,
 **One sub-item is genuinely open rather than merely unwired:** the *Failed* state's `WlDangerSoft`
 is Transparent in HighContrast per `11-high-contrast.md`, and nobody has watched that read as
 "failed" in a real high-contrast theme. The rule is applied; the pixels are not yet checked.
+
+### 4.10 First-run "Wave Link not found" variant — **open, carried forward from plan 7**
+
+Phase 5 plan 7 shipped the first-run / empty state (Screen 4) with its **found** variant: the
+green dot, *"Found Wave Link's settings — 5 inputs · C:\Users\…\LocalState\Settings.json"*, and
+the amber "Wave Link not found" status-strip line for error 1. The **not-found first-run variant**
+is deliberately not built yet: when Wave Link is absent on the very first run, Screen 4 should
+render without the green found-line (or with a neutral *"No Wave Link installation found"* note)
+and still offer *Back up now* / *Choose where to keep them*, because an explicit settings path
+(§2.2's `SettingsLocator.Locate(explicitSettingsPath)`) can make the app useful to non-MSIX users
+even with no discoverable install.
+
+**Why it was left:** plan 7's scope was the found-path first run plus the twelve error screens;
+the not-found-first-run combination is a distinct state that needs its own design pass in
+`06-errors.md` (it is the one screen where an *error* and the *empty state* overlap) before code.
+The status-strip amber line for error 1 already exists, so nothing regresses — the app simply
+does not yet special-case first-run-when-not-found beyond that strip.
+
+**What closes this:** a designed variant in `06-errors.md`, then a Screen 4 branch keyed on
+`WaveLinkInputs == null` (the harness already models it) that suppresses the found-line and shows
+the neutral note. **Phase:** 5, after plan 7. **See:** §2.2 (non-MSIX installs) and
+[[file-parses-but-wave-link-resets]].
 
 ---
 
