@@ -113,9 +113,9 @@ One screen serves both (08 §"The folder is gone"): the backup folder can't be u
 
 ## Task 6 — First-run / empty state (Screen 4)
 
-- [ ] **Step 1:** Add the empty-state view, driven by `IsFirstRun` (`Backups.Count == 0`): caption bar and bottom bar as usual; Restore/Rename/Delete disabled at 40%; Back up now live. The list area is replaced by a centred column: the MeasureRule frame (440px hairlines above/below with end ticks + inner ticks at 12% and 38%), "No backups yet" (Rubik 500 30px), the body sentence (max 430px, centred), then Back up now (primary) + Choose where to keep them (secondary), the checked "Keep backing up on its own…" checkbox, and the found-line: ok dot + "WAVE LINK FOUND · N INPUTS · SETTINGS LAST SAVED …" with the settings path in mono at 80%.
-- [ ] **Step 2:** Footer strip: `%LOCALAPPDATA%\WaveLinkBackup` left, "FREE AND OPEN SOURCE · NOTHING LEAVES THIS COMPUTER" right.
-- [ ] **Step 3:** Unit test: `IsFirstRun` true → empty state shown and the three destructive/restore actions disabled; after the first backup is written the list returns. (The "Wave Link not found" variant is NOT built — it is an open gap, see below.) Commit: `feat(app): first-run / empty state`.
+- [x] **Step 1:** Add the empty-state view, driven by `IsFirstRun` (`Backups.Count == 0`): caption bar and bottom bar as usual; Restore/Rename/Delete disabled at 40%; Back up now live. The list area is replaced by a centred column: the MeasureRule frame (440px hairlines above/below with end ticks + inner ticks at 12% and 38%), "No backups yet" (Rubik 500 30px), the body sentence (max 430px, centred), then Back up now (primary) + Choose where to keep them (secondary), the checked "Keep backing up on its own…" checkbox, and the found-line: ok dot + "WAVE LINK FOUND · N INPUTS · SETTINGS LAST SAVED …" with the settings path in mono at 80%.
+- [x] **Step 2:** Footer strip: `%LOCALAPPDATA%\WaveLinkBackup` left, "FREE AND OPEN SOURCE · NOTHING LEAVES THIS COMPUTER" right.
+- [x] **Step 3:** Unit test: `IsFirstRun` true → empty state shown and the three destructive/restore actions disabled; after the first backup is written the list returns. (The "Wave Link not found" variant is NOT built — it is an open gap, see below.) Commit: `feat(app): first-run / empty state`.
 
 ## Task 7 — Weight-rule integration test + full verification
 

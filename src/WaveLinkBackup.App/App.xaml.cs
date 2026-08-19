@@ -511,6 +511,8 @@ public partial class App : Application
             WaveLinkFound: inspection.IsSuccess,
             WaveLinkRunning: waveLinkProcess?.IsRunning ?? false,
             SettingsLastSavedLocal: savedAt,
+            WaveLinkInputs: inspection.IsSuccess ? inspection.Value.Analysis.Fingerprint.InputCount : 0,
+            WaveLinkSettingsPath: inspection.IsSuccess ? inspection.Value.Location.SettingsPath : null,
             AutoBackupEnabled: host?.AutoBackupEnabled ?? false,
             FolderMissing: !fileSystem.DirectoryExists(settings.StorePath),
             StorePath: settings.StorePath,

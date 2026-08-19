@@ -69,12 +69,15 @@ internal static class ShellViewModelHarness
         };
 
         var process = new FakeWaveLinkProcess { Running = waveLinkRunning };
-        var found = SettingsInspector.For(fs, LocalAppData).Inspect().IsSuccess;
+        var inspection = SettingsInspector.For(fs, LocalAppData).Inspect();
+        var found = inspection.IsSuccess;
 
         var facts = new ShellFacts(
             WaveLinkFound: found,
             WaveLinkRunning: process.IsRunning,
             SettingsLastSavedLocal: found ? savedAt : null,
+            WaveLinkInputs: found ? inspection.Value.Analysis.Fingerprint.InputCount : 0,
+            WaveLinkSettingsPath: found ? inspection.Value.Location.SettingsPath : null,
             AutoBackupEnabled: autoBackupEnabled,
             FolderMissing: folderMissing,
             StorePath: storePath,

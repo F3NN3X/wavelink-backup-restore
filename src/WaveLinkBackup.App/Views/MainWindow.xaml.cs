@@ -12,6 +12,7 @@ using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.Core.Io;
 using WaveLinkBackup.Core.Results;
+using WaveLinkBackup.Core.Snapshots;
 
 namespace WaveLinkBackup.App.Views;
 
@@ -94,6 +95,36 @@ public partial class MainWindow : Window
         BackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
 
         SettingsButton.Click += (_, _) => App.OpenSettings();
+
+        // Screen 4 (first-run / empty state): its own "Back up now" and "Choose where to keep
+        // them" live in the stand-in region, so they are wired here rather than on the bottom bar.
+        // Both reuse the exact same actions as the bottom bar - BackUpNowAsync and the folder
+        // picker - so there is one code path for each.
+        EmptyBackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
+        ChooseWhereToKeepButton.Click += (_, _) => ChooseWhereToKeep_Click();
+    }
+
+    /// <summary>
+    /// Screen 4's "Choose where to keep them": the same folder picker as error 12's
+    /// "Choose a folder…", pointed at the current store path. In the empty state there is no
+    /// missing-folder context, so InitialDirectory falls back to the default store location.
+    /// </summary>
+    private void ChooseWhereToKeep_Click()
+    {
+        if (Application.Current is not App app) return;
+
+        var picker = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Choose a folder for Wave Link backups",
+            InitialDirectory = string.IsNullOrEmpty(shell.List.FolderMissingPath)
+                ? SnapshotStore.DefaultStorePath
+                : shell.List.FolderMissingPath,
+        };
+
+        if (picker.ShowDialog(this) == true)
+        {
+            app.SetStorePath(picker.FolderName);
+        }
     }
 
     private void WireSearch()

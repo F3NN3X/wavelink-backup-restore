@@ -21,10 +21,14 @@ public enum StripTone
 
 /// <param name="WaveLinkFound">False means no settings file in any of the usual places.</param>
 /// <param name="SettingsLastSavedLocal">Null when the file could not be read at all.</param>
+/// <param name="WaveLinkInputs">How many inputs the live configuration has - the first-run found-line's "N INPUTS". Zero when the settings could not be read.</param>
+/// <param name="WaveLinkSettingsPath">The path to Wave Link's own Settings.json - Screen 4's mono line beneath the found-line. Null when discovery failed.</param>
 public sealed record ShellFacts(
     bool WaveLinkFound,
     bool WaveLinkRunning,
     DateTimeOffset? SettingsLastSavedLocal,
+    int WaveLinkInputs,
+    string? WaveLinkSettingsPath,
     bool AutoBackupEnabled,
     bool FolderMissing,
     string StorePath,
@@ -39,7 +43,7 @@ public sealed record ShellFacts(
 /// </summary>
 public sealed class ShellViewModel : ObservableObject
 {
-    private ShellFacts facts = new(true, false, null, true, false, string.Empty, null);
+    private ShellFacts facts = new(true, false, null, 0, null, true, false, string.Empty, null);
     private bool isHighContrast;
     private bool isRestoring;
     private RestoreProgressModel restoreProgress = new();
@@ -186,6 +190,45 @@ public sealed class ShellViewModel : ObservableObject
         : "LOOKED IN %LOCALAPPDATA%\\Packages\\Elgato.WaveLink_*";
 
     /// <summary>
+    /// Screen 4 (first-run / empty state): the store has no backups yet. This is what swaps the
+    /// list area for the centred column - caption bar and bottom bar stay as usual, Restore /
+    /// Rename / Delete hold at 40% (they have nothing to act on), Back up now stays live. It is
+    /// NOT the same fact as <see cref="FirstRunError1Label"/>: that one is the Wave-Link-not-found
+    /// variant of error 1, which only shows when discovery ALSO failed; here Wave Link is found
+    /// and there is simply nothing backed up yet.
+    /// </summary>
+    public bool IsFirstRun => List.TotalCount == 0 && !facts.FolderMissing;
+
+    /// <summary>
+    /// Screen 4's found-line, line 6: "WAVE LINK FOUND · N INPUTS · SETTINGS LAST SAVED …".
+    /// The design fixes this to the Wave-Link-found variant; when discovery failed the not-found
+    /// variant takes its place (an open gap - see technical-debt), so this returns null then and
+    /// the view keeps only the ok-dot line absent.
+    /// </summary>
+    public string? FoundLine => !facts.WaveLinkFound || List.TotalCount != 0
+        ? null
+        : $"WAVE LINK FOUND · {facts.WaveLinkInputs} INPUTS · "
+          + (facts.SettingsLastSavedLocal is { } at
+              ? $"SETTINGS LAST SAVED {Readable.TimeOfDay(at)}"
+              : "SETTINGS NEVER SAVED");
+
+    /// <summary>
+    /// Screen 4's settings-path line, beneath the found-line in mono at 80%: the path to Wave
+    /// Link's own Settings.json. Absent when discovery failed (nothing to point at) or once a
+    /// backup exists (the list has taken over).
+    /// </summary>
+    public string? FoundSettingsPath => !facts.WaveLinkFound || List.TotalCount != 0
+        ? null
+        : facts.WaveLinkSettingsPath;
+
+    /// <summary>
+    /// The configured store path, verbatim. Screen 4's footer strip shows it on the left
+    /// ("where your backups will live"); the bottom bar already renders it as its mono line, so
+    /// this is a plain projection of <see cref="facts"/> with no state gating.
+    /// </summary>
+    public string StorePath => facts.StorePath;
+
+    /// <summary>
     /// Re-raise the status tone so a binding re-reads it. The window calls this when the restore
     /// strip's TurnsStatusAmber flips: 03-restore-outcomes.md says a Rejected strip turns the
     /// status strip amber too, and that is an ADDITIONAL condition on top of StatusTone's own
@@ -295,6 +338,7 @@ public sealed class ShellViewModel : ObservableObject
         [
             nameof(StatusStrip), nameof(StatusTone), nameof(SelectedLine), nameof(SummaryLine),
             nameof(FirstRunError1Label), nameof(FirstRunLookedInLabel),
+            nameof(IsFirstRun), nameof(FoundLine), nameof(FoundSettingsPath), nameof(StorePath),
             nameof(CanRename), nameof(CanDelete), nameof(CanRestore), nameof(CanBackUpNow),
         ])
         {

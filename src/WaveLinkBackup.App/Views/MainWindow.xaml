@@ -755,16 +755,13 @@
             </StackPanel>
 
             <!--
-              Empty and FolderMissing: stand-ins, NOT the designed screens - first run (screen 4)
-              and error 12's full screen both arrive in later sessions. Each renders the column
-              header (since row 2's own copy hid itself for exactly these two states) plus one
-              centred line, and nothing else.
+              Screen 4 (first-run / empty state). Replaces the list area: caption bar and bottom
+              bar stay as usual, Restore/Rename/Delete hold at 40% (CanX is false - there is
+              nothing to act on), Back up now stays live. The found-line renders only when Wave
+              Link was discovered; the not-found variant is an open gap (technical-debt) and
+              leaves the ok-dot line absent.
             -->
             <Grid x:Name="EmptyStandIn">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Collapsed" />
@@ -776,13 +773,115 @@
                     </Style>
                 </Grid.Style>
 
-                <Border Grid.Row="0" BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1"
-                        Padding="11,20,9,20">
-                    <ContentControl ContentTemplate="{StaticResource WlColumnHeaderRowTemplate}" Focusable="False" />
-                </Border>
-                <TextBlock Grid.Row="1" Text="No backups yet." Style="{StaticResource WlBodyText}"
-                           Foreground="{DynamicResource WlText}" HorizontalAlignment="Center"
-                           VerticalAlignment="Center" />
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440">
+                    <!-- Measure-rule frame: hairline above the title block, end ticks + inner
+                         ticks at 12% and 38%, 16px from content. -->
+                    <Grid Width="440" Height="12" Margin="0,0,0,16">
+                        <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource WlLine}"
+                                VerticalAlignment="Bottom" />
+                        <Border Width="1" Height="8" Background="{DynamicResource WlLine}"
+                                HorizontalAlignment="Left" VerticalAlignment="Bottom" />
+                        <Border Width="1" Height="8" Background="{DynamicResource WlLine}"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                        <Border Width="1" Height="5" Background="{DynamicResource WlLine}"
+                                HorizontalAlignment="Left" Margin="52.8,0,0,0"
+                                VerticalAlignment="Bottom" />
+                        <Border Width="1" Height="5" Background="{DynamicResource WlLine}"
+                                HorizontalAlignment="Left" Margin="167.2,0,0,0"
+                                VerticalAlignment="Bottom" />
+                    </Grid>
+
+                    <TextBlock Text="No backups yet"
+                               FontFamily="{DynamicResource WlDisplayFont}"
+                               FontSize="30" FontWeight="Medium"
+                               Foreground="{DynamicResource WlStrong}"
+                               HorizontalAlignment="Center" />
+
+                    <!-- Measure-rule frame below the title block. -->
+                    <Grid Width="440" Height="12" Margin="0,16,0,16">
+                        <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource WlLine}"
+                                VerticalAlignment="Bottom" />
+                        <Border Width="1" Height="8" Background="{DynamicResource WlLine}"
+                                HorizontalAlignment="Left" VerticalAlignment="Bottom" />
+                        <Border Width="1" Height="8" Background="{DynamicResource WlLine}"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                        <Border Width="1" Height="5" Background="{DynamicResource WlLine}"
+                                HorizontalAlignment="Left" Margin="52.8,0,0,0"
+                                VerticalAlignment="Bottom" />
+                        <Border Width="1" Height="5" Background="{DynamicResource WlLine}"
+                                HorizontalAlignment="Left" Margin="167.2,0,0,0"
+                                VerticalAlignment="Bottom" />
+                    </Grid>
+
+                    <TextBlock TextWrapping="Wrap" MaxWidth="430"
+                               Text="Wave Link keeps about three days of its own copies. This keeps yours for as long as you like — every channel, every routing assignment, every effect chain."
+                               FontFamily="{DynamicResource WlDisplayFont}"
+                               FontSize="14.5" LineHeight="23"
+                               Foreground="{DynamicResource WlMuted}"
+                               HorizontalAlignment="Center" TextAlignment="Center" />
+
+                    <!-- Actions: Back up now (primary, live) + Choose where to keep them
+                         (secondary). 26px below the body. -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,26,0,0">
+                        <Button x:Name="EmptyBackUpNowButton" Content="Back up now"
+                                Style="{StaticResource WlPrimaryButton}"
+                                FontSize="15" Padding="12,0,12,0" MinWidth="130" />
+                        <Button x:Name="ChooseWhereToKeepButton"
+                                Content="Choose where to keep them" Margin="10,0,0,0"
+                                Style="{StaticResource WlSecondaryButton}"
+                                FontSize="14.5" Padding="14,0,14,0" />
+                    </StackPanel>
+
+                    <!-- Checkbox: checked by default - auto-backup on by default. 22px below. -->
+                    <CheckBox x:Name="KeepAutoBackupCheckbox" IsChecked="True" Margin="0,22,0,0"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Foreground="{DynamicResource WlText}" FontSize="13.5">
+                        <TextBlock Text="Keep backing up on its own when my settings change" />
+                    </CheckBox>
+
+                    <!-- Found-line (line 6): ok dot + mono line, then the settings path in
+                         mono at 80%. Absent entirely when Wave Link was not found. -->
+                    <StackPanel x:Name="FoundLinePanel" Margin="0,40,0,0" HorizontalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding FoundLine}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding FoundLine}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Ellipse Width="7" Height="7" Fill="{DynamicResource WlOk}"
+                                     VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Text="{Binding FoundLine}"
+                                       FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
+                                       Foreground="{DynamicResource WlOk}" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center"
+                                   Text="{Binding FoundSettingsPath}"
+                                   FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
+                                   Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+                    </StackPanel>
+
+                    <!-- Footer strip: store path left, provenance line right. -->
+                    <Grid Margin="0,40,0,0">
+                        <TextBlock HorizontalAlignment="Left"
+                                   Text="{Binding StorePath}"
+                                   FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
+                                   Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+                        <TextBlock HorizontalAlignment="Right"
+                                   Text="FREE AND OPEN SOURCE · NOTHING LEAVES THIS COMPUTER"
+                                   FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
+                                   Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+                    </Grid>
+                </StackPanel>
             </Grid>
 
             <!--
