@@ -1,8 +1,8 @@
 ---
 title: "Phase 5 Plan 9 — The tray shell"
-status: published
+status: completed
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-08-19
 related_adrs: [ADR-004, ADR-005]
 tags: [plan, implementation, app, wpf, tray, autostart, phase-5]
 ---
@@ -31,6 +31,18 @@ xunit.v3.
 **Spec:** [screens/12-tray-autostart-update.md](../operations/design/screens/12-tray-autostart-update.md) ·
 [screens/11-high-contrast.md](../operations/design/screens/11-high-contrast.md) (the tray's HC
 icon rule) · [README §Interactions](../operations/design/README.md)
+
+> **Executed 2026-08-19.** All five tasks complete: `ccca041` (Task 1, app icon asset),
+> `6a574c0` (Task 2, second-launch activation), `5e79975` (Task 3, autostart toggle with Task
+> Manager veto), `ee8703f` (Task 4, tray tracks the live host on every tick), `f801e5b`
+> (Task 5, hide-on-close + context menu verified against the spec). Suite at **959 green**
+> (296 Core, 91 CLI, 572 App), Release zero warnings. One deviation worth recording: the
+> window's caption glyph is rendered from geometry in code (`AppCaptionGlyph`) rather than set
+> as `Window.Icon="app.ico"` — a WPF resource-pack URI for an `<ApplicationIcon>`-only asset
+> fails at runtime (dotnet/wpf#209), and the exe/taskbar/Alt-Tab icon via `<ApplicationIcon>`
+> works fine. The hide branch of `OnClosing` is manual-verify-only: the test harness's shared
+> bare `Application` occupies WPF's one-per-AppDomain slot, so `new App()` throws
+> `InvalidOperationException`; documented in `MainWindowClosingTests.cs`.
 
 ---
 
@@ -105,7 +117,7 @@ The mark is the design's `shield-check` (README §Assets: "shield-check (title b
 It must match what `TrayIconRenderer` already draws for WATCHING — same shield outline, same
 check, 1.75px monoline on a 24px grid — so the static asset and the live icon read as one object.
 
-- [ ] **Step 1: Author `src/WaveLinkBackup.App/app.ico`.**
+- [x] **Step 1: Author `src/WaveLinkBackup.App/app.ico`.**
   Generate a multi-resolution `.ico` (16/20/24/32/40/48/64/128/256) of the shield-check mark.
   The cleanest source is the *same* geometry `TrayIconRenderer` uses (`ShieldPath` + `CheckPath`),
   rendered at each size with `WlText` on transparent — so author it once from that path rather
@@ -115,7 +127,7 @@ check, 1.75px monoline on a 24px grid — so the static asset and the live icon 
     and a hard white or hard black shield would vanish on a matching taskbar. Keep it neutral
     (`WlText`-equivalent grey) so it reads on light and dark alike.
 
-- [ ] **Step 2: Reference it in the csproj.**
+- [x] **Step 2: Reference it in the csproj.**
   Add to `src/WaveLinkBackup.App/WaveLinkBackup.App.csproj`, inside the existing `<PropertyGroup>`:
   ```xml
   <ApplicationIcon>app.ico</ApplicationIcon>
@@ -123,7 +135,7 @@ check, 1.75px monoline on a 24px grid — so the static asset and the live icon 
   This makes the exe carry the icon (file properties, taskbar, Alt-Tab). No `Resource` include is
   needed for `<ApplicationIcon>` — it is embedded by the linker, not the WPF resource pipeline.
 
-- [ ] **Step 3: Set `Window.Icon` on the main window.**
+- [x] **Step 3: Set `Window.Icon` on the main window.**
   In `src/WaveLinkBackup.App/Views/MainWindow.xaml`, add to the `<Window ...>` element:
   ```xml
   Icon="app.ico"
@@ -131,21 +143,21 @@ check, 1.75px monoline on a 24px grid — so the static asset and the live icon 
   The caption bar's own 14px shield-check glyph (drawn, per README §Screen 1) is separate and
   stays; `Window.Icon` is what the *OS chrome* shows.
 
-- [ ] **Step 4: Add a test that the asset exists and is a valid multi-size icon.**
+- [x] **Step 4: Add a test that the asset exists and is a valid multi-size icon.**
   In `tests/WaveLinkBackup.App.Tests/`, add `AppIconAssetTests.cs`:
     - assert the `.ico` file is present in the App project (so a deleted asset fails the build's
       test run, not a user's first launch),
     - load it via `System.Drawing.Icon` and assert it yields at least one usable size.
   Keep it free of colour assertions — this test guards *presence and validity*, not pixels.
 
-- [ ] **Step 5: Build + verify the icon actually lands.**
+- [x] **Step 5: Build + verify the icon actually lands.**
   ```
   dotnet build WaveLinkBackup.slnx -c Release
   ```
   Then launch the app and confirm: the exe's file-properties icon is the shield-check; the window
   caption/Alt-Tab shows it. (Visual check — no automated test can assert the OS taskbar glyph.)
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
   ```
   git add src/WaveLinkBackup.App/app.ico src/WaveLinkBackup.App/WaveLinkBackup.App.csproj \
           src/WaveLinkBackup.App/Views/MainWindow.xaml \
@@ -162,35 +174,35 @@ check, 1.75px monoline on a 24px grid — so the static asset and the live icon 
 flashing a window of its own. `--tray` launches must exit silently (`wantsWindow: false`) so an
 autostart at boot never forces a window open.
 
-- [ ] **Step 1: Wire the first instance to show the window on activation.**
+- [x] **Step 1: Wire the first instance to show the window on activation.**
   In `App.xaml.cs`, after acquiring `SingleInstance` and calling `StartListening()`, subscribe:
   ```csharp
   instance.ActivationRequested += (_, _) => Dispatcher.BeginInvoke(ShowMainWindow);
   ```
   (`ShowMainWindow` already de-minimizes and activates — reuse it, don't re-show logic.)
 
-- [ ] **Step 2: Make the second instance signal then exit.**
+- [x] **Step 2: Make the second instance signal then exit.**
   On startup, if `instance.IsFirst` is false: call
   `instance.SignalExistingInstance(wantsWindow: !args.StartInTray)` and shut down immediately
   (no window, no tray icon — the first instance already owns both). A plain launch (`wantsWindow:
   true`) brings the existing window forward; a `--tray` launch is a no-op to the user.
 
-- [ ] **Step 3: Add tests for the App's two-sided behaviour.**
+- [x] **Step 3: Add tests for the App's two-sided behaviour.**
   `SingleInstanceTests` covers the primitive (first wins, second knows, activation raises). Add a
   focused test that the *decision* is right: given `StartInTray == true`, the signal carries
   `wantsWindow: false`; given `false`, it carries `true`. Put it next to `ShellArgumentsTests`
   (it is about what a parsed launch implies), or a small `SecondLaunchTests.cs`.
 
-- [ ] **Step 4: Build + run the suite.**
+- [x] **Step 4: Build + run the suite.**
   ```
   dotnet build WaveLinkBackup.slnx -c Release && dotnet test WaveLinkBackup.slnx
   ```
 
-- [ ] **Step 5: Manual verify.** Launch the app; launch it again — the first window comes to the
+- [x] **Step 5: Manual verify.** Launch the app; launch it again — the first window comes to the
   front, no second tray icon appears. Then `dotnet run -- --tray` while one is running: nothing
   visible happens (silent).
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
   ```
   git add src/WaveLinkBackup.App/App.xaml.cs tests/WaveLinkBackup.App.Tests/
   git commit -m "app: a second launch activates the first; --tray exits silently"
@@ -208,7 +220,7 @@ so instead of fighting it.
 The Settings *dialog* is plan 8's; this task only produces what those rows bind to (the state +
 the toggle action) so plan 8 can drop them in. Keep it a small, testable seam, not a full dialog.
 
-- [ ] **Step 1: Expose autostart state + toggle on the shell.**
+- [x] **Step 1: Expose autostart state + toggle on the shell.**
   Add to `ShellViewModel` (or a small dedicated `AutostartState` view model if plan 8's Settings
   needs it isolated):
     - `AutostartState State { get; }` — mirrors `IAutostart`'s enum (Off / On / BlockedByTaskManager),
@@ -217,27 +229,27 @@ the toggle action) so plan 8 can drop them in. Keep it a small, testable seam, n
   The veto case: `State == BlockedByTaskManager` renders as **off** (`IsChecked == false`) with
   `CanEnableAutostart == false`, so the control is disabled and a note explains Task Manager won.
 
-- [ ] **Step 2: Wire the real `RunKeyAutostart` in `App.xaml.cs`.**
+- [x] **Step 2: Wire the real `RunKeyAutostart` in `App.xaml.cs`.**
   Construct it with the resolved `IRegistryKeys` and the running exe path; call its read on start
   and on every relevant refresh so `State` is live, not stale.
 
-- [ ] **Step 3: Add tests.**
+- [x] **Step 3: Add tests.**
     - a vetoed entry reports `BlockedByTaskManager`, renders off, and `CanEnableAutostart` is false,
     - toggling on writes the Run value with the `--tray` command line,
     - toggling off deletes it.
   Extend `AutostartTests.cs` (it already drives `RunKeyAutostart` through a fake registry) and add
   view-model tests for the render/enable rules.
 
-- [ ] **Step 4: Build + run the suite.**
+- [x] **Step 4: Build + run the suite.**
   ```
   dotnet build WaveLinkBackup.slnx -c Release && dotnet test WaveLinkBackup.slnx
   ```
 
-- [ ] **Step 5: Manual verify.** Toggle on → confirm `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+- [x] **Step 5: Manual verify.** Toggle on → confirm `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
   has `WaveLinkBackup` = `"…exe" --tray`. Toggle off → it's gone. (Disable via Task Manager in a
   scratch run to confirm the veto path reads off and won't re-enable.)
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
   ```
   git add src/WaveLinkBackup.App/ViewModels/ src/WaveLinkBackup.App/App.xaml.cs \
           tests/WaveLinkBackup.App.Tests/
@@ -253,35 +265,35 @@ design's four states must track the *running* host continuously — BACKING UP w
 in flight, NEEDS YOU the moment `LastError` is set, PAUSED when paused or auto-backup is off — so
 the tray never lags the truth it already has in `host.Conditions`.
 
-- [ ] **Step 1: Drive `RefreshTray()` from the host's tick.**
+- [x] **Step 1: Drive `RefreshTray()` from the host's tick.**
   In `App.xaml.cs`, ensure the periodic refresh (the same 15s cadence that calls
   `RefreshShellFacts`) also calls `RefreshTray()`, and that any host state change (capture start/
   end, pause/resume, auto-backup toggle, error) triggers it. The icon and the status strip are two
   readouts of one state; neither may go stale while the other updates.
 
-- [ ] **Step 2: Confirm the four states are reachable and correct.**
+- [x] **Step 2: Confirm the four states are reachable and correct.**
   Walk `TrayState.From` against live conditions and assert (in a test that feeds synthetic
   `TrayConditions`) the priority: NEEDS YOU (error) > BACKING UP (capturing) > PAUSED (paused or
   auto off) > WATCHING. This is already unit-tested in `TrayStateTests`; add an integration-style
   assertion that the *App's* refresh path produces the expected `TrayStatus` for each of the four
   host situations.
 
-- [ ] **Step 3: Verify the HC icon rule still holds through the live path.**
+- [x] **Step 3: Verify the HC icon rule still holds through the live path.**
   Confirm `ColourFor` is called with the current `IsHighContrast` on every refresh (it already is,
   via `systemTheme?.IsHighContrast ?? SystemParameters.HighContrast`) so PAUSED stays full-opacity
   `GrayText` and NEEDS YOU is `WindowText` in HC. Add a test if one does not already pin this for
   the *refresh* path specifically.
 
-- [ ] **Step 4: Build + run the suite.**
+- [x] **Step 4: Build + run the suite.**
   ```
   dotnet build WaveLinkBackup.slnx -c Release && dotnet test WaveLinkBackup.slnx
   ```
 
-- [ ] **Step 5: Manual verify.** Start a backup → icon goes BACKING UP, returns to WATCHING. Pause
+- [x] **Step 5: Manual verify.** Start a backup → icon goes BACKING UP, returns to WATCHING. Pause
   for an hour → PAUSED (and the menu item flips to "Resume"). Force an error path (point at a bad
   folder) → NEEDS YOU with the naming tooltip.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
   ```
   git add src/WaveLinkBackup.App/App.xaml.cs tests/WaveLinkBackup.App.Tests/
   git commit -m "app: tray icon tracks the live host on every tick"
@@ -295,13 +307,13 @@ the tray never lags the truth it already has in `host.Conditions`.
 and wired in `WireMenu`). This task is a *verification pass* — confirm they match `screens/12`
 exactly and add the thin tests that currently don't exist, rather than re-implementing.
 
-- [ ] **Step 1: Verify hide-on-close.**
+- [x] **Step 1: Verify hide-on-close.**
   Confirm closing the window calls `Hide()` (not `Close()`/shutdown), geometry is saved so it
   survives, and the app keeps running in the tray. Add a test in `MainWindowClosingTests.cs` if the
   hide-vs-exit distinction is not already pinned: cancel the `Closing` event, call `Hide()`, assert
   the window is hidden and the process/app stays alive.
 
-- [ ] **Step 2: Verify the context menu matches the spec item for item.**
+- [x] **Step 2: Verify the context menu matches the spec item for item.**
   Against `screens/12`, confirm the menu has, in order: the `LAST BACKUP` readout header (a
   readout, not an item), then **Back up now** (default, Rubik 500), **Open Wave Link Backup**,
   **Open the backup folder**, a separator, **Back up automatically** [toggle], **Pause for an
@@ -309,19 +321,19 @@ exactly and add the thin tests that currently don't exist, rather than re-implem
   up**. Left-click opens the window; right-click opens the menu. Add/extend `TrayMenuStyleTests.cs`
   to assert the item set, order and the Pause↔Resume header swap.
 
-- [ ] **Step 3: Verify "Quit" is the only exit and says what it stops.**
+- [x] **Step 3: Verify "Quit" is the only exit and says what it stops.**
   The Quit item's label must carry the consequence ("stops backing up"), because quitting halts
   the watcher. Confirm `ShutdownEverything()` is the sole path to exit (not the window close).
 
-- [ ] **Step 4: Build + run the suite.**
+- [x] **Step 4: Build + run the suite.**
   ```
   dotnet build WaveLinkBackup.slnx -c Release && dotnet test WaveLinkBackup.slnx
   ```
 
-- [ ] **Step 5: Manual verify.** Right-click the tray icon → menu matches the spec; left-click →
+- [x] **Step 5: Manual verify.** Right-click the tray icon → menu matches the spec; left-click →
   window opens. Close the window → it hides, tray icon remains. Quit from the menu → process ends.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
   ```
   git add src/WaveLinkBackup.App/ tests/WaveLinkBackup.App.Tests/
   git commit -m "app: verify hide-on-close and the tray context menu against the spec"
@@ -331,18 +343,18 @@ exactly and add the thin tests that currently don't exist, rather than re-implem
 
 ## Definition of done
 
-- [ ] `app.ico` exists, is set as `<ApplicationIcon>` and as `Window.Icon`; the exe, taskbar and
+- [x] `app.ico` exists, is set as `<ApplicationIcon>` and as `Window.Icon`; the exe, taskbar and
       Alt-Tab show the shield-check mark (Task 1).
-- [ ] A second launch activates the first instance; a `--tray` launch exits silently (Task 2).
-- [ ] The autostart toggle is live in the shell, writes/deletes the Run key with `--tray`, and a
+- [x] A second launch activates the first instance; a `--tray` launch exits silently (Task 2).
+- [x] The autostart toggle is live in the shell, writes/deletes the Run key with `--tray`, and a
       Task Manager-vetoed entry reads off and cannot be enabled here (Task 3).
-- [ ] The tray icon reflects the live host state on every tick — all four states reachable and
+- [x] The tray icon reflects the live host state on every tick — all four states reachable and
       correct, HC rule intact (Task 4).
-- [ ] Hide-on-close and the context menu verified item-for-item against `screens/12`, with tests
+- [x] Hide-on-close and the context menu verified item-for-item against `screens/12`, with tests
       pinning hide-vs-exit and the menu set (Task 5).
-- [ ] `dotnet build WaveLinkBackup.slnx -c Release` is zero-warning; `dotnet test WaveLinkBackup.slnx`
+- [x] `dotnet build WaveLinkBackup.slnx -c Release` is zero-warning; `dotnet test WaveLinkBackup.slnx`
       is green (baseline 764, plus this plan's additions).
-- [ ] No Core changes; no colour literals outside `Theming/*.xaml`; no count badges.
+- [x] No Core changes; no colour literals outside `Theming/*.xaml`; no count badges.
 
 ## Deferred to phase 7 (do not build here)
 

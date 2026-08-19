@@ -2,18 +2,18 @@
 title: "Phase 5 — WPF shell"
 status: published
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-19
 related_adrs: [ADR-004, ADR-005]
 tags: [dev-phase]
 ---
 
 # Phase 5 — WPF shell
 
-**Status:** In progress — plans 5–8 are complete: the real restore flow (plan 5), in-place
-rename / delete / empty-trash (plan 6), the twelve errors + first-run/empty state (plan 7), and
-the settings dialog (plan 8, `0812c99`). Execution plans for **every** remaining surface are
-written (2026-08-18, see below); what remains is execution of plan 9 (tray shell) and plan 10
-(high contrast). **next: plan 9.**
+**Status:** In progress — plans 5–9 are complete: the real restore flow (plan 5), in-place
+rename / delete / empty-trash (plan 6), the twelve errors + first-run/empty state (plan 7), the
+settings dialog (plan 8, `0812c99`), and the tray shell (plan 9, `f801e5b`). Execution plans for
+**every** surface are written (2026-08-18, see below); what remains is execution of plan 10
+(high contrast). **next: plan 10.**
 **Entry criteria:** phase 4 complete. ✅ 2026-08-16.
 **Exit criteria:** the four designed screens match the handoff in **both themes**, the six
 undesigned surfaces are designed and built, and no Core logic has leaked into the shell.

@@ -2,7 +2,7 @@
 title: "Documentation Stats"
 status: published
 created: 2026-08-16
-updated: 2026-08-18
+updated: 2026-08-19
 tags: [meta, stats]
 ---
 
@@ -20,7 +20,7 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of 2026-08-18.*
+*As of 2026-08-19.*
 
 | Artifact | Count |
 |---|---|
@@ -29,10 +29,10 @@ Update this file **in the same commit** as the document it counts. See
 | Patterns | 4 |
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
-| Sessions | 10 |
+| Sessions | 11 |
 | Plans | 8 |
 | Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
-| **Tests** | **939 passing** — Core 296 · CLI 91 · App 552 |
+| **Tests** | **959 passing** — Core 296 · CLI 91 · App 572 |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
@@ -44,6 +44,40 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Phase 5, plan 9: the tray shell (2026-08-19)
+
+**959 tests green** (296 Core, 91 CLI, **572 App**) — up from 939. Build clean, zero warnings.
+The app is now a *tray app with a window* end to end: the shield-check mark appears in the taskbar
+button, Alt-Tab and the Start list as well as the notification area; a second launch activates the
+first instance instead of starting a watcher twice; autostart is surfaced in Settings with the Task
+Manager veto; and the tray icon tracks the live host on every tick.
+
+**One asset, two jobs — but not the way the plan said.** The shield-check mark is authored once
+from the same geometry `TrayIconRenderer` already draws, so the static asset and the four live
+states read as one object. It is the exe's `<ApplicationIcon>` (file properties, taskbar, Alt-Tab),
+but **not** `Window.Icon`: a WPF resource-pack URI for an `<ApplicationIcon>`-only asset fails at
+runtime (dotnet/wpf#209), so the window's caption glyph is rendered from geometry in code
+(`AppCaptionGlyph`). The exe icon via the linker works fine; only the WPF resource pipeline chokes.
+
+**The hide branch of `OnClosing` is manual-verify-only, and it is documented as such.** It needs a
+real `App` installed as `Application.Current`, but WPF allows exactly one `Application` per
+AppDomain and the test harness's shared bare `Application` occupies the slot — `new App()` throws
+`InvalidOperationException`. The exit branch is exercised by the existing crash-regression test;
+the hide-vs-exit distinction is a look-at-it item, same class of exclusion as the DWM interop and
+unshown-window geometry already documented in `MainWindowGeometryTests`.
+
+**The context menu is pinned item-for-item.** Beyond order and checkability (already tested), the
+two load-bearing labels are now asserted: **Quit — stops backing up** (the consequence rides on the
+label, not a confirmation dialog) and **Pause for an hour** (the designed starting label;
+`RefreshTray` rewrites it to "Resume" while paused).
+
+Session note — [phase 5 tray shell](sessions/2026-08-19-phase-5-tray-shell.md). Plan 9 is complete;
+plan 10 (high contrast) is the last surface in the phase.
+
+**Counts moved:** sessions 10 → 11 · tests 939 → 959.
+
+---
 
 ### Phase 5, plan 8: the settings dialog (2026-08-19)
 
