@@ -19,4 +19,12 @@ public sealed record SettingsLocation(
 {
     /// <summary>False for an explicitly-supplied path with no package around it.</summary>
     public bool CanRelaunch => !string.IsNullOrEmpty(PackageFamilyName);
+
+    /// <summary>
+    /// Wave Link's plugin scanner cache. Never a payload - it is rebuilt by rescanning - but
+    /// it is read, because it is where a referenced plugin's version and uniqueId come from
+    /// (SPEC.md 9). It legitimately may not exist on a rig with no third-party plugins.
+    /// </summary>
+    public string PluginCachePath =>
+        Path.Combine(LocalStatePath, "AudioPluginCache", "AvailablePlugins.cache");
 }

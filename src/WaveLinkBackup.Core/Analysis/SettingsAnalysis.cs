@@ -26,10 +26,15 @@ public sealed record ValidationReport(IReadOnlyList<DuplicateKeyFinding> Duplica
 /// verified 2026-08-16 - and because WinRT PackageManager would force a Windows-only target
 /// framework on a library that otherwise needs none.
 /// </param>
+/// <param name="ReferencedPlugins">
+/// Every third-party plugin the configuration uses, deduplicated across channels. Empty when
+/// the rig is all Elgato built-ins. This is what tier 2 is built from (ADR-006).
+/// </param>
 public sealed record SettingsAnalysisResult(
     ValidationReport Report,
     HealthFingerprint Fingerprint,
-    string? WaveLinkVersion);
+    string? WaveLinkVersion,
+    IReadOnlyList<ReferencedPlugin> ReferencedPlugins);
 
 /// <summary>
 /// The pure heart of Core: bytes in, records out. No IO, no seams, no async, no state.
@@ -42,8 +47,9 @@ public sealed record SettingsAnalysisResult(
 public static class SettingsAnalysis
 {
     /// <summary>
-    /// Parses once and derives everything. Two walks over one <see cref="JsonDocument"/>:
-    /// the duplicate scan needs the whole tree, the fingerprint needs InputSettings.
+    /// Parses once and derives everything. Three walks over one <see cref="JsonDocument"/>:
+    /// the duplicate scan needs the whole tree; the fingerprint and the referenced-plugin
+    /// set need InputSettings.
     /// </summary>
     public static Result<SettingsAnalysisResult> Analyse(ReadOnlySpan<byte> utf8Json)
     {
@@ -84,7 +90,8 @@ public static class SettingsAnalysis
             return new SettingsAnalysisResult(
                 new ValidationReport(findings),
                 Fingerprint(inputs, bytes),
-                ReadWaveLinkVersion(document.RootElement));
+                ReadWaveLinkVersion(document.RootElement),
+                ReadReferencedPlugins(inputs));
         }
     }
 
@@ -116,6 +123,56 @@ public static class SettingsAnalysis
             SizeBytes: bytes.LongLength,
             Sha256: Convert.ToHexStringLower(SHA256.HashData(bytes)));
     }
+
+    /// <summary>
+    /// Every AudioPluginConfigurations entry carrying a non-empty FilePath, deduplicated by
+    /// path in the order the channels appear.
+    ///
+    /// An empty FilePath means an Elgato built-in, which ships with Wave Link and is never
+    /// captured. Deduplication is by path rather than by name because the same plugin sits on
+    /// several channels of a real rig - the mic chain alone repeats a compressor - and tier 2
+    /// describes a set of plugins, not a list of placements.
+    /// </summary>
+    private static IReadOnlyList<ReferencedPlugin> ReadReferencedPlugins(JsonElement inputs)
+    {
+        var plugins = new List<ReferencedPlugin>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var input in inputs.EnumerateObject())
+        {
+            if (input.Value.ValueKind != JsonValueKind.Object ||
+                !input.Value.TryGetProperty("AudioPluginConfigurations", out var effects) ||
+                effects.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var effect in effects.EnumerateArray())
+            {
+                if (effect.ValueKind != JsonValueKind.Object) continue;
+
+                var path = ReadString(effect, "FilePath");
+                if (path is null || !seen.Add(path)) continue;
+
+                plugins.Add(new ReferencedPlugin(
+                    // A plugin with a path but no name is still capturable, and the file name
+                    // is a better label for it than an empty string.
+                    Name: ReadString(effect, "Name") ?? Path.GetFileNameWithoutExtension(path),
+                    Vendor: ReadString(effect, "Vendor"),
+                    FilePath: path));
+            }
+        }
+
+        return plugins;
+    }
+
+    /// <summary>A string property, or null when absent, wrong-typed or blank.</summary>
+    private static string? ReadString(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(value.GetString())
+            ? value.GetString()
+            : null;
 
     /// <summary>
     /// Falls back to the key rather than throwing. The key is the Core Audio endpoint ID,
