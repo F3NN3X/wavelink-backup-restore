@@ -2,7 +2,7 @@
 title: "Wave Link Backup — Documentation Index"
 status: published
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-19
 tags: [meta, index]
 ---
 
@@ -35,23 +35,24 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phases 0–4 are complete. Phase 5 is in progress — its Core groundwork is done.**
+**Phases 0–5 are complete. Phase 6 (plugin tiers) is next, not yet started.**
 
-**There is a working program.** `wlbackup` backs up, lists, restores, renames, deletes,
-verifies, prunes, empties the trash and watches. **351 tests**; Core at 85.7% line coverage,
-the CLI at 84.1%. Published as a **3.2 MB NativeAOT binary**, verified against a real install.
+**There is a working program with a window.** `wlbackup` backs up, lists, restores, renames,
+deletes, verifies, prunes, empties the trash and watches from the CLI; the WPF shell does the
+same from a tray app with a window — the four designed screens, the twelve errors, the settings
+dialog, and high contrast, all built and tested. **964 tests** (Core 296, CLI 91, App 577).
+Published as a **3.2 MB NativeAOT binary**, verified against a real install.
 
 **All three founding problems are solved.** Snapshots survive an MSIX package reset
-([[ADR-003]]), backups happen on their own ([[ADR-007]]), and there is something to run
-([[ADR-004]]).
+([[ADR-003]]), backups happen on their own ([[ADR-007]]), and there is something to run —
+now a window as well as a CLI ([[ADR-004]]).
 
-**Phase 5 groundwork shipped 2026-08-17** — three of the four Core changes in
-[technical-debt.md](technical-debt.md) §7: two-stage delete via `.trash`, lazy verification
-during pruning, and a watcher that no longer queues. §7.4 (keyboard and focus) is WPF work and
-arrives with the shell.
-
-What is missing is a **window**. The whole promise is *configured once, then ignored* — and a
-person who must remember to run `wlbackup watch` has the same problem upstream's users have.
+**Phase 5 closed 2026-08-19.** All ten plans landed: the backup list, the real restore flow,
+delete/rename/trash, the twelve errors and first-run state, the settings dialog, the tray shell,
+and high contrast as a fully verified third theme. The four Core changes in
+[technical-debt.md](technical-debt.md) §7 — two-stage delete via `.trash`, lazy verification
+during pruning, a watcher that no longer queues, and Windows-convention keyboard/focus — are all
+shipped.
 
 **The design is complete** (package v5): thirteen state-group specs, nothing undesigned.
 **It is a tray app with a window**, not the reverse — `screens/12` is explicit, and that framing
@@ -59,8 +60,8 @@ lands scope the original four screens did not carry.
 
 | | |
 |---|---|
-| What shipped | [Phase 5 part 1](sessions/2026-08-17-phase-5-core-changes.md) · [CHANGELOG](../CHANGELOG.md) |
-| What is next | The tray shell — [phase 5](dev-phases/phase-5-wpf.md) |
+| What shipped | [Phase 5](dev-phases/phase-5-wpf.md) · [CHANGELOG](../CHANGELOG.md) |
+| What is next | Plugin tiers — [phase 6](dev-phases/phase-6-plugin-tiers.md) |
 | How Core is shaped | [Phase 1](plans/2026-08-16-phase-1-core-design.md) · [Phase 2](plans/2026-08-16-phase-2-store-design.md) designs |
 
 > **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three

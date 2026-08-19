@@ -22,24 +22,53 @@ heading here.
 
 ## [Unreleased]
 
-Phase 5 — the WPF shell — is in progress. See
-[dev-phases/phase-5-wpf.md](_docs/dev-phases/phase-5-wpf.md).
+Phase 6 — plugin tiers — is next. See
+[dev-phases/phase-6-plugin-tiers.md](_docs/dev-phases/phase-6-plugin-tiers.md). No code yet.
+
+---
+
+## [0.5.0] — 2026-08-19
+
+**Phase 5: the WPF shell.** The app gets a window — and, per the design's own framing, is a
+*tray app with a window*, not the reverse: closing the window hides it, the process keeps
+backing up, and the tray icon is the primary surface.
+
+**964 tests passing** (Core 296, CLI 91, App 577), up from 308 at the end of phase 4. Build
+clean, zero warnings.
 
 ### Added
 
-- **The restore-outcome strip** (the window's Row 2, per `03-restore-outcomes.md`). Four states —
-  *succeeded confirmed*, *succeeded unconfirmed*, *rejected* and *failed* — each deciding its own
-  left edge, glyph, auto-dismiss and action. A restore whose log verdict could not be read lands in
-  *unconfirmed*, never silently passing as success; a restore the user turned down stays visible
-  until acknowledged rather than clearing on the timer. Shipped **dormant**: fully built, themed and
-  tested (18 App tests + one Core test pinning the null-verdict branch), but the restore button still
-  shows the placeholder this repo uses for every unwired action, so nothing feeds it yet. It is a seam
-  waiting for plan 4's real restore flow, not a bug — see
-  [`technical-debt.md`](_docs/technical-debt.md) §4.9.
-- **`WlDangerSoft`**, a soft red for the *failed* state, added to all three theme dictionaries and
-  `ThemeManager.BrushKeys`. In HighContrast it binds to Transparent — in that theme the tint layer is
-  not ours to author, so only the edge and text remain. The existing "every theme declares every
-  brush" test now covers it for free across Dark, Light and HighContrast.
+- **The main window**: the backup list (name, date, trigger pill, five-slot health strip, tier
+  badges, suspect marker, row expansion), live OS theme following, the custom caption bar, and
+  the inline result strip that is the single home for restore outcomes, in-progress states and
+  six of the twelve designed errors.
+- **The real restore flow**: a confirmation dialog rendering `RestorePlan` (focus starts on
+  Cancel, not the destructive button), a four-stage in-progress strip, and the restore-outcome
+  strip wired to `RestoreOrchestrator` — four outcomes (succeeded-confirmed, succeeded-unconfirmed,
+  rejected, failed), each with its own dismiss rule.
+- **In-place rename**, a three-variant two-stage delete (normal, only-backup, pre-restore) that
+  moves snapshots to `<store>/.trash/<id>/`, and an **Empty trash** action in Settings that hands
+  the trash to the Recycle Bin.
+- **The twelve designed errors** in their four placements, plus the first-run/empty state
+  (found-Wave-Link variant; the not-found variant remains open, [technical-debt.md](_docs/technical-debt.md) §4.10).
+- **The settings dialog**: in-place commit with no Save button, atomic persistence to
+  `%LOCALAPPDATA%\WaveLinkBackup\settings.json`, a computed proportion bar, and the unbuilt
+  tier rows shown present-but-disabled with a NOT BUILT YET badge.
+- **The tray shell**: the app icon (tray and window), second-launch activation instead of a
+  second watcher, `--tray` windowless start, hide-on-close via `OnExplicitShutdown`, the context
+  menu, and an autostart toggle that reads back the Task Manager veto.
+- **High contrast** as a fully verified third theme: the runtime swap pinned end to end, a guard
+  against any hard-coded colour in `HighContrast.xaml`, and every phase 5–8 surface swept in both
+  HC schemes.
+- **Four Core changes** underpinning the shell ([technical-debt.md](_docs/technical-debt.md) §7):
+  two-stage delete via `.trash` and an `IRecycleBin` seam, lazy verify-only-the-condemned pruning,
+  a watcher that clears its pending write and surfaces the error on failure instead of queuing,
+  and Windows-convention keyboard/focus/screen-reader support throughout the shell.
+
+### Closed
+
+- [technical-debt.md](_docs/technical-debt.md) §4.8 item 4 (the `Settings…` placeholder) and §4.9
+  (the dormant restore-outcome strip) — both real UI now, nothing left unwired.
 
 ---
 

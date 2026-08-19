@@ -556,6 +556,18 @@ does not yet special-case first-run-when-not-found beyond that strip.
 the neutral note. **Phase:** 5, after plan 7. **See:** §2.2 (non-MSIX installs) and
 [[file-parses-but-wave-link-resets]].
 
+### 4.11 Total-size arithmetic is copy-pasted, not shared — **open, found in the phase-5 audit, 2026-08-19**
+
+`manifest.Files.Values.Sum(f => f.SizeBytes)` (or the equivalent) is independently reimplemented
+in at least five places: `DeleteDialogModel`, `SnapshotRowViewModel`, `SnapshotListViewModel`,
+`HealthProbe` in `WaveLinkBackup.App`, and `SnapshotStore` itself in Core. `SnapshotManifest` has
+no `TotalSizeBytes` computed property to source this from, so every caller re-derives it.
+
+**Not a Core-logic leak** — it is trivial arithmetic, not analysis, so this is a DRY gap rather
+than a violation of "no Core logic in the shell". **Fix:** add a `TotalSizeBytes` computed
+property to `SnapshotManifest` in Core and point all five call sites at it. Cheap, low risk,
+no schema change. **Phase:** whenever it's next touched; not blocking.
+
 ---
 
 ## 5 · Numbers that are not constants
