@@ -20,6 +20,9 @@ public sealed class TierRestoreTests
 {
     private const string LocalAppData = @"C:\Users\test\AppData\Local";
     private const string Roaming = @"C:\Users\test\AppData\Roaming";
+
+    /// <summary>On another drive on purpose - see TierCaptureTests.Documents.</summary>
+    private const string Documents = @"G:\win_user-folders\Documents";
     private const string LocalState =
         LocalAppData + @"\Packages\Elgato.WaveLink_g54w8ztgkx496\LocalState";
     private const string Settings = LocalState + @"\Settings.json";
@@ -45,7 +48,7 @@ public sealed class TierRestoreTests
         arrange?.Invoke(fs);
 
         var live = SettingsInspector.For(fs, LocalAppData).Inspect().Value;
-        var payload = new TierCapture(fs, Roaming).Gather(
+        var payload = new TierCapture(fs, Roaming, Documents).Gather(
             live, BackupSettings.Default with { IncludePresets = true, IncludePluginFiles = binaries });
 
         var snapshot = new SnapshotStore(fs, new FakeClock(), Store)
@@ -59,7 +62,7 @@ public sealed class TierRestoreTests
 
     private static TierRestoreResult Restore(
         FakeFileSystem fs, Snapshot snapshot, RestoreOptions? options = null) =>
-        new TierRestore(fs, Roaming).Restore(
+        new TierRestore(fs, Roaming, Documents).Restore(
             snapshot, Plugins(fs, snapshot), options ?? RestoreOptions.Default);
 
     // ------------------------------------------------------------------------ tier 3 back
@@ -75,6 +78,70 @@ public sealed class TierRestoreTests
         Assert.Equal(2, result.PresetFilesRestored);
         Assert.Equal("bright"u8.ToArray(), fs.Read(Roaming + @"\FabFilter\Pro-Q 4\Vocals\Bright.ffp"));
         Assert.Equal("curve"u8.ToArray(), fs.Read(Roaming + @"\FabFilter\Pro-Q 4\My curve.ffp"));
+    }
+
+    [Fact]
+    public void A_preset_from_Documents_goes_back_to_Documents_and_not_to_AppData()
+    {
+        // The whole reason the snapshot names its roots. Documents is on another volume here, so
+        // a mapping that lost the root would not merely misfile the presets - it would write them
+        // to a drive the vendor never looks at, silently, and report a successful restore.
+        var (snapshot, fs) = Captured(f => f
+            .AddFile(Documents + @"\FabFilter\Presets\Pro-Q 4\Vocal Air.ffp", "air"));
+
+        fs.DeleteDirectory(Documents + @"\FabFilter");
+        fs.DeleteDirectory(Roaming + @"\FabFilter");
+
+        var result = Restore(fs, snapshot);
+
+        Assert.Equal(3, result.PresetFilesRestored);
+        Assert.Equal("air"u8.ToArray(), fs.Read(Documents + @"\FabFilter\Presets\Pro-Q 4\Vocal Air.ffp"));
+        Assert.False(fs.FileExists(Roaming + @"\FabFilter\Presets\Pro-Q 4\Vocal Air.ffp"));
+    }
+
+    [Fact]
+    public void A_snapshot_written_before_the_roots_existed_still_restores_into_AppData()
+    {
+        // Schema 1 wrote presets/<Vendor>/... with no root segment, and everything in one came
+        // from %APPDATA%. Reading it as AppData is what keeps every snapshot already on disk
+        // restorable - this layout change must cost nobody their existing backups.
+        var (snapshot, fs) = Captured();
+        fs.DeleteDirectory(Roaming + @"\FabFilter");
+
+        var legacy = Legacy(fs, snapshot);
+        var result = new TierRestore(fs, Roaming, Documents)
+            .Restore(legacy, Plugins(fs, legacy), RestoreOptions.Default);
+
+        Assert.Equal(2, result.PresetFilesRestored);
+        Assert.Equal("curve"u8.ToArray(), fs.Read(Roaming + @"\FabFilter\Pro-Q 4\My curve.ffp"));
+    }
+
+    /// <summary>
+    /// The same snapshot with its preset files moved back to the schema-1 spelling - the shape
+    /// every snapshot on a user's disk today has.
+    /// </summary>
+    private static Snapshot Legacy(FakeFileSystem fs, Snapshot snapshot)
+    {
+        var files = snapshot.Manifest.Files.ToDictionary(
+            e => Rename(e.Key), e => e.Value, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var relative in snapshot.Manifest.Files.Keys)
+        {
+            var renamed = Rename(relative);
+            if (renamed == relative) continue;
+
+            fs.AddFile(
+                SnapshotManifest.PathIn(snapshot.Directory, renamed),
+                System.Text.Encoding.UTF8.GetString(
+                    fs.Read(SnapshotManifest.PathIn(snapshot.Directory, relative))));
+        }
+
+        return snapshot with { Manifest = snapshot.Manifest with { Files = files } };
+
+        static string Rename(string relative) =>
+            relative.StartsWith("presets/appdata/", StringComparison.Ordinal)
+                ? "presets/" + relative["presets/appdata/".Length..]
+                : relative;
     }
 
     [Fact]
@@ -187,7 +254,7 @@ public sealed class TierRestoreTests
         var snapshot = new SnapshotStore(fs, new FakeClock(), Store)
             .Write(live.Bytes, live.Analysis, SnapshotTrigger.Manual, "old").Value;
 
-        var result = new TierRestore(fs, Roaming).Restore(
+        var result = new TierRestore(fs, Roaming, Documents).Restore(
             snapshot, Plugins(fs, snapshot), new RestoreOptions(PluginBinaries: true));
 
         Assert.False(result.RestoredAnything);

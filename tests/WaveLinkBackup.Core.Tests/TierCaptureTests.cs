@@ -18,6 +18,13 @@ public sealed class TierCaptureTests
 {
     private const string LocalAppData = @"C:\Users\test\AppData\Local";
     private const string Roaming = @"C:\Users\test\AppData\Roaming";
+
+    /// <summary>
+    /// Deliberately NOT under the profile: the reference rig has Documents redirected to another
+    /// drive, and a test that put it beside Roaming would pass for code that composed the path from
+    /// %USERPROFILE% (technical-debt.md §4.18).
+    /// </summary>
+    private const string Documents = @"G:\win_user-folders\Documents";
     private const string LocalState =
         LocalAppData + @"\Packages\Elgato.WaveLink_g54w8ztgkx496\LocalState";
     private const string Settings = LocalState + @"\Settings.json";
@@ -44,7 +51,7 @@ public sealed class TierCaptureTests
         SettingsInspector.For(fs, LocalAppData).Inspect().Value;
 
     private static SnapshotPayload Gather(FakeFileSystem fs, BackupSettings? settings = null) =>
-        new TierCapture(fs, Roaming).Gather(Live(fs), settings ?? BackupSettings.Default);
+        new TierCapture(fs, Roaming, Documents).Gather(Live(fs), settings ?? BackupSettings.Default);
 
     private static BackupSettings Tiers(bool presets = false, bool binaries = false) =>
         BackupSettings.Default with { IncludePresets = presets, IncludePluginFiles = binaries };
@@ -141,8 +148,8 @@ public sealed class TierCaptureTests
 
         var payload = Gather(fs, Tiers(presets: true));
 
-        Assert.Contains("presets/FabFilter/Pro-Q 4/My curve.ffp", payload.Files.Select(f => f.RelativePath));
-        Assert.Contains("presets/FabFilter/Pro-Q 4/Vocals/Bright.ffp", payload.Files.Select(f => f.RelativePath));
+        Assert.Contains("presets/appdata/FabFilter/Pro-Q 4/My curve.ffp", payload.Files.Select(f => f.RelativePath));
+        Assert.Contains("presets/appdata/FabFilter/Pro-Q 4/Vocals/Bright.ffp", payload.Files.Select(f => f.RelativePath));
         Assert.Contains(SnapshotManifest.PresetsTier, payload.Tiers);
     }
 
@@ -155,7 +162,7 @@ public sealed class TierCaptureTests
 
         var payload = Gather(fs, Tiers(presets: true));
 
-        Assert.Contains("presets/Supertone/preset.json", payload.Files.Select(f => f.RelativePath));
+        Assert.Contains("presets/appdata/Supertone/preset.json", payload.Files.Select(f => f.RelativePath));
     }
 
     [Fact]
@@ -169,9 +176,79 @@ public sealed class TierCaptureTests
         var proQ = Gather(fs, Tiers(presets: true)).Plugins.Plugins
             .Single(p => p.Name == "Pro-Q 4");
 
-        Assert.Equal(Roaming + @"\FabFilter\Pro-Q 4", proQ.PresetSource);
+        Assert.Equal([Roaming + @"\FabFilter\Pro-Q 4"], proQ.PresetSources);
         Assert.Equal(2, proQ.PresetFileCount);
         Assert.Equal(3, proQ.PresetBytes);
+    }
+
+    // ------------------------------------------------- tier 3: the two roots (technical-debt §4.18)
+
+    [Fact]
+    public void Presets_in_Documents_are_captured_as_well_as_the_ones_in_AppData()
+    {
+        // The defect §4.18 found on a real rig. FabFilter keeps the MIDI map and the interface
+        // default in %APPDATA% and the 172 actual .ffp presets in Documents\FabFilter\Presets;
+        // reading only the first captured three files and called them the user's EQ curves.
+        var fs = Rig()
+            .AddFile(Roaming + @"\FabFilter\Pro-Q 4\MidiControllerMap.ffm", "midi")
+            .AddFile(Documents + @"\FabFilter\Presets\Pro-Q 4\Vocal Air.ffp", "curve");
+
+        var payload = Gather(fs, Tiers(presets: true));
+        var captured = payload.Files.Select(f => f.RelativePath).ToList();
+
+        Assert.Contains("presets/appdata/FabFilter/Pro-Q 4/MidiControllerMap.ffm", captured);
+        Assert.Contains("presets/documents/FabFilter/Presets/Pro-Q 4/Vocal Air.ffp", captured);
+
+        var proQ = payload.Plugins.Plugins.Single(p => p.Name == "Pro-Q 4");
+        Assert.Equal(
+            [Roaming + @"\FabFilter\Pro-Q 4", Documents + @"\FabFilter\Presets\Pro-Q 4"],
+            proQ.PresetSources);
+        Assert.Equal(2, proQ.PresetFileCount);
+    }
+
+    [Fact]
+    public void A_vendor_folder_in_Documents_is_never_taken_whole()
+    {
+        // %APPDATA%\<Vendor> is config-sized whatever it holds. Documents\<Vendor> is as likely to
+        // be a project library - sessions, renders, sample packs - so the widest Documents
+        // candidate is <Vendor>\Presets, a folder that says what it is. Without this rule tier 3
+        // would quietly grow by whatever the user keeps beside their presets.
+        var fs = Rig()
+            .AddFile(Documents + @"\FabFilter\Sessions\huge project.wav", "not a preset");
+
+        Assert.Empty(Gather(fs, Tiers(presets: true)).Files);
+    }
+
+    [Fact]
+    public void The_Documents_folder_falls_back_to_the_Presets_folder_itself()
+    {
+        // A vendor that does not separate per plugin still gets its presets read - just not the
+        // whole vendor folder around them.
+        var fs = Rig().AddFile(Documents + @"\Supertone\Presets\voice.json", "flat");
+
+        Assert.Contains(
+            "presets/documents/Supertone/Presets/voice.json",
+            Gather(fs, Tiers(presets: true)).Files.Select(f => f.RelativePath));
+    }
+
+    [Fact]
+    public void Crash_reports_are_not_presets_and_are_never_captured()
+    {
+        // Supertone Clear on the reference rig: %APPDATA%\Supertone\Clear holds a Reports folder
+        // of crash dumps and nothing else, and tier 3 captured them, counted them, and reported
+        // two saved presets to the user.
+        var fs = Rig()
+            .AddFile(Roaming + @"\Supertone\Clear\Reports\2025_09_07_19_32_07.txt", "Crash Time :");
+
+        var payload = Gather(fs, Tiers(presets: true));
+
+        Assert.Empty(payload.Files);
+
+        // The folder is still RECORDED, with a count of zero. "We looked here and there was
+        // nothing worth keeping" is something the user can act on; a silence is not.
+        var clear = payload.Plugins.Plugins.First(p => p.Name == "Clear");
+        Assert.Equal([Roaming + @"\Supertone\Clear"], clear.PresetSources);
+        Assert.Equal(0, clear.PresetFileCount);
     }
 
     [Fact]
@@ -360,7 +437,7 @@ public sealed class TierCaptureTests
             .AddFile(ProQPath, "pro-q bytes")
             .AddFile(ClearPath, "clear bytes");
 
-        var estimate = new TierCapture(fs, Roaming).Measure(Live(fs));
+        var estimate = new TierCapture(fs, Roaming, Documents).Measure(Live(fs));
 
         Assert.Equal(17, estimate.WaveLinkBackupBytes);
         Assert.Equal(6, estimate.PresetBytes);
@@ -372,7 +449,7 @@ public sealed class TierCaptureTests
     [Fact]
     public void A_machine_with_nothing_installed_measures_zero_rather_than_failing()
     {
-        var estimate = new TierCapture(Rig(), Roaming).Measure(Live(Rig()));
+        var estimate = new TierCapture(Rig(), Roaming, Documents).Measure(Live(Rig()));
 
         Assert.Equal(0, estimate.WaveLinkBackupBytes);
         Assert.Equal(0, estimate.PresetBytes);

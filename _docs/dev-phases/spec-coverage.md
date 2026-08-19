@@ -112,7 +112,7 @@ deliberately not in 1.0).
 |---|---|---|
 | 1 · Settings + Wave Link's own backups (~470 KB) | ✅ | Phase 6 §8 |
 | 2 · Plugin manifest (~4 KB) | ✅ | `plugins.json`, phase 6 §1–2 |
-| 3 · Plugin presets (~10 MB, opt-in, on) | ✅ | Phase 6 §3 — captured and restored; the discovery heuristic is unverified against a real vendor folder ([technical-debt.md](../technical-debt.md) §4.18) |
+| 3 · Plugin presets (~10 MB, opt-in, on) | ✅ | Phase 6 §3 — captured and restored from **both** `%APPDATA%` and Documents. The heuristic was measured against the reference rig and was wrong; the fix took a snapshot from 61 preset files to 491 ([technical-debt.md](../technical-debt.md) §4.18) |
 | 4 · Plugin binaries (~40 MB, opt-in, off) | ✅ | Phase 6 §4 — restore is CLI-only until elevation has a designed surface (§4.17) |
 | A `.vst3` may be a **directory** — synthetic bundle fixture | ✅ | Fixtures on both sides: capture recurses, restore rebuilds the tree. [[vst3-backs-up-as-nothing]] |
 | Elevation for tier 4 restore only; tiers 1–3 admin-free | ✅ | Reported as *needs elevation* rather than an access-denied trace, and it never fails the restore |
@@ -137,6 +137,7 @@ deliberately not in 1.0).
 | Health check relative to the user's own history, never an absolute threshold | ✅ | Every row compares against that user's snapshots |
 | Glob the package family; never hard-code the store identity | ✅ | `SettingsLocator` |
 | Resolve plugins from `FilePath`; standard dirs are fallback only | ✅ | `PluginReferences`; phase 6 §4 keeps the rule for capture |
+| `Environment.GetFolderPath` for **Documents** too, never `%USERPROFILE%\Documents` | ✅ | `TierCapture.SystemDocuments`. The reference rig has it redirected to another drive; a composed path finds an empty folder and reports the user has no presets |
 | Never gate on a Wave Link version; record it and warn on mismatch | ✅ | Recorded per snapshot |
 | `Environment.GetFolderPath`, never a composed `%LOCALAPPDATA%` | ✅ | `SnapshotStore.DefaultStorePath` |
 | Backups labelled machine-local | ✅ | The Settings dialog's second plain-language note |

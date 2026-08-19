@@ -54,7 +54,8 @@ public sealed class RestoreOrchestrator(
     SettingsWriter writer,
     SettingsReader reader,
     Func<SettingsInspection, SnapshotPayload?>? gatherPayload = null,
-    string? appDataPath = null)
+    string? appDataPath = null,
+    string? documentsPath = null)
 {
     private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(10);
 
@@ -103,7 +104,10 @@ public sealed class RestoreOrchestrator(
         // 5. Tiers 3 and 4, while Wave Link is still closed - a plug-in binary cannot be
         //    replaced under a host that has it loaded, and presets are read at scan time.
         //    Reported, never fatal: the settings file is already back.
-        var tiers = new TierRestore(fileSystem, appDataPath ?? TierCapture.SystemAppData).Restore(
+        var tiers = new TierRestore(
+            fileSystem,
+            appDataPath ?? TierCapture.SystemAppData,
+            documentsPath ?? TierCapture.SystemDocuments).Restore(
             found.Value,
             new SnapshotPluginReader(fileSystem).Read(found.Value),
             options ?? RestoreOptions.Default);

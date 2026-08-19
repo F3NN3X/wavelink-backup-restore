@@ -714,7 +714,69 @@ it back."*
 you said no" state), then `RestoreOptions` wired to it. **Phase:** 7 at the earliest; it is not on
 the 1.0 gate list.
 
-### 4.18 Tier 3's preset heuristic has never met a real vendor folder — **open, needs a machine, 2026-08-19**
+### 4.18 ~~Tier 3's preset heuristic has never met a real vendor folder~~ — **MEASURED AND FIXED 2026-08-19**
+
+> Run against the reference rig at last, and it was wrong in exactly the way this entry feared —
+> **capturing the wrong thing quietly.** Both halves of the fix and the evidence are below.
+>
+> **What one capture found.** `%APPDATA%\FabFilter\Pro-Q 4` exists, so the heuristic read it and
+> reported three saved presets. The three files are `InterfaceDefaults.ffd`,
+> `MidiControllerMap.ffm` and `PresetCache.dat`. The user's actual presets — the `.ffp` files the
+> Settings dialog promises as *"your EQ curves, your gate thresholds"* — were 172 files in
+> `Documents\FabFilter\Presets\Pro-Q 4\`, in a folder tier 3 never looked at.
+>
+> [[ADR-006]]'s two measurements were both correct and both misread: `%APPDATA%\FabFilter` does
+> hold 246 files, and they are caches and factory component presets; `%APPDATA%\Supertone\Clear`
+> does hold crash reports only — and tier 3 captured two of them and counted them as presets.
+>
+> | Plug-in | Captured before | Captured now |
+> |---|---|---|
+> | FabFilter Pro-Q 4 | 3 | 175 |
+> | FabFilter Pro-C 2 | 2 | 111 |
+> | FabFilter Saturn 2 | 53 (factory `Component Presets`) | 131 |
+> | FabFilter Pro-L 2 | 2 | 62 |
+> | FabFilter Pro-DS | 1 | 12 |
+> | Supertone Clear | 2 crash reports | 0, with the folder still recorded |
+> | **Snapshot** | 61 preset files | **491 preset files, 4.4 MB** |
+>
+> **The fix, in three parts.**
+>
+> 1. **Two roots, not one.** `PresetFiles` reads `%APPDATA%` and Documents, and takes at most one
+>    folder from each. Additive rather than first-wins, because FabFilter keeps the MIDI map in one
+>    and the presets in the other, and choosing would mean losing half the user's work.
+> 2. **The roots have different fallbacks, deliberately.** `%APPDATA%\<Vendor>` ends the AppData
+>    candidates because a vendor folder there is config-sized whatever it holds.
+>    `Documents\<Vendor>` does **not** end the Documents candidates — a vendor folder in Documents
+>    is as likely to be a project library as a preset folder, and that fallback would turn a
+>    ten-megabyte tier into a hundred-gigabyte one on somebody's machine. Documents stops at
+>    `<Vendor>\Presets`.
+> 3. **Some files are never presets.** A `Reports`, `Logs`, `Crashes` or `Diagnostics` directory is
+>    skipped at any depth. Clear now reports its folder with a count of zero, which is the state
+>    `PresetFileCount` was designed to show: *we looked here and there was nothing worth keeping.*
+>
+> **The snapshot layout changed with it,** because it had to: a preset stored at
+> `presets/<Vendor>/…` cannot be restored to the right place once there are two places it could
+> have come from. Preset paths now name their root — `presets/appdata/…`, `presets/documents/…` —
+> and `plugins.json` is **schema 2**, with `presetSources` as an array. Snapshots already on disk
+> are unaffected: a path with no root segment reads as AppData, which is the only place those files
+> came from, and the schema-1 `presetSource` string is still read.
+>
+> **Pinned by** `TierCaptureTests.Presets_in_Documents_are_captured_as_well_as_the_ones_in_AppData`,
+> `A_vendor_folder_in_Documents_is_never_taken_whole`,
+> `Crash_reports_are_not_presets_and_are_never_captured`, and
+> `TierRestoreTests.A_preset_from_Documents_goes_back_to_Documents_and_not_to_AppData` and
+> `A_snapshot_written_before_the_roots_existed_still_restores_into_AppData`.
+>
+> **One number for §5.** The reference rig has Documents redirected to `G:\win_user-folders\`.
+> A composed `%USERPROFILE%\Documents` would have found an empty folder and reported that the user
+> has no presets — the same trap as `%LOCALAPPDATA%`, failing more quietly. Both roots resolve
+> through `Environment.GetFolderPath`, and the test constants sit on a different drive so the trap
+> cannot be reintroduced by a test that passes.
+>
+> **Still a heuristic.** Two vendors were checked, not twenty. The original entry is kept below
+> because its reasoning is what caught this.
+
+#### Original entry
 
 `PresetFiles` tries `<Vendor>\<Plugin>`, then `<Vendor>\<file name>`, then the vendor folder. Every
 test uses a synthetic tree. [[ADR-006]] measured `%APPDATA%\FabFilter` at 246 preset files and

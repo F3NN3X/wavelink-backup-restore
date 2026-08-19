@@ -23,8 +23,40 @@ heading here.
 
 ## [Unreleased]
 
-Nothing yet. Phase 7 — **release** — is next: the privacy gate, the two notifications, the update
-mechanism and packaging. See [phase-7-release.md](_docs/dev-phases/phase-7-release.md).
+Phase 7 — **release** — is next: the privacy gate, the two notifications, the update mechanism and
+packaging. See [phase-7-release.md](_docs/dev-phases/phase-7-release.md).
+
+### Fixed
+
+- **Tier 3 was capturing 2% of your presets.** Preset discovery only ever looked in
+  `%APPDATA%\<Vendor>\`, and running it against a real rig for the first time
+  ([technical-debt.md](_docs/technical-debt.md) §4.18) showed what that misses: for FabFilter
+  Pro-Q 4 it found three files — an interface default, a MIDI map and a cache — while the 172
+  `.ffp` presets the Settings dialog promises as *"your EQ curves, your gate thresholds"* sat in
+  `Documents\FabFilter\Presets\Pro-Q 4\`. Discovery now reads **both roots**. On the reference
+  rig a snapshot went from **61 preset files to 491**.
+- **Crash reports were being backed up as presets.** `%APPDATA%\Supertone\Clear` holds crash
+  dumps and nothing else, and tier 3 captured two of them and told the user it had saved two
+  presets. `Reports`, `Logs`, `Crashes` and `Diagnostics` directories are now skipped at any
+  depth. Clear reports its folder with a count of **zero**, which is the honest answer and a state
+  `presetFileCount` was designed to show.
+- **Documents is resolved through `GetFolderPath`, never composed from `%USERPROFILE%`.** The
+  reference rig has it redirected to another drive entirely — a composed path would look in an
+  empty folder and quietly report that the user has no presets. The same trap
+  [technical-debt.md](_docs/technical-debt.md) §5 already records for `%LOCALAPPDATA%`, and the
+  test constants now sit on a different drive so it cannot come back.
+
+### Changed
+
+- **Preset paths inside a snapshot name their root** — `presets/appdata/…` and
+  `presets/documents/…`. Required rather than cosmetic: once presets can come from two places, a
+  path that does not say which one cannot be restored to the right one.
+- **`plugins.json` is schema 2**: `presetSource` (one string) became `presetSources` (an array,
+  at most one folder per root). **Snapshots already on disk are unaffected** — a preset path with
+  no root segment reads as `%APPDATA%`, which is the only place those files came from, and the
+  schema-1 `presetSource` key is still read.
+- `TierCapture` and `TierRestore` take a Documents path alongside the AppData one, so a test can
+  redirect both.
 
 ---
 

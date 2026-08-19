@@ -35,21 +35,35 @@ public sealed record CaptureEstimate(
 /// dishonesty that only stays fixed if one place decides it.
 /// </summary>
 /// <param name="appDataPath">
-/// Roaming <c>%APPDATA%</c>, where tier 3 looks. Injected rather than read from the environment for
-/// the same reason <see cref="Discovery.SettingsLocator.SystemLocalAppData"/> is: a test cannot
-/// redirect a folder the code asks Windows for.
+/// Roaming <c>%APPDATA%</c>, one of the two places tier 3 looks. Injected rather than read from the
+/// environment for the same reason <see cref="Discovery.SettingsLocator.SystemLocalAppData"/> is: a
+/// test cannot redirect a folder the code asks Windows for.
 /// </param>
-public sealed class TierCapture(IFileSystem fileSystem, string appDataPath)
+/// <param name="documentsPath">
+/// The user's Documents folder, the other place tier 3 looks — where FabFilter and every vendor
+/// that treats a preset as a document keeps the files (technical-debt.md §4.18).
+/// </param>
+public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, string documentsPath)
 {
     private readonly WaveLinkBackupFiles waveLinkBackups = new(fileSystem);
-    private readonly PresetFiles presets = new(fileSystem, appDataPath);
+    private readonly PresetFiles presets = new(fileSystem, appDataPath, documentsPath);
     private readonly PluginBinaryFiles binaries = new(fileSystem);
 
     /// <summary>Roaming AppData, resolved through GetFolderPath — never a composed string.</summary>
     public static string SystemAppData =>
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
-    public static TierCapture For(IFileSystem fileSystem) => new(fileSystem, SystemAppData);
+    /// <summary>
+    /// Documents, resolved through GetFolderPath. The reference rig has it redirected to another
+    /// drive entirely, so a composed <c>%USERPROFILE%\Documents</c> would look in an empty folder
+    /// and report that the user has no presets — the same trap technical-debt.md §5 records for
+    /// <c>%LOCALAPPDATA%</c>, with a quieter failure.
+    /// </summary>
+    public static string SystemDocuments =>
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+    public static TierCapture For(IFileSystem fileSystem) =>
+        new(fileSystem, SystemAppData, SystemDocuments);
 
     /// <summary>
     /// Everything a snapshot should carry beyond `Settings.json`, with the toggles applied.
@@ -149,7 +163,7 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath)
                 FilePath: plugin.FilePath,
                 Sha256: Hash(plugin.FilePath),
                 Channels: plugin.Channels,
-                PresetSource: preset.Source,
+                PresetSources: preset.SourcePaths,
                 PresetFileCount: preset.Files.Count,
                 PresetBytes: preset.Bytes,
                 BinaryPath: binaryRoots.GetValueOrDefault(plugin.FilePath));

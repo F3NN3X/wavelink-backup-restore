@@ -75,6 +75,9 @@ public sealed class RestoreOrchestratorTests
     // -------------------------------------------------------------- the tiers (phase 6)
 
     private const string Roaming = @"C:\Users\test\AppData\Roaming";
+
+    /// <summary>On another drive on purpose - see TierCaptureTests.Documents.</summary>
+    private const string Documents = @"G:\win_user-folders\Documents";
     private const string ProQPath = @"C:\Program Files\Common Files\VST3\FabFilter Pro-Q 4.vst3";
 
     private const string WithPlugin = """
@@ -92,11 +95,11 @@ public sealed class RestoreOrchestratorTests
         h.Fs.AddFile(Roaming + @"\FabFilter\Pro-Q 4\My curve.ffp", "curve");
         h.Fs.AddFile(ProQPath, "plugin bytes");
 
-        var capture = new TierCapture(h.Fs, Roaming);
+        var capture = new TierCapture(h.Fs, Roaming, Documents);
         var orchestrator = new RestoreOrchestrator(
             h.Fs, h.Process, h.Store, new SettingsWriter(h.Fs, h.Process), new SettingsReader(h.Fs),
             live => capture.Gather(live, BackupSettings.Default with { IncludePluginFiles = true }),
-            Roaming);
+            Roaming, Documents);
 
         var live = h.Live();
         var payload = capture.Gather(live, BackupSettings.Default with { IncludePluginFiles = true });

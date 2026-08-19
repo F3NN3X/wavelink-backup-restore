@@ -53,10 +53,16 @@ public sealed record TierRestoreResult(
 /// LocalState and <c>%APPDATA%</c>, both of which the user owns, so an ordinary account restores
 /// everything that matters without a UAC prompt ([[ADR-006]]).
 /// </summary>
-public sealed class TierRestore(IFileSystem fileSystem, string appDataPath)
+/// <param name="appDataPath">Roaming <c>%APPDATA%</c> — where the AppData half of tier 3 goes back.</param>
+/// <param name="documentsPath">
+/// The Documents folder — where the other half goes back. Resolved by the caller through
+/// <c>GetFolderPath</c>, never composed: on a machine with a redirected Documents folder a composed
+/// path would recreate the vendor's tree in a folder nothing reads.
+/// </param>
+public sealed class TierRestore(IFileSystem fileSystem, string appDataPath, string documentsPath)
 {
     public static TierRestore For(IFileSystem fileSystem) =>
-        new(fileSystem, TierCapture.SystemAppData);
+        new(fileSystem, TierCapture.SystemAppData, TierCapture.SystemDocuments);
 
     /// <param name="plugins">The snapshot's plugins.json, or null when it never recorded one.</param>
     public TierRestoreResult Restore(Snapshot snapshot, PluginManifest? plugins, RestoreOptions options)
@@ -73,11 +79,17 @@ public sealed class TierRestore(IFileSystem fileSystem, string appDataPath)
                 if (!relative.StartsWith(PresetFiles.RelativeRoot + "/", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                // presets/FabFilter/Pro-Q 4/x.ffp -> %APPDATA%\FabFilter\Pro-Q 4\x.ffp. The
-                // capture mirrored the tree from the vendor folder down, so the mapping back is
-                // the same path with the root swapped - no name is re-derived or guessed.
-                var under = relative[(PresetFiles.RelativeRoot.Length + 1)..];
-                var destination = Path.Combine(appDataPath, under.Replace('/', Path.DirectorySeparatorChar));
+                // presets/documents/FabFilter/Presets/Pro-Q 4/x.ffp -> <Documents>\FabFilter\
+                // Presets\Pro-Q 4\x.ffp. The capture mirrored the tree from its root down and named
+                // that root in the path, so the mapping back is the same path with the root swapped
+                // - no name is re-derived or guessed, and nothing lands in the wrong one.
+                //
+                // A snapshot written before schema 2 has no root segment; RootOf reads it as
+                // AppData, which is the only place those files came from.
+                var (root, under) = PresetFiles.RootOf(relative);
+                var destination = Path.Combine(
+                    root == PresetRoot.Documents ? documentsPath : appDataPath,
+                    under.Replace('/', Path.DirectorySeparatorChar));
 
                 if (Copy(SnapshotManifest.PathIn(snapshot.Directory, relative), destination, skipped, ref needsElevation))
                 {

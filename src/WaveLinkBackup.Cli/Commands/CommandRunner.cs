@@ -39,12 +39,14 @@ public sealed class CommandRunner(
     string localAppDataPath,
     IRecycleBin recycleBin,
     BackupSettings? settings = null,
-    string? appDataPath = null)
+    string? appDataPath = null,
+    string? documentsPath = null)
 {
     private readonly BackupSettings settings = settings ?? BackupSettings.Default;
 
     /// <summary>Roaming AppData, where tier 3 looks. Same reason as localAppDataPath.</summary>
     private readonly string appDataPath = appDataPath ?? TierCapture.SystemAppData;
+    private readonly string documentsPath = documentsPath ?? TierCapture.SystemDocuments;
 
     public int Run(ParsedCommand command)
     {
@@ -119,7 +121,7 @@ public sealed class CommandRunner(
         var store = Store(command);
         var orchestrator = new RestoreOrchestrator(
             fileSystem, process, store, new SettingsWriter(fileSystem, process),
-            new SettingsReader(fileSystem), GatherPayload, appDataPath);
+            new SettingsReader(fileSystem), GatherPayload, appDataPath, documentsPath);
 
         var plan = orchestrator.Plan(command.Arguments[0], live.Value);
         if (!plan.IsSuccess) return Fail(plan.Error);
@@ -376,7 +378,7 @@ public sealed class CommandRunner(
     /// the GUI put the same things in a snapshot.
     /// </summary>
     private SnapshotPayload? GatherPayload(SettingsInspection live) =>
-        new TierCapture(fileSystem, appDataPath).Gather(live, settings);
+        new TierCapture(fileSystem, appDataPath, documentsPath).Gather(live, settings);
 
     private int Fail(CoreError error)
     {
