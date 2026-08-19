@@ -2,7 +2,7 @@
 title: "Wave Link Backup Documentation System"
 status: published
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-19
 tags: [meta, documentation]
 ---
 
@@ -42,7 +42,8 @@ _docs/
 │   └── design/              # the design handoff (vendored export — see note below)
 │       ├── README.md        #   part 1: the four finished screens
 │       ├── CHANGES-SINCE-V1.md  # diff against the previous export — read first
-│       ├── screens/         #   part 2: eleven state-group specs + PNGs
+│       ├── screens/         #   part 2: 11 exported state-group specs + PNGs,
+│       │                     #   plus 13-/14- authored here (see note below)
 │       ├── tokens/ assets/  #   token CSS and brand marks
 ├── plans/                   # designs and implementation plans, written before the work
 ├── sessions/                # structured session notes
@@ -160,7 +161,8 @@ load-bearing. If the order does not matter, it is not a recipe, it is a paragrap
 **Purpose:** things done *to* a running system rather than to the code.
 
 `operations/design/` holds the design handoff — tokens, the four finished screens, eleven
-state-group specs in `screens/`, and a self-contained HTML prototype. `README.md` and
+exported state-group specs in `screens/` plus two written here, and a self-contained HTML
+prototype. `README.md` and
 `screens/` are **both current and non-overlapping**: the README is the only spec for the four
 finished screens, `screens/` the only spec for the states they lack. Neither supersedes the
 other. The prototype is a reference, **not production code, and must not be ported literally**.
@@ -175,6 +177,19 @@ Keep this one folder with subdirectories rather than several tiny top-level fold
 >
 > `CHANGES-SINCE-V1.md` is the diff against the previous export. Read it before re-reading the
 > README; it names which of the already-specified screens changed.
+
+> **Two files in `screens/` are locally authored, and they are the exception to the exemption
+> above.** `13-elevation.md` and `14-backup-timing.md` were written in this repo, not exported
+> from the design tool, because the code they specify could not be built without a design and
+> the design tool was not going to produce one on its own schedule. **They carry frontmatter and
+> a provenance banner precisely so a re-export cannot silently delete them** — a wholesale
+> replacement of this folder must preserve any file whose first line is `---`. If the design tool
+> later produces its own version of either screen, the exported one wins and the local file moves
+> to `archive/`.
+>
+> Adding a locally authored file here is a **last resort**, not a pattern. The alternative was
+> inventing design in XAML, which [[ADR-004]] exists to prevent; the cost is this paragraph and
+> the risk it describes.
 
 ---
 

@@ -35,12 +35,13 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phases 0–5 are complete. Phase 6 (plugin tiers) has started — §1 has landed.**
+**Phases 0–6 are complete. Phase 7 (release) is next, and 1.0 is gated on the privacy work
+rather than on features.**
 
 **There is a working program with a window.** `wlbackup` backs up, lists, restores, renames,
 deletes, verifies, prunes, empties the trash and watches from the CLI; the WPF shell does the
 same from a tray app with a window — the four designed screens, the twelve errors, the settings
-dialog, and high contrast, all built and tested. **1,050 tests** (Core 318, CLI 91, App 641).
+dialog, and high contrast, all built and tested. **1,207 tests** (Core 423, CLI 97, App 687).
 Published as a **3.2 MB NativeAOT binary**, verified against a real install.
 
 **All three founding problems are solved.** Snapshots survive an MSIX package reset
@@ -62,7 +63,17 @@ than the list: see [the session note](sessions/2026-08-19-design-audit-and-ui-fi
 four gotchas it produced. Motion and the missing-plug-in warning
 ([technical-debt.md](technical-debt.md) §4.12–4.13) closed with it.
 
-**The design is complete** (package v5): thirteen state-group specs, nothing undesigned.
+**Phase 6 closed 2026-08-19, and the two things it deferred closed with it.** All four tiers
+capture and restore. Tier 3 was then run against a real vendor folder for the first time and
+found to be capturing the wrong files — an interface default and a MIDI map where 172 presets
+should have been — so it reads **two roots** now ([[ADR-010]]), and a snapshot went from 61
+preset files to 491. Tier 4 restore reached the shell once elevation had a designed surface
+([[ADR-011]]). Automatic backups gained a settable interval and an optional daily time.
+
+**The design is complete** (package v5): thirteen state-group specs, nothing undesigned. Two
+further specs — elevation and backup timing — were written in this repo rather than exported;
+see [README.md](README.md) → *operations/* for why that is a last resort and how they survive a
+re-export.
 **It is a tray app with a window**, not the reverse — `screens/12` is explicit, and that framing
 lands scope the original four screens did not carry.
 
@@ -83,7 +94,7 @@ lands scope the original four screens did not carry.
 
 ## Decisions
 
-The shape of the project in eight records. Read `ADR-001` and `ADR-002` first — the rest
+The shape of the project in eleven records. Read `ADR-001` and `ADR-002` first — the rest
 follow from them.
 
 | ADR | Decision |
@@ -97,13 +108,21 @@ follow from them.
 | [ADR-007](decisions/ADR-007-hash-dedup-and-file-watching.md) | Content-hash dedup and a file watcher, not a schedule |
 | [ADR-008](decisions/ADR-008-windows-only-scope.md) | Windows-only, and say so out loud |
 | [ADR-009](decisions/ADR-009-hand-rolled-cli-parsing.md) | Hand-rolled command-line parsing, no dependency |
+| [ADR-010](decisions/ADR-010-two-preset-roots-and-a-rooted-snapshot-layout.md) | Two preset roots, and a snapshot layout that names them — corrects ADR-006's tier 3 |
+| [ADR-011](decisions/ADR-011-elevate-by-relaunching-the-shell.md) | Elevate by relaunching the shell, for one restore, and never otherwise |
 
 ---
 
 ## Gotchas
 
-Ten ways this goes wrong. Titled by symptom, because that is what you will be searching
-for at the time.
+Eighteen ways this goes wrong. Titled by symptom, because that is what you will be searching
+for at the time — you do not know the cause yet, which is why you are searching.
+
+Grouped by where they bite. **The whole table is here on purpose**: it listed ten of sixteen
+between 0.5.1 and 0.6.0, which made it look complete and quietly hid the six the design audit
+produced.
+
+### Capture and restore
 
 | Symptom | Gotcha |
 |---|---|
@@ -117,6 +136,24 @@ for at the time.
 | A plugin backs up as zero bytes | [vst3-backs-up-as-nothing.md](knowledge-base/gotchas/vst3-backs-up-as-nothing.md) |
 | Someone else's backup produces dead channels | [restored-backup-has-dead-channels.md](knowledge-base/gotchas/restored-backup-has-dead-channels.md) |
 | Deleting one backup takes its neighbours with it | [deleting-one-backup-takes-its-neighbours.md](knowledge-base/gotchas/deleting-one-backup-takes-its-neighbours.md) |
+| The backup says it saved your presets, and they are not in it | [backup-says-it-saved-your-presets-and-it-did-not.md](knowledge-base/gotchas/backup-says-it-saved-your-presets-and-it-did-not.md) |
+
+### The shell
+
+Four of these came out of the 0.5.1 design audit — the first three below, plus the selection one
+— and the finding was the group rather than any member: every one lived in a view no test had
+ever constructed. The two tray entries were hit while building phase 5, and the settings one two
+phases later, by the same gap.
+
+| Symptom | Gotcha |
+|---|---|
+| The window never opens and nothing says why | [the-window-never-opens-and-nothing-says-why.md](knowledge-base/gotchas/the-window-never-opens-and-nothing-says-why.md) |
+| A dialog opens as a black rectangle | [a-dialog-opens-as-a-black-rectangle.md](knowledge-base/gotchas/a-dialog-opens-as-a-black-rectangle.md) |
+| A binding expression appears on screen | [a-binding-expression-appears-on-screen.md](knowledge-base/gotchas/a-binding-expression-appears-on-screen.md) |
+| Three backups look selected at once | [three-backups-look-selected-at-once.md](knowledge-base/gotchas/three-backups-look-selected-at-once.md) |
+| A control in the Settings dialog moves and nothing happens | [a-settings-control-moves-and-nothing-happens.md](knowledge-base/gotchas/a-settings-control-moves-and-nothing-happens.md) |
+| The tray icon refuses every image you draw | [the-tray-icon-refuses-every-image-you-draw.md](knowledge-base/gotchas/the-tray-icon-refuses-every-image-you-draw.md) |
+| The tray menu keeps the theme it started with | [tray-menu-keeps-the-theme-it-started-with.md](knowledge-base/gotchas/tray-menu-keeps-the-theme-it-started-with.md) |
 
 ---
 

@@ -98,7 +98,7 @@ deliberately not in 1.0).
 | Fix 2 — the JSON encoder | ⛔ | Withdrawn: the recommendation was inverted. See the corrections block |
 | Fix 3 — no duplicate-key detection | ✅ | Phase 1 |
 | Fix 4 — manual tool, not a safety net | ✅ | Phase 3 |
-| Fix 5 — the runtime dependency | 🔨 | **Phase 7 §4** — ADR-010. CLI is settled (NativeAOT, 3.2 MB); the WPF app is not |
+| Fix 5 — the runtime dependency | 🔨 | **Phase 7 §4** — ADR-012. CLI is settled (NativeAOT, 3.2 MB); the WPF app is not |
 
 ## §8 · Language
 

@@ -1,6 +1,6 @@
 ---
 title: "Phase 5, plan 6: delete, rename, and empty trash"
-status: planned
+status: published
 created: 2026-08-18
 updated: 2026-08-18
 tags: [plan, phase-5, wpf, delete, trash]

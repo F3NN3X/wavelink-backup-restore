@@ -20,19 +20,24 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of 2026-08-19 (0.5.1).*
+*As of 2026-08-19 (unreleased, after 0.6.0).*
 
 | Artifact | Count |
 |---|---|
-| ADRs | 9 |
-| Gotchas | 16 |
+| ADRs | 11 |
+| Gotchas | 18 |
 | Patterns | 4 |
 | Recipes | 2 |
 | Audits | 1 (6 findings) |
-| Sessions | 17 |
+| Sessions | 19 |
 | Plans | 13 |
-| Dev-phase documents | 8 (of 8 phases; phase 6 detailed, phase 7 sketched in the index) |
-| **Tests** | **1,050 passing** — Core 318 · CLI 91 · App 641 |
+| Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
+| **Tests** | **1,207 passing** — Core 423 · CLI 97 · App 687 |
+
+> The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
+> The trigger table in [README.md](README.md) says to update this file in the same commit as the
+> document it counts; that is what did not happen, and it is the failure mode a running total in
+> a separate file has.
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
@@ -44,6 +49,56 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### The two deferred items, closed — and a settable schedule (2026-08-19)
+
+**The documentation delta here is larger than the code delta, and that is the honest shape of the
+session:** one of the two items being closed was a *measurement*, and what it measured turned out
+to contradict a sentence in an accepted ADR.
+
+- **Two ADRs, and a renumbering of two that do not exist yet.** [[ADR-010]] (two preset roots and
+  a rooted snapshot layout) and [[ADR-011]] (elevate by relaunching the shell) took the numbers
+  `phase-7-release.md` had pencilled in for packaging and notifications. ADRs are numbered in the
+  order they are **written**, so a reserved number yields to a real one — the phase-7 references
+  moved to ADR-012 and ADR-013, with a note saying so. Renumbering a *plan* is not renumbering an
+  ADR, which never happens.
+- **[[ADR-006]] now has a correction on top of it.** Its tier 3 definition —
+  *"the presets each effect saved under `%APPDATA%\<Vendor>\`"* — was checked against the
+  reference rig for the first time and was wrong. Its **measurements were right and were
+  misread**: `%APPDATA%\FabFilter` does hold 246 files, and they are caches and factory
+  component presets. [[ADR-010]] supersedes the definition without superseding the ADR, and says
+  which sentence it replaces.
+- **Two gotchas, both observed.**
+  [[backup-says-it-saved-your-presets-and-it-did-not]] — the §4.18 finding as a symptom, with the
+  numbers and the two plausible-but-wrong diagnoses. And
+  [[a-settings-control-moves-and-nothing-happens]] — a stepper wired to nothing for two phases,
+  and a commit that reached disk but not the running app.
+- **`technical-debt.md`: §4.17 and §4.18 closed, §4.20 opened.** The two closures are long,
+  deliberately — §4.18 carries the before/after table because a measurement that changed a
+  decision is worth more than the decision. §4.20 is new debt found while fixing the others.
+- **Two design specs written in this repo**, `screens/13-elevation.md` and
+  `screens/14-backup-timing.md`. `operations/design/` is a vendored export exempt from the
+  frontmatter rule, so these two carry frontmatter and a provenance banner **to survive a
+  re-export**, and [README.md](README.md) now records that exception and calls it a last resort.
+- **`glossary.md` gained four terms** — *preset root*, *preset source*, *elevation*, *daily
+  backup* — and its tier-3 row was corrected. Each is a word where the everyday meaning is close
+  enough to mislead: "elevation" in particular means *a second headless process*, not a
+  permission this one acquires.
+- **The tally was stale by a whole release** and is corrected above.
+- **A corpus pass fixed what had drifted**, run against the rules in [README.md](README.md)
+  rather than by eye:
+  - `index.md` claimed *"Phase 6 has started"*, 1,050 tests, *"eight records"* against a
+    nine-row ADR table, and **listed ten of sixteen gotchas** — which is worse than listing
+    none, because a partial index reads as a complete one. The gotcha table is now whole and
+    grouped by where each bites.
+  - **Five plans carried statuses outside the schema** — `completed`, `in-progress`, `planned`
+    against `draft | review | published | archived` — and two of those were stale as well as
+    off-schema, describing shipped work as not started. All five are `published`, matching
+    their eight siblings.
+  - Every `[[slug]]`, every relative link and every frontmatter block was checked mechanically.
+    106 files, 11 ADRs contiguous from 001, nothing dangling.
+
+Counts: ADRs 9 → **11**, gotchas 16 → **18**, sessions 17 → **19**, tests 1,146 → **1,207**.
 
 ### Recent additions (v0.6.0 — plugin tiers)
 
@@ -708,6 +763,32 @@ see that. Read together before writing the next window.
 | [[three-backups-look-selected-at-once]] | Selection across several Selectors, and the test that passed while the bug shipped |
 | [operations/design/README.md](operations/design/README.md) | The values every one of these was audited against |
 | [2026-08-19-design-audit-and-ui-fixes.md](sessions/2026-08-19-design-audit-and-ui-fixes.md) | The narrative, including three wrong diagnoses |
+
+### Tier 3, and a heuristic that was wrong for two phases
+
+The most instructive failure in the project so far: every test passed, the output looked correct,
+and the tier captured 2% of what it promised. Read together before writing anything that guesses
+at a path.
+
+| Artifact | Contribution |
+|---|---|
+| [[ADR-006]] | The four tiers, and the tier-3 sentence that turned out to be wrong |
+| [[ADR-010]] | Two roots, the rooted snapshot layout, and the four alternatives weighed |
+| [[backup-says-it-saved-your-presets-and-it-did-not]] | The symptom, the numbers, and why the obvious diagnosis is wrong |
+| [technical-debt.md](technical-debt.md) §4.18 | The entry that specified the check, and the before/after it produced |
+| [2026-08-19-preset-roots-elevation-and-timing.md](sessions/2026-08-19-preset-roots-elevation-and-timing.md) | Why "verify it" became "change the snapshot format" |
+
+### Administrator rights, and the one thing that needs them
+
+Tiers 1–3 restore on an ordinary account. Tier 4 does not, and the gap between "the code can do
+it" and "the app can ask for it" was a whole phase.
+
+| Artifact | Contribution |
+|---|---|
+| [[ADR-006]] | Why only tier 4 touches a folder the user does not own |
+| [[ADR-011]] | Relaunch the shell headless; what that rules out, including the mutex and the confirmed verdict |
+| [`screens/13-elevation.md`](operations/design/screens/13-elevation.md) | The designed surface — the row, the prompt, and error 13 |
+| [technical-debt.md](technical-debt.md) §4.17 | The entry, and why the blocker was design rather than code |
 
 ### Where the settings live, and where they don't
 

@@ -33,9 +33,14 @@ left open ([[ADR-002]], finding 5), and three UI surfaces that are modelled in c
 control bound to them.
 
 **This phase writes two ADRs.** Notifications and packaging/updates are both decisions with
-alternatives that a later reader will otherwise re-litigate: **ADR-010 — how the app is packaged
-and distributed** and **ADR-011 — how notifications are delivered**. Write them when the section
+alternatives that a later reader will otherwise re-litigate: **ADR-012 — how the app is packaged
+and distributed** and **ADR-013 — how notifications are delivered**. Write them when the section
 that needs them starts, not before.
+
+> These were pencilled in as 010 and 011 and moved on 2026-08-19, when
+> [[ADR-010]] (two preset roots) and [[ADR-011]] (elevate by relaunching the shell) were
+> actually written. ADRs are numbered in the order they are **written**, so a reserved number
+> yields to a real one — that is renumbering a plan, not renumbering an ADR, which never happens.
 
 ## Scope
 
@@ -45,7 +50,7 @@ that needs them starts, not before.
   and one designed surface to invoke it from.
 - **The two notifications** from `screens/12` — nine days of silence, and a rejected restore.
 - **The update mechanism** — the `UPDATES` settings section, a weekly check, and whatever
-  "install" honestly means once ADR-010 has decided how the app is distributed.
+  "install" honestly means once ADR-012 has decided how the app is distributed.
 - **`WHEN WINDOWS STARTS`** — the settings section for autostart and close-to-tray. Both are
   modelled and persisted; **neither has a control bound to it**, so autostart cannot currently be
   switched on from anywhere in the app.
@@ -151,7 +156,7 @@ Neither needs new Core work. What is missing is delivery and the once-only rule.
 cleared when the condition clears. A notification that repeats every day is muted within a week, and
 then it is not a safety net.
 
-**How it is delivered is ADR-011**, and the choice is real:
+**How it is delivered is ADR-013**, and the choice is real:
 
 | Route | Buys | Costs |
 |---|---|---|
@@ -187,7 +192,7 @@ reads off, cannot be switched on, and the note says why. Task Manager wins.
 
 ### 4 · Packaging, distribution and updates (build + App) — [[ADR-002]] finding 5, [technical-debt.md](../technical-debt.md) §1.5, §2.4
 
-**ADR-010.** Three decisions, and the update mechanism cannot be designed until they are made.
+**ADR-012.** Three decisions, and the update mechanism cannot be designed until they are made.
 
 **a · How the app ships.** `wlbackup` (CLI) is settled: NativeAOT, 3.2 MB, verified working
 against a real install. The WPF app is not:
@@ -206,7 +211,7 @@ problem.
 on first run for every user until reputation accumulates — which for a low-volume tool is
 effectively never. Options: buy an OV certificate (~£200/yr, still needs reputation), buy EV
 (instant reputation, more expensive, hardware token), or ship unsigned and document the warning
-honestly in the README with the SHA-256 to check. **Decide it in ADR-010 rather than discovering it
+honestly in the README with the SHA-256 to check. **Decide it in ADR-012 rather than discovering it
 at tag time.**
 
 **c · What the update mechanism can honestly do**, which falls out of (a) and (b). The design
@@ -275,7 +280,7 @@ discovery entirely**, so a non-MSIX user can be served; nothing surfaces the doo
 ### 8 · Release engineering (CI)
 
 - A release workflow: build, run the full suite, publish `wlbackup` (AOT) and the WPF app
-  (per ADR-010), emit `SHA256SUMS`, create the GitHub release from the CHANGELOG's section for
+  (per ADR-012), emit `SHA256SUMS`, create the GitHub release from the CHANGELOG's section for
   that version.
 - `Directory.Build.props` stays the version of record, and the CHANGELOG's newest heading matches
   it — the rule is already written down; the release workflow should assert it rather than trust it.
@@ -303,7 +308,7 @@ Written as a table so that "we'll fix it before release" cannot quietly mean "we
 | §4.16 rehashing plugin binaries per capture | No | Cost, not correctness; needs a measurement first |
 | §2.2 whether non-MSIX installs exist | No | Unanswerable without the installers; the escape hatch exists |
 | §2.4 `[ComImport]` under AOT | No | No COM interop in the codebase to break |
-| Code signing | **Decide, not necessarily do** | ADR-010 must state the answer and the README must match it |
+| Code signing | **Decide, not necessarily do** | ADR-012 must state the answer and the README must match it |
 
 ---
 
@@ -329,7 +334,7 @@ Written as a table so that "we'll fix it before release" cannot quietly mean "we
 | Risk | Early signal | Response |
 |---|---|---|
 | Redaction is partial and a serial ships in a "redacted" report | A fixture finds the serial in a field nobody enumerated | Redact by **substitution over the whole tree**, then assert absence of the raw value in the output — never by allow-listing fields |
-| The toast route needs a Start-menu shortcut the portable zip does not place | Notifications silently never appear when run from a folder | Decide ADR-011 **after** ADR-010, and keep the balloon fallback |
+| The toast route needs a Start-menu shortcut the portable zip does not place | Notifications silently never appear when run from a folder | Decide ADR-013 **after** ADR-012, and keep the balloon fallback |
 | "Install and restart" is built, unsigned, and flagged by security software | SmartScreen or an AV quarantine on the updater | Ship the download-it-yourself action for 1.0; gate self-update on a certificate |
 | The privacy work slips because it has no screen | §1 still unstarted when §4 is in progress | It is the first work item and the first gate row; a design pass for `screens/13` is its own deliverable |
 | Release scope grows into a second GUI phase | New screens appearing in this phase's plan | Everything not in the list above is [post-1.0.md](post-1.0.md) |
