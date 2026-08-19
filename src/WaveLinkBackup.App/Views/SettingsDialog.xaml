@@ -212,6 +212,82 @@
                         </Grid>
                     </Border>
 
+                    <!-- ============ WHEN TO BACK UP ============ -->
+                    <TextBlock Text="WHEN TO BACK UP" Style="{StaticResource WlColumnHeaderText}"
+                               Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
+                               AutomationProperties.Name="When to back up section" />
+
+                    <!-- Row 1: the auto-backup toggle. WlBg fill, hairline border, 8px radius. -->
+                    <Border Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />    <!-- label + description -->
+                                <ColumnDefinition Width="Auto" /> <!-- toggle -->
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="16,14">
+                                <TextBlock Text="Back up on its own when my settings change"
+                                           Style="{StaticResource WlRowNameText}"
+                                           Foreground="{DynamicResource WlStrong}"
+                                           AutomationProperties.Name="Automatic backup label" />
+                                <TextBlock Text="Wave Link writes its file the moment you touch a channel. This notices, waits a minute, then keeps a copy — at most one an hour."
+                                           Style="{StaticResource WlSecondaryText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                           AutomationProperties.Name="Automatic backup description" />
+                            </StackPanel>
+
+                            <!-- The toggle commits on change through the VM (no Save button). -->
+                            <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="16,0"
+                                      Style="{StaticResource WlToggle}"
+                                      IsChecked="{Binding AutoBackupEnabled, Mode=TwoWay}"
+                                      AutomationProperties.Name="Back up on its own when my settings change" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 2: the keep-count stepper. Same row shape, 10px below row 1. -->
+                    <Border Margin="0,10,0,0" Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />    <!-- label + description -->
+                                <ColumnDefinition Width="Auto" /> <!-- stepper -->
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="16,14">
+                                <TextBlock Text="Keep the last automatic backups"
+                                           Style="{StaticResource WlRowNameText}"
+                                           Foreground="{DynamicResource WlStrong}"
+                                           AutomationProperties.Name="Keep count label" />
+                                <TextBlock Text="Backups you took yourself are never deleted."
+                                           Style="{StaticResource WlSecondaryText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                           AutomationProperties.Name="Keep count description" />
+                            </StackPanel>
+
+                            <!-- Stepper: − / value / +. The middle segment is a plain Border (not a
+                                 Button) carrying the mono value - see WlStepperButton's own comment.
+                                 32x34 segments, hairline-24% border, 8px radius, joined into one control. -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+                                <Button x:Name="DecrementKeepCountButton" Content="−"
+                                        Style="{StaticResource WlStepperButton}"
+                                        AutomationProperties.Name="Decrease how many automatic backups to keep" />
+                                <Border Width="52" Height="34" Background="{DynamicResource WlSunken}"
+                                        BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
+                                        CornerRadius="8">
+                                    <TextBlock Text="{Binding AutoBackupKeepCount, Mode=OneWay}"
+                                               Style="{StaticResource WlMonoReadoutText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               AutomationProperties.Name="How many automatic backups to keep" />
+                                </Border>
+                                <Button x:Name="IncrementKeepCountButton" Content="+" Margin="-1,0,0,0"
+                                        Style="{StaticResource WlStepperButton}"
+                                        AutomationProperties.Name="Increase how many automatic backups to keep" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
                     <!-- ============ WHAT GOES IN A BACKUP ============ -->
                     <TextBlock Text="WHAT GOES IN A BACKUP" Style="{StaticResource WlColumnHeaderText}"
                                Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
@@ -338,82 +414,6 @@
                                Style="{StaticResource WlSecondaryText}" Foreground="{DynamicResource WlMuted}"
                                Margin="0,8,0,0" TextWrapping="Wrap" LineHeight="17.25"
                                AutomationProperties.Name="Unbuilt tiers footnote" />
-
-                    <!-- ============ WHEN TO BACK UP ============ -->
-                    <TextBlock Text="WHEN TO BACK UP" Style="{StaticResource WlColumnHeaderText}"
-                               Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
-                               AutomationProperties.Name="When to back up section" />
-
-                    <!-- Row 1: the auto-backup toggle. WlBg fill, hairline border, 8px radius. -->
-                    <Border Background="{DynamicResource WlBg}"
-                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />    <!-- label + description -->
-                                <ColumnDefinition Width="Auto" /> <!-- toggle -->
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Margin="16,14">
-                                <TextBlock Text="Back up on its own when my settings change"
-                                           Style="{StaticResource WlRowNameText}"
-                                           Foreground="{DynamicResource WlStrong}"
-                                           AutomationProperties.Name="Automatic backup label" />
-                                <TextBlock Text="Wave Link writes its file the moment you touch a channel. This notices, waits a minute, then keeps a copy — at most one an hour."
-                                           Style="{StaticResource WlSecondaryText}"
-                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0" TextWrapping="Wrap"
-                                           AutomationProperties.Name="Automatic backup description" />
-                            </StackPanel>
-
-                            <!-- The toggle commits on change through the VM (no Save button). -->
-                            <CheckBox Grid.Column="1" VerticalAlignment="Center" Margin="16,0"
-                                      Style="{StaticResource WlToggle}"
-                                      IsChecked="{Binding AutoBackupEnabled, Mode=TwoWay}"
-                                      AutomationProperties.Name="Back up on its own when my settings change" />
-                        </Grid>
-                    </Border>
-
-                    <!-- Row 2: the keep-count stepper. Same row shape, 10px below row 1. -->
-                    <Border Margin="0,10,0,0" Background="{DynamicResource WlBg}"
-                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />    <!-- label + description -->
-                                <ColumnDefinition Width="Auto" /> <!-- stepper -->
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Margin="16,14">
-                                <TextBlock Text="Keep the last automatic backups"
-                                           Style="{StaticResource WlRowNameText}"
-                                           Foreground="{DynamicResource WlStrong}"
-                                           AutomationProperties.Name="Keep count label" />
-                                <TextBlock Text="Backups you took yourself are never deleted."
-                                           Style="{StaticResource WlSecondaryText}"
-                                           Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
-                                           AutomationProperties.Name="Keep count description" />
-                            </StackPanel>
-
-                            <!-- Stepper: − / value / +. The middle segment is a plain Border (not a
-                                 Button) carrying the mono value - see WlStepperButton's own comment.
-                                 32x34 segments, hairline-24% border, 8px radius, joined into one control. -->
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
-                                <Button x:Name="DecrementKeepCountButton" Content="−"
-                                        Style="{StaticResource WlStepperButton}"
-                                        AutomationProperties.Name="Decrease how many automatic backups to keep" />
-                                <Border Width="52" Height="34" Background="{DynamicResource WlSunken}"
-                                        BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
-                                        CornerRadius="8">
-                                    <TextBlock Text="{Binding AutoBackupKeepCount, Mode=OneWay}"
-                                               Style="{StaticResource WlMonoReadoutText}"
-                                               Foreground="{DynamicResource WlStrong}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               AutomationProperties.Name="How many automatic backups to keep" />
-                                </Border>
-                                <Button x:Name="IncrementKeepCountButton" Content="+" Margin="-1,0,0,0"
-                                        Style="{StaticResource WlStepperButton}"
-                                        AutomationProperties.Name="Increase how many automatic backups to keep" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
 
                     <!-- ============ WHICH WAVE LINK ============ -->
                     <!-- Hidden entirely when there is only one installation (WhichWaveLink is null):
