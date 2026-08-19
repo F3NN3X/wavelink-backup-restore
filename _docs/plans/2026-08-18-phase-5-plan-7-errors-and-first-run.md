@@ -1,8 +1,8 @@
 ---
 title: "Phase 5, plan 7: the twelve errors and the first-run / empty state"
-status: planned
+status: in-progress
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-08-19
 tags: [plan, phase-5, wpf, errors, first-run]
 ---
 
@@ -94,9 +94,14 @@ malformed-settings dialog is amber.
 
 ## Task 4 — Dialog errors (2, 4, 8)
 
-- [ ] **Step 1:** Error 2 (multiple installs, none chosen): a chooser dialog listing the found installations; choosing one persists it (the WHICH WAVE LINK section in Plan 8 reads this). Neutral.
-- [ ] **Step 2:** Error 4 (disk full while writing) and error 8 (pre-restore copy failed before a restore): amber dialogs with the designed copy. Error 8 blocks the restore — no pre-restore copy, no restore.
-- [ ] **Step 3:** Unit tests: each dialog's copy + weight; error 8 leaves the selection un-restored and the pre-restore step not retried silently. Commit: `feat(app): dialog errors 2,4,8`.
+The three decision dialogs share one borderless modal (`Views/ErrorDialog.xaml`, the same shape as
+`DeleteDialog`) driven by a pure projection (`ViewModels/ErrorDialogModel.cs`). The model's
+`Build(CoreError)` renders only errors 2/4/8 and throws on anything else, so a non-dialog error
+reaching the dialog path is a caller bug, not a state to render.
+
+- [x] **Step 1:** Error 2 (multiple installs, none chosen): a chooser dialog listing the found installations; choosing one persists it (the WHICH WAVE LINK section in Plan 8 reads this). Neutral. Wired at App level: `RefreshShellFacts` detects `MultiplePackagesFound` with no chosen path (once per process via `error2Prompted`) and shows the dialog; a confirmed pick is written to `settings.ChosenWaveLinkPath` through `settingsRepository.Save`.
+- [x] **Step 2:** Error 4 (malformed settings) and error 8 (newer-version backup): dialogs with the designed copy. Error 4 is the only amber of the three — its note block takes `WlWarnSoft`/`WlWarn`, set in the code-behind from the model's weight (a DataTrigger swapping brushes here never fires for a window shown without a full render pass, and would make the variant untestable). Error 8 is neutral and blocks the restore — no pre-restore copy, no restore. Wired via `MainWindow.TryShowDialogError`, which forwards a plan-failure only when the catalog says Dialog.
+- [x] **Step 3:** Unit tests: `ErrorDialogModelTests` pins each variant's copy/weight/options/buttons/card-width and that every non-dialog error throws; `ErrorDialogViewTests` forces each variant through a real layout pass off-screen in both themes and asserts the chooser/note/footer visibility per variant, the amber note fill for error 4, and the bound card width (620 vs 560). Build 0/0; 904 tests green (296 Core + 91 Cli + 517 App). Commit: `feat(app): dialog errors 2,4,8`.
 
 ## Task 5 — Error 12 / error 9 full screen (replaces the list)
 

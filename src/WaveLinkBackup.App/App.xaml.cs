@@ -61,6 +61,14 @@ public partial class App : Application
     private bool shuttingDown;
 
     /// <summary>
+    /// Error 2 (06-errors.md) asks at most once per process. The chooser fires the first time a
+    /// tick finds more than one Wave Link installation and none has been chosen yet; after the user
+    /// picks, cancels, or an install is later found uniquely, this stays set so the dialog never
+    /// re-appears on every 15-second tick.
+    /// </summary>
+    private bool error2Prompted;
+
+    /// <summary>
     /// The window's whole data model - held here, not just handed to MainWindow, because
     /// RefreshShellFacts (the 15-second tick) has to reach ShellViewModel.Apply even while no
     /// window is open (the app starts hidden when launched with --start-in-tray).
@@ -436,6 +444,12 @@ public partial class App : Application
     {
         if (shell is null || fileSystem is null) return;
 
+        // Error 2 (06-errors.md): more than one Wave Link installation and none chosen yet is a
+        // dialog, not a status-strip fact. It fires once per process - the chooser persists the
+        // answer (or the user cancels), so it must never re-ask on every 15-second tick.
+        if (!error2Prompted && settings.ChosenWaveLinkPath is null)
+            PromptForInstallationChoice();
+
         var inspection = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
             .Inspect(settings.ChosenWaveLinkPath);
 
@@ -453,6 +467,42 @@ public partial class App : Application
             FolderMissing: !fileSystem.DirectoryExists(settings.StorePath),
             StorePath: settings.StorePath,
             FreeBytes: fileSystem.GetAvailableFreeBytes(settings.StorePath)));
+    }
+
+    /// <summary>
+    /// Error 2 (06-errors.md): the chooser. It fires only when a live inspection finds more than
+    /// one Wave Link installation and none has been chosen yet, so it is the FIRST thing the user
+    /// sees in that situation - before any backup or restore can act on the wrong install. The
+    /// answer (or a cancel) marks <see cref="error2Prompted"/> so the dialog never re-asks; picking
+    /// an install also persists it, which is what stops the chooser asking again on every launch
+    /// (10-decisions.md 4).
+    /// </summary>
+    private void PromptForInstallationChoice()
+    {
+        if (fileSystem is null) return;
+
+        var inspection = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
+            .Inspect(settings.ChosenWaveLinkPath);
+
+        // Only a genuine "more than one" finding opens the dialog. One install or none is not an
+        // error 2 - it is the ordinary found / not-found fact the status strip already reports.
+        if (inspection.Error is not MultiplePackagesFound { Candidates: var candidates }
+            || candidates.Count <= 1)
+            return;
+
+        error2Prompted = true;
+
+        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error))
+        {
+            Owner = MainWindow,
+        };
+        dialog.ShowDialog();
+
+        if (dialog.Confirmed && dialog.SelectedInstallPath is not null)
+        {
+            settings = settings with { ChosenWaveLinkPath = dialog.SelectedInstallPath };
+            settingsRepository?.Save(settings);
+        }
     }
 
     private void ShowMainWindow()

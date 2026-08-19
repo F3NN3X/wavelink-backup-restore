@@ -1,0 +1,212 @@
+<Window x:Class="WaveLinkBackup.App.Views.ErrorDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
+        Title="Error"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Background="Transparent">
+
+    <!--
+      The three decision dialogs (06-errors.md "Dialogs"): error 2 (two installations, chooser),
+      error 4 (malformed settings, amber) and error 8 (newer version). Same borderless-modal shape
+      as DeleteDialog: WlScrim fills this window edge to edge and a centred WlCard card sits on top.
+
+      The DataContext is an ErrorDialogModel set by the caller; every element binds to it and
+      computes nothing. Nothing here touches Core or does I/O - rendering only.
+
+      Card width is bound (620 for the chooser, 560 for the other two). The note block, the
+      chooser list, the "remember this one" checkbox and the ghost footer action all collapse to
+      zero when their bound value is null/empty, so each variant renders only what it needs.
+
+      Weight: error 4 is amber (the live settings file is not whole); errors 2 and 8 are neutral.
+      The note block's fill switches on the model's Weight via a trigger - amber uses WlWarnSoft,
+      neutral uses WlSunken. No colour is painted for the chooser or the version readout.
+    -->
+    <Grid>
+        <!-- The scrim: what dims the window behind. Fills this borderless window edge to edge. -->
+        <Border Background="{DynamicResource WlScrim}" />
+
+        <!-- The card: width bound (620/560), WlCard surface, hairline-24% border, 8px radius. -->
+        <Border Width="{Binding CardWidth}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="{DynamicResource WlCard}"
+                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />    <!-- content -->
+                    <RowDefinition Height="Auto" /> <!-- footer -->
+                </Grid.RowDefinitions>
+
+                <!-- Content: 26px left/right, 26 top / 24 bottom, 18px between blocks. -->
+                <StackPanel Grid.Row="0" Margin="26,26,26,24">
+
+                    <!-- 1. Title: dialog title role, Rubik 500 20px/1.3. -->
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource WlDialogTitleText}"
+                               Foreground="{DynamicResource WlStrong}"
+                               AutomationProperties.Name="Error title" />
+
+                    <!-- 2. Body: Rubik 400 14px/1.55, 18px below the title. -->
+                    <TextBlock Text="{Binding Body}" Style="{StaticResource WlBodyText}"
+                               Foreground="{DynamicResource WlText}" Margin="0,18,0,0" />
+
+                    <!--
+                      3a. Error 2 chooser: one bordered row per installation, each with a radio.
+                      Collapses to zero height when Options is empty (errors 4 and 8 have none).
+                      The Border.Tag carries the nullable/empty binding; the trigger collapses on it.
+                    -->
+                    <ItemsControl x:Name="ChooserList" ItemsSource="{Binding Options}" Margin="0,18,0,0">
+                        <ItemsControl.Style>
+                            <Style TargetType="ItemsControl">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <Trigger Property="HasItems" Value="False">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ItemsControl.Style>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <!-- A bordered row: radio + the install path. WlSunken fill, hairline, 8px. -->
+                                <Border Margin="0,0,0,9" CornerRadius="8" Padding="13,12"
+                                        Background="{DynamicResource WlSunken}"
+                                        BorderBrush="{DynamicResource WlLine}" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- The radio: the user picks exactly one. -->
+                                        <RadioButton VerticalAlignment="Center" Margin="0,0,12,0"
+                                                     AutomationProperties.Name="Choose this installation" />
+                                        <!-- The path: mono, muted - machine-specific, never hard-coded. -->
+                                        <TextBlock Text="{Binding Path}" Style="{StaticResource WlMonoMetaText}"
+                                                   Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center"
+                                                   AutomationProperties.Name="Installation path" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!--
+                      3b. Note block (errors 4 and 8): a bordered block under the body. Error 4 is
+                      amber (WlWarnSoft) - the live configuration is not whole; error 8 is neutral
+                      (WlSunken). Collapses to zero height when Note is null (error 2 has no block).
+                      The first line is Rubik body (error 4's note) or mono (error 8's "MADE WITH");
+                      the optional second line is always mono - a parse detail or the "YOU HAVE" version.
+                    -->
+                    <!--
+                      The fill/edge are set in the code-behind from the model's Weight (amber for
+                      error 4, neutral otherwise) - NOT by a DataTrigger. A style-trigger that swaps
+                      brushes is unreliable when the window is shown off-screen without a full render
+                      pass (the trigger never fires, leaving both brushes at their local value), and
+                      it would make the amber variant untestable. Setting them explicitly in the
+                      constructor is deterministic: the decision lives where the model's weight lives,
+                      and a test can assert the resulting brushes directly. The neutral defaults below
+                      are what error 8 (and any future neutral note) gets; error 4 overrides both.
+                    -->
+                    <Border x:Name="NoteBlock" Margin="0,18,0,0" CornerRadius="8" Padding="14,13"
+                            Background="{DynamicResource WlSunken}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1"
+                            AutomationProperties.Name="Error note">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <Trigger Property="Tag" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Border.Tag>
+                            <Binding Path="Note" />
+                        </Border.Tag>
+                        <StackPanel>
+                            <!-- First line: Rubik body for error 4's note; the model stores it as Body. -->
+                            <TextBlock Text="{Binding Note.Body}"
+                                       FontFamily="{DynamicResource WlDisplayFont}"
+                                       FontSize="12.5" LineHeight="18.75" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource WlText}" />
+                            <!-- Optional second line: mono, muted - a parse detail or the version readout. -->
+                            <TextBlock Text="{Binding Note.SecondLine}"
+                                       Foreground="{DynamicResource WlMuted}" Margin="0,9,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource WlMonoMetaText}">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                        <Style.Triggers>
+                                            <Trigger Property="Tag" Value="{x:Null}">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                                <TextBlock.Tag>
+                                    <Binding Path="Note.SecondLine" />
+                                </TextBlock.Tag>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Footer: WlBg, hairline top, 18px vertical / 26px horizontal. -->
+                <Border Grid.Row="1" Background="{DynamicResource WlBg}"
+                        BorderBrush="{DynamicResource WlLine}" BorderThickness="0,1,0,0"
+                        Padding="26,18">
+                    <Grid>
+                        <!--
+                          Error 2's "Remember this one and stop asking": a checkbox pinned left of the
+                          button pair (06 §2). Collapses to zero width when RememberLabel is null -
+                          errors 4 and 8 have no such control.
+                        -->
+                        <CheckBox x:Name="RememberCheckbox" Content="{Binding RememberLabel}"
+                                  HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <CheckBox.Style>
+                                <Style TargetType="CheckBox">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <Trigger Property="Tag" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </CheckBox.Style>
+                            <CheckBox.Tag>
+                                <Binding Path="RememberLabel" />
+                            </CheckBox.Tag>
+                        </CheckBox>
+
+                        <!-- Ghost footer action (error 4 "Open the folder"): pinned left, right of the checkbox. -->
+                        <Button x:Name="GhostButton" Content="{Binding GhostLabel}"
+                                HorizontalAlignment="Left" Margin="16,0,0,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource WlGhostButton}">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <Trigger Property="Tag" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <Button.Tag>
+                                <Binding Path="GhostLabel" />
+                            </Button.Tag>
+                        </Button>
+
+                        <!-- Secondary + primary, right-aligned. -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <!-- Secondary (Cancel / Close): focus starts here; Escape is equivalent to it. -->
+                            <Button x:Name="SecondaryButton" Content="{Binding SecondaryLabel}" IsDefault="False"
+                                    Style="{StaticResource WlSecondaryButton}"
+                                    AutomationProperties.Name="Secondary action" />
+
+                            <!-- Primary (Use this one / Try again / Get the update): the affirmative action. -->
+                            <Button x:Name="PrimaryButton" Content="{Binding PrimaryLabel}" IsDefault="True"
+                                    Margin="9,0,0,0" Style="{StaticResource WlPrimaryButton}"
+                                    AutomationProperties.Name="Primary action" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

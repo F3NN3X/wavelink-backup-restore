@@ -236,8 +236,9 @@ public partial class MainWindow : Window
         {
             // A snapshot that is gone or unreadable (7 manifest, 11 not found) at the moment of
             // the press is an inline strip. Newer-format (8) and malformed-settings (4) are
-            // dialogs - Task 4 builds those; until then they keep the message box.
+            // dialogs - the catalog decides which is which; only those two forward to a dialog.
             if (TryShowInlineError(planResult.Error)) return;
+            if (TryShowDialogError(planResult.Error)) return;
 
             MessageBox.Show(planResult.Error!.Message, "Wave Link Backup",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -324,6 +325,27 @@ public partial class MainWindow : Window
         if (appError is null || appError.Placement != ErrorPlacement.InlineStrip) return false;
 
         shell.Strip.ShowError(appError, monoMeta: error.Message);
+        return true;
+    }
+
+    /// <summary>
+    /// 06-errors.md "Dialogs": the three errors the design places in a dialog (2 two installations,
+    /// 4 malformed settings, 8 newer version) are shown here instead of the old message box. The
+    /// catalog decides placement; this only forwards when it says Dialog, building the model from
+    /// the typed CoreError itself so the machine-specific mono values (a parse position, a schema
+    /// version, the found install paths) are never hard-coded. Returns true when a dialog was shown
+    /// (the caller then stops), false otherwise (the caller keeps its own path).
+    /// </summary>
+    private bool TryShowDialogError(CoreError? error)
+    {
+        if (error is null) return false;
+
+        var appError = AppErrorMapper.FromCoreSignal(new CoreSignal(error));
+        if (appError is null || appError.Placement != ErrorPlacement.Dialog) return false;
+
+        var dialog = new ErrorDialog(ErrorDialogModel.Build(error)) { Owner = this };
+        dialog.ShowDialog();
+        RestoreFocusToList();
         return true;
     }
 
