@@ -9,7 +9,9 @@ tags: [dev-phase]
 
 # Phase 6 — Plugin tiers
 
-**Status:** Not started. **Next phase** (phase 5 complete, 964 tests green).
+**Status:** In progress. **§1 landed 2026-08-19** — `SettingsAnalysis.ReferencedPlugins`,
+`PluginCache`, `PluginReferences.Resolve` and `PluginCacheReader`, with 22 tests
+([session note](../sessions/2026-08-19-phase-6-plugin-discovery.md)). §2 onward is unbuilt.
 **Entry criteria:** phase 5 complete. ✅ 2026-08-19. The store, the restore flow and the shell
 exist; tier 1 (settings) captures and restores end to end.
 **Exit criteria:** all four tiers from [[ADR-006]] capture and restore; a `.vst3` **bundle** is

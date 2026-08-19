@@ -35,12 +35,12 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phases 0–5 are complete. Phase 6 (plugin tiers) is next, not yet started.**
+**Phases 0–5 are complete. Phase 6 (plugin tiers) has started — §1 has landed.**
 
 **There is a working program with a window.** `wlbackup` backs up, lists, restores, renames,
 deletes, verifies, prunes, empties the trash and watches from the CLI; the WPF shell does the
 same from a tray app with a window — the four designed screens, the twelve errors, the settings
-dialog, and high contrast, all built and tested. **964 tests** (Core 296, CLI 91, App 577).
+dialog, and high contrast, all built and tested. **1,050 tests** (Core 318, CLI 91, App 641).
 Published as a **3.2 MB NativeAOT binary**, verified against a real install.
 
 **All three founding problems are solved.** Snapshots survive an MSIX package reset
@@ -54,6 +54,14 @@ and high contrast as a fully verified third theme. The four Core changes in
 during pruning, a watcher that no longer queues, and Windows-convention keyboard/focus — are all
 shipped.
 
+**0.5.1 audited the shell against that design and fixed what it found** — including a restore
+dialog that could not open at all, dialogs that rendered on a black background, binding
+expressions printed as text, selection that was per date group, and a proportion bar that had
+never drawn. Every one lived in a view no test had ever constructed, which is the finding rather
+than the list: see [the session note](sessions/2026-08-19-design-audit-and-ui-fixes.md) and the
+four gotchas it produced. Motion and the missing-plug-in warning
+([technical-debt.md](technical-debt.md) §4.12–4.13) closed with it.
+
 **The design is complete** (package v5): thirteen state-group specs, nothing undesigned.
 **It is a tray app with a window**, not the reverse — `screens/12` is explicit, and that framing
 lands scope the original four screens did not carry.
@@ -61,7 +69,7 @@ lands scope the original four screens did not carry.
 | | |
 |---|---|
 | What shipped | [Phase 5](dev-phases/phase-5-wpf.md) · [CHANGELOG](../CHANGELOG.md) |
-| What is next | Plugin tiers — [phase 6](dev-phases/phase-6-plugin-tiers.md) |
+| What is next | Plugin tiers — [phase 6](dev-phases/phase-6-plugin-tiers.md) §2 onward |
 | How Core is shaped | [Phase 1](plans/2026-08-16-phase-1-core-design.md) · [Phase 2](plans/2026-08-16-phase-2-store-design.md) designs |
 
 > **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three

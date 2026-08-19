@@ -78,4 +78,4 @@ just whichever install the targets found first, and it is not the problem either
 ## Related
 
 - [technical-debt.md](../../technical-debt.md) §2.4 — why AOT is kept open at all
-- [guards-that-can-fail.md](guards-that-can-fail.md) — the guards this recipe checks are still true
+- [guards-that-can-fail.md](../patterns/guards-that-can-fail.md) — the guards this recipe checks are still true

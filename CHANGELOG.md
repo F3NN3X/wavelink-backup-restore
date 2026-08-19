@@ -5,10 +5,11 @@ All notable changes to Wave Link Backup are recorded here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-**Pre-1.0, so the minor number carries breaking changes.** One release per completed phase of
-[the roadmap](_docs/dev-phases/README.md): `0.1.0` is phase 1, `0.2.0` phase 2, and so on.
-`1.0.0` is the first public release, which is gated on the privacy work rather than on feature
-completeness — see the release checklist at the bottom.
+**Pre-1.0, so the minor number carries breaking changes.** One MINOR release per completed phase
+of [the roadmap](_docs/dev-phases/README.md): `0.1.0` is phase 1, `0.2.0` phase 2, and so on.
+A **patch** release is fixes to the phase already shipped, cut when they are worth having before
+the next phase closes — `0.5.1` is the first. `1.0.0` is the first public release, which is gated
+on the privacy work rather than on feature completeness — see the release checklist at the bottom.
 
 The version in `Directory.Build.props` is the source of truth and matches the newest release
 heading here.
@@ -22,8 +23,73 @@ heading here.
 
 ## [Unreleased]
 
-Phase 6 — plugin tiers — is next. See
-[dev-phases/phase-6-plugin-tiers.md](_docs/dev-phases/phase-6-plugin-tiers.md). No code yet.
+Phase 6 — **plugin tiers** — is under way. §1 has landed: the referenced-plugin set is extracted
+from `AudioPluginConfigurations` and cross-referenced against Wave Link's plugin-scanner cache for
+version and uniqueId. Matching is by path before name, and a plugin the cache has never seen is
+still recorded with its version left unknown — the settings file's `FilePath` is the authority on
+what is in use. Nothing consumes it yet; §2 (`plugins.json`) is the first caller. See
+[dev-phases/phase-6-plugin-tiers.md](_docs/dev-phases/phase-6-plugin-tiers.md) and
+[the session note](_docs/sessions/2026-08-19-phase-6-plugin-discovery.md).
+
+---
+
+## [0.5.1] — 2026-08-19
+
+**The design audit.** An independent pass over the shipped phase-5 shell against
+[the design reference](_docs/operations/design/README.md), plus the four defects the user reported
+against it. Five of them made a feature unusable rather than merely wrong-looking, and none was
+visible to the test suite: **every one lived in a view no test had ever constructed.**
+
+No behaviour was redesigned. Everything here is the shell doing what phase 5 already said it did.
+
+**1,050 tests passing** (Core 318, CLI 91, App 641), up from 964 — the eight new App test classes
+are almost entirely view tests, which is the gap this release exists to close. Release build clean,
+zero warnings.
+
+### Fixed
+
+- **The restore dialog threw on construction and could never be opened.** It applied a
+  `TargetType="TextBlock"` style to a `TrackedText`, which WPF rejects while the window is being
+  built — so the app's one irreversible action was unreachable. No test had ever instantiated
+  that window; two now do, and a source scan catches the whole class.
+- **The settings dialog showed `{Binding WhatGoesIn.NoteOneLead}` and two more binding
+  expressions as literal text.** A markup extension only evaluates in attribute syntax; written
+  as a property element the braces are just characters.
+- **Every dialog rendered a large black rectangle behind its card.** They were borderless
+  windows with `Background="Transparent"` and `AllowsTransparency` left false — and a
+  non-layered WPF window cannot be transparent, so "transparent" resolved to opaque black at
+  WPF's default window size. Dialogs are now layered overlays covering their owner, dimmed by
+  the theme's scrim and frosted behind (`DialogOverlay`, `AcrylicDialogBackdrop`).
+- **The dark theme carried the light theme's numbers** for `WlLine`, `WlLine2`, `WlHover` and
+  `WlScrim`, and the wrong alphas for `WlOkSoft` and `WlWarnSoft`. The scrim was the visible
+  one: 22% where the design specifies 55%.
+- **Three paddings were transcribed from CSS shorthand into WPF's `Left,Top,Right,Bottom`
+  order**, putting 11px on the left of the column header rather than the top. That was the
+  header-vs-row misalignment the by-eye checklist had been asking design to sign off; it was a
+  transcription bug, not a design call.
+- Buttons were rendered at 12.5px — the secondary/description role — where the type table gives
+  13.5px, with 6px corners instead of 8px, and the primary and danger fills were missing their
+  Medium weight.
+- The settings section labels, the tier badges and the `NOT BUILT YET` badge rendered untracked,
+  losing the letter-spacing that separates the design's micro-caps from shouted text.
+- **Selection was per date group.** Clicking a backup from today, then one from yesterday, left
+  both highlighted — the shared `SelectedItem` binding every group used cannot express one
+  selection across several Selectors, and two of them wired that way write each other's rows back
+  and forth until WPF's loop detection intervenes. Selection is explicit now (`GroupSelection`).
+- **The settings dialog's proportion bar had never rendered.** The fractions were computed and
+  unit-tested throughout phase 5; nothing bound a width to them, so all three segments measured
+  zero and the bar drew as an empty track.
+
+### Added
+
+- **Motion.** README's timings are built: 140ms hover across the ghost, secondary, primary,
+  danger, stepper and caption buttons and the list rows, and a 220ms reveal on the selected
+  row's expansion. `CubicBezierEase` implements the specified `cubic-bezier(.2,0,0,1)` exactly
+  rather than substituting the nearest named WPF curve.
+- **A styled scrollbar**, app-wide: 10px, no trough, no arrows, a `WlLine2` thumb stepping to
+  `WlMuted`. Windows' own 17px grey trough was the loudest thing in the settings dialog.
+- The restore dialog's missing-plug-in warning now reaches the view as a lead clause and a
+  consequence, so the sentence naming what is missing carries the weight the design gives it.
 
 ---
 

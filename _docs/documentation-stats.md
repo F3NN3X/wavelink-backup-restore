@@ -20,19 +20,19 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of 2026-08-19.*
+*As of 2026-08-19 (0.5.1).*
 
 | Artifact | Count |
 |---|---|
 | ADRs | 9 |
-| Gotchas | 12 |
+| Gotchas | 16 |
 | Patterns | 4 |
 | Recipes | 2 |
 | Audits | 1 (6 findings) |
-| Sessions | 14 |
+| Sessions | 17 |
 | Plans | 13 |
 | Dev-phase documents | 8 (of 8 phases; phase 6 detailed, phase 7 sketched in the index) |
-| **Tests** | **964 passing** — Core 296 · CLI 91 · App 577 |
+| **Tests** | **1,050 passing** — Core 318 · CLI 91 · App 641 |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
@@ -44,6 +44,32 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Recent additions (v0.5.1 — the design audit)
+
+**Four gotchas**, all from one audit of the shipped shell and all with the same shape: a view
+defect that no test could see, because **no test had ever constructed the view**.
+
+| Gotcha | What it costs you if you do not know it |
+|---|---|
+| [[a-dialog-opens-as-a-black-rectangle]] | `Background="Transparent"` is not transparency; a WPF window needs `AllowsTransparency` to have an alpha channel at all |
+| [[the-window-never-opens-and-nothing-says-why]] | Three separate throws during window construction, all presenting as "nothing happened" — including one that looks exactly like a layout hang |
+| [[a-binding-expression-appears-on-screen]] | A markup extension is evaluated in attribute syntax only; in a property element it is literal text the user reads |
+| [[three-backups-look-selected-at-once]] | One `SelectedItem` shared across several Selectors cannot express one selection, and two-way it ping-pongs |
+
+**Two sessions**: [the design audit](sessions/2026-08-19-design-audit-and-ui-fixes.md) and
+[phase 6 §1](sessions/2026-08-19-phase-6-plugin-discovery.md).
+
+**technical-debt.md §4.12 and §4.13 closed** — motion is built (a real `cubic-bezier(.2,0,0,1)`
+easing rather than the nearest named WPF curve), and the missing-plug-in warning reaches the view
+as two clauses. §4.12 records the two things that stayed undone and why, which is the part worth
+reading: a hover cannot animate a `Background` between theme resources, and the row's selection
+fill was left instant rather than destabilising a test-pinned trigger order.
+
+**Tests 964 → 1,050.** Eight new App test classes, almost all of them view tests. That ratio is
+the finding, not a statistic: the model layer was covered thoroughly and the view layer was not
+covered at all, and every defect this release fixes lived in the gap.
+
 
 ### Phase 6 detailed: plugin tiers (2026-08-19)
 
@@ -621,6 +647,20 @@ The documentation system, seeded from `SPEC.md` and the design handoff. No appli
 
 Topics spanning several artifacts. A single-file topic is discoverable by search and does not
 belong here.
+
+### WPF views, and why they need their own tests
+
+Four defects in one audit, one root cause: a view fails by not existing, and a model test cannot
+see that. Read together before writing the next window.
+
+| Artifact | Contribution |
+|---|---|
+| [[the-window-never-opens-and-nothing-says-why]] | Three construction-time throws, and why "show the window" is the assertion |
+| [[a-binding-expression-appears-on-screen]] | The XAML rule with no compiler warning behind it |
+| [[a-dialog-opens-as-a-black-rectangle]] | Layered windows, scrims, and what `Transparent` does not mean |
+| [[three-backups-look-selected-at-once]] | Selection across several Selectors, and the test that passed while the bug shipped |
+| [operations/design/README.md](operations/design/README.md) | The values every one of these was audited against |
+| [2026-08-19-design-audit-and-ui-fixes.md](sessions/2026-08-19-design-audit-and-ui-fixes.md) | The narrative, including three wrong diagnoses |
 
 ### Where the settings live, and where they don't
 

@@ -568,6 +568,64 @@ than a violation of "no Core logic in the shell". **Fix:** add a `TotalSizeBytes
 property to `SnapshotManifest` in Core and point all five call sites at it. Cheap, low risk,
 no schema change. **Phase:** whenever it's next touched; not blocking.
 
+### 4.12 Motion is specified and entirely unbuilt — **closed, 2026-08-19**
+
+README's "Space, shape, motion" gives three timings — 140ms hover, 220ms state change and theme
+change, easing `cubic-bezier(.2,0,0,1)`, with "no bounce, no slide" and "hover changes colour
+**or** position, never both" — and the row-expansion note repeats it ("a height/opacity change at
+220ms, no slide"). **Nothing in the app animates.** Every hover, selection, row expansion and
+theme swap is an instant property change, because each is a plain `Trigger`/`DataTrigger`
+`Setter` rather than an `EnterActions` storyboard.
+
+This is the largest single remaining gap against the reference and the one an eye notices without
+measuring anything: the design reads as a surface that responds, the build reads as one that
+switches. It was not fixed in the audit because it is not a value correction — it needs
+`ColorAnimation`/`DoubleAnimation` storyboards on `WlGhostButton`, `WlSecondaryButton`,
+`WlPrimaryButton`, `WlDangerButton`, `WlRowTemplate` and the caption buttons, each of which
+changes how those templates are structured, and the row expansion additionally needs a height
+animation over a `Collapsed`/`Visible` swap that does not animate at all today.
+
+**Built 2026-08-19.** `Views/Motion.xaml` holds one shared easing — `CubicBezierEase`, a real
+`EasingFunctionBase` solving cubic-bezier(.2,0,0,1) rather than the nearest named WPF curve, with
+its solver unit-tested against hand-computed points and against the identity bezier. Storyboards
+run on all six templates plus the row: hover at 140ms on the ghost, secondary, stepper and caption
+buttons and on the row; the primary and danger fills dip their own opacity at 140ms; the selected
+row's expansion reveals over 220ms on MaxHeight and Opacity.
+
+**Two things the build had to work around, both worth knowing before touching this again:**
+
+- **A hover is a LAYER, not a `Background` swap.** WPF cannot animate a `Background` between two
+  brushes held as theme resources — a resource brush is frozen, and animating its `Color` throws.
+  Every hover is therefore a separate `Border` fading its `Opacity`, which has the useful side
+  effect of surviving a live theme swap with no special case.
+- **The row's selection FILL is still instant, deliberately.** Animating it means moving
+  `RowSurface`'s background onto a layer, and that background is painted by a trigger graph whose
+  ORDER is load-bearing and pinned by `RowTemplateTests` (health outranks selection; selected +
+  high contrast must be last). Hover and the expansion animate without touching that graph at all;
+  the fill cannot. Left as a deliberate exception rather than destabilising a tested invariant.
+
+**Still not animated:** the theme swap itself (220ms per README). A resource swap has no
+intermediate state to interpolate — it needs a snapshot layer cross-faded over the window, which is
+a different piece of work from anything here. Not carried as its own item because it is the same
+sentence in the same README row; noted here so it is not mistaken for an oversight.
+
+### 4.13 The restore dialog's missing-plug-in warning has no bold lead — **closed, 2026-08-19**
+
+README Screen 2 item 4 splits that warning in two: **"FabFilter Pro-Q 3 isn't installed on this
+computer."** in `--wl-strong`, then the consequence in body colour. `RestoreDialogModel` exposes
+it as one `MissingPluginWarning` string and the view renders one `Run`, so the sentence that
+names the missing plug-in carries no more weight than the rest of the paragraph — which is the
+opposite of the point.
+
+**Built 2026-08-19.** `RestoreDialogModel` now carries `MissingPluginLead` and
+`MissingPluginRest`, with `MissingPluginWarning` kept as a computed join — the view still binds its
+visibility to that one value, and a screen reader still reads the warning as one announcement
+rather than two fragments. The view renders two `Run`s, lead in `WlStrong`.
+
+Phase 6 §5 still owns making it *appear*: both properties are null until there is a plug-in
+manifest to compare against, so the block renders nothing today. What changed is that §5 now has
+somewhere to put each half.
+
 ---
 
 ## 5 · Numbers that are not constants

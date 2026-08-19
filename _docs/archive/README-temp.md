@@ -1,3 +1,11 @@
+---
+title: "Template: the docs-system README"
+status: archived
+created: 2026-08-16
+updated: 2026-08-19
+tags: [meta, documentation, template]
+---
+
 <!--
   ============================================================================
   TEMPLATE — the docs-system README, project-agnostic.
