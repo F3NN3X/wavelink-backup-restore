@@ -1,12 +1,19 @@
 ---
 title: "Phase 5, plan 5: the restore flow"
-status: planned
+status: completed
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-08-19
 tags: [plan, phase-5, wpf, restore]
 ---
 
 # Plan 5 — The restore flow (confirmation → in-progress → outcome)
+
+> **Status: complete.** All tasks landed and verified; the restore button runs the real flow
+> (confirmation → four named stages → outcome strip), `ShowRestorePlaceholder()` is gone, and no
+> Wave Link process API is called outside `IRestoreService` → `RestoreOrchestrator`. Checkboxes
+> below are ticked to record that; the session note for this work is in
+> [documentation-stats.md](../documentation-stats.md) → Recent additions (plan 8's entry, which
+> closed §4.9 by wiring the strip).
 
 **Phase:** 5 · WPF shell, part 5 of the phase.
 **Design source:** `_docs/operations/design/screens/04-in-progress.md` (restore stages), `09-restore-dialog-additions.md` (version-mismatch note), `10-decisions.md` §3–§4 (SUSPECT restore, version mismatch). The four finished screens' base spec lives in `_docs/operations/design/README.md` Screen 2.
@@ -41,58 +48,58 @@ tags: [plan, phase-5, wpf, restore]
 
 The dialog's content is a pure projection: given a selected snapshot and the current live settings, produce the Now-vs-after rows, flag which values change, and decide whether the version-mismatch note shows. No I/O here.
 
-- [ ] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/RestoreDialogModel.cs` (a plain record/class, no WPF dependency) with:
+- [x] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/RestoreDialogModel.cs` (a plain record/class, no WPF dependency) with:
   - `Title`, `Body` strings.
   - A list of table rows: each row has `Label`, `NowValue`, `AfterValue`, `Changed` (bool). Rows in fixed order: Inputs, Channel names, Effects, Saved presets, Mixes.
   - `VersionMismatchNote?: string` — the mono note text, present only when the snapshot's Wave Link version differs from the running one (`09-restore-dialog-additions.md`: placed under the body, above the table).
   - `MissingPluginWarning?: string` — present when an effect in the snapshot has no matching installed plug-in.
   - `Reassurance` string (always present: "Your current settings are saved as 'Before restore' first…").
-- [ ] **Step 2:** Add a pure builder `RestoreDialogModel.Build(Snapshot selected, LiveSettings current, VersionInfo running)` that computes each row's `Changed` flag by comparing values. A changed value is the only one that gets the accent dot in the view.
-- [ ] **Step 3:** Write unit tests (`tests/WaveLinkBackup.App.Tests/RestoreDialogModelTests.cs`) covering: a no-change restore (no rows flagged), a change in Effects and Presets (those two rows flagged, others not), version mismatch present → note set, version match → note null, missing plug-in → warning set.
-- [ ] **Step 4:** `dotnet test tests/WaveLinkBackup.App.Tests --filter RestoreDialogModelTests` — green. Commit: `feat(app): restore confirmation dialog model (pure projection)`.
+- [x] **Step 2:** Add a pure builder `RestoreDialogModel.Build(Snapshot selected, LiveSettings current, VersionInfo running)` that computes each row's `Changed` flag by comparing values. A changed value is the only one that gets the accent dot in the view.
+- [x] **Step 3:** Write unit tests (`tests/WaveLinkBackup.App.Tests/RestoreDialogModelTests.cs`) covering: a no-change restore (no rows flagged), a change in Effects and Presets (those two rows flagged, others not), version mismatch present → note set, version match → note null, missing plug-in → warning set.
+- [x] **Step 4:** `dotnet test tests/WaveLinkBackup.App.Tests --filter RestoreDialogModelTests` — green. Commit: `feat(app): restore confirmation dialog model (pure projection)`.
 
 ## Task 2 — Restore in-progress strip view-model (pure state machine)
 
 The in-progress UI is a four-stage named progression, no spinner (`04-in-progress.md`). Model it as an explicit state so the view just renders it.
 
-- [ ] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/RestoreProgressModel.cs` with a fixed stage list: `ClosingWaveLink`, `WritingSettings`, `StartingWaveLink`, `Checking`. Each stage has a `Status`: `Pending`, `Current`, `Done`. Expose `Stages` (ordered) and the reassurance line text.
-- [ ] **Step 2:** Add `Advance(Stage)` that marks the given stage `Current`, all earlier stages `Done`, later ones `Pending`. Guard: advancing past `Checking` is a no-op; calling with an out-of-order stage throws (the orchestrator drives it in order).
-- [ ] **Step 3:** Unit tests (`RestoreProgressModelTests.cs`): initial state has stage 0 current, rest pending; each `Advance` moves the frontier correctly; advancing out of order throws.
-- [ ] **Step 4:** `dotnet test ... --filter RestoreProgressModelTests` — green. Commit: `feat(app): restore in-progress four-stage model`.
+- [x] **Step 1:** Add `src/WaveLinkBackup.App/ViewModels/RestoreProgressModel.cs` with a fixed stage list: `ClosingWaveLink`, `WritingSettings`, `StartingWaveLink`, `Checking`. Each stage has a `Status`: `Pending`, `Current`, `Done`. Expose `Stages` (ordered) and the reassurance line text.
+- [x] **Step 2:** Add `Advance(Stage)` that marks the given stage `Current`, all earlier stages `Done`, later ones `Pending`. Guard: advancing past `Checking` is a no-op; calling with an out-of-order stage throws (the orchestrator drives it in order).
+- [x] **Step 3:** Unit tests (`RestoreProgressModelTests.cs`): initial state has stage 0 current, rest pending; each `Advance` moves the frontier correctly; advancing out of order throws.
+- [x] **Step 4:** `dotnet test ... --filter RestoreProgressModelTests` — green. Commit: `feat(app): restore in-progress four-stage model`.
 
 ## Task 3 — Wire the orchestrator behind a shell-facing service
 
 The shell must not touch Core types directly for process control. Wrap the orchestrator so the view-model gets stage callbacks and a final outcome, and the app never calls Wave Link process APIs itself.
 
-- [ ] **Step 1:** Add `src/WaveLinkBackup.App/Services/RestoreService.cs` (interface `IRestoreService`) exposing `Task<RestoreResult> RestoreAsync(SnapshotId id, IProgress<RestoreStage> progress, CancellationToken ct)`. `RestoreResult` is an app-level enum: `Confirmed`, `Unconfirmed`, `Rejected`, `Failed` — mapped from `RestoreOutcome.Verdict`.
-- [ ] **Step 2:** Implement it by constructing/using the existing `RestoreOrchestrator` (already registered or resolvable from DI) and translating its stage transitions into `IProgress<RestoreStage>` reports. Map `Verdict.Succeeded == true` → `Confirmed`; null verdict → `Unconfirmed`; a rejected analysis → `Rejected`; exception → `Failed`.
-- [ ] **Step 3:** Register the service in the app's DI/composition root alongside the other services.
-- [ ] **Step 4:** Unit test the mapping (`RestoreServiceTests.cs`) with a stubbed orchestrator: each verdict shape maps to the right `RestoreResult`; a thrown exception maps to `Failed`. Commit: `feat(app): restore service wrapping RestoreOrchestrator`.
+- [x] **Step 1:** Add `src/WaveLinkBackup.App/Services/RestoreService.cs` (interface `IRestoreService`) exposing `Task<RestoreResult> RestoreAsync(SnapshotId id, IProgress<RestoreStage> progress, CancellationToken ct)`. `RestoreResult` is an app-level enum: `Confirmed`, `Unconfirmed`, `Rejected`, `Failed` — mapped from `RestoreOutcome.Verdict`.
+- [x] **Step 2:** Implement it by constructing/using the existing `RestoreOrchestrator` (already registered or resolvable from DI) and translating its stage transitions into `IProgress<RestoreStage>` reports. Map `Verdict.Succeeded == true` → `Confirmed`; null verdict → `Unconfirmed`; a rejected analysis → `Rejected`; exception → `Failed`.
+- [x] **Step 3:** Register the service in the app's DI/composition root alongside the other services.
+- [x] **Step 4:** Unit test the mapping (`RestoreServiceTests.cs`) with a stubbed orchestrator: each verdict shape maps to the right `RestoreResult`; a thrown exception maps to `Failed`. Commit: `feat(app): restore service wrapping RestoreOrchestrator`.
 
 ## Task 4 — The confirmation dialog view (XAML)
 
 Build Screen 2 as a modal, 620px, `--wl-card`, hairline-24% border, 8px radius, over the window scrim. This is visual work — delegate to the `visual-engineering` category with the `frontend-design` skill if doing it in-session; otherwise author directly against the spec.
 
-- [ ] **Step 1:** Add `src/WaveLinkBackup.App/Views/RestoreDialog.xaml(.cs)` (or a content dialog) rendering: title, body, the version-mismatch mono note (only when present), the Now-vs-after table (changed values in `--wl-strong` with a 5px accent dot; unchanged in muted), the missing-plugin warning block (only when present), the reassurance line, and the footer (Cancel secondary + "Restore this backup" `--wl-danger` fill).
-- [ ] **Step 2:** Escape and Cancel are equivalent; focus starts on Cancel. No typed confirmation.
-- [ ] **Step 3:** Verify it renders in both dark and light themes with a quick manual run or a visual-QA pass (the `visual-qa` skill). Commit: `feat(app): restore confirmation dialog view`.
+- [x] **Step 1:** Add `src/WaveLinkBackup.App/Views/RestoreDialog.xaml(.cs)` (or a content dialog) rendering: title, body, the version-mismatch mono note (only when present), the Now-vs-after table (changed values in `--wl-strong` with a 5px accent dot; unchanged in muted), the missing-plugin warning block (only when present), the reassurance line, and the footer (Cancel secondary + "Restore this backup" `--wl-danger` fill).
+- [x] **Step 2:** Escape and Cancel are equivalent; focus starts on Cancel. No typed confirmation.
+- [x] **Step 3:** Verify it renders in both dark and light themes with a quick manual run or a visual-QA pass (the `visual-qa` skill). Commit: `feat(app): restore confirmation dialog view`.
 
 ## Task 5 — The in-progress strip view (XAML)
 
 Replace the placeholder area with the four-stage progression while a restore runs. No spinner; each stage shows done/current/pending treatment, 220ms `cubic-bezier(.2,0,0,1)` transitions, plus the reassurance line.
 
-- [ ] **Step 1:** Add the in-progress strip markup to `MainWindow.xaml` (or a dedicated user control), bound to `RestoreProgressModel`. Stages render as named rows with the three status treatments.
-- [ ] **Step 2:** While running, disable the list actions and Back up now (40% opacity) so the window can't be driven mid-restore.
-- [ ] **Step 3:** Commit: `feat(app): restore in-progress strip view`.
+- [x] **Step 1:** Add the in-progress strip markup to `MainWindow.xaml` (or a dedicated user control), bound to `RestoreProgressModel`. Stages render as named rows with the three status treatments.
+- [x] **Step 2:** While running, disable the list actions and Back up now (40% opacity) so the window can't be driven mid-restore.
+- [x] **Step 3:** Commit: `feat(app): restore in-progress strip view`.
 
 ## Task 6 — Wire the Restore command end-to-end
 
 Replace `ShowRestorePlaceholder()` with the real flow.
 
-- [ ] **Step 1:** In `ShellViewModel`, change the Restore command to: build `RestoreDialogModel` from the selection, show the confirmation dialog; on confirm, call `IRestoreService.RestoreAsync`, driving `RestoreProgressModel` via the progress reports and showing the in-progress strip.
-- [ ] **Step 2:** On completion, map `RestoreResult` → `RestoreOutcomeStrip` outcome (`Confirmed`→`SucceededConfirmed`, `Unconfirmed`→`SucceededUnconfirmed`, `Rejected`→`Rejected`, `Failed`→`Failed`) and call `Strip.Show(...)`. Re-enable the list actions.
-- [ ] **Step 3:** Remove `ShowRestorePlaceholder()` from `MainWindow.xaml.cs`.
-- [ ] **Step 4:** Manual smoke: with a real (or fixture) backup, confirm → watch the four stages advance → see the outcome strip appear with the right treatment. Commit: `feat(app): wire restore flow end-to-end, drop placeholder`.
+- [x] **Step 1:** In `ShellViewModel`, change the Restore command to: build `RestoreDialogModel` from the selection, show the confirmation dialog; on confirm, call `IRestoreService.RestoreAsync`, driving `RestoreProgressModel` via the progress reports and showing the in-progress strip.
+- [x] **Step 2:** On completion, map `RestoreResult` → `RestoreOutcomeStrip` outcome (`Confirmed`→`SucceededConfirmed`, `Unconfirmed`→`SucceededUnconfirmed`, `Rejected`→`Rejected`, `Failed`→`Failed`) and call `Strip.Show(...)`. Re-enable the list actions.
+- [x] **Step 3:** Remove `ShowRestorePlaceholder()` from `MainWindow.xaml.cs`.
+- [x] **Step 4:** Manual smoke: with a real (or fixture) backup, confirm → watch the four stages advance → see the outcome strip appear with the right treatment. Commit: `feat(app): wire restore flow end-to-end, drop placeholder`.
 
 ## Task 7 — Keyboard, focus, screen-reader parity for the new surfaces
 

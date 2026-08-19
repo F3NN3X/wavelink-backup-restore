@@ -25,13 +25,13 @@ Update this file **in the same commit** as the document it counts. See
 | Artifact | Count |
 |---|---|
 | ADRs | 9 |
-| Gotchas | 10 |
+| Gotchas | 12 |
 | Patterns | 4 |
-| Recipes | 1 |
+| Recipes | 2 |
 | Audits | 1 (6 findings) |
-| Sessions | 12 |
-| Plans | 8 |
-| Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
+| Sessions | 14 |
+| Plans | 13 |
+| Dev-phase documents | 8 (of 8 phases; phase 6 detailed, phase 7 sketched in the index) |
 | **Tests** | **964 passing** — Core 296 · CLI 91 · App 577 |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
@@ -44,6 +44,56 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Phase 6 detailed: plugin tiers (2026-08-19)
+
+Phase 6 — **plugin tiers** — gets its own detailed file, [phase-6-plugin-tiers.md](dev-phases/phase-6-plugin-tiers.md),
+per the "current or next phase" rule. Phase 5 closed on 2026-08-19 with 964 tests green, so phase 6
+is now *the* next phase and its sketch in the index is joined by a full plan: entry/exit criteria,
+scope (in/out), seven work items grouped Core-first then shell, a test table, and a risk register.
+
+The plan is grounded in what already exists rather than assumed: `SettingsAnalysis` already reads
+`AudioPluginConfigurations` for the effect count (so tier 2 extends it, not replaces it),
+`SnapshotRowViewModel.TierOrder` already lists all three tiers (so the badges should render once
+snapshots carry them — no badge code expected), and the Settings dialog's two locked rows are the
+surfaces this phase unlocks. The defining risk is the **bundle problem** — a `.vst3` may be a
+directory, and the author's machine will never exercise that path ([[vst3-backs-up-as-nothing]]) —
+so the synthetic bundle fixture is written into the exit criteria as mandatory, not optional.
+
+Doc-only commit; no code, so the test count stands at **964**. Status `review`, awaiting go-ahead
+before any implementation.
+
+**Counts moved:** dev-phase docs 7 → 8 (phase 6 detailed; only phase 7 remains sketched).
+
+---
+
+### Corpus audit: reconcile the tally after phase 5 closed (2026-08-19)
+
+A pass over `_docs/` against its own README found the **tally had drifted** behind the work it
+counts. Phase 5 shipped five more plans, two gotchas, a recipe and two sessions since the last
+stats update, and none of those commits touched this file — exactly the failure mode the
+"update in the same commit" rule exists to prevent. The audit also caught two stale **status**
+claims that the counts alone would not have surfaced:
+
+- **[dev-phases/README.md](dev-phases/README.md)** still showed phase 5 as *Next* and phase 6 as
+  *Not started*. Phase 5 is complete (all ten plans landed, 964 tests green); the table now says
+  so and marks **phase 6 — plugin tiers** as *Next*.
+- **[plan 5](plans/2026-08-18-phase-5-plan-5-the-restore-flow.md)** still read `status: planned` with
+  22 of its 28 boxes unticked, although it shipped long ago. It is now `completed` with every box
+  ticked and a short note saying the checkboxes record completion rather than pending work.
+
+Nothing here changed code, so the test count stands at **964**. The two new gotchas are both
+tray-shell incidents from plan 9 — [[the-tray-icon-refuses-every-image-you-draw]] (a
+`<ApplicationIcon>`-only asset is not a valid `Window.Icon`, dotnet/wpf#209) and
+[[tray-menu-keeps-the-theme-it-started-with]] (a context menu built once does not re-theme); the
+new recipe is [[publish-the-native-aot-binary]]. The frontmatter sweep was clean: every `.md`
+carries frontmatter, the single exception being `archive/README-temp.md`, which is a consumed
+template whose `status: archived` line is part of its record.
+
+**Counts moved:** gotchas 10 → 12 · recipes 1 → 2 · sessions 12 → 14 · plans 8 → 13 · dev-phase
+docs "7 (1 sketched)" → "7 (2 sketched)".
+
+---
 
 ### Phase 5, plan 10: high contrast — the phase's last surface (2026-08-19)
 

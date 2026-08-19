@@ -2,7 +2,7 @@
 title: "Development Phases"
 status: published
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-19
 tags: [dev-phase, index]
 ---
 
@@ -30,8 +30,8 @@ right.
 | **2** | Snapshot store | ✅ Complete — 186 tests, 83.0% | [phase-2-store.md](phase-2-store.md) · [design](../plans/2026-08-16-phase-2-store-design.md) |
 | **3** | Automation: watcher, dedup, retention | ✅ Complete — 235 tests, 84.9% | [phase-3-automation.md](phase-3-automation.md) |
 | **4** | CLI shell | ✅ Complete — 308 tests, AOT 3.2 MB | [phase-4-cli.md](phase-4-cli.md) |
-| **5** | WPF shell | **Next** | [phase-5-wpf.md](phase-5-wpf.md) |
-| 6 | Plugin tiers | Not started | sketched below |
+| **5** | WPF shell | ✅ Complete — 964 tests, all ten plans landed | [phase-5-wpf.md](phase-5-wpf.md) |
+| **6** | Plugin tiers | **Next** | [phase-6-plugin-tiers.md](phase-6-plugin-tiers.md) · sketched below |
 | 7 | Release | Not started | sketched below |
 
 ---
@@ -125,7 +125,7 @@ integration tests, and a published single file runs on a machine without the SDK
 
 ## Phase 5 — WPF shell
 
-**Depends on:** phase 4. ✅ **Planned in detail** — [phase-5-wpf.md](phase-5-wpf.md).
+**Depends on:** phase 4. ✅ **Complete** — all ten plans landed, 964 tests green in both themes plus high contrast. Detail: [phase-5-wpf.md](phase-5-wpf.md).
 **The biggest phase.**
 
 The four designed screens at the handoff's fidelity: main list, restore confirmation,
@@ -167,6 +167,8 @@ Tier 4 restore needs elevation; tiers 1–3 must not.
 
 **Exits when** all four tiers capture and restore, the bundle path is covered by a fixture
 test, and elevation is requested only for tier 4.
+
+[Full detail →](phase-6-plugin-tiers.md)
 
 ---
 
