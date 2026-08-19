@@ -119,8 +119,8 @@ One screen serves both (08 §"The folder is gone"): the backup folder can't be u
 
 ## Task 7 — Weight-rule integration test + full verification
 
-- [ ] **Step 1:** Add a single integration-style test that walks representative Core signals and asserts the rendered weight (amber vs neutral) matches the rule for all twelve — this is the guard against a future edit silently re-weighting an error.
-- [ ] **Step 2:** `dotnet build` — 0 warnings, 0 errors. Full suite green (764 + new tests). Commit: `test(app): weight-rule integration + full verification`.
+- [x] **Step 1:** Add a single integration-style test that walks representative Core signals and asserts the rendered weight (amber vs neutral) matches the rule for all twelve — this is the guard against a future edit silently re-weighting an error. `ErrorCatalogTests.Every_core_signal_renders_the_weight_the_rule_says` walks one representative signal per error through `AppErrorMapper.FromCoreSignal`, asserts each routes to its designed code and renders that code's weight, then states the rule over what actually rendered: exactly two amber (1, 4), ten neutral.
+- [x] **Step 2:** `dotnet build` — 0 warnings, 0 errors. Full suite green (911 tests: 296 Core + 91 Cli + 524 App). Commit: `test(app): weight-rule integration + full verification`.
 
 ---
 

@@ -206,4 +206,85 @@ public sealed class ErrorCatalogTests
 
         Assert.Null(AppErrorMapper.FromCoreSignal(signal));
     }
+
+    // --- Weight-rule integration: every signal renders the weight the rule says ---------------
+
+    [Fact]
+    public void Every_core_signal_renders_the_weight_the_rule_says()
+    {
+        // The guard Task 7 asks for: walk a representative Core signal for EACH of the twelve and
+        // assert the WEIGHT THAT ACTUALLY RENDERS (the AppError's Weight, the value the views read)
+        // matches the weight rule. This is end-to-end over the mapper -> catalog path, so a future
+        // edit that re-weights an error in the catalog - or mis-routes a signal to the wrong one of
+        // the twelve - fails here before it ships.
+        //
+        // The rule (06-errors.md): "Neutral if nothing happened. Amber only if the configuration —
+        // live or restorable — is not whole." Exactly two of the twelve do that:
+        //   1 — Wave Link not found: the LIVE settings file cannot be read at all.
+        //   4 — Malformed settings file: the LIVE settings file itself does not parse.
+        // Every other signal renders neutral - a refusal (nothing written/changed), a missing
+        // location (nothing lost), or a format this copy doesn't understand yet (the backup is fine).
+
+        var signals = new (int Code, CoreSignal Signal)[]
+        {
+            // 1 — the standing fact: discovery failed. No operation error; the found flag decides.
+            (1, new CoreSignal(WaveLinkFound: false)),
+
+            // 2 — two installations, none chosen. A decision is needed; no config is damaged.
+            (2, new CoreSignal(Error: new MultiplePackagesFound(new[] { "a", "b" }))),
+
+            // 3 — the settings file could not be read at all. A refusal: nothing was backed up.
+            (3, new CoreSignal(Error: new SettingsUnreadable("C:\\x.json", "locked"))),
+
+            // 4 — the settings file does not parse. AMBER: the live config is not whole.
+            (4, new CoreSignal(Error: new MalformedSettings("unexpected character at line 12"))),
+
+            // 5 — Wave Link still running, so nothing was written. A refusal.
+            (5, new CoreSignal(Error: new WaveLinkStillRunning(new[] { "WaveLink.exe" }))),
+
+            // 6 — the settings file couldn't be replaced. The old settings are still in place.
+            (6, new CoreSignal(Error: new WriteFailed("access denied"))),
+
+            // 7 — the backup's manifest can't be read. A refusal: nothing was listed or restored.
+            (7, new CoreSignal(Error: new MalformedManifest("missing required key"))),
+
+            // 8 — a newer format this copy doesn't understand yet. The backup itself is fine.
+            (8, new CoreSignal(Error: new UnsupportedSnapshotSchema(Found: 2, Supported: 1))),
+
+            // 9 — the chosen folder is not a Wave Link Backup. A wrong location; nothing lost.
+            (9, new CoreSignal(Error: new NotASnapshot("D:\\Recordings", "no manifest"))),
+
+            // 10 — the backup is damaged and was not restored. The mixer hasn't changed.
+            (10, new CoreSignal(Error: new SnapshotCorrupted("C:\\b", "checksum mismatch"))),
+
+            // 11 — no backup with that id. A refusal: pick another from the list.
+            (11, new CoreSignal(Error: new SnapshotNotFound("abc-123"))),
+
+            // 12 — the folder can't be used at all. Nothing lost; a location is simply missing.
+            //     Reached here through the standing-folder path (no operation error).
+            (12, new CoreSignal(FolderUsable: false)),
+        };
+
+        foreach (var (code, signal) in signals)
+        {
+            var rendered = AppErrorMapper.FromCoreSignal(signal);
+
+            Assert.NotNull(rendered);
+            // The signal must route to the one of the twelve it names...
+            Assert.Equal(code, rendered!.Code);
+            // ...and render the weight that error is designed with (the value the views read).
+            Assert.Equal(AppError.ByCode(code).Weight, rendered.Weight);
+        }
+
+        // And the rule itself, stated over what actually rendered: exactly two amber, ten neutral.
+        var renderedWeights = signals
+            .Select(s => AppErrorMapper.FromCoreSignal(s.Signal)!.Weight)
+            .ToArray();
+
+        Assert.Equal(2, renderedWeights.Count(w => w == ErrorWeight.Amber));
+        Assert.Equal(10, renderedWeights.Count(w => w == ErrorWeight.Neutral));
+        // The two amber are precisely the "config not whole" pair.
+        Assert.Equal(ErrorWeight.Amber, AppErrorMapper.FromCoreSignal(signals[0].Signal)!.Weight);
+        Assert.Equal(ErrorWeight.Amber, AppErrorMapper.FromCoreSignal(signals[3].Signal)!.Weight);
+    }
 }
