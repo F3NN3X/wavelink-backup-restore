@@ -117,7 +117,10 @@ public partial class App : Application
             return;
         }
 
-        instance.ActivationRequested += (_, _) => Dispatcher.Invoke(ShowMainWindow);
+        // BeginInvoke, not Invoke: the listener thread has no reason to block on the window
+        // being shown, and a queued activation that arrives before the dispatcher is ready must
+        // not deadlock waiting for it. ShowMainWindow already de-minimizes and activates.
+        instance.ActivationRequested += (_, _) => Dispatcher.BeginInvoke(ShowMainWindow);
         instance.StartListening();
 
         // Set before anything exists that could close.
