@@ -9,10 +9,11 @@ tags: [dev-phase]
 
 # Phase 5 — WPF shell
 
-**Status:** In progress — backup list (part 4) and restore-outcome strip shipped (`136bed7`);
-execution plans for **every** remaining surface are written (2026-08-18, see below), including
-the tray shell and high contrast. The phase is fully planned end to end; what remains is
-execution. **next.**
+**Status:** In progress — plans 5–8 are complete: the real restore flow (plan 5), in-place
+rename / delete / empty-trash (plan 6), the twelve errors + first-run/empty state (plan 7), and
+the settings dialog (plan 8, `0812c99`). Execution plans for **every** remaining surface are
+written (2026-08-18, see below); what remains is execution of plan 9 (tray shell) and plan 10
+(high contrast). **next: plan 9.**
 **Entry criteria:** phase 4 complete. ✅ 2026-08-16.
 **Exit criteria:** the four designed screens match the handoff in **both themes**, the six
 undesigned surfaces are designed and built, and no Core logic has leaked into the shell.

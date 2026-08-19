@@ -29,10 +29,10 @@ Update this file **in the same commit** as the document it counts. See
 | Patterns | 4 |
 | Recipes | 1 |
 | Audits | 1 (6 findings) |
-| Sessions | 9 |
+| Sessions | 10 |
 | Plans | 8 |
 | Dev-phase documents | 7 (of 8 phases; 1 remains sketched in the index) |
-| **Tests** | **764 passing** — Core 296 · CLI 91 · App 377 |
+| **Tests** | **939 passing** — Core 296 · CLI 91 · App 552 |
 
 **Patterns went 0 → 4** when the first production code shipped, which was the trigger recorded
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
@@ -44,6 +44,33 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Phase 5, plan 8: the settings dialog (2026-08-19)
+
+**939 tests green** (296 Core, 91 CLI, **552 App**) — up from 764 as plans 5–8 landed their
+surfaces. Build clean, zero warnings. The settings dialog ships in full: the real 680px modal
+replaces the placeholder `MessageBox`, every control commits on change (there is no Save button),
+and settings persist atomically to `%LOCALAPPDATA%\WaveLinkBackup\settings.json` on change, never
+on exit — a command-line flag overrides the file for one run and is never written back.
+
+**The proportion bar is computed, not hard-coded.** Enabling or disabling a tier recomputes the
+stacked widths from what is actually included; the locked rows (Your setup, A list of your
+effects) cannot be moved at all, and a programmatic set on them is rejected by the view model.
+
+**Unbuilt tiers stay on screen — present but disabled.** PRESETS and PLUGINS render with the NOT
+BUILT YET badge and a footnote explaining why they are not hidden. The Task 7 keyboard/SR pass
+made the locked toggles *present-but-disabled* rather than collapsed, so a screen reader announces
+them as off/unavailable switches instead of dropping them from the tree; focus also returns to the
+list when the dialog closes, reusing the same seam every other dialog uses.
+
+**Two debts closed in the same commit.** [technical-debt.md](technical-debt.md) §4.8 item 4 (the
+settings placeholder) and §4.9 (the dormant restore-outcome strip — plan 5 wired it to
+`RestoreOrchestrator`) are both struck through with their reasoning kept. Session note —
+[phase 5 settings dialog](sessions/2026-08-19-phase-5-settings-dialog.md).
+
+**Counts moved:** sessions 9 → 10 · tests 764 → 939 (cumulative across plans 5–8).
+
+---
 
 ### Phase 5: the last two plans — tray shell and high contrast (2026-08-18)
 

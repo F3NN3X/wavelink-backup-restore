@@ -18,9 +18,11 @@ the fork landed the first list would become real, and the second list is the set
 will look obvious in hindsight.
 
 **That has since changed.** Phases 1–5 have shipped real code — `Core`, `Cli`, and a WPF shell
-that is now the process — so §1 and §7 entries have been resolved against it, and §4.8/§4.9 hold
-genuine deferred work from the app. The unverified-assumption list in §2 is unchanged in kind:
-the code made some of those assumptions load-bearing rather than hypothetical.
+that is now the process — so §1 and §7 entries have been resolved against it. As of phase 5 plan
+8, §4.8 item 4 (the settings placeholder) and §4.9 (the dormant restore-outcome strip) are both
+closed; §4.10 (the not-found first-run variant) is the one deferred minor still open from the app.
+The unverified-assumption list in §2 is unchanged in kind: the code made some of those assumptions
+load-bearing rather than hypothetical.
 
 Be blunt. A debt list that flatters the project is useless.
 
@@ -502,7 +504,7 @@ Plans 2 and 3 shipped. Five things were deliberately left, none blocking.
 | 1 | **The tray icon renders at a fixed 32px.** Correct at 100% and 150% scaling, soft at 200%+ | The right size comes from the DPI of the screen holding the taskbar, and it should re-render on a DPI change. The renderer already takes `pixelSize`, so this is a caller change plus a `WM_DPICHANGED` hook |
 | 2 | ~~**Mono letter-spacing is not implemented.**~~ **Closed, phase 5 plan 4, Task 2.** `Views/TrackedText.cs` is a custom `FrameworkElement` with its own `Tracking` dependency property (em-based, matching the type scale's `.18em`/`.06em` figures) and does its own glyph-run layout — `TextBlock`'s missing `CharacterSpacing` is no longer a blocker. Used throughout plan 4: the tray readout, the column headers, the status strip, and every slot label | — |
 | 3 | **`Back up automatically` shows a trailing check, not a switch.** `screens/12`'s ASCII sketch writes `[toggle]` | A switch inside a menu is not something Windows draws, so the sketch was read as shorthand. One template change in `TrayMenuStyles.xaml` if the literal reading was meant |
-| 4 | **`Settings…` opens a placeholder `MessageBox`, from the tray and — since phase 5 plan 4, Task 10b — the main window's own gear button too.** Plan 5 builds the dialog | Visible on purpose rather than silently doing nothing, which is this repo's established answer. `IAutostart` has no UI until then and is reachable only from tests |
+| 4 | ~~**`Settings…` opens a placeholder `MessageBox`, from the tray and — since phase 5 plan 4, Task 10b — the main window's own gear button too.**~~ **Closed, phase 5 plan 8.** The real 680px settings dialog ships: in-place commit (no Save button), atomic persistence to `%LOCALAPPDATA%\WaveLinkBackup\settings.json`, and the two new sections. Both the tray menu item and the main window's gear button call `App.OpenSettings()`, which now builds a `SettingsViewModel` and shows the dialog instead of a `MessageBox`. | — |
 | 5 | **A failed manual backup shows a raw `MessageBox`** carrying `CoreError.Message` | The twelve designed error screens (`06-errors.md`) are a later phase-5 session. Reporting it plainly beats swallowing it, but the wording is Core's log phrasing, not the design's |
 
 Two related items are **not** debt and are recorded elsewhere because they are traps rather than
@@ -510,26 +512,27 @@ shortfalls: [the tray menu keeping its startup
 theme](knowledge-base/gotchas/tray-menu-keeps-the-theme-it-started-with.md) and [the tray icon
 refusing generated images](knowledge-base/gotchas/the-tray-icon-refuses-every-image-you-draw.md).
 
-### 4.9 The restore-outcome strip is built but nothing feeds it — **dormant, 2026-08-18**
+### 4.9 The restore-outcome strip is built but nothing feeds it — **closed, phase 5 plan 5 (2026-08-19)**
 
-`RestoreOutcomeStrip` ships fully: the four `03-restore-outcomes.md` states, per-state chrome
-(left edge, amber status warm-up, auto-dismiss, the *Rejected* state that refuses to clear until
-acknowledged), the XAML DataTriggers, and the new `WlDangerSoft` brush in all three themes.
-Eighteen App tests plus a Core test pinning the null-verdict branch hold it down.
+`RestoreOutcomeStrip` shipped fully in the restore-outcome-strip session: the four
+`03-restore-outcomes.md` states, per-state chrome (left edge, amber status warm-up, auto-dismiss,
+the *Rejected* state that refuses to clear until acknowledged), the XAML DataTriggers, and the new
+`WlDangerSoft` brush in all three themes. Eighteen App tests plus a Core test pinning the
+null-verdict branch hold it down.
 
-**But no production code calls `Strip.Show` or `Strip.ShowFailure`.** The restore button still
-runs `ShowRestorePlaceholder()`, so the strip cannot light up from a user gesture. It is a seam,
-not a feature — deliberately, for the same reason *Settings…* shows a placeholder rather than
-silently doing nothing (§4.8 item 4): wiring it to a fake restore now would mean unwiring it when
-the real flow lands.
+**It was dormant by design** — no production code called `Strip.Show` or `Strip.ShowFailure`, so
+the restore button ran `ShowRestorePlaceholder()` and the strip could not light up from a user
+gesture. A tested seam waiting for its caller, not a bug.
 
-**What closes this:** plan 4's restore row action calling `RestoreOrchestrator` and then feeding
-its `RestoreOutcome` (or the failure message) into the strip. Until then the strip is correct but
-invisible, which is the intended state — a tested seam waiting for its caller, not a bug.
+**Closed by phase 5 plan 5.** The real restore flow now runs `RestoreOrchestrator` and feeds its
+result into the strip: `MainWindow.xaml.cs` calls `shell.Strip.ShowResult(view.Result)` on success
+and `shell.Strip.ShowFailure(...)` / `ShowError(...)` on failure, so every designed outcome is
+reachable from a user gesture. The placeholder path is gone.
 
-**One sub-item is genuinely open rather than merely unwired:** the *Failed* state's `WlDangerSoft`
-is Transparent in HighContrast per `11-high-contrast.md`, and nobody has watched that read as
-"failed" in a real high-contrast theme. The rule is applied; the pixels are not yet checked.
+**One sub-item carried forward rather than closed here:** the *Failed* state's `WlDangerSoft` is
+Transparent in HighContrast per `11-high-contrast.md`, and nobody has watched that read as
+"failed" in a real high-contrast theme. The rule is applied; the pixels are not yet checked. That
+is now part of plan 10's high-contrast verification pass, not an open debt of its own.
 
 ### 4.10 First-run "Wave Link not found" variant — **open, carried forward from plan 7**
 
