@@ -41,6 +41,16 @@ public partial class MainWindow : Window
 
         InitializeComponent();
 
+        // The window's caption glyph is rendered from code, not loaded from a file. A XAML
+        // Icon="app.ico" attribute fails at runtime with "Cannot locate resource 'app.ico'"
+        // (dotnet/wpf#209): the .ico IS embedded in the assembly's WPF resource blob, but neither
+        // the XAML type-converter path nor a pack://application:,,,/ URI through BitmapImage can
+        // locate it by name - WPF's pack-URI resolution does not index .ico entries the way it
+        // does .png/.jpg. Rendering the mark from the same geometry TrayIconRenderer draws (see
+        // AppCaptionGlyph below) sidesteps the file entirely. The exe's own icon (taskbar, Alt-Tab,
+        // file properties) is separate and comes from <ApplicationIcon> in the csproj.
+        Icon = AppCaptionGlyph.Render();
+
         DataContext = shell;
 
         // MUST happen before the first RefreshAsync (wired below, on Loaded): HealthProbe

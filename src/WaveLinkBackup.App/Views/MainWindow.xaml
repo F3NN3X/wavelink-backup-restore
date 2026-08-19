@@ -4,9 +4,9 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
         xmlns:vm="clr-namespace:WaveLinkBackup.App.ViewModels"
-        Title="Wave Link Backup"
-        Height="760" Width="1180" MinHeight="560" MinWidth="980"
-        WindowStartupLocation="CenterScreen"
+         Title="Wave Link Backup"
+         Height="760" Width="1180" MinHeight="560" MinWidth="980"
+         WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Background="Transparent">
 

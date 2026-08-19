@@ -15,6 +15,14 @@
     -->
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <!--
+      The app icon: the shield-check mark, rendered from the SAME geometry TrayIconRenderer draws
+      for WATCHING (see app.ico's generator). One asset serves the exe's file properties, the
+      taskbar and Alt-Tab. It is embedded by the linker, not the WPF resource pipeline, so no
+      Resource include is needed. The window's own caption glyph (drawn per README §Screen 1) is
+      separate and stays; this is what the OS chrome shows.
+    -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -40,6 +48,15 @@
   <ItemGroup>
     <Resource Include="Fonts\*.ttf" />
     <Resource Include="Fonts\OFL-*.txt" />
+    <!--
+      The .ico is ALSO a WPF Resource, on top of the <ApplicationIcon> above. ApplicationIcon
+      embeds it in the EXE (file properties, taskbar, Alt-Tab) via the linker; that copy is not
+      reachable by the WPF resource pipeline, so Window.Icon's pack URI would throw at runtime
+      ("resource not found in assembly") the first time a window loads. Including it as a Resource
+      gives WPF its own embedded copy to resolve against. The two are independent: one for the OS
+      chrome, one for the window.
+    -->
+    <Resource Include="app.ico" />
   </ItemGroup>
 
 </Project>
