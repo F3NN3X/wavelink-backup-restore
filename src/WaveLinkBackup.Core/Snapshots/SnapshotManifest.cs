@@ -96,6 +96,13 @@ public sealed record SnapshotManifest(
     /// </summary>
     public bool IsSuspect => HasDuplicateKeys;
 
+    /// <summary>
+    /// Every captured file added up. The one place this arithmetic lives: five callers used to
+    /// re-derive it, and a sixth would have got it subtly wrong the first time a tier stopped
+    /// contributing to <see cref="Files"/>.
+    /// </summary>
+    public long TotalSizeBytes => Files.Values.Sum(f => f.SizeBytes);
+
     /// <summary>Manual and pre-restore snapshots are never pruned, at any count (phase 3).</summary>
     public bool IsPrunable => Trigger == SnapshotTrigger.Automatic;
 

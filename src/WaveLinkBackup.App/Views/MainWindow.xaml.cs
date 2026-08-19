@@ -128,6 +128,20 @@ public partial class MainWindow : Window
         // picker - so there is one code path for each.
         EmptyBackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
         ChooseWhereToKeepButton.Click += (_, _) => ChooseWhereToKeep_Click();
+
+        // Screen 4's checkbox - "Keep backing up on its own when my settings change" - is the
+        // first-run screen's one setting. It is read from the app once here and written back on
+        // every change, rather than carrying IsChecked="True" and no handler, which is what it had:
+        // a control that always looked on and never turned anything on or off.
+        //
+        // A bare harness (no App) leaves it unchecked and inert rather than throwing, the same
+        // seam the two buttons above already use.
+        if (Application.Current is App settingsOwner)
+        {
+            KeepAutoBackupCheckbox.IsChecked = settingsOwner.AutoBackupEnabled;
+            KeepAutoBackupCheckbox.Checked += (_, _) => settingsOwner.SetAutoBackup(true);
+            KeepAutoBackupCheckbox.Unchecked += (_, _) => settingsOwner.SetAutoBackup(false);
+        }
     }
 
     /// <summary>

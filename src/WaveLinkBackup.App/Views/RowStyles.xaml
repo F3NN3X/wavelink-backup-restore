@@ -390,11 +390,17 @@
                         <StackPanel>
                         <Grid VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" MinWidth="200" SharedSizeGroup="WlColName" />
-                                <ColumnDefinition Width="120" SharedSizeGroup="WlColTaken" />
-                                <ColumnDefinition Width="124" SharedSizeGroup="WlColWhy" />
-                                <ColumnDefinition Width="300" SharedSizeGroup="WlColInputs" />
-                                <ColumnDefinition Width="200" SharedSizeGroup="WlColContents" />
+                                <!-- NAME is starred and therefore carries NO SharedSizeGroup: WPF
+                                     measures a shared starred column as Auto, which pinned this
+                                     grid to its 984px minimum and left the right of every row
+                                     empty. See WlColumnHeaderRowTemplate (ControlStyles.xaml) for
+                                     the full reasoning and for why the five fixed widths carry the
+                                     20px gap inside the column. -->
+                                <ColumnDefinition Width="*" MinWidth="220" />
+                                <ColumnDefinition Width="140" SharedSizeGroup="WlColTaken" />
+                                <ColumnDefinition Width="144" SharedSizeGroup="WlColWhy" />
+                                <ColumnDefinition Width="320" SharedSizeGroup="WlColInputs" />
+                                <ColumnDefinition Width="220" SharedSizeGroup="WlColContents" />
                                 <ColumnDefinition Width="40" SharedSizeGroup="WlColOverflow" />
                             </Grid.ColumnDefinitions>
 

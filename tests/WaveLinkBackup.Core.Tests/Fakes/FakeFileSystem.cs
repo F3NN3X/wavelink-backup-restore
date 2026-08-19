@@ -115,6 +115,33 @@ public sealed class FakeFileSystem : IFileSystem
 
     public string ReadSharedText(string path) => Encoding.UTF8.GetString(ReadSharedBytes(path));
 
+    /// <summary>
+    /// Answers from the same queued failures a read would hit, WITHOUT consuming one — a probe
+    /// that ate the failure would make the copy behind it succeed and hide the case under test.
+    /// </summary>
+    public bool CanReadShared(string path)
+    {
+        if (ReadFailures.TryGetValue(path, out var failures) && failures.Count > 0) return false;
+
+        return files.ContainsKey(path);
+    }
+
+    /// <summary>
+    /// Goes through <see cref="ReadSharedBytes"/> and <see cref="WriteBytes"/> so queued read and
+    /// write failures reach a copy exactly as they reach the two calls it replaced. The real one
+    /// streams; nothing in a test is large enough for the difference to be observable, and routing
+    /// it through the two seams keeps every existing failure fixture meaningful.
+    /// </summary>
+    public FileCopy CopyFile(string source, string destination)
+    {
+        var bytes = ReadSharedBytes(source);
+        WriteBytes(destination, bytes);
+
+        return new FileCopy(
+            Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)),
+            bytes.LongLength);
+    }
+
     public void CreateDirectory(string path)
     {
         if (FailDirectoryCreation) throw new UnauthorizedAccessException($"Access to '{path}' is denied.");

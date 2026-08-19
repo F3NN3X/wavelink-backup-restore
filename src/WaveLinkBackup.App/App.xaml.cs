@@ -375,15 +375,32 @@ public partial class App : Application
     internal void OpenStoreFolder() =>
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{settings.StorePath}\""));
 
-    private void ToggleAutoBackup()
-    {
-        host!.AutoBackupEnabled = !host.AutoBackupEnabled;
+    private void ToggleAutoBackup() => SetAutoBackup(!host!.AutoBackupEnabled);
 
-        settings = settings with { AutoBackupEnabled = host.AutoBackupEnabled };
-        settingsRepository!.Save(settings);
+    /// <summary>
+    /// Whether the watcher is running, set to an absolute value rather than flipped.
+    ///
+    /// Internal because Screen 4's own checkbox — "Keep backing up on its own when my settings
+    /// change" — is the first-run screen's one setting, and it needs to say what it means rather
+    /// than what the last press did. It was `IsChecked="True"` in the XAML and wired to nothing:
+    /// a control that showed a state it did not read and changed a setting it did not write.
+    /// </summary>
+    internal void SetAutoBackup(bool enabled)
+    {
+        if (host is null || settingsRepository is null) return;
+        if (host.AutoBackupEnabled == enabled) return;
+
+        host.AutoBackupEnabled = enabled;
+
+        settings = settings with { AutoBackupEnabled = enabled };
+        settingsRepository.Save(settings);
 
         RefreshTray();
+        RefreshShellFacts();
     }
+
+    /// <summary>The current value, so a control can start out showing the truth.</summary>
+    internal bool AutoBackupEnabled => host?.AutoBackupEnabled ?? settings.AutoBackupEnabled;
 
     private void TogglePause()
     {
@@ -523,7 +540,24 @@ public partial class App : Application
     /// snapshot, so all three produce the same shape of backup.
     /// </summary>
     private SnapshotPayload? GatherPayload(SettingsInspection live) =>
-        fileSystem is null ? null : TierCapture.For(fileSystem).Gather(live, settings);
+        fileSystem is null
+            ? null
+            : TierCapture.For(fileSystem).Gather(live, settings, NewestPluginManifest());
+
+    /// <summary>
+    /// The newest snapshot's plugins.json, or null when there is no snapshot, no store, or
+    /// nothing readable in it. Handed to the capture for one purpose: letting tier 2 skip
+    /// re-hashing a plug-in binary nothing has touched (technical-debt.md §4.16).
+    ///
+    /// Null on every doubt. The cost of a null is a capture that hashes as it always did.
+    /// </summary>
+    private PluginManifest? NewestPluginManifest()
+    {
+        if (fileSystem is null || store is null) return null;
+
+        var newest = store.List().FirstOrDefault();
+        return newest is null ? null : new SnapshotPluginReader(fileSystem).Read(newest);
+    }
 
     private CaptureEstimate MeasureTiers()
     {

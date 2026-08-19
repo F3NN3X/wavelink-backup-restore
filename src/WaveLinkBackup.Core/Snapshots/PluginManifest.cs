@@ -40,6 +40,19 @@ namespace WaveLinkBackup.Core.Snapshots;
 /// two vendors can ship `Clear.vst3` and the capture disambiguates them, so reversing that from
 /// the file name would be a guess.
 /// </param>
+/// <param name="BinarySizeBytes">
+/// The binary's length when <paramref name="Sha256"/> was computed, or 0 when it did not resolve
+/// to a file. Half of the pair that says whether the hash is still current.
+/// </param>
+/// <param name="BinaryLastWriteUtc">
+/// The binary's last-write time when <paramref name="Sha256"/> was computed, or null.
+///
+/// Recorded so the NEXT capture can skip re-reading the file: tier 2 is always on and runs on
+/// every automatic capture, and hashing ~40 MB of plug-in binaries to re-derive a value that
+/// changes only when the user updates a plug-in is the largest avoidable cost in a capture
+/// (technical-debt.md §4.16). Size AND time together, because either alone is easy to match by
+/// accident.
+/// </param>
 public sealed record PluginManifestEntry(
     string Name,
     string? Vendor,
@@ -51,7 +64,9 @@ public sealed record PluginManifestEntry(
     IReadOnlyList<string>? PresetSources = null,
     int PresetFileCount = 0,
     long PresetBytes = 0,
-    string? BinaryPath = null)
+    string? BinaryPath = null,
+    long BinarySizeBytes = 0,
+    DateTime? BinaryLastWriteUtc = null)
 {
     private readonly IReadOnlyList<string> presetSources = PresetSources ?? [];
 
@@ -76,6 +91,22 @@ public sealed record PluginManifestEntry(
     /// <summary>Whether tier 4 holds this plugin's binary.</summary>
     public bool BinaryCaptured => BinaryPath is not null;
 
+    /// <summary>
+    /// Whether this entry's <see cref="Sha256"/> can be reused for a binary that measures
+    /// <paramref name="sizeBytes"/> and was last written at <paramref name="lastWriteUtc"/>.
+    ///
+    /// **Conservative in every direction.** No hash, no recorded size or no recorded time means
+    /// no — an entry from a snapshot written before schema 3 has none of them, and the honest
+    /// answer for it is to hash. This is a cache with an invalidation rule, so it says yes only
+    /// when all three agree.
+    /// </summary>
+    public bool BinaryMatches(long sizeBytes, DateTime lastWriteUtc) =>
+        Sha256 is not null
+        && BinarySizeBytes > 0
+        && BinaryLastWriteUtc is { } recorded
+        && BinarySizeBytes == sizeBytes
+        && recorded == lastWriteUtc;
+
     /// <summary>False when the version could not be established. Restore reads this as drift.</summary>
     public bool VersionKnown => Version is not null;
 
@@ -95,7 +126,9 @@ public sealed record PluginManifestEntry(
         && PresetSources.SequenceEqual(other.PresetSources)
         && PresetFileCount == other.PresetFileCount
         && PresetBytes == other.PresetBytes
-        && BinaryPath == other.BinaryPath;
+        && BinaryPath == other.BinaryPath
+        && BinarySizeBytes == other.BinarySizeBytes
+        && BinaryLastWriteUtc == other.BinaryLastWriteUtc;
 
     public override int GetHashCode() =>
         HashCode.Combine(Name, Vendor, Version, UniqueId, FilePath, Sha256, PresetFileCount);
@@ -118,8 +151,11 @@ public sealed record PluginManifest(int SchemaVersion, IReadOnlyList<PluginManif
     /// 2 · <c>presetSources</c> is an array and the stored path names its root
     /// (<c>presets/appdata/…</c>, <c>presets/documents/…</c>). Both are still read; only the newer
     /// one is written.
+    /// 3 · each entry records <c>binarySizeBytes</c> and <c>binaryLastWriteUtc</c> beside its
+    /// <c>sha256</c>, so the next capture can tell a hash that is still current from one that
+    /// is not. Purely additive: a schema-2 file reads as an entry that always needs rehashing.
     /// </summary>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>An empty capture - a rig running nothing but Elgato built-ins.</summary>
     public static PluginManifest Empty => new(CurrentSchemaVersion, []);

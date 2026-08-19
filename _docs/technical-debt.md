@@ -72,7 +72,17 @@ existed to prevent.
 idea is not re-derived from the spec body and re-adopted.
 **See:** [[every-snapshot-differs-with-no-real-change]] and the audit's withdrawn finding 2.
 
-### 1.3 No duplicate-key detection
+### 1.3 ~~No duplicate-key detection~~ — **CLOSED in our port (phase 1); confirmed 2026-08-19**
+
+> `Analysis/DuplicateKeyScanner` is the `JsonDocument` tree walk this entry asked for, and
+> `SettingsAnalysis` runs it on every read — the result reaches the manifest as
+> `HasDuplicateKeys` and the UI as the SUSPECT badge. `DuplicateKeyScannerTests` covers both
+> shapes of duplicate. §2.1 unblocked it the day it was answered; the entry stayed open because
+> nothing came back to close it.
+>
+> **Still worth offering upstream**, where the defect is unfixed. Original entry below.
+
+#### Original entry
 
 `Validate()` only asserts that `MixerConfiguration.InputSettings` is an object. The defect
 that motivated this entire project — case-insensitively duplicated keys, which Wave Link
@@ -151,10 +161,12 @@ duplicate:
 
 **No silent data loss** — the feared outcome is not real. §1.3's fix proceeds unchanged.
 
-**New, smaller debt this uncovered:** any `JsonNode.Parse` of an untrusted settings file can
-throw `ArgumentException` from a dictionary insert. Unhandled, the user sees "An item with the
-same key has already been added. Key: A" instead of "this settings file is malformed". Catch
-and translate. **Phase:** 1.
+**New, smaller debt this uncovered — closed:** any `JsonNode.Parse` of an untrusted settings file
+can throw `ArgumentException` from a dictionary insert. Unhandled, the user sees "An item with the
+same key has already been added. Key: A" instead of "this settings file is malformed". It is
+closed twice over: **nothing in the codebase calls `JsonNode.Parse` at all** — every parse is
+`JsonDocument.Parse` — and every one of those call sites catches `ArgumentException` beside
+`JsonException` and translates it. Confirmed 2026-08-19.
 
 ### 2.2 Whether non-MSIX Wave Link installs exist
 
@@ -455,9 +467,9 @@ System"*.
 
 > **The heading is about items 1–6 only.** Everything from 4.7 down arrived later, as the build
 > found its own gaps, and several are open — check each item's own status line rather than this
-> one. Open as of 0.5.1: **4.7** (no icon set), **4.8** (tray minors), **4.10** (the first-run
-> not-found variant), **4.11** (duplicated total-size arithmetic), **4.14** (arrow keys stop at a
-> date group), **4.15** (0.5.1's frosting unseen).
+> one. Open as of 0.6.1: **4.7** (no icon set), **4.8** (tray minors), **4.10** (the first-run
+> not-found variant), **4.14** (arrow keys stop at a date group), **4.15** (0.5.1's frosting
+> unseen), **4.21** (eight undrawn surfaces).
 
 All six were undesigned. Five are now specified in
 [operations/design/screens/](operations/design/screens/00-index.md), which also designed
@@ -573,7 +585,26 @@ does not yet special-case first-run-when-not-found beyond that strip.
 the neutral note. **Phase:** 5, after plan 7. **See:** §2.2 (non-MSIX installs) and
 [[file-parses-but-wave-link-resets]].
 
-### 4.11 Total-size arithmetic is copy-pasted, not shared — **open, found in the phase-5 audit, 2026-08-19**
+> **Amended 2026-08-19, by the design-conformance audit.** Two thirds of "what closes this" turn
+> out to be done already. `06-errors.md` **does** specify the variant — *"First-run variant (the
+> amber status line the empty state reserves space for)"*, with the centred amber dot, the
+> `LOOKED IN …` mono second line and the *"Choose the settings file…"* button — and
+> `ShellViewModel.FirstRunError1Label` / `FirstRunLookedInLabel` implement it, correctly and with
+> tests. What is missing is only the markup that binds them: nothing in the app references either
+> property. This is smaller than the entry above describes, and it is no longer blocked on design.
+> See [audits/2026-08-19-design-conformance.md](audits/2026-08-19-design-conformance.md) §2.3.
+
+### 4.11 ~~Total-size arithmetic is copy-pasted, not shared~~ — **FIXED 2026-08-19**
+
+> `SnapshotManifest.TotalSizeBytes` is the one place it lives, and all five call sites —
+> `DeleteDialogModel`, `SnapshotRowViewModel`, `SnapshotListViewModel`, `HealthProbe` and
+> `SnapshotStore.TrashSize` — read it. The two remaining `Sum(f => f.SizeBytes)` in the codebase
+> are deliberately different sums over FILTERED sets (`RestoreOrchestrator`'s per-tier figure,
+> `SettingsViewModel`'s per-row one) and are left alone. Two tests in `ManifestFieldTests`.
+>
+> Original entry below.
+
+#### Original entry
 
 `manifest.Files.Values.Sum(f => f.SizeBytes)` (or the equivalent) is independently reimplemented
 in at least five places: `DeleteDialogModel`, `SnapshotRowViewModel`, `SnapshotListViewModel`,
@@ -679,7 +710,28 @@ notices, because the fallback looks deliberate.
 and the restored letter-spacing are all in the same category. **Fix if absent:** the fallback is
 already correct; the question is only whether to keep the call.
 
-### 4.16 Tier 2 rehashes every plugin binary on every capture — **open, 2026-08-19**
+### 4.16 ~~Tier 2 rehashes every plugin binary on every capture~~ — **FIXED 2026-08-19**
+
+> Built as the entry describes, with the measurement it asked for replaced by the cheaper move of
+> making the skip conservative enough that being wrong costs a hash rather than a stale value.
+>
+> **The rule:** `PluginManifestEntry.BinaryMatches` says yes only when the entry has a hash, a
+> recorded size AND a recorded write time, and both figures equal what the binary measures now.
+> Any of those missing or different means hash it. plugins.json goes to **schema 3** to carry
+> `binarySizeBytes` and `binaryLastWriteUtc`; the addition is purely additive, and a schema-2
+> entry reads back as one that always needs rehashing.
+>
+> `TierCapture.Gather` takes the previous manifest as an optional third argument — null is always
+> correct and always safe. Both shells pass the newest snapshot's plugins.json; the CLI wiring has
+> its own test, per §4.20's lesson that a tested rule is no evidence anything reaches it.
+>
+> **The second read is gone too.** §4.19's streaming copy means tier 4 no longer re-reads the same
+> binary to copy it, so an unchanged plug-in set now costs one `stat` per plug-in on a capture that
+> claims tiers 1–3, and one streamed pass when it claims tier 4.
+>
+> Original entry below.
+
+#### Original entry
 
 `PluginManifestBuilder` reads each referenced `.vst3` in full to hash it, and it runs on every
 capture — including the automatic ones the watcher fires. On the reference rig that is ~40 MB per
@@ -805,7 +857,29 @@ capture and one look at that file.
 **Check by eye**, alongside 0.5.1's visual items (§4.15). **Fix if wrong:** the order of the
 candidates, or a per-vendor exception list — the heuristic is deliberately in one class.
 
-### 4.19 Tier 4 reads whole binaries into memory — **open, 2026-08-19**
+### 4.19 ~~Tier 4 reads whole binaries into memory~~ — **FIXED 2026-08-19**
+
+> `IFileSystem.CopyFile` is the seam the entry asked for: 1 MiB at a time through an
+> `IncrementalHash`, returning the SHA-256 and the length of what it wrote. Peak memory is the
+> buffer.
+>
+> **It was worse than this entry described.** The peak was not one plug-in — `CapturedFile`
+> carried a `byte[]`, and `TierCapture` built the whole list before the store wrote any of it, so
+> a capture held the ENTIRE preset and binary set at once (~40 MB on the reference rig, unbounded
+> with a sample-library instrument on a channel). `CapturedFile` now names a source path and a
+> size; the store copies from it.
+>
+> **Two things fell out.** The manifest now records what the copy actually wrote rather than what
+> the capture measured beforehand — pinned by a test where the two differ, which the old shape
+> could not express. And the readability check that decided tier 4's all-or-nothing fate moved to
+> `IFileSystem.CanReadShared`, which opens and closes and reads nothing.
+>
+> `TierRestore` streams too. Five tests in `FileSystemTests` against the real filesystem, one
+> deliberately larger than the buffer.
+>
+> Original entry below.
+
+#### Original entry
 
 Capture and restore both go `ReadSharedBytes` → `WriteBytes`, so a 24 MB `Clear.vst3` is a 24 MB
 array. One file at a time, so the peak is one plugin rather than the set — acceptable, and the
@@ -840,6 +914,30 @@ seam, which also lets §4.16's hash-skip reuse it.
 >
 > **The lesson worth keeping:** a view-model property with a commit path is not evidence that a
 > control reaches it. These two suites now overlap on purpose.
+
+### 4.21 Eight designed surfaces are specified and undrawn — **open, found in the design-conformance audit, 2026-08-19**
+
+Full detail, with what exists behind each one:
+[audits/2026-08-19-design-conformance.md](audits/2026-08-19-design-conformance.md) §2. Summarised
+here because that is where a debt belongs, and because §4.20's lesson repeats itself in almost
+every line of it — a view model with a tested property is not evidence that anything renders it.
+
+| | Surface | Design | State |
+|---|---|---|---|
+| 1 | **The rejected restore has no action and cannot be dismissed** | `03` §3 | Strip renders; two designed actions absent; `AcknowledgeReject` is implemented and **called by nothing**, so the bar is permanent once shown |
+| 2 | Backing-up in-progress state | `04` | Restore's half fully built, backup's half absent; `BackupHost.IsCapturing` read only by the tray |
+| 3 | First run, Wave Link not found | `06` | View model done — see §4.10's amendment |
+| 4 | Settings `WHEN WINDOWS STARTS` | `12` | `IAutostart`, `AutostartState`, `ToggleAutostart`, `ClosingHidesToTray` all built and tested; nothing binds them |
+| 5 | Settings `UPDATES` | `12` | Not started. Error 8's *"Get the update"* deep-links to a section that does not exist |
+| 6 | The two tray notifications | `12` | No notification code of any kind |
+| 7 | Error 2's chooser rows | `06` §2 | Radio + path only; version, `RUNNING` chip, meta line, selected-row treatment and *"Remember this one"* absent |
+| 8 | Error 9, in Settings after *Change folder…* | `06` §9 | In the catalog with the right placement and weight; no surface |
+
+**Item 1 is the one that matters most.** It is the recovery path for the only failure that costs
+someone their mixer, and today it states the problem and offers nothing.
+
+Items 3 and 4 are markup over finished, tested view models — the cheapest two on the list by a
+wide margin.
 
 ---
 

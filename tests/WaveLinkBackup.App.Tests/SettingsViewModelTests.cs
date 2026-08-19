@@ -400,6 +400,18 @@ public sealed class SettingsViewModelTests
         Assert.Equal(0.75, model.Segments[1].Fraction); // the plug-ins: 3 of 4 KB
     }
 
+    // README Screen 3 colours the bar in ROW order - ok, warn, then accent at 75% - and the view
+    // picks the brush off Tier. The view used to match one hard-coded English row label instead,
+    // which painted every other segment ok; nothing catches that but the number reaching the view.
+    [Fact]
+    public void Each_segment_carries_the_tier_it_came_from()
+    {
+        var model = Bar(Setup(1 * 1024), new("Effect presets", "", 2 * 1024, true, false),
+            new("The effect plug-ins themselves", "", 3 * 1024, true, false));
+
+        Assert.Equal([1, 3, 4], model.Segments.Select(s => s.Tier));
+    }
+
     [Fact]
     public void Locked_and_zero_byte_tiers_contribute_nothing_to_the_bar()
     {
@@ -409,6 +421,20 @@ public sealed class SettingsViewModelTests
 
         Assert.Single(model.Segments);
         Assert.Equal("Your setup", model.Segments[0].Name);
+    }
+
+    // screens/14: the keep-count row's title is the value read back, exactly as the interval
+    // row's is. The XAML carried the sentence with the number deleted out of it.
+    [Fact]
+    public void The_keep_count_label_reads_the_value_back()
+    {
+        var (model, _, _) = Rig();
+
+        model.AutoBackupKeepCount = 30;
+        Assert.Equal("Keep the last 30 automatic backups", model.KeepCountLabel);
+
+        model.StepKeepCount(-1);
+        Assert.Equal("Keep the last 29 automatic backups", model.KeepCountLabel);
     }
 
     [Fact]

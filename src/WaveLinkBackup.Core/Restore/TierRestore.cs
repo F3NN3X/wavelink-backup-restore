@@ -140,7 +140,10 @@ public sealed class TierRestore(IFileSystem fileSystem, string appDataPath, stri
                 fileSystem.CreateDirectory(parent);
             }
 
-            fileSystem.WriteBytes(destination, fileSystem.ReadSharedBytes(source));
+            // Streamed rather than read-then-written: a sample-library instrument is as
+            // legitimate a thing to have on a channel as a 24 MB equaliser, and the read-whole
+            // form put it on the heap twice (technical-debt.md §4.19).
+            fileSystem.CopyFile(source, destination);
             return true;
         }
         catch (UnauthorizedAccessException)

@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Globalization;
 using System.Text.Json;
 
 namespace WaveLinkBackup.Core.Snapshots;
@@ -50,6 +51,14 @@ public static class PluginManifestSerializer
                 writer.WriteNumber("presetFileCount", plugin.PresetFileCount);
                 writer.WriteNumber("presetBytes", plugin.PresetBytes);
                 WriteNullable(writer, "binaryPath", plugin.BinaryPath);
+                writer.WriteNumber("binarySizeBytes", plugin.BinarySizeBytes);
+
+                // Round-trip "O" so a tick is not lost between capture and the next capture's
+                // comparison — the whole value of the field is that it compares exactly.
+                WriteNullable(
+                    writer,
+                    "binaryLastWriteUtc",
+                    plugin.BinaryLastWriteUtc?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
 
                 writer.WriteEndObject();
             }
@@ -118,7 +127,9 @@ public static class PluginManifestSerializer
                         PresetSources: PresetSources(element),
                         PresetFileCount: (int)Number(element, "presetFileCount"),
                         PresetBytes: Number(element, "presetBytes"),
-                        BinaryPath: String(element, "binaryPath")));
+                        BinaryPath: String(element, "binaryPath"),
+                        BinarySizeBytes: Number(element, "binarySizeBytes"),
+                        BinaryLastWriteUtc: Timestamp(element, "binaryLastWriteUtc")));
                 }
             }
 
@@ -182,6 +193,17 @@ public static class PluginManifestSerializer
         && value.TryGetInt64(out var number)
             ? number
             : 0;
+
+    /// <summary>
+    /// A round-trip UTC timestamp, or null for anything that does not parse. Null is the safe
+    /// answer: it makes <see cref="PluginManifestEntry.BinaryMatches"/> say no, and the capture
+    /// hashes as it always did.
+    /// </summary>
+    private static DateTime? Timestamp(JsonElement element, string name) =>
+        String(element, name) is { } text
+        && DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
+            ? parsed.ToUniversalTime()
+            : null;
 
     /// <summary>A string property, or null when absent, wrong-typed or blank.</summary>
     private static string? String(JsonElement element, string name) =>

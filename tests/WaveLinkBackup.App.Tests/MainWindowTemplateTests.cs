@@ -67,12 +67,16 @@ public sealed class MainWindowTemplateTests
         Assert.Contains("Grid.IsSharedSizeScope=\"True\"", MainWindowXaml(), StringComparison.Ordinal);
     }
 
-    // The header's own six columns (WlColumnHeaderRowTemplate, ControlStyles.xaml - reused three
+    // The header's own columns (WlColumnHeaderRowTemplate, ControlStyles.xaml - reused three
     // times per MainWindow.xaml's own comment, so it lives there rather than in MainWindow.xaml
-    // itself) and the row template's (RowStyles.xaml) six columns must use the identical
-    // SharedSizeGroup names, or the shared-size scope shares nothing.
+    // itself) and the row template's (RowStyles.xaml) must use the identical SharedSizeGroup
+    // names, or the shared-size scope shares nothing.
+    //
+    // FIVE names, not six. WlColName was removed from both files on purpose: WPF measures a
+    // starred column that names a shared size group as if it were Auto, so naming NAME pinned the
+    // whole block to its 984px minimum and left ~156px empty to the right of every row. The five
+    // fixed columns still share; NAME is starred and lines up on its own.
     [Theory]
-    [InlineData("WlColName")]
     [InlineData("WlColTaken")]
     [InlineData("WlColWhy")]
     [InlineData("WlColInputs")]
@@ -83,6 +87,89 @@ public sealed class MainWindowTemplateTests
         var controlStyles = File.ReadAllText(Path.Combine(SourceRoot, "Views", "ControlStyles.xaml"));
 
         Assert.Contains($"SharedSizeGroup=\"{group}\"", controlStyles, StringComparison.Ordinal);
+    }
+
+    // The regression this replaced a sixth InlineData with. A shared starred column is silently
+    // demoted to Auto, and nothing about that shows up in a source-text check for a group NAME -
+    // only in the width the column ends up with. Both files, because the header and the row have
+    // to agree.
+    [Theory]
+    [InlineData("ControlStyles.xaml")]
+    [InlineData("RowStyles.xaml")]
+    public void The_name_column_is_starred_and_never_in_a_shared_size_group(string file)
+    {
+        var xaml = File.ReadAllText(Path.Combine(SourceRoot, "Views", file));
+        var withoutComments = Regex.Replace(xaml, "<!--.*?-->", string.Empty, RegexOptions.Singleline);
+
+        Assert.DoesNotContain("SharedSizeGroup=\"WlColName\"", withoutComments, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"*\" MinWidth=\"220\" />", withoutComments, StringComparison.Ordinal);
+    }
+
+    // The five fixed columns carry the design's width PLUS the 20px gap, because the gap is a
+    // right Margin on each cell's content rather than a seventh column. Dropping back to the bare
+    // 120/124/300/200 would leave every cell 20px narrower than the design draws it - most
+    // visibly the five-slot INPUTS strip, which is the row's whole information design.
+    [Theory]
+    [InlineData("ControlStyles.xaml")]
+    [InlineData("RowStyles.xaml")]
+    public void The_fixed_columns_carry_the_twenty_pixel_gap(string file)
+    {
+        var xaml = File.ReadAllText(Path.Combine(SourceRoot, "Views", file));
+
+        foreach (var (width, group) in new[]
+                 {
+                     (140, "WlColTaken"), (144, "WlColWhy"),
+                     (320, "WlColInputs"), (220, "WlColContents"),
+                 })
+        {
+            Assert.Contains(
+                $"Width=\"{width}\" SharedSizeGroup=\"{group}\"", xaml, StringComparison.Ordinal);
+        }
+    }
+
+    // The header sits outside ListScrollViewer and the rows sit inside it, so the scroll bar's
+    // 10px comes off the rows' available width and not the header's. Both resolve NAME's star
+    // independently, so without this gutter the header drifts 10px right of the cells it heads
+    // the moment the list is long enough to scroll.
+    [Fact]
+    public void The_column_header_reserves_the_lists_scroll_bar_gutter()
+    {
+        var xaml = MainWindowXaml();
+
+        Assert.Contains("ElementName=\"ListScrollViewer\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Padding\" Value=\"20,11,30,9\"", xaml, StringComparison.Ordinal);
+    }
+
+    // 10-decisions section 6: "Enter fires the primary button - except Delete and Restore, where
+    // focus starts on Cancel and the destructive button must be reached deliberately (Tab or
+    // click)." IsDefault gives a button Enter from ANYWHERE in the dialog, focus on Cancel
+    // included - which made Enter, on a dialog that opens focused on Cancel, the most destructive
+    // key in the app. Empty trash is in here for the same reason: 08 gives it the delete dialog's
+    // shape and its focus rule, and it is irreversible on the volumes it asks about at all.
+    [Theory]
+    [InlineData("DeleteDialog.xaml", "DeleteButton")]
+    [InlineData("RestoreDialog.xaml", "RestoreButton")]
+    [InlineData("EmptyTrashDialog.xaml", "ConfirmButton")]
+    public void The_destructive_button_is_never_the_default_button(string file, string button)
+    {
+        var xaml = File.ReadAllText(Path.Combine(SourceRoot, "Views", file));
+        var match = Regex.Match(xaml, $"<Button x:Name=\"{button}\"[^>]*>", RegexOptions.Singleline);
+
+        Assert.True(match.Success, $"{button} is gone or has been renamed in {file}.");
+        Assert.DoesNotContain("IsDefault=\"True\"", match.Value, StringComparison.Ordinal);
+    }
+
+    // ...and Enter still has to work once the user HAS tabbed onto it, or the rule above would
+    // just be a keyboard dead end on the confirm button of three dialogs.
+    [Theory]
+    [InlineData("DeleteDialog.xaml.cs", "DeleteButton")]
+    [InlineData("RestoreDialog.xaml.cs", "RestoreButton")]
+    [InlineData("EmptyTrashDialog.xaml.cs", "ConfirmButton")]
+    public void The_destructive_button_handles_enter_itself(string file, string button)
+    {
+        var code = File.ReadAllText(Path.Combine(SourceRoot, "Views", file));
+
+        Assert.Contains($"{button}.KeyDown +=", code, StringComparison.Ordinal);
     }
 
     // Task 12's guards look RowStyles.xaml's keys up by name - none of that matters if the

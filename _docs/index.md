@@ -188,6 +188,7 @@ Extracted from shipped code, each naming its real callers.
 | Audit | Subject |
 |---|---|
 | [2026-08-15 — voltybat/WaveLinkSettingsUtility](audits/2026-08-15-voltybat-wavelinksettingsutility.md) | The upstream we are forking: what to take, what to fix first |
+| [2026-08-19 — the app against the design package](audits/2026-08-19-design-conformance.md) | Every screen read against `operations/design/`: one structural layout defect, six smaller fixes, eight designed surfaces never drawn |
 
 ---
 

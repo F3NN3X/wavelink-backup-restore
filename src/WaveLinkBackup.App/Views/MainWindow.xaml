@@ -316,15 +316,43 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
+                <!--
+                  06-errors.md, "Inline strips - anatomy": "22px mono wl-muted error number ·
+                  11px hollow dot · sentence ... over mono meta ... · action · 26px dismiss ×".
+
+                  The number is the first thing in the strip and the only place in the app that
+                  prints an error's code, which is what makes a support conversation possible at
+                  all. RestoreOutcomeStrip has carried ErrorNumber since it was built; nothing
+                  rendered it, so an inline error arrived with an empty glyph slot where the
+                  number belongs.
+                -->
+                <TextBlock Grid.Column="0" Text="{Binding Strip.ErrorNumber}"
+                           FontFamily="{DynamicResource WlMonoFont}" FontSize="22"
+                           Foreground="{DynamicResource WlMuted}" Margin="0,0,12,0"
+                           VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
                 <!-- The outcome glyph: a ringed check (confirmed), a hollow circle
-                     (unconfirmed - neutral, NOT amber), a warning triangle (rejected), or a
-                     close-in-circle (failed). Each is shown only for its own Kind. -->
-                <Grid Grid.Column="0" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
+                     (unconfirmed - neutral, NOT amber, and the same marker every inline error
+                     takes), a warning triangle (rejected), or a close-in-circle (failed). Each is
+                     shown only for its own Kind. -->
+                <Grid Grid.Column="1" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
 
                     <!-- SucceededConfirmed: ringed check in WlOk. -->
                     <Grid>
@@ -345,8 +373,12 @@
                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Grid>
 
-                    <!-- SucceededUnconfirmed: neutral hollow circle - NOT amber. -->
-                    <Ellipse>
+                    <!-- SucceededUnconfirmed, and every inline error: the neutral hollow circle -
+                         NOT amber. 06's inline-strip anatomy asks for the same 11px dot the
+                         unconfirmed outcome uses, and for the same reason: nothing happened, so
+                         nothing is un-whole. -->
+                    <Ellipse Width="11" Height="11"
+                             HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Ellipse.Style>
                             <Style TargetType="Ellipse">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -355,6 +387,9 @@
                                 <Setter Property="StrokeThickness" Value="1.5" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Strip.Kind}" Value="SucceededUnconfirmed">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -398,16 +433,46 @@
                     </Grid>
                 </Grid>
 
-                <!-- Title + detail: title in the body role, detail in mono meta. -->
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Strip.Title}" Style="{StaticResource WlBodyText}"
-                               FontSize="13" Foreground="{DynamicResource WlStrong}" />
-                    <TextBlock Text="{Binding Strip.Detail}" Style="{StaticResource WlMonoMetaText}"
-                               Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0" />
+                <!--
+                  Sentence over mono meta - 03 and 06 draw the same two lines, but an inline error
+                  fills them from different properties. The catalog splits an error into a short
+                  Title and the designed SENTENCE (Body, which the strip carries as Detail), and
+                  the machine-specific line (a path, a PID, a checksum) arrives separately as
+                  MonoMeta. Rendering Title/Detail unchanged put the designed sentence in the mono
+                  meta role and dropped MonoMeta on the floor, so an inline error read as a short
+                  heading over its own sentence in the wrong typeface, with no path or PID at all.
+                -->
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <TextBlock Foreground="{DynamicResource WlStrong}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource WlBodyText}">
+                                <!-- 03/06: the sentence is Rubik 400 13.5px. -->
+                                <Setter Property="FontSize" Value="13.5" />
+                                <Setter Property="Text" Value="{Binding Strip.Title}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
+                                        <Setter Property="Text" Value="{Binding Strip.Detail}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource WlMonoMetaText}">
+                                <Setter Property="Text" Value="{Binding Strip.Detail}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
+                                        <Setter Property="Text" Value="{Binding Strip.MonoMeta}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </StackPanel>
 
                 <!-- "Check again" secondary action: SucceededUnconfirmed only. -->
-                <Button Grid.Column="2" x:Name="StripActionButton"
+                <Button Grid.Column="3" x:Name="StripActionButton"
                         Content="{Binding Strip.ActionLabel}"
                         Margin="16,0,0,0" VerticalAlignment="Center"
                         AutomationProperties.Name="{Binding Strip.ActionLabel}">
@@ -425,7 +490,7 @@
 
                 <!-- Close (X): shown whenever Dismissible. Rejected is never Dismissible, so it
                      cannot be closed - only AcknowledgeReject clears it. -->
-                <Button Grid.Column="3" x:Name="StripDismissButton"
+                <Button Grid.Column="4" x:Name="StripDismissButton"
                         Margin="8,0,0,0" VerticalAlignment="Center"
                         AutomationProperties.Name="Dismiss">
                     <Button.Style>
@@ -565,11 +630,28 @@
           ================================================================================
         -->
         <Border x:Name="ColumnHeaderBorder" Grid.Row="3" BorderBrush="{DynamicResource WlLine}"
-                BorderThickness="0,0,0,1" Padding="20,11,20,9">
+                BorderThickness="0,0,0,1">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Visibility" Value="Visible" />
+                    <Setter Property="Padding" Value="20,11,20,9" />
                     <Style.Triggers>
+                        <!--
+                          The NAME column is starred in both this header and every row, and each
+                          resolves that star against its OWN available width. The rows sit inside
+                          ListScrollViewer and lose 10px to the scroll bar the moment it appears;
+                          this header does not. Without matching that gutter, NAME would be 10px
+                          wider up here than down there and every column after it would sit 10px
+                          right of the cells it heads. 30 = the 20px inset plus the 10px the
+                          ScrollBar style pins its width to.
+                        -->
+                        <DataTrigger Value="Visible">
+                            <DataTrigger.Binding>
+                                <Binding Path="ComputedVerticalScrollBarVisibility"
+                                         ElementName="ListScrollViewer" />
+                            </DataTrigger.Binding>
+                            <Setter Property="Padding" Value="20,11,30,9" />
+                        </DataTrigger>
                         <DataTrigger Binding="{Binding List.State}" Value="Empty">
                             <Setter Property="Visibility" Value="Collapsed" />
                         </DataTrigger>
@@ -781,8 +863,11 @@
                 <TextBlock Text="{Binding List.NoResultsDetail}" Style="{StaticResource WlMonoMetaText}"
                            Foreground="{DynamicResource WlMuted}" Margin="0,8,0,0"
                            HorizontalAlignment="Center" TextAlignment="Center" />
+                <!-- 07: "action  secondary \"Clear the search\", 6px above". Secondary, not
+                     ghost: it is the only way out of an empty result, and a ghost button in the
+                     middle of an otherwise empty panel has no edge to be found by. -->
                 <Button x:Name="ClearSearchLinkButton" Content="Clear the search"
-                        Style="{StaticResource WlGhostButton}" Margin="0,6,0,0"
+                        Style="{StaticResource WlSecondaryButton}" Margin="0,6,0,0"
                         HorizontalAlignment="Center" />
             </StackPanel>
 
@@ -864,8 +949,10 @@
                                 FontSize="14.5" Padding="14,0,14,0" />
                     </StackPanel>
 
-                    <!-- Checkbox: checked by default - auto-backup on by default. 22px below. -->
-                    <CheckBox x:Name="KeepAutoBackupCheckbox" IsChecked="True" Margin="0,22,0,0"
+                    <!-- Checkbox: reads and writes the real auto-backup setting (wired in
+                         WireBottomBar). It used to be IsChecked="True" and nothing else - it
+                         showed a state it had not read and changed a setting it never wrote. -->
+                    <CheckBox x:Name="KeepAutoBackupCheckbox" Margin="0,22,0,0"
                               HorizontalAlignment="Center" VerticalAlignment="Center"
                               Foreground="{DynamicResource WlText}" FontSize="13.5">
                         <TextBlock Text="Keep backing up on its own when my settings change" />

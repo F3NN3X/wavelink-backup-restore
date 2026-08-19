@@ -86,7 +86,14 @@ public sealed class WhatGoesInRow(
 /// One segment of the stacked proportion bar. Widths are a fraction of the whole bar (0..1),
 /// computed from the enabled tiers - never hard-coded percentages (Task 3 step 2).
 /// </summary>
-public sealed record ProportionSegment(string Name, long Bytes, double Fraction);
+/// <param name="Tier">
+/// Which of the four tiers this segment is, 1-based and in the order the rows are listed. It
+/// carries the segment's COLOUR: README Screen 3 gives the bar three colours in row order - ok,
+/// warn, then accent at 75% - and the view used to pick them by matching <paramref name="Name"/>
+/// against one hard-coded English string, which silently painted every other segment ok and would
+/// have broken on any copy edit.
+/// </param>
+public sealed record ProportionSegment(string Name, long Bytes, double Fraction, int Tier);
 
 /// <summary>
 /// The WHAT GOES IN A BACKUP section as a pure projection: the four rows, the computed
@@ -132,7 +139,8 @@ public sealed class WhatGoesInModel : ObservableObject
         foreach (var row in enabled)
         {
             Segments.Add(new ProportionSegment(
-                row.Name, row.SizeBytes, totalBytes > 0 ? (double)row.SizeBytes / totalBytes : 0.0));
+                row.Name, row.SizeBytes, totalBytes > 0 ? (double)row.SizeBytes / totalBytes : 0.0,
+                Tier: Rows.IndexOf(row) + 1));
         }
 
         EachBackupLabel = $"EACH BACKUP: ABOUT {Readable.Bytes(totalBytes).ToUpperInvariant()}";
@@ -273,10 +281,20 @@ public sealed class SettingsViewModel : ObservableObject
         set
         {
             var clamped = Math.Clamp(value, MinKeepCount, MaxKeepCount);
-            if (Set(ref autoBackupKeepCount, clamped))
-                Commit(persisted with { AutoBackupKeepCount = clamped });
+            if (!Set(ref autoBackupKeepCount, clamped)) return;
+
+            Commit(persisted with { AutoBackupKeepCount = clamped });
+            Raise(nameof(KeepCountLabel));
         }
     }
+
+    /// <summary>
+    /// The keep-count row's title, which — like <see cref="IntervalLabel"/> — IS the value read
+    /// back as a sentence: "Keep the last 30 automatic backups". The XAML carried the sentence
+    /// with the number simply removed ("Keep the last automatic backups"), which reads as a
+    /// half-finished string beside a stepper showing the number it left out.
+    /// </summary>
+    public string KeepCountLabel => $"Keep the last {autoBackupKeepCount} automatic backups";
 
     /// <summary>Move the keep-count stepper by one. The − / + buttons call this and nothing else.</summary>
     public void StepKeepCount(int direction) => AutoBackupKeepCount = autoBackupKeepCount + direction;

@@ -154,6 +154,17 @@ public sealed class SnapshotStoreTests
         Assert.Equal(all[0].Manifest.SettingsSha256, all[1].Manifest.SettingsSha256);
     }
 
+    /// <summary>
+    /// Puts a file on the fake filesystem and returns the payload entry that copies it. A
+    /// <see cref="CapturedFile"/> names a source rather than carrying bytes, so a payload fixture
+    /// has to put the source somewhere the store can read it from.
+    /// </summary>
+    private static CapturedFile Source(FakeFileSystem fs, string path, string relative, string content)
+    {
+        fs.AddFile(path, content);
+        return new CapturedFile(relative, path, fs.GetFileSize(path));
+    }
+
     // -------------------------------------------------------------- tier 2
 
     private static SnapshotPayload PluginPayload =>
@@ -239,8 +250,8 @@ public sealed class SnapshotStoreTests
         {
             Files =
             [
-                new("wavelink-backups/AutoBackup/Settings.auto.1.json", "auto"u8.ToArray()),
-                new("presets/FabFilter/Pro-Q 4/Vocals/Bright.ffp", "bright"u8.ToArray()),
+                Source(fs, @"C:\src\Settings.auto.1.json", "wavelink-backups/AutoBackup/Settings.auto.1.json", "auto"),
+                Source(fs, @"C:\src\Bright.ffp", "presets/FabFilter/Pro-Q 4/Vocals/Bright.ffp", "bright"),
             ],
             Tiers = ["presets"],
         };
@@ -265,7 +276,7 @@ public sealed class SnapshotStoreTests
 
         var payload = PluginPayload with
         {
-            Files = [new("presets/FabFilter/one.ffp", "original"u8.ToArray())],
+            Files = [Source(fs, @"C:\src\one.ffp", "presets/FabFilter/one.ffp", "original")],
             Tiers = ["presets"],
         };
 
@@ -434,5 +445,33 @@ public sealed class SnapshotStoreTests
         var (bytes, analysis) = Content();
 
         Assert.IsType<StoreUnavailable>(store.Write(bytes, analysis, SnapshotTrigger.Manual, "x").Error);
+    }
+
+    /// <summary>
+    /// The manifest records what the COPY wrote, not what the capture measured beforehand. The
+    /// two used to be the same number by construction, because the store hashed the bytes it had
+    /// been handed; now the bytes never pass through it, and a file that changed length between
+    /// being chosen and being copied must be recorded at its real length or the guard rejects a
+    /// snapshot that is perfectly intact.
+    /// </summary>
+    [Fact]
+    public void A_files_recorded_size_and_hash_are_the_ones_the_copy_produced()
+    {
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        // A stale figure on the payload entry — the shape of a file rewritten between the walk
+        // that found it and the copy that took it.
+        fs.AddFile(@"C:\src\grew.ffp", "the file as it actually is now");
+        var payload = PluginPayload with
+        {
+            Files = [new CapturedFile("presets/appdata/grew.ffp", @"C:\src\grew.ffp", SizeBytes: 3)],
+            Tiers = ["presets"],
+        };
+
+        var snapshot = store.Write(bytes, analysis, SnapshotTrigger.Manual, "x", payload: payload).Value;
+
+        Assert.Equal(30, snapshot.Manifest.Files["presets/appdata/grew.ffp"].SizeBytes);
+        Assert.True(new SnapshotGuard(fs).Verify(snapshot.Directory).IsSuccess);
     }
 }

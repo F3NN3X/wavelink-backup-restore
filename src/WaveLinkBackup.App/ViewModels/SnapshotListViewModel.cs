@@ -70,7 +70,7 @@ public sealed class SnapshotListViewModel(
     public int HiddenCount => TotalCount - MatchCount;
 
     /// <summary>The whole store, never the filtered view - the bottom bar counts backups, not results.</summary>
-    public long TotalBytes => all.Sum(s => s.Manifest.Files.Values.Sum(f => f.SizeBytes));
+    public long TotalBytes => all.Sum(s => s.Manifest.TotalSizeBytes);
 
     public ListState State
     {

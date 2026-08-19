@@ -121,7 +121,7 @@ public sealed class CommandRunner(
         var store = Store(command);
         var orchestrator = new RestoreOrchestrator(
             fileSystem, process, store, new SettingsWriter(fileSystem, process),
-            new SettingsReader(fileSystem), GatherPayload, appDataPath, documentsPath);
+            new SettingsReader(fileSystem), live => GatherPayload(live, store), appDataPath, documentsPath);
 
         var plan = orchestrator.Plan(command.Arguments[0], live.Value);
         if (!plan.IsSuccess) return Fail(plan.Error);
@@ -369,20 +369,33 @@ public sealed class CommandRunner(
     private SnapshotStore Store(ParsedCommand command) =>
         new(fileSystem, clock, command.StorePath ?? settings.StorePath);
 
-    private BackupService Service(ParsedCommand command) => new(
-        Inspector(),
-        Store(command),
-        command.KeepCount ?? settings.AutoBackupKeepCount,
-        command.SettingsPath ?? settings.ChosenWaveLinkPath,
-        GatherPayload);
+    private BackupService Service(ParsedCommand command)
+    {
+        var store = Store(command);
+
+        return new BackupService(
+            Inspector(),
+            store,
+            command.KeepCount ?? settings.AutoBackupKeepCount,
+            command.SettingsPath ?? settings.ChosenWaveLinkPath,
+            live => GatherPayload(live, store));
+    }
 
     /// <summary>
     /// Tiers 1-extra, 2, 3 and 4, resolved at capture time against the settings this run is
     /// using. Every capture path goes through here so a `wlbackup backup` and a backup taken by
     /// the GUI put the same things in a snapshot.
     /// </summary>
-    private SnapshotPayload? GatherPayload(SettingsInspection live) =>
-        new TierCapture(fileSystem, appDataPath, documentsPath).Gather(live, settings);
+    private SnapshotPayload? GatherPayload(SettingsInspection live, SnapshotStore store)
+    {
+        // The newest snapshot's plugins.json, so tier 2 can skip re-hashing a binary nothing has
+        // touched (technical-debt.md §4.16). Null on every doubt — it only ever costs a hash.
+        var newest = store.List().FirstOrDefault();
+        var previous = newest is null ? null : new SnapshotPluginReader(fileSystem).Read(newest);
+
+        return new TierCapture(fileSystem, appDataPath, documentsPath)
+            .Gather(live, settings, previous);
+    }
 
     private int Fail(CoreError error)
     {

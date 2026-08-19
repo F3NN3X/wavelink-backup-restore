@@ -159,14 +159,32 @@
       element that is a common ancestor of THIS header and the row template nested three layers
       deep inside the list; setting it on either alone would not reach the other.
     -->
+    <!--
+      NAME carries NO SharedSizeGroup, and that is the one deliberate asymmetry in these six.
+
+      WPF does not honour star sizing inside a shared size group - a starred definition that names
+      one is measured as if it were Auto (confirmed empirically, not read: a probe grid at 1140px
+      resolved a `Width="*" MinWidth="200"` shared column to exactly 200). NAME is the design's
+      `minmax(200px,1fr)`, so naming it here silently pinned the whole six-column block to its
+      984px minimum and left ~156px of dead space to the right of every row's overflow cell in a
+      1180px window. The other five are fixed widths, where sharing costs nothing and still pins
+      the header to the rows; NAME lines up on its own because the header and the row resolve the
+      same star against the same available width - which is what MainWindow's own scrollbar-gutter
+      padding on the header exists to keep true.
+
+      The widths are the design's column widths PLUS the 20px gap, because the gap is expressed as
+      a right Margin on each cell's content (inside the column) rather than as a seventh column.
+      120+20, 124+20, 300+20, 200+20; NAME's minimum is 200+20; the overflow column has no cell
+      after it and so carries no gap.
+    -->
     <DataTemplate x:Key="WlColumnHeaderRowTemplate">
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="200" SharedSizeGroup="WlColName" />
-                <ColumnDefinition Width="120" SharedSizeGroup="WlColTaken" />
-                <ColumnDefinition Width="124" SharedSizeGroup="WlColWhy" />
-                <ColumnDefinition Width="300" SharedSizeGroup="WlColInputs" />
-                <ColumnDefinition Width="200" SharedSizeGroup="WlColContents" />
+                <ColumnDefinition Width="*" MinWidth="220" />
+                <ColumnDefinition Width="140" SharedSizeGroup="WlColTaken" />
+                <ColumnDefinition Width="144" SharedSizeGroup="WlColWhy" />
+                <ColumnDefinition Width="320" SharedSizeGroup="WlColInputs" />
+                <ColumnDefinition Width="220" SharedSizeGroup="WlColContents" />
                 <ColumnDefinition Width="40" SharedSizeGroup="WlColOverflow" />
             </Grid.ColumnDefinitions>
 

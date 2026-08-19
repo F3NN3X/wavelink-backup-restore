@@ -39,6 +39,28 @@ public interface IFileSystem
     /// <summary><see cref="ReadSharedBytes"/> as UTF-8 text. Used for log files.</summary>
     string ReadSharedText(string path);
 
+    /// <summary>
+    /// Whether the file can be opened for reading right now, under
+    /// <see cref="ReadSharedBytes"/>'s share mode.
+    ///
+    /// Exists so a caller can decide a tier's fate — tier 4 is all or nothing — without reading
+    /// the bytes to find out. It opens a handle and closes it; it reads nothing.
+    /// </summary>
+    bool CanReadShared(string path);
+
+    /// <summary>
+    /// Copies a file without either end of it being held in memory, hashing the bytes as they
+    /// pass, and returns what the manifest needs to record.
+    ///
+    /// **Both halves matter.** A sample-library instrument runs to hundreds of megabytes and
+    /// nothing stops one being on a channel, so <see cref="ReadSharedBytes"/> into
+    /// <see cref="WriteBytes"/> puts the whole file on the heap twice. Returning the hash from the
+    /// same pass is what stops the caller reading it a second time to compute one.
+    ///
+    /// Reads with <see cref="ReadSharedBytes"/>'s share mode, for the same reason.
+    /// </summary>
+    FileCopy CopyFile(string source, string destination);
+
     /// <summary>Creates the directory and any missing parents. No-op if it exists.</summary>
     void CreateDirectory(string path);
 
@@ -68,3 +90,7 @@ public interface IFileSystem
     /// </summary>
     long? GetAvailableFreeBytes(string path);
 }
+
+/// <summary>What a <see cref="IFileSystem.CopyFile"/> wrote, as the manifest records it.</summary>
+/// <param name="Sha256">Lowercase hex, computed over the bytes as they were copied.</param>
+public readonly record struct FileCopy(string Sha256, long SizeBytes);

@@ -102,21 +102,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
         // its length.
         var pluginBytes = payload is null ? null : PluginManifestSerializer.Write(payload.Plugins);
 
-        var manifest = new SnapshotManifest(
-            SchemaVersion: SnapshotManifest.CurrentSchemaVersion,
-            DisplayName: displayName,
-            Notes: notes,
-            CreatedUtc: createdUtc,
-            Trigger: trigger,
-            SettingsSha256: fingerprint.Sha256,
-            WaveLinkVersion: analysis.WaveLinkVersion,
-            InputCount: fingerprint.InputCount,
-            InputNames: fingerprint.InputNames,
-            EffectCount: fingerprint.EffectCount,
-            EffectChannelCount: fingerprint.EffectChannelCount,
-            HasDuplicateKeys: analysis.Report.HasCaseInsensitiveDuplicateKeys,
-            Tiers: Tiers(payload),
-            Files: Files(settingsBytes, fingerprint.Sha256, pluginBytes, payload));
+        SnapshotManifest manifest;
 
         try
         {
@@ -132,6 +118,20 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
                 fileSystem.WriteBytes(Path.Combine(directory, SnapshotManifest.PluginsFileName), pluginBytes);
             }
 
+            // The payload is copied BEFORE the manifest is built, because the copy is what
+            // produces each file's hash and length. Reading them into memory to hash, then
+            // writing them, was the same bytes twice (technical-debt.md §4.19) - and it recorded
+            // what the capture INTENDED to write rather than what landed.
+            var files = new Dictionary<string, SnapshotFile>(StringComparer.Ordinal)
+            {
+                [SnapshotManifest.SettingsFileName] = new(fingerprint.Sha256, settingsBytes.LongLength),
+            };
+
+            if (pluginBytes is not null)
+            {
+                files[SnapshotManifest.PluginsFileName] = new(HashOf(pluginBytes), pluginBytes.LongLength);
+            }
+
             foreach (var file in payload?.Files ?? [])
             {
                 var path = SnapshotManifest.PathIn(directory, file.RelativePath);
@@ -143,8 +143,25 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
                     fileSystem.CreateDirectory(parent);
                 }
 
-                fileSystem.WriteBytes(path, file.Bytes);
+                var copied = fileSystem.CopyFile(file.Path, path);
+                files[file.RelativePath] = new(copied.Sha256, copied.SizeBytes);
             }
+
+            manifest = new SnapshotManifest(
+                SchemaVersion: SnapshotManifest.CurrentSchemaVersion,
+                DisplayName: displayName,
+                Notes: notes,
+                CreatedUtc: createdUtc,
+                Trigger: trigger,
+                SettingsSha256: fingerprint.Sha256,
+                WaveLinkVersion: analysis.WaveLinkVersion,
+                InputCount: fingerprint.InputCount,
+                InputNames: fingerprint.InputNames,
+                EffectCount: fingerprint.EffectCount,
+                EffectChannelCount: fingerprint.EffectChannelCount,
+                HasDuplicateKeys: analysis.Report.HasCaseInsensitiveDuplicateKeys,
+                Tiers: Tiers(payload),
+                Files: files);
 
             fileSystem.WriteBytes(
                 Path.Combine(directory, SnapshotManifest.ManifestFileName),
@@ -156,31 +173,6 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
         }
 
         return new Snapshot(id, directory, manifest);
-    }
-
-    /// <summary>
-    /// What the manifest records, hashed the same way for every file - the guard verifies
-    /// them all identically and has no idea which tier any of them belongs to.
-    /// </summary>
-    private static IReadOnlyDictionary<string, SnapshotFile> Files(
-        byte[] settingsBytes, string settingsSha256, byte[]? pluginBytes, SnapshotPayload? payload)
-    {
-        var files = new Dictionary<string, SnapshotFile>(StringComparer.Ordinal)
-        {
-            [SnapshotManifest.SettingsFileName] = new(settingsSha256, settingsBytes.LongLength),
-        };
-
-        if (pluginBytes is not null)
-        {
-            files[SnapshotManifest.PluginsFileName] = new(HashOf(pluginBytes), pluginBytes.LongLength);
-        }
-
-        foreach (var file in payload?.Files ?? [])
-        {
-            files[file.RelativePath] = new(HashOf(file.Bytes), file.Bytes.LongLength);
-        }
-
-        return files;
     }
 
     /// <summary>
@@ -326,7 +318,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     public (int Count, long Bytes) TrashSize()
     {
         var trashed = ListTrash();
-        var bytes = trashed.Sum(s => s.Manifest.Files.Values.Sum(f => f.SizeBytes));
+        var bytes = trashed.Sum(s => s.Manifest.TotalSizeBytes);
 
         return (trashed.Count, bytes);
     }

@@ -152,4 +152,32 @@ public sealed class ManifestFieldTests
         Assert.NotEqual(a, a with { Files = new Dictionary<string, SnapshotFile>() });
         Assert.False(a.Equals(null));
     }
+
+    // ------------------------------------------- total size (technical-debt.md §4.11)
+
+    /// <summary>
+    /// One place, so the five callers that used to re-derive it cannot drift apart. It counts
+    /// EVERY file, not the settings file: a snapshot's weight is what it occupies.
+    /// </summary>
+    [Fact]
+    public void TotalSizeBytes_adds_up_every_file_the_snapshot_holds()
+    {
+        var manifest = Read(Complete).Value with
+        {
+            Files = new Dictionary<string, SnapshotFile>
+            {
+                ["settings.json"] = new("aa", 43_000),
+                ["plugins.json"] = new("bb", 1_200),
+                ["presets/appdata/FabFilter/one.ffp"] = new("cc", 800),
+            },
+        };
+
+        Assert.Equal(45_000, manifest.TotalSizeBytes);
+    }
+
+    [Fact]
+    public void TotalSizeBytes_is_zero_for_a_manifest_holding_nothing()
+    {
+        Assert.Equal(0, (Read(Complete).Value with { Files = new Dictionary<string, SnapshotFile>() }).TotalSizeBytes);
+    }
 }

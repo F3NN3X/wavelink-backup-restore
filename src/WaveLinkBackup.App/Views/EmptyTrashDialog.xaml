@@ -77,7 +77,7 @@
 
                         <!-- Confirm: the destructive action, WlDanger fill, never accent. Its label
                              names the count ("Delete N backups"), bound from the model. -->
-                        <Button x:Name="ConfirmButton" IsDefault="True" Margin="9,0,0,0"
+                        <Button x:Name="ConfirmButton" IsDefault="False" Margin="9,0,0,0"
                                 Style="{StaticResource WlDangerButton}"
                                 AutomationProperties.Name="Empty the trash">
                             <TextBlock Text="{Binding ConfirmLabel}" VerticalAlignment="Center"

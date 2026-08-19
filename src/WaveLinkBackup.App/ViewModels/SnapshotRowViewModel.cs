@@ -44,7 +44,7 @@ public sealed class SnapshotRowViewModel : ObservableObject
         // wait for the probe.
         health = manifest.IsSuspect ? SnapshotHealth.Suspect : SnapshotHealth.Whole;
 
-        SizeBytes = manifest.Files.Values.Sum(f => f.SizeBytes);
+        SizeBytes = manifest.TotalSizeBytes;
         TakenAt = manifest.CreatedUtc.ToLocalTime();
 
         Slots = InputSlots.Build(manifest.InputNames, peakInputCount);

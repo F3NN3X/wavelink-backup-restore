@@ -351,7 +351,7 @@ public sealed class TierCaptureTests
         Assert.Contains(
             "plugins/FabFilter Pro-Q 4.vst3/Contents/x86_64-win/FabFilter Pro-Q 4.vst3",
             bundled.Select(f => f.RelativePath));
-        Assert.True(bundled.Sum(f => f.Bytes.LongLength) > 0);
+        Assert.True(bundled.Sum(f => f.SizeBytes) > 0);
         Assert.Contains(SnapshotManifest.PluginsTier, payload.Tiers);
     }
 
@@ -454,5 +454,123 @@ public sealed class TierCaptureTests
         Assert.Equal(0, estimate.WaveLinkBackupBytes);
         Assert.Equal(0, estimate.PresetBytes);
         Assert.Equal(0, estimate.PluginBinaryBytes);
+    }
+
+    // ------------------------------------------- tier 2's hash cache (technical-debt.md §4.16)
+
+    /// <summary>
+    /// The reason this cache exists: tier 2 is always on, so an unchanged 24 MB binary used to be
+    /// read in full by every automatic capture the watcher fired.
+    /// </summary>
+    [Fact]
+    public void An_untouched_binary_is_not_read_again_to_re_derive_a_hash_we_already_have()
+    {
+        var fs = Rig().AddFile(ProQPath, "pro-q bytes").AddFile(ClearPath, "clear bytes");
+
+        var first = Gather(fs);
+        var readsAfterFirst = fs.ReadCounts[ProQPath];
+
+        var second = new TierCapture(fs, Roaming, Documents)
+            .Gather(Live(fs), BackupSettings.Default, first.Plugins);
+
+        Assert.Equal(readsAfterFirst, fs.ReadCounts[ProQPath]);
+        Assert.Equal(Sha(first, ProQPath), Sha(second, ProQPath));
+        Assert.NotNull(Sha(second, ProQPath));
+    }
+
+    [Fact]
+    public void An_updated_binary_is_rehashed_because_its_write_time_moved()
+    {
+        var fs = Rig().AddFile(ProQPath, "v4.1.2").AddFile(ClearPath, "clear bytes");
+        var first = Gather(fs);
+
+        fs.AddFile(ProQPath, "v4.2.0 - a different length entirely");
+        fs.SetLastWriteTimeUtc(ProQPath, new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc));
+
+        var second = new TierCapture(fs, Roaming, Documents)
+            .Gather(Live(fs), BackupSettings.Default, first.Plugins);
+
+        Assert.NotEqual(Sha(first, ProQPath), Sha(second, ProQPath));
+    }
+
+    /// <summary>
+    /// A plug-in replaced by a build of exactly the same length, at the same recorded instant, is
+    /// the case the pair of figures cannot separate — which is why the rule needs BOTH, and why
+    /// the entry is invalidated by either moving.
+    /// </summary>
+    [Fact]
+    public void A_binary_that_changed_length_is_rehashed_even_at_the_same_write_time()
+    {
+        var fs = Rig().AddFile(ProQPath, "short").AddFile(ClearPath, "clear bytes");
+        var first = Gather(fs);
+
+        fs.AddFile(ProQPath, "considerably longer bytes");
+
+        var second = new TierCapture(fs, Roaming, Documents)
+            .Gather(Live(fs), BackupSettings.Default, first.Plugins);
+
+        Assert.NotEqual(Sha(first, ProQPath), Sha(second, ProQPath));
+    }
+
+    /// <summary>
+    /// Schema 2 wrote no size and no time, so there is nothing to compare and the only honest
+    /// answer is to hash. A cache that trusted a hash it could not date would hand a restore
+    /// warning the wrong evidence.
+    /// </summary>
+    [Fact]
+    public void A_pre_schema_3_entry_is_rehashed_because_it_records_nothing_to_compare()
+    {
+        var fs = Rig().AddFile(ProQPath, "pro-q bytes").AddFile(ClearPath, "clear bytes");
+        var first = Gather(fs);
+
+        var old = new PluginManifest(2, [.. first.Plugins.Plugins.Select(p => p with
+        {
+            BinarySizeBytes = 0,
+            BinaryLastWriteUtc = null,
+        })]);
+
+        fs.ReadCounts.Clear();
+        new TierCapture(fs, Roaming, Documents).Gather(Live(fs), BackupSettings.Default, old);
+
+        Assert.Equal(1, fs.ReadCounts.GetValueOrDefault(ProQPath));
+    }
+
+    [Fact]
+    public void A_capture_with_no_previous_manifest_hashes_everything_as_it_always_did()
+    {
+        var fs = Rig().AddFile(ProQPath, "pro-q bytes").AddFile(ClearPath, "clear bytes");
+
+        var payload = new TierCapture(fs, Roaming, Documents)
+            .Gather(Live(fs), BackupSettings.Default, previous: null);
+
+        Assert.All(payload.Plugins.Plugins, p => Assert.NotNull(p.Sha256));
+    }
+
+    private static string? Sha(SnapshotPayload payload, string filePath) =>
+        payload.Plugins.Plugins.Single(p =>
+            string.Equals(p.FilePath, filePath, StringComparison.OrdinalIgnoreCase)).Sha256;
+
+    // -------------------------------------- the payload is a reference, not bytes (§4.19)
+
+    /// <summary>
+    /// The capture decides WHAT to take; the store is what reads it. A capture that read every
+    /// preset and every binary into a list held the whole set on the heap at once.
+    /// </summary>
+    [Fact]
+    public void Gathering_names_its_sources_without_reading_a_single_byte_of_them()
+    {
+        var fs = Rig().AddFile(ProQPath, "pro-q bytes").AddFile(ClearPath, "clear bytes");
+
+        // With the previous manifest in hand, tier 2 has no reason to open anything either, so a
+        // read of the binary can only have come from the payload being gathered as bytes.
+        var previous = Gather(fs, Tiers(binaries: true)).Plugins;
+        fs.ReadCounts.Clear();
+
+        var payload = new TierCapture(fs, Roaming, Documents)
+            .Gather(Live(fs), Tiers(binaries: true), previous);
+
+        Assert.Contains(payload.Files, f => f.Path == ProQPath);
+        Assert.All(payload.Files, f => Assert.True(f.SizeBytes > 0));
+        Assert.Equal(0, fs.ReadCounts.GetValueOrDefault(ProQPath));
     }
 }

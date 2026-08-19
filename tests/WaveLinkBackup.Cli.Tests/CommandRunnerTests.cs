@@ -455,4 +455,36 @@ public sealed class CommandRunnerTests
             Assert.Contains(option, help, StringComparison.Ordinal);
         }
     }
+
+    /// <summary>
+    /// The wiring behind technical-debt.md §4.16, not the rule itself — <c>TierCaptureTests</c>
+    /// owns the rule. §4.20's lesson applies here exactly: the cache being right is no evidence
+    /// that a shell hands it the previous manifest to be right ABOUT.
+    /// </summary>
+    [Fact]
+    public void A_second_backup_does_not_re_read_a_plugin_binary_nothing_has_touched()
+    {
+        const string ProQ = @"C:\Program Files\Common Files\VST3\FabFilter Pro-Q 4.vst3";
+
+        const string WithPlugin = """
+            {"MixerConfiguration":{"InputSettings":{
+              "a":{"InputName":"MIC_NAME","AudioPluginConfigurations":[
+                {"Name":"Pro-Q 4","Vendor":"FabFilter",
+                 "FilePath":"C:\\Program Files\\Common Files\\VST3\\FabFilter Pro-Q 4.vst3"}]}}}}
+            """;
+
+        var h = new Harness();
+        h.Fs.AddFile(SettingsPath, WithPlugin.Replace("MIC_NAME", "Wave Mic 1", StringComparison.Ordinal));
+        h.Fs.AddFile(ProQ, "pro-q bytes");
+
+        Assert.Equal(0, h.Run("backup"));
+        var readsAfterFirst = h.Fs.ReadCounts[ProQ];
+
+        // A different settings file, so the second capture is not deduped away.
+        h.Fs.AddFile(SettingsPath, WithPlugin.Replace("MIC_NAME", "Renamed Mic", StringComparison.Ordinal));
+        Assert.Equal(0, h.Run("backup"));
+
+        Assert.Equal(readsAfterFirst, h.Fs.ReadCounts[ProQ]);
+        Assert.Equal(2, h.Store.List().Count);
+    }
 }

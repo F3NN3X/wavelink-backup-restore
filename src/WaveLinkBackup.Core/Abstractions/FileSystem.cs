@@ -44,19 +44,68 @@ public sealed class FileSystem : IFileSystem
 
     public byte[] ReadSharedBytes(string path)
     {
-        // FileShare.ReadWrite permits Wave Link's existing handle; FileShare.Delete
-        // additionally tolerates the file being replaced underneath us, which is exactly
-        // what Wave Link's own atomic-save does.
-        using var stream = new FileStream(
-            path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var stream = OpenShared(path);
 
         var bytes = new byte[stream.Length];
         stream.ReadExactly(bytes);
         return bytes;
     }
 
+    /// <summary>
+    /// The one place the share mode is chosen. FileShare.ReadWrite permits Wave Link's existing
+    /// handle; FileShare.Delete additionally tolerates the file being replaced underneath us,
+    /// which is exactly what Wave Link's own atomic-save does.
+    /// </summary>
+    private static FileStream OpenShared(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
     public string ReadSharedText(string path) =>
         System.Text.Encoding.UTF8.GetString(ReadSharedBytes(path));
+
+    /// <summary>
+    /// Opens and closes. Every way the open can fail is the answer "no", including the file
+    /// having gone between the enumeration and the question.
+    /// </summary>
+    public bool CanReadShared(string path)
+    {
+        try
+        {
+            using var stream = OpenShared(path);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 1 MiB at a time, through an incremental hash. Peak memory is the buffer, not the file, so
+    /// a 24 MB plug-in and a 600 MB sample library cost the same.
+    ///
+    /// Exceptions are NOT caught: the caller decides what a failed copy costs, and every caller
+    /// today has a different answer.
+    /// </summary>
+    public FileCopy CopyFile(string source, string destination)
+    {
+        using var reader = OpenShared(source);
+        using var writer = new FileStream(
+            destination, FileMode.Create, FileAccess.Write, FileShare.None);
+        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(
+            System.Security.Cryptography.HashAlgorithmName.SHA256);
+
+        var buffer = new byte[1024 * 1024];
+        long total = 0;
+
+        for (int read; (read = reader.Read(buffer, 0, buffer.Length)) > 0;)
+        {
+            hash.AppendData(buffer, 0, read);
+            writer.Write(buffer, 0, read);
+            total += read;
+        }
+
+        return new FileCopy(Convert.ToHexStringLower(hash.GetHashAndReset()), total);
+    }
 
     public void CreateDirectory(string path) => Directory.CreateDirectory(path);
 
