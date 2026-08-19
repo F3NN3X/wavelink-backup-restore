@@ -150,6 +150,7 @@ public partial class App : Application
         // shows, not after the first 15-second tick.
         RefreshNewest();
         RefreshShellFacts();
+        shell.RefreshAutostart();
 
         tray = BuildTray();
 
@@ -162,7 +163,7 @@ public partial class App : Application
         {
             Interval = TimeSpan.FromSeconds(15),
         };
-        timer.Tick += (_, _) => { host.Tick(); RefreshTray(); RefreshShellFacts(); };
+        timer.Tick += (_, _) => { host.Tick(); RefreshTray(); RefreshShellFacts(); shell.RefreshAutostart(); };
         timer.Start();
 
         // Windows shutting down is a shutdown path too — and the ORIGINAL INCIDENT happened
@@ -205,7 +206,12 @@ public partial class App : Application
         // calls RefreshAsync, and that caller (MainWindow) sets it itself before its own first
         // RefreshAsync - see MainWindow.xaml.cs.
         var list = new SnapshotListViewModel(store, new HealthProbe(store, fileSystem, clock), fileSystem, clock);
-        var shell = new ShellViewModel(list);
+
+        // The autostart seam (screens/12): the Run key for THIS executable. ProcessPath is null
+        // until the process has started, so it is resolved at composition time - by then
+        // App.xaml.cs has run and Environment.ProcessPath points at the real exe.
+        var autostart = new RunKeyAutostart(new WindowsRegistryKeys(), Environment.ProcessPath ?? string.Empty);
+        var shell = new ShellViewModel(list, autostart);
 
         // The shell-facing restore seam. Built here rather than in MainWindow so it exists even
         // before any window is shown - the same reason the shell VM is built here. It wraps Core's

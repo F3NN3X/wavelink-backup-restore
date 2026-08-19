@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using WaveLinkBackup.App.Windows;
 
 namespace WaveLinkBackup.App.ViewModels;
 
@@ -48,11 +49,18 @@ public sealed class ShellViewModel : ObservableObject
     private bool isRestoring;
     private RestoreProgressModel restoreProgress = new();
     private SnapshotRowViewModel? watchedRow;
+    private AutostartState autostartState = AutostartState.Off;
 
-    public ShellViewModel(SnapshotListViewModel list)
+    /// <param name="autostart">
+    /// The seam behind the WHEN WINDOWS STARTS rows (screens/12). Optional so the existing
+    /// constructor keeps its shape for callers that do not surface autostart - the App passes
+    /// the real RunKeyAutostart and drives RefreshAutostart on every tick.
+    /// </param>
+    public ShellViewModel(SnapshotListViewModel list, IAutostart? autostart = null)
     {
         List = list;
         Strip = new RestoreOutcomeStrip();
+        Autostart = autostart;
         list.PropertyChanged += OnListPropertyChanged;
     }
 
@@ -305,6 +313,78 @@ public sealed class ShellViewModel : ObservableObject
     /// restore runs (04): a capture mid-restore would race the settings write.
     /// </summary>
     public bool CanBackUpNow => !isRestoring && !facts.FolderMissing;
+
+    /// <summary>
+    /// The seam behind the WHEN WINDOWS STARTS rows (screens/12). Null for callers that do not
+    /// surface autostart; every property below degrades to "off and cannot be enabled" in that
+    /// case, which is also exactly what a blocked entry renders as.
+    /// </summary>
+    public IAutostart? Autostart { get; }
+
+    /// <summary>
+    /// The live autostart state, read from the registry seam on every refresh - never trusted to
+    /// be whatever it was last tick, because Task Manager can change it out from under us at any
+    /// time. Defaults to Off until the first RefreshAutostart.
+    /// </summary>
+    public AutostartState AutostartState
+    {
+        get => autostartState;
+        private set => Set(ref autostartState, value);
+    }
+
+    /// <summary>
+    /// The veto rule (screens/12): a Task Manager-disabled entry reads OFF and cannot be switched
+    /// on here. Task Manager wins; the note says so rather than fighting it. So "blocked" renders
+    /// as unchecked AND disabled - the control is off, and the user is told why they cannot turn
+    /// it on from this app.
+    /// </summary>
+    public bool IsAutostartEnabled => autostartState == AutostartState.On;
+
+    /// <summary>False only while Task Manager holds a veto (or no seam is wired at all).</summary>
+    public bool CanEnableAutostart => Autostart is not null && autostartState != AutostartState.BlockedByTaskManager;
+
+    /// <summary>
+    /// The note shown when the entry is blocked: Task Manager won, and this app will not fight it.
+    /// Null in every other state - there is nothing to explain then.
+    /// </summary>
+    public string? AutostartBlockedNote => autostartState == AutostartState.BlockedByTaskManager
+        ? "DISABLED IN TASK MANAGER — TURN IT ON THERE"
+        : null;
+
+    /// <summary>
+    /// Re-read the state from the registry seam. The App calls this on startup and on every tick,
+    /// so a veto applied in Task Manager while the app runs is picked up on the next refresh rather
+    /// than only at the next launch. No-op when no seam is wired.
+    /// </summary>
+    public void RefreshAutostart()
+    {
+        if (Autostart is null) return;
+
+        var state = Autostart.Read();
+
+        if (!Equals(state, autostartState))
+        {
+            AutostartState = state;
+            Raise(nameof(IsAutostartEnabled));
+            Raise(nameof(CanEnableAutostart));
+            Raise(nameof(AutostartBlockedNote));
+        }
+    }
+
+    /// <summary>
+    /// Flip the Run key via the seam. When blocked, nothing is written and the state stays put -
+    /// Enable() itself refuses under a veto, so re-reading after the attempt keeps the three
+    /// derived properties honest without this method having to special-case the refusal.
+    /// </summary>
+    public void ToggleAutostart()
+    {
+        if (Autostart is null) return;
+
+        if (autostartState == AutostartState.On) Autostart.Disable();
+        else if (CanEnableAutostart) Autostart.Enable();
+
+        RefreshAutostart();
+    }
 
     /// <summary>Called by the window on load, on F5, after a capture, and on every host tick.</summary>
     public void Apply(ShellFacts facts)
