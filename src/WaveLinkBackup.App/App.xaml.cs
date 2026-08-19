@@ -392,16 +392,31 @@ public partial class App : Application
         // The size is the file's own byte count - read it through the same seam the rest of the
         // app uses (ReadSharedBytes), so a Wave Link lock can't make the figure lie. "not written
         // yet" when the file has never been saved: honest, and matches the mono line's tone.
+        var settingsFileBytes = fileSystem!.FileExists(repo.FilePath)
+            ? fileSystem.ReadSharedBytes(repo.FilePath).Length
+            : 0L;
+
         var whereLive = new WhereSettingsLiveModel(
             repo.FilePath,
-            fileSystem!.FileExists(repo.FilePath)
-                ? Readable.Bytes(fileSystem!.ReadSharedBytes(repo.FilePath).Length)
-                : "not written yet");
+            settingsFileBytes > 0 ? Readable.Bytes(settingsFileBytes) : "not written yet");
 
         var vm = SettingsViewModel.Build(
             settings,
             s => repo.Save(s).IsSuccess,
             whereLive);
+
+        // WHAT GOES IN A BACKUP: the only tier in a backup today is the settings file itself -
+        // its size is the honest figure for "Your setup". The effects list rides inside that same
+        // file (it is part of it), so it carries no separate byte count and shows as included.
+        // Presets and plug-in files are NOT BUILT YET: 0 bytes, off, locked - the proportion bar
+        // then divides only over what a backup actually holds, which is the recompute-from-enabled
+        // rule rather than a hard-coded percentage (Task 3).
+        vm.EstimatedBackupBytes = settingsFileBytes;
+        vm.WhatGoesIn = new WhatGoesInModel(
+            setup: new WhatGoesInRow("Your setup", "Every channel, routing and effect chain - the whole file.", settingsFileBytes, true, false),
+            effectsList: new WhatGoesInRow("A list of your effects", "The names of the effects in use. Travels inside the settings file above.", 0, true, false),
+            presets: new WhatGoesInRow("Effect presets", "Your saved preset values for each effect.", 0, false, true),
+            pluginFiles: new WhatGoesInRow("The effect plug-ins themselves", "The .vst3 files, so a new machine can load the effects.", 0, false, true));
 
         // The toggle and stepper carry high-contrast triggers that bind to this through the
         // window's DataContext - the same value MainWindow hands ShellViewModel.

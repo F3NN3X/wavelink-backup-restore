@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using WaveLinkBackup.Core.Automation;
 
 namespace WaveLinkBackup.App.ViewModels;
@@ -19,6 +20,102 @@ public sealed record WhichWaveLinkModel(
 /// dialog edits these.
 /// </summary>
 public sealed record WhereSettingsLiveModel(string FilePath, string SizeText);
+
+/// <summary>
+/// One row of the WHAT GOES IN A BACKUP group, and its share of the proportion bar.
+/// </summary>
+/// <param name="Name">The person-written row label (Rubik).</param>
+/// <param name="Description">The plain-language line under the label; empty for rows that need none.</param>
+/// <param name="SizeBytes">This tier's honest size; 0 when it is not in a backup.</param>
+/// <param name="Enabled">Whether this tier is currently in a backup. The locked rows are off.</param>
+/// <param name="Locked">True for the two "NOT BUILT YET" tiers - their toggle is off and unmovable (Task 5).</param>
+public sealed record WhatGoesInRow(string Name, string Description, long SizeBytes, bool Enabled, bool Locked)
+{
+    /// <summary>
+    /// The honest size figure, right-aligned in mono. "—" when the tier holds no bytes of its own:
+    /// the effects list rides inside the settings file (it is part of it), and the locked tiers are
+    /// not built yet, so neither carries a separate number. Formatted here, not in the view, for the
+    /// same reason <see cref="SettingsViewModel.FreeSpaceText"/> is - the view stays a pure binding
+    /// and the format is unit-testable without a window.
+    /// </summary>
+    public string SizeText => SizeBytes > 0 ? Readable.Bytes(SizeBytes) : "—";
+}
+
+/// <summary>
+/// One segment of the stacked proportion bar. Widths are a fraction of the whole bar (0..1),
+/// computed from the enabled tiers - never hard-coded percentages (Task 3 step 2).
+/// </summary>
+public sealed record ProportionSegment(string Name, long Bytes, double Fraction);
+
+/// <summary>
+/// The WHAT GOES IN A BACKUP section as a pure projection: the four rows, the computed
+/// proportion bar, and the two mono labels under it. No I/O - the app hands in the sizes it has
+/// measured, and this only decides how they divide up the bar and what to print. That keeps the
+/// "recompute from the enabled tiers" rule unit-testable without a window (Task 3 step 4).
+/// </summary>
+public sealed class WhatGoesInModel
+{
+    private readonly long totalBytes;
+
+    public WhatGoesInModel(
+        WhatGoesInRow setup,
+        WhatGoesInRow effectsList,
+        WhatGoesInRow presets,
+        WhatGoesInRow pluginFiles)
+    {
+        Rows = new ObservableCollection<WhatGoesInRow> { setup, effectsList, presets, pluginFiles };
+
+        // The bar shows only what is actually in a backup. A tier that is off (or locked off)
+        // contributes nothing - the percentages are recomputed from the enabled tiers, so adding
+        // or removing one reflows every other segment rather than shifting a fixed share.
+        var enabled = Rows.Where(r => r.Enabled && r.SizeBytes > 0).ToList();
+        totalBytes = enabled.Sum(r => r.SizeBytes);
+
+        Segments = new ObservableCollection<ProportionSegment>(
+            enabled.Select(r => new ProportionSegment(
+                r.Name,
+                r.SizeBytes,
+                totalBytes > 0 ? (double)r.SizeBytes / totalBytes : 0.0)));
+
+        EachBackupLabel = $"EACH BACKUP: ABOUT {Readable.Bytes(totalBytes).ToUpperInvariant()}";
+
+        // The "+ Y MB IF YOU ADD THE PLUG-IN FILES" figure is the size of the tiers that are NOT
+        // in a backup today - the honest answer to "what would turn this on cost".
+        var notIncluded = Rows.Where(r => !r.Enabled && r.SizeBytes > 0).Sum(r => r.SizeBytes);
+        IfYouAddLabel = notIncluded > 0
+            ? $"+ {Readable.Bytes(notIncluded).ToUpperInvariant()} IF YOU ADD THE PLUG-IN FILES"
+            : string.Empty;
+    }
+
+    /// <summary>The four rows, top to bottom, for the group's grid.</summary>
+    public ObservableCollection<WhatGoesInRow> Rows { get; }
+
+    /// <summary>The stacked bar's segments, left to right, each a 0..1 fraction of the whole.</summary>
+    public ObservableCollection<ProportionSegment> Segments { get; }
+
+    /// <summary>Left mono label under the bar: "EACH BACKUP: ABOUT X MB".</summary>
+    public string EachBackupLabel { get; }
+
+    /// <summary>Right mono label under the bar, empty when nothing is left out.</summary>
+    public string IfYouAddLabel { get; }
+
+    /// <summary>Total bytes in a backup today - the enabled tiers' sum.</summary>
+    public long TotalBytes => totalBytes;
+
+    /// <summary>
+    /// The two plain-language notes (Task 3 step 3): lead clause first so it can be set strong.
+    /// Instance properties (not static) so the XAML binds to them through the row's DataContext
+    /// without an x:Static - a Run cannot take a Binding in its Text attribute, but it can take
+    /// one as a property element. The copy is constant; the instance form exists only for binding.
+    /// </summary>
+    public string NoteOneLead => "Licences are never included.";
+    public string NoteOneRest =>
+        "A backup copies the effect files, not your right to run them - you reinstall and re-authorise on a new machine, then restore.";
+
+    public string NoteTwoLead => "A backup describes this computer.";
+    public string NoteTwoRest =>
+        "It names the audio devices plugged into it, so restoring elsewhere leaves those channels dead. Snapshots are machine-local.";
+}
 
 /// <summary>
 /// The settings dialog's data model. There is no Save button: every control commits on change,
@@ -129,6 +226,13 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>The WHERE THESE SETTINGS LIVE block. Read-only.</summary>
     public WhereSettingsLiveModel WhereSettingsLive { get; }
+
+    /// <summary>
+    /// The WHAT GOES IN A BACKUP section: rows, computed proportion bar and labels. Set by the
+    /// app at construction from the sizes it has measured - the VM does not measure anything
+    /// itself, so the projection stays pure and testable (Task 3).
+    /// </summary>
+    public WhatGoesInModel? WhatGoesIn { get; set; }
 
     /// <summary>
     /// The WHICH WAVE LINK section, or null when there is only one installation and the section

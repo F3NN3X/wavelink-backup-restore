@@ -15,8 +15,56 @@
              predicate - see NotNullToVisibilityConverter. -->
         <views:NotNullToVisibilityConverter x:Key="TrashRowVisible" />
         <!-- The free-space line omits itself when the figure cannot be read (empty string) rather
-             than print a number that is not there. Reuses the existing string converter from Views. -->
+               than print a number that is not there. Reuses the existing string converter from Views. -->
         <views:StringNotNullToVisibilityConverter x:Key="FreeSpaceLineVisible" />
+        <!-- True → Collapsed, false → Visible. The WHAT GOES IN A BACKUP rows use it to hide the
+             toggle on the locked tiers (which carry the NOT BUILT YET badge instead). -->
+        <views:InverseBoolToVisibilityConverter x:Key="ToggleVisible" />
+
+        <!-- True → Visible, false → Collapsed. Used for row dividers - show on all but the last row. -->
+        <views:BoolToVisibilityConverter x:Key="DividerVisible" />
+
+        <!-- WHAT GOES IN A BACKUP: each row's toggle binds IsChecked straight to the row's Enabled
+             property (no converter needed). The locked rows also need IsEnabled=false, which is the
+             inverse of Locked - a DataTrigger on the row item carries that predicate rather than a
+             second converter. -->
+        <Style x:Key="WhatGoesInToggle" TargetType="CheckBox" BasedOn="{StaticResource WlToggle}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Locked}" Value="True">
+                    <Setter Property="IsEnabled" Value="False" />
+                    <!-- A locked toggle renders at 40% opacity (the design's "off treatment at 40%"),
+                         matching the disabled convention - never a different colour. -->
+                    <Setter Property="Opacity" Value="0.4" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The size figure drops to 40% when its tier is not in a backup (locked rows), per the
+             unbuilt-tier spec: "the KB/MB figure also drops to 40%". -->
+        <Style x:Key="WhatGoesInSizeText" TargetType="TextBlock" BasedOn="{StaticResource WlMonoReadoutText}">
+            <Setter Property="Foreground" Value="{DynamicResource WlText}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Enabled}" Value="False">
+                    <Setter Property="Opacity" Value="0.4" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The "NOT BUILT YET" badge: transparent, 1px WlLine2, radius 4, mono 500 10px .12em,
+             WlMuted. Hidden on the two always-included rows. -->
+        <Style x:Key="WhatGoesInBadge" TargetType="Border">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WlLine2}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="5,2" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Locked}" Value="False">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <!--
@@ -38,10 +86,10 @@
       Open / Empty trash buttons call back into App through code-behind, which is the one place this
       view crosses the VM boundary (a command would just wrap the same two lines).
 
-      Task 2 builds WHERE BACKUPS ARE KEPT and WHEN TO BACK UP. WHAT GOES IN A BACKUP (Task 3),
-      WHICH WAVE LINK + WHERE THESE SETTINGS LIVE (Task 4) and the unbuilt-tier rows (Task 5) land
-      in later tasks, each as a new section between these two and the footer. The 22px inter-section
-      gap is the convention; keep it when adding.
+      Sections, top to bottom: WHERE BACKUPS ARE KEPT (Task 2), WHEN TO BACK UP (Task 2), WHAT
+      GOES IN A BACKUP (Task 3). WHICH WAVE LINK + WHERE THESE SETTINGS LIVE land in Task 4 as a
+      new section between WHAT GOES IN A BACKUP and the footer. The 22px inter-section gap is the
+      convention; keep it when adding.
     -->
     <Border Background="{DynamicResource WlCard}"
             BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8">
@@ -162,6 +210,123 @@
                                     IsEnabled="{Binding TrashRow.ActionEnabled}"
                                     AutomationProperties.Name="Empty the trash" />
                         </Grid>
+                    </Border>
+
+                    <!-- ============ WHAT GOES IN A BACKUP ============ -->
+                    <TextBlock Text="WHAT GOES IN A BACKUP" Style="{StaticResource WlColumnHeaderText}"
+                               Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
+                               AutomationProperties.Name="What goes in a backup section" />
+
+                    <!-- One bordered group, four rows on a 1fr/84px/52px grid (label+description,
+                         size, control), 12-14px x 16px padding, hairline between rows. The group is
+                         WlBg with a hairline border and 8px radius; each row's bottom hairline is the
+                         divider (the last row carries none). Sizes are honest and right-aligned in mono. -->
+                    <Border Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                        <ItemsControl ItemsSource="{Binding WhatGoesIn.Rows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="16,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />     <!-- label + description -->
+                                            <ColumnDefinition Width="84" />    <!-- size (right-aligned) -->
+                                            <ColumnDefinition Width="52" />    <!-- toggle / badge -->
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Margin="0,13">
+                                            <TextBlock Text="{Binding Name}" Style="{StaticResource WlRowNameText}"
+                                                       Foreground="{DynamicResource WlStrong}" />
+                                            <TextBlock Text="{Binding Description}" Style="{StaticResource WlSecondaryText}"
+                                                       Foreground="{DynamicResource WlMuted}" Margin="0,3,0,0" TextWrapping="Wrap" />
+                                        </StackPanel>
+
+                                        <!-- The honest size figure; drops to 40% when the tier is not in a backup. -->
+                                        <TextBlock Grid.Column="1" Text="{Binding SizeText}"
+                                                   Style="{StaticResource WhatGoesInSizeText}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                                        <!-- Control cell: the toggle for the two built tiers, the NOT BUILT YET badge
+                                             for the locked ones. The toggle binds IsChecked to Enabled and is disabled + 40% when Locked. -->
+                                         <Grid Grid.Column="2">
+                                              <CheckBox VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                        Style="{StaticResource WhatGoesInToggle}"
+                                                        IsChecked="{Binding Enabled, Mode=OneWay}"
+                                                        Visibility="{Binding Locked, Converter={StaticResource ToggleVisible}}" />
+
+                                             <Border Style="{StaticResource WhatGoesInBadge}"
+                                                     HorizontalAlignment="Right">
+                                                 <TextBlock Text="NOT BUILT YET" Style="{StaticResource WlTierBadgeText}"
+                                                            Foreground="{DynamicResource WlMuted}" />
+                                             </Border>
+                                         </Grid>
+
+
+
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+
+                    <!-- The 6px stacked proportion bar on WlSunken, derived from the enabled tiers
+                         (recomputed, never hard-coded). Each segment's width is its Fraction of the
+                         whole; a 1px hairline gap separates segments. Below it: the two mono labels. -->
+                    <Border Height="6" Margin="0,12,0,0" Background="{DynamicResource WlSunken}"
+                            CornerRadius="3">
+                        <Grid>
+                            <ItemsControl ItemsSource="{Binding WhatGoesIn.Segments}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,1,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{DynamicResource WlOk}" />
+                                                    <Style.Triggers>
+                                                        <!-- The accent segment (the plug-in tier, if ever enabled) renders at 75% opacity;
+                                                             today's single segment is the ok colour. -->
+                                                        <DataTrigger Binding="{Binding Name}" Value="The effect plug-ins themselves">
+                                                            <Setter Property="Background" Value="{DynamicResource WlAccent}" />
+                                                            <Setter Property="Opacity" Value="0.75" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
+
+                    <!-- The two mono labels under the bar: EACH BACKUP left, + IF YOU ADD right. -->
+                    <Grid Margin="0,8,0,0">
+                        <TextBlock Text="{Binding WhatGoesIn.EachBackupLabel}" Style="{StaticResource WlMonoMetaText}"
+                                   Foreground="{DynamicResource WlMuted}" HorizontalAlignment="Left"
+                                   AutomationProperties.Name="Each backup size" />
+                        <TextBlock Text="{Binding WhatGoesIn.IfYouAddLabel}" Style="{StaticResource WlMonoMetaText}"
+                                   Foreground="{DynamicResource WlMuted}" HorizontalAlignment="Right"
+                                   Visibility="{Binding WhatGoesIn.IfYouAddLabel, Converter={StaticResource FreeSpaceLineVisible}}"
+                                   AutomationProperties.Name="Size if plug-in files are added" />
+                    </Grid>
+
+                    <!-- The two plain-language notes in one WlBg block, hairline, 8px radius, 10px apart.
+                         Lead clause strong; the rest muted. -->
+                    <Border Margin="0,12,0,0" Background="{DynamicResource WlBg}"
+                            BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8"
+                            Padding="16,14">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource WlSecondaryText}" TextWrapping="Wrap" LineHeight="19.575">
+                                <Run FontWeight="Medium" Foreground="{DynamicResource WlStrong}"><Run.Text>{Binding WhatGoesIn.NoteOneLead}</Run.Text></Run><Run Foreground="{DynamicResource WlMuted}"> <Run.Text>{Binding WhatGoesIn.NoteOneRest}</Run.Text></Run>
+                            </TextBlock>
+                            <TextBlock Style="{StaticResource WlSecondaryText}" TextWrapping="Wrap" LineHeight="19.575" Margin="0,10,0,0">
+                                <Run FontWeight="Medium" Foreground="{DynamicResource WlStrong}"><Run.Text>{Binding WhatGoesIn.NoteTwoLead}</Run.Text></Run><Run Foreground="{DynamicResource WlMuted}"> <Run.Text>{Binding WhatGoesIn.NoteTwoRest}</Run.Text></Run>
+                            </TextBlock>
+                        </StackPanel>
                     </Border>
 
                     <!-- ============ WHEN TO BACK UP ============ -->

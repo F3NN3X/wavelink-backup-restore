@@ -255,4 +255,110 @@ public sealed class SettingsViewModelTests
         Assert.Equal(repository.FilePath, model.WhereSettingsLive.FilePath);
         Assert.Equal("43 KB", model.WhereSettingsLive.SizeText);
     }
+
+    // -------------------------------------------------------------- WHAT GOES IN A BACKUP: the proportion bar
+
+    // The bar is a pure projection of the enabled tiers (Task 3 step 2): it recomputes from what
+    // is actually in a backup, never a hard-coded percentage. These tests drive WhatGoesInModel
+    // directly with synthetic sizes so each rule - reflow, exclusion, labels - is asserted on its
+    // own, exactly the way FreeSpaceText is tested through Readable rather than through a window.
+
+    private static WhatGoesInRow Setup(long bytes = 43 * 1024) =>
+        new("Your setup", "Every channel, routing and effect chain - the whole file.", bytes, true, false);
+
+    private static WhatGoesInRow EffectsList() =>
+        new("A list of your effects", "The names of the effects in use. Travels inside the settings file above.", 0, true, false);
+
+    private static WhatGoesInModel Bar(WhatGoesInRow setup, WhatGoesInRow presets, WhatGoesInRow pluginFiles) =>
+        new(setup, EffectsList(), presets, pluginFiles);
+
+    [Fact]
+    public void A_single_enabled_tier_fills_the_whole_bar()
+    {
+        // Today's honest state: only the settings file is in a backup, so it takes 100% of the bar.
+        var model = Bar(Setup(), new("Effect presets", "", 0, false, true), new("The effect plug-ins themselves", "", 0, false, true));
+
+        Assert.Equal(43 * 1024, model.TotalBytes);
+        Assert.Single(model.Segments);
+        Assert.Equal(1.0, model.Segments[0].Fraction);
+        Assert.Equal("EACH BACKUP: ABOUT 43 KB", model.EachBackupLabel);
+    }
+
+    [Fact]
+    public void Enabling_a_tier_reflows_the_bar_from_the_enabled_sizes()
+    {
+        // The rule the spec calls out by name: enabling/disabling a tier changes the computed
+        // widths. Two equal enabled tiers split the bar evenly - neither keeps a fixed share.
+        var off = Bar(Setup(), new("Effect presets", "", 0, false, true), new("The effect plug-ins themselves", "", 0, false, true));
+        Assert.Equal(1.0, off.Segments[0].Fraction);
+
+        // Turn on the plug-in tier at the same size as the settings file: the bar recomputes and
+        // both enabled tiers now hold half each. The disabled/locked presets contribute nothing.
+        var on = Bar(Setup(), new("Effect presets", "", 0, false, true),
+            new("The effect plug-ins themselves", "", 43 * 1024, true, false));
+
+        Assert.Equal(2, on.Segments.Count);
+        Assert.All(on.Segments, s => Assert.Equal(0.5, s.Fraction));
+    }
+
+    [Fact]
+    public void A_larger_enabled_tier_takes_a_wider_share()
+    {
+        // The share is proportional to bytes, not a fixed slot: 3x the size takes 3/4 of the bar.
+        var model = Bar(Setup(1 * 1024), new("Effect presets", "", 0, false, true),
+            new("The effect plug-ins themselves", "", 3 * 1024, true, false));
+
+        Assert.Equal(0.25, model.Segments[0].Fraction); // the settings file: 1 of 4 KB
+        Assert.Equal(0.75, model.Segments[1].Fraction); // the plug-ins: 3 of 4 KB
+    }
+
+    [Fact]
+    public void Locked_and_zero_byte_tiers_contribute_nothing_to_the_bar()
+    {
+        // The effects list is enabled but rides inside the settings file (0 bytes of its own), and
+        // both unbuilt tiers are locked off. None of them may appear as a segment - only real bytes count.
+        var model = Bar(Setup(), new("Effect presets", "", 0, false, true), new("The effect plug-ins themselves", "", 0, false, true));
+
+        Assert.Single(model.Segments);
+        Assert.Equal("Your setup", model.Segments[0].Name);
+    }
+
+    [Fact]
+    public void The_each_backup_label_prints_the_enabled_total()
+    {
+        var model = Bar(Setup(), new("Effect presets", "", 0, false, true),
+            new("The effect plug-ins themselves", "", 43 * 1024, true, false));
+
+        Assert.Equal("EACH BACKUP: ABOUT 86 KB", model.EachBackupLabel);
+    }
+
+    [Fact]
+    public void The_if_you_add_label_shows_the_cost_of_the_left_out_tiers()
+    {
+        // The right-hand figure is the honest answer to "what would turning this on cost" - the sum
+        // of every disabled tier that carries bytes. With the plug-ins off at 40 MB, it prints them.
+        var model = Bar(Setup(), new("Effect presets", "", 0, false, true),
+            new("The effect plug-ins themselves", "", 40 * 1024 * 1024, false, true));
+
+        Assert.Equal("+ 40 MB IF YOU ADD THE PLUG-IN FILES", model.IfYouAddLabel);
+    }
+
+    [Fact]
+    public void The_if_you_add_label_is_empty_when_nothing_is_left_out()
+    {
+        // When every tier with bytes is already in a backup, there is nothing to add - the label
+        // must be empty rather than print "+ 0 B".
+        var model = Bar(Setup(), new("Effect presets", "", 0, false, true),
+            new("The effect plug-ins themselves", "", 43 * 1024, true, false));
+
+        Assert.Equal(string.Empty, model.IfYouAddLabel);
+    }
+
+    [Fact]
+    public void A_row_with_no_bytes_of_its_own_prints_a_dash()
+    {
+        // The effects list and the unbuilt tiers carry no separate number - they print "—", not 0 B.
+        Assert.Equal("—", EffectsList().SizeText);
+        Assert.Equal("43 KB", Setup().SizeText);
+    }
 }
