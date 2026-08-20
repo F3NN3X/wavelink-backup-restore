@@ -2,14 +2,31 @@
 title: "ADR-006: Four switchable VST3 tiers, capturing what is referenced"
 status: accepted
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-19
+related_adrs: [ADR-010]
 tags: [decision, capture, vst3]
 ---
 
 # ADR-006: Four switchable VST3 tiers, capturing what is referenced
 
-**Status:** Accepted
+**Status:** Accepted — **with tier 3's location corrected by [[ADR-010]] on 2026-08-19**
+
 **Date:** 2026-08-16
+
+> **Its own "Revisit if" clause fired.** This ADR closed by saying: *revisit if a plugin ecosystem
+> appears where presets are not under `%APPDATA%\<Vendor>\`.* On 2026-08-19 tier 3 was run
+> against the reference rig for the first time and FabFilter turned out to be exactly that
+> ecosystem — its user presets are in `Documents\FabFilter\Presets\<Plugin>\`, and what is in
+> `%APPDATA%` is an interface default, a MIDI map and a cache.
+>
+> **The four tiers, their sizes, the referenced-not-installed rule and every decision below still
+> stand.** What [[ADR-010]] replaces is one location: tier 3 reads **two roots** now, and a
+> snapshot records which root each file came from.
+>
+> **The measurement in the table below is also worth reading carefully.** *"`%APPDATA%\FabFilter`
+> is 246 files of presets"* — the count was right, the classification was not. None of those 246
+> is a `.ffp`. A measurement recorded without saying what was counted is how a correct number
+> licenses a wrong conclusion, and this is the example.
 
 ## Context
 
@@ -95,8 +112,11 @@ recomputed rather than hard-coded; and a restore dialog that can name exactly wh
   file against a newer plugin normally works — plugins version their own state — but it is not
   guaranteed. This is why tier 2 records the version it was captured against.
 
-**Revisit if:** a plugin ecosystem appears where presets are not under `%APPDATA%\<Vendor>\`,
-which would make tier 3's discovery heuristic unreliable rather than merely imperfect.
+**Revisit if:** ~~a plugin ecosystem appears where presets are not under
+`%APPDATA%\<Vendor>\`, which would make tier 3's discovery heuristic unreliable rather than
+merely imperfect.~~ — **fired 2026-08-19; see [[ADR-010]].** The successor condition is a **third**
+root, or a vendor that keeps presets directly in `Documents\<Vendor>\` with no `Presets`
+subfolder.
 
 ## References
 

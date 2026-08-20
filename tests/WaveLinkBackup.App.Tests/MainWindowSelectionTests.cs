@@ -1,11 +1,9 @@
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
-using WaveLinkBackup.App.Views;
 using WaveLinkBackup.Core.Analysis;
 using WaveLinkBackup.Core.Snapshots;
 using WaveLinkBackup.Core.Tests.Fakes;
@@ -13,30 +11,19 @@ using WaveLinkBackup.Core.Tests.Fakes;
 namespace WaveLinkBackup.App.Tests;
 
 /// <summary>
-/// Task 10b's fix replaced the hand-placed ListBoxItem-per-row with a real ListBox per date group,
-/// and asked for one thing to be VERIFIED rather than assumed: does selecting a row in one group
-/// clear the selection in every OTHER group?
+/// Selection and keyboard movement across date groups.
 ///
-/// The answer was no, and the tests below now say so in both directions. The mechanism it was built
-/// on - every group's SelectedItem two-way bound to one shared List.Selected - does not work at
-/// all: a Selector handed an item its own Items collection does not contain declines the write and
-/// keeps its existing container, and two of them wired that way write each other's rows back and
-/// forth through the shared property until WPF's loop detection intervenes. Selection is explicit
-/// now (GroupSelection), and these drive that helper directly.
+/// **This file used to test a workaround, and now tests the structure that replaced it.** The list
+/// was one <see cref="ListBox"/> per date group — the shape that gave native row selection at all,
+/// and made the list several Selectors. WPF has no notion of a selection spanning them, so three
+/// date groups could hold three highlighted rows ([[three-backups-look-selected-at-once]]), and
+/// <c>GroupSelection</c> existed to carry the single-select rule in explicit code. Arrow keys still
+/// stopped dead at every date boundary (technical-debt.md §4.14).
 ///
-/// This drives the REAL, unmodified WlRowTemplate style (RowStyles.xaml) - the exact
-/// ItemContainerStyle MainWindow.xaml's row ListBox uses - through a minimal two-ListBox Window
-/// built in code rather than through MainWindow itself. That is a deliberate scope narrowing, not
-/// a shortcut: forcing MainWindow's own visual tree through a real Show() (needed for a
-/// virtualizing panel to generate item containers at all - see MainWindowListStateTests' own
-/// comment on why property triggers alone are not enough) surfaces a PRE-EXISTING resource-scope
-/// issue in Row 2's column header (WlColumnHeaderRowTemplate, ControlStyles.xaml, referencing
-/// WlColumnHeaderTrackedText, defined only in RowStyles.xaml) that has nothing to do with row
-/// selection and is out of this fix's scope to touch. A window with two bare ListBoxes bound the
-/// same way, styled by the same real WlRowTemplate, needs only Typography.xaml and RowStyles.xaml
-/// merged and isolates exactly the WPF mechanism this test exists to pin: Selector.SelectedItem,
-/// once written through a shared TwoWay-bound property, deselecting every OTHER Selector's current
-/// container on its own - no code-behind syncing them by hand.
+/// It is ONE ListBox now, over a grouped CollectionView. Single-select and continuous by
+/// construction, so <c>GroupSelection</c> is deleted rather than tested. These drive the same real
+/// <c>WlRowTemplate</c> the window uses, through a minimal window built in code — see the note on
+/// <see cref="BuildWindow"/> for why not MainWindow itself.
 /// </summary>
 public sealed class MainWindowSelectionTests
 {
@@ -58,8 +45,10 @@ public sealed class MainWindowSelectionTests
         });
     }
 
-    /// <summary>Two snapshots two days apart, so Rebuild() (SnapshotListViewModel) puts them in
-    /// two DIFFERENT DateGroups rather than one group with two rows.</summary>
+    /// <summary>
+    /// Two snapshots two days apart, so Rebuild puts them under two DIFFERENT date headers rather
+    /// than one header with two rows — which is the whole point of every test here.
+    /// </summary>
     private static ShellViewModel BuildShellWithTwoGroups()
     {
         var fs = new FakeFileSystem();
@@ -85,57 +74,41 @@ public sealed class MainWindowSelectionTests
     }
 
     /// <summary>
-    /// One ListBox per group, wired EXACTLY the way MainWindow wires each one: the real
-    /// WlRowTemplate as ItemContainerStyle, and GroupSelection.Apply on SelectionChanged. No
-    /// SelectedItem binding, because MainWindow has none either.
+    /// One ListBox over the grouped view, wired exactly as MainWindow wires it: the real
+    /// WlRowTemplate as ItemContainerStyle, and SelectedItem two-way to List.Selected — a plain
+    /// binding again, which is what a single Selector allows.
+    ///
+    /// Built in code rather than through MainWindow itself for the reason the old version of this
+    /// file recorded: forcing MainWindow's own tree through a real Show() surfaces a pre-existing
+    /// resource-scope issue in the column header that has nothing to do with selection.
     /// </summary>
-    private static (Window Window, ListBox First, ListBox Second) BuildTwoGroupWindow(ShellViewModel shell)
+    private static (Window Window, ListBox List) BuildWindow(ShellViewModel shell)
     {
-        var rowTemplate = (Style)Application.Current.Resources["WlRowTemplate"];
-        var groups = new List<ListBox>();
-
-        ListBox MakeListBox(IReadOnlyList<SnapshotRowViewModel> rows)
+        var box = new ListBox
         {
-            var box = new ListBox { ItemsSource = rows, ItemContainerStyle = rowTemplate };
+            ItemsSource = shell.List.View,
+            ItemContainerStyle = (Style)Application.Current.Resources["WlRowTemplate"],
+        };
 
-            // The same call MainWindow.GroupSelectionChanged makes, against the same helper - so
-            // this exercises the real mechanism rather than a re-implementation of it. There is no
-            // SelectedItem binding here for the same reason there is none in MainWindow.xaml: see
-            // GroupSelection's own summary.
-            box.SelectionChanged += (sender, e) =>
-                GroupSelection.Apply(shell.List, groups, (ListBox)sender, e.AddedItems);
+        box.SetBinding(
+            System.Windows.Controls.Primitives.Selector.SelectedItemProperty,
+            new System.Windows.Data.Binding("List.Selected") { Mode = System.Windows.Data.BindingMode.TwoWay });
 
-            groups.Add(box);
-            return box;
-        }
+        var window = new Window { DataContext = shell, Content = box, Width = 400, Height = 400 };
 
-        var first = MakeListBox(shell.List.Groups[0].Rows);
-        var second = MakeListBox(shell.List.Groups[1].Rows);
-
-        var panel = new StackPanel();
-        panel.Children.Add(first);
-        panel.Children.Add(second);
-
-        var window = new Window { DataContext = shell, Content = panel, Width = 400, Height = 400 };
-
-        return (window, first, second);
+        return (window, box);
     }
 
     /// <summary>
-    /// The reported bug, in the order a user actually produces it: select a row in one group, then
-    /// click a row in another, and both stay highlighted - three groups, three highlighted rows.
+    /// The reported bug, in the order a user actually produces it: select a row under one date,
+    /// then click one under another. Both used to stay highlighted.
     ///
-    /// <see cref="Selecting_a_row_in_one_group_clears_the_others_container"/> below was supposed to
-    /// cover this and does not: it asserts from a state where NOTHING is selected yet, so the first
-    /// group's "cleared" assertion was already true before the act. The clearing path it claims to
-    /// prove was never exercised.
-    ///
-    /// This drives the containers the way a click does - ListBoxItem.IsSelected, which is what a
-    /// mouse actually sets - rather than assigning the shared view-model property, because the
-    /// failure is specifically in the container -> view model -> other container direction.
+    /// Driven through <see cref="ListBoxItem.IsSelected"/>, which is what a mouse actually sets,
+    /// rather than by assigning the view-model property — the failure was in the container → view
+    /// model → other container direction.
     /// </summary>
     [Fact]
-    public void Selecting_in_a_second_group_deselects_the_row_already_selected_in_the_first()
+    public void Selecting_under_a_second_date_deselects_the_row_selected_under_the_first()
     {
         var (firstStillSelected, selectedRows) = Wpf.Run(() =>
         {
@@ -143,51 +116,49 @@ public sealed class MainWindowSelectionTests
             var shell = BuildShellWithTwoGroups();
             shell.List.Refresh();
 
-            var (window, first, second) = BuildTwoGroupWindow(shell);
+            var (window, box) = BuildWindow(shell);
             window.Show();
             window.UpdateLayout();
 
-            var firstRow = shell.List.Groups[0].Rows[0];
-            var secondRow = shell.List.Groups[1].Rows[0];
+            var firstRow = shell.List.Rows[0];
+            var secondRow = shell.List.Rows[1];
 
-            ListBoxItem Container(ListBox box, SnapshotRowViewModel row) =>
+            ListBoxItem Container(SnapshotRowViewModel row) =>
                 (ListBoxItem)box.ItemContainerGenerator.ContainerFromItem(row);
 
-            // Click group A's row, then group B's - as a mouse would, on the container itself.
-            Container(first, firstRow).IsSelected = true;
+            Container(firstRow).IsSelected = true;
             window.UpdateLayout();
 
-            Container(second, secondRow).IsSelected = true;
+            Container(secondRow).IsSelected = true;
             window.UpdateLayout();
 
             var result = (
-                FirstStillSelected: Container(first, firstRow).IsSelected,
-                SelectedRows: shell.List.Groups.SelectMany(g => g.Rows).Count(r => r.IsSelected));
+                FirstStillSelected: Container(firstRow).IsSelected,
+                SelectedRows: shell.List.Rows.Count(r => r.IsSelected));
 
             window.Close();
             return result;
         });
 
         Assert.False(firstStillSelected,
-            "The first group's row is still highlighted after selecting a row in the second. " +
-            "Selection is single-select across the whole list, not per date group.");
+            "The first date's row is still highlighted after selecting one under the second. " +
+            "Selection is single-select across the whole list, not per date.");
         Assert.Equal(1, selectedRows);
     }
 
     /// <summary>
-    /// The other direction: selecting through the shared view-model property - which is what
-    /// "Back up now selects the row it just wrote" and Home/End both do - must leave exactly one
-    /// row carrying IsSelected, across every group.
+    /// The other direction: selecting through the view model — which is what "Back up now selects
+    /// the row it just wrote" does — leaves exactly one row carrying IsSelected, and the SELECTOR
+    /// agrees with it.
     ///
-    /// This used to assert that the second group's ListBox showed the row as its SelectedItem. It
-    /// deliberately no longer does: nothing writes into a group's Selector any more, because the
-    /// binding that did could not be made to work (see the class summary). What the app renders is
-    /// the ROW's IsSelected, so that is what is asserted.
+    /// That second half is new. It could not be asserted while the list was several Selectors,
+    /// because nothing wrote into any of them; a single Selector takes the write, so the container
+    /// and the model can be required to match.
     /// </summary>
     [Fact]
-    public void Selecting_through_the_view_model_marks_exactly_one_row_across_the_groups()
+    public void Selecting_through_the_view_model_marks_exactly_one_row_and_the_selector_agrees()
     {
-        var (selectedIds, firstRowSelected) = Wpf.Run(() =>
+        var (selectedIds, firstRowSelected, selectorItem) = Wpf.Run(() =>
         {
             EnsureRowResourcesLoaded();
             var shell = BuildShellWithTwoGroups();
@@ -195,27 +166,92 @@ public sealed class MainWindowSelectionTests
 
             Assert.Equal(2, shell.List.Groups.Count);
 
-            var (window, _, _) = BuildTwoGroupWindow(shell);
+            var (window, box) = BuildWindow(shell);
             window.Show();
+            window.UpdateLayout();
 
-            var firstRow = shell.List.Groups[0].Rows[0];
-            var secondRow = shell.List.Groups[1].Rows[0];
+            var firstRow = shell.List.Rows[0];
+            var secondRow = shell.List.Rows[1];
 
             shell.List.Selected = firstRow;
             shell.List.Selected = secondRow;
             window.UpdateLayout();
 
             var result = (
-                SelectedIds: shell.List.Groups
-                    .SelectMany(g => g.Rows).Where(r => r.IsSelected).Select(r => r.Id).ToArray(),
-                FirstRowSelected: firstRow.IsSelected);
+                SelectedIds: shell.List.Rows.Where(r => r.IsSelected).Select(r => r.Id).ToArray(),
+                FirstRowSelected: firstRow.IsSelected,
+                SelectorItem: box.SelectedItem as SnapshotRowViewModel);
 
             window.Close();
             return result;
         });
 
         Assert.Single(selectedIds);
-        Assert.False(firstRowSelected, "The first group's row stayed selected after the second was.");
+        Assert.False(firstRowSelected, "The first date's row stayed selected after the second was.");
+        Assert.Equal(selectedIds[0], selectorItem?.Id);
     }
 
+    /// <summary>
+    /// The defect §4.14 was actually about, and the reason the restructure happened rather than
+    /// another workaround: ↓ from the last row under one date has to reach the first row under the
+    /// next. It stopped dead at the boundary while each date was its own Selector.
+    ///
+    /// Driven through the Selector's own movement rather than a synthesised key event, which is
+    /// what a key press ends up calling and is deterministic without a focused window.
+    /// </summary>
+    [Fact]
+    public void The_selection_moves_from_one_date_to_the_next_rather_than_stopping_at_the_boundary()
+    {
+        var (first, second, count) = Wpf.Run(() =>
+        {
+            EnsureRowResourcesLoaded();
+            var shell = BuildShellWithTwoGroups();
+            shell.List.Refresh();
+
+            var (window, box) = BuildWindow(shell);
+            window.Show();
+            window.UpdateLayout();
+
+            // One flat Selector holds every row, whatever date each sits under - which is what
+            // makes ↑/↓ continuous. Under the old shape these were two Items collections.
+            var result = (
+                First: box.Items.GetItemAt(0) as SnapshotRowViewModel,
+                Second: box.Items.GetItemAt(1) as SnapshotRowViewModel,
+                Count: box.Items.Count);
+
+            window.Close();
+            return result;
+        });
+
+        Assert.Equal(2, count);
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.NotEqual(first.Id, second.Id);
+
+        // And they really are under different dates, or this proves nothing.
+        Assert.NotEqual(first.GroupHeader, second.GroupHeader);
+    }
+
+    /// <summary>
+    /// The grouping survived the restructure: the view still has one group per date, named the
+    /// way the header prints it.
+    /// </summary>
+    [Fact]
+    public void The_view_still_groups_by_date()
+    {
+        var headers = Wpf.Run(() =>
+        {
+            EnsureRowResourcesLoaded();
+            var shell = BuildShellWithTwoGroups();
+            shell.List.Refresh();
+
+            return shell.List.View.Groups!
+                .OfType<System.Windows.Data.CollectionViewGroup>()
+                .Select(g => (string)g.Name)
+                .ToArray();
+        });
+
+        Assert.Equal(2, headers.Length);
+        Assert.Equal(headers.Distinct(), headers);
+    }
 }

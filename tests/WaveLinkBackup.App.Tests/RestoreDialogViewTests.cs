@@ -26,7 +26,8 @@ public sealed class RestoreDialogViewTests
     private static readonly DateTimeOffset Taken = new(2026, 8, 11, 21, 36, 0, TimeSpan.Zero);
 
     /// <summary>The design's own sample plan (README Screen 2), including a changed row.</summary>
-    private static RestorePlan Plan(string? versionWarning = null) => new(
+    private static RestorePlan Plan(
+        string? versionWarning = null, PluginBinaryPayload? binaries = null) => new(
         SnapshotName: "Before 3.3 beta",
         SnapshotTakenUtc: Taken,
         Rows:
@@ -37,7 +38,8 @@ public sealed class RestoreDialogViewTests
         LosesInputs: false,
         InputNamesLost: [],
         SnapshotIsSuspect: false,
-        VersionWarning: versionWarning);
+        VersionWarning: versionWarning,
+        Binaries: binaries);
 
     private static void ShowAndAssert(
         RestoreDialogModel model, AppTheme theme, Action<FrameworkElement> assert) => Wpf.Run(() =>
@@ -76,6 +78,39 @@ public sealed class RestoreDialogViewTests
     {
         // Not showing at all was the real failure mode here, so "did not throw" is the assertion.
         ShowAndAssert(RestoreDialogModel.Build(Plan(), Taken), theme, _ => { });
+    }
+
+    [Theory]
+    [InlineData(AppTheme.Dark)]
+    [InlineData(AppTheme.Light)]
+    [InlineData(AppTheme.HighContrast)]
+    public void The_plug_in_files_row_renders_in_every_theme(AppTheme theme)
+    {
+        // Same reason as the test above: this row was added to the app's only irreversible screen,
+        // and a style or resource mistake in it would mean the restore cannot be confirmed at all.
+        ShowAndAssert(
+            RestoreDialogModel.Build(Plan(binaries: new PluginBinaryPayload(6, 41_733_324L)), Taken),
+            theme, _ => { });
+    }
+
+    [Fact]
+    public void The_plug_in_files_toggle_is_there_when_the_snapshot_has_binaries_and_gone_when_it_does_not()
+    {
+        // Absent, not disabled - a control that can do nothing reads as a capability the restore is
+        // refusing (screens/13-elevation.md).
+        var withBinaries = false;
+        ShowAndAssert(
+            RestoreDialogModel.Build(Plan(binaries: new PluginBinaryPayload(6, 41_733_324L)), Taken),
+            AppTheme.Dark,
+            e => withBinaries |= e.Name == "PluginFilesToggle" && e.IsVisible);
+
+        var without = false;
+        ShowAndAssert(
+            RestoreDialogModel.Build(Plan(), Taken), AppTheme.Dark,
+            e => without |= e.Name == "PluginFilesToggle" && e.IsVisible);
+
+        Assert.True(withBinaries);
+        Assert.False(without);
     }
 
     [Fact]

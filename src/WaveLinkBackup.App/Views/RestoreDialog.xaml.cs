@@ -23,9 +23,24 @@ public partial class RestoreDialog : Window
         DialogOverlay.Attach(this);
 
         // Focus starts on Cancel - the safe choice for an irreversible action - and Escape is the
-        // same as clicking it. The destructive button is IsDefault, so Enter confirms only when the
-        // user has deliberately moved there or pressed it; both paths are wired below.
+        // same as clicking it. Enter is handled on the button itself rather than through
+        // IsDefault - see the note below.
         RestoreButton.Click += (_, _) => { DialogResult = true; };
+
+        // 10-decisions section 6: "Enter fires the primary button - except Delete and Restore,
+        // where focus starts on Cancel and the destructive button must be reached deliberately
+        // (Tab or click)." IsDefault would break exactly that: a default button takes Enter from
+        // ANYWHERE in the dialog, focus on Cancel included, so the app's most destructive key was
+        // the first one a user pressed. It is off, and Enter is wired to the button itself so it
+        // still confirms once the user has actually tabbed onto it.
+        RestoreButton.KeyDown += (_, e) =>
+        {
+            if (e.Key != System.Windows.Input.Key.Enter) return;
+
+            DialogResult = true;
+            e.Handled = true;
+        };
+
         CancelButton.Click += (_, _) => { DialogResult = false; };
 
         Loaded += (_, _) => CancelButton.Focus();

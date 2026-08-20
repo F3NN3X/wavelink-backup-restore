@@ -6,6 +6,21 @@ using WaveLinkBackup.Core.Results;
 namespace WaveLinkBackup.Core.Snapshots;
 
 /// <summary>A snapshot in the store: its manifest, and where it lives.</summary>
+/// <summary>
+/// How far a <see cref="SnapshotStore.Write"/> has got, in bytes it has actually written.
+///
+/// **Measured, not staged.** 04-in-progress.md asks the backing-up strip for a DETERMINATE bar,
+/// and a determinate bar over invented stages is a worse lie than a spinner — which the design
+/// bans for exactly that reason. <see cref="TotalBytes"/> is known before the first write because
+/// the payload names its sources and their sizes.
+/// </summary>
+/// <param name="Done">True on the final report: everything is on disk, manifest included.</param>
+public readonly record struct SnapshotWriteProgress(long WrittenBytes, long TotalBytes, bool Done)
+{
+    /// <summary>0 to 1. Zero total reads as complete rather than as a divide by zero.</summary>
+    public double Fraction => TotalBytes <= 0 ? 1 : Math.Clamp((double)WrittenBytes / TotalBytes, 0, 1);
+}
+
 public sealed record Snapshot(string Id, string Directory, SnapshotManifest Manifest)
 {
     public string SettingsPath => Path.Combine(Directory, SnapshotManifest.SettingsFileName);
@@ -73,7 +88,8 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
         SnapshotTrigger trigger,
         string displayName,
         string notes = "",
-        SnapshotPayload? payload = null)
+        SnapshotPayload? payload = null,
+        IProgress<SnapshotWriteProgress>? progress = null)
     {
         try
         {
@@ -102,21 +118,16 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
         // its length.
         var pluginBytes = payload is null ? null : PluginManifestSerializer.Write(payload.Plugins);
 
-        var manifest = new SnapshotManifest(
-            SchemaVersion: SnapshotManifest.CurrentSchemaVersion,
-            DisplayName: displayName,
-            Notes: notes,
-            CreatedUtc: createdUtc,
-            Trigger: trigger,
-            SettingsSha256: fingerprint.Sha256,
-            WaveLinkVersion: analysis.WaveLinkVersion,
-            InputCount: fingerprint.InputCount,
-            InputNames: fingerprint.InputNames,
-            EffectCount: fingerprint.EffectCount,
-            EffectChannelCount: fingerprint.EffectChannelCount,
-            HasDuplicateKeys: analysis.Report.HasCaseInsensitiveDuplicateKeys,
-            Tiers: Tiers(payload),
-            Files: Files(settingsBytes, fingerprint.Sha256, pluginBytes, payload));
+        SnapshotManifest manifest;
+
+        // Known before anything is written, because a payload names its sources and their sizes.
+        var totalBytes = settingsBytes.LongLength
+            + (pluginBytes?.LongLength ?? 0)
+            + (payload?.Files.Sum(f => f.SizeBytes) ?? 0);
+        var writtenBytes = 0L;
+
+        void Report(bool done) =>
+            progress?.Report(new SnapshotWriteProgress(writtenBytes, totalBytes, done));
 
         try
         {
@@ -126,10 +137,28 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
             // snapshot, so writing it last means an interrupted write leaves a directory
             // the guard rejects rather than one it half-accepts.
             fileSystem.WriteBytes(Path.Combine(directory, SnapshotManifest.SettingsFileName), settingsBytes);
+            writtenBytes += settingsBytes.LongLength;
+            Report(done: false);
 
             if (pluginBytes is not null)
             {
                 fileSystem.WriteBytes(Path.Combine(directory, SnapshotManifest.PluginsFileName), pluginBytes);
+                writtenBytes += pluginBytes.LongLength;
+                Report(done: false);
+            }
+
+            // The payload is copied BEFORE the manifest is built, because the copy is what
+            // produces each file's hash and length. Reading them into memory to hash, then
+            // writing them, was the same bytes twice (technical-debt.md §4.19) - and it recorded
+            // what the capture INTENDED to write rather than what landed.
+            var files = new Dictionary<string, SnapshotFile>(StringComparer.Ordinal)
+            {
+                [SnapshotManifest.SettingsFileName] = new(fingerprint.Sha256, settingsBytes.LongLength),
+            };
+
+            if (pluginBytes is not null)
+            {
+                files[SnapshotManifest.PluginsFileName] = new(HashOf(pluginBytes), pluginBytes.LongLength);
             }
 
             foreach (var file in payload?.Files ?? [])
@@ -143,12 +172,34 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
                     fileSystem.CreateDirectory(parent);
                 }
 
-                fileSystem.WriteBytes(path, file.Bytes);
+                var copied = fileSystem.CopyFile(file.Path, path);
+                files[file.RelativePath] = new(copied.Sha256, copied.SizeBytes);
+
+                writtenBytes += copied.SizeBytes;
+                Report(done: false);
             }
+
+            manifest = new SnapshotManifest(
+                SchemaVersion: SnapshotManifest.CurrentSchemaVersion,
+                DisplayName: displayName,
+                Notes: notes,
+                CreatedUtc: createdUtc,
+                Trigger: trigger,
+                SettingsSha256: fingerprint.Sha256,
+                WaveLinkVersion: analysis.WaveLinkVersion,
+                InputCount: fingerprint.InputCount,
+                InputNames: fingerprint.InputNames,
+                EffectCount: fingerprint.EffectCount,
+                EffectChannelCount: fingerprint.EffectChannelCount,
+                HasDuplicateKeys: analysis.Report.HasCaseInsensitiveDuplicateKeys,
+                Tiers: Tiers(payload),
+                Files: files);
 
             fileSystem.WriteBytes(
                 Path.Combine(directory, SnapshotManifest.ManifestFileName),
                 ManifestSerializer.Write(manifest));
+
+            Report(done: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -156,31 +207,6 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
         }
 
         return new Snapshot(id, directory, manifest);
-    }
-
-    /// <summary>
-    /// What the manifest records, hashed the same way for every file - the guard verifies
-    /// them all identically and has no idea which tier any of them belongs to.
-    /// </summary>
-    private static IReadOnlyDictionary<string, SnapshotFile> Files(
-        byte[] settingsBytes, string settingsSha256, byte[]? pluginBytes, SnapshotPayload? payload)
-    {
-        var files = new Dictionary<string, SnapshotFile>(StringComparer.Ordinal)
-        {
-            [SnapshotManifest.SettingsFileName] = new(settingsSha256, settingsBytes.LongLength),
-        };
-
-        if (pluginBytes is not null)
-        {
-            files[SnapshotManifest.PluginsFileName] = new(HashOf(pluginBytes), pluginBytes.LongLength);
-        }
-
-        foreach (var file in payload?.Files ?? [])
-        {
-            files[file.RelativePath] = new(HashOf(file.Bytes), file.Bytes.LongLength);
-        }
-
-        return files;
     }
 
     /// <summary>
@@ -326,7 +352,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     public (int Count, long Bytes) TrashSize()
     {
         var trashed = ListTrash();
-        var bytes = trashed.Sum(s => s.Manifest.Files.Values.Sum(f => f.SizeBytes));
+        var bytes = trashed.Sum(s => s.Manifest.TotalSizeBytes);
 
         return (trashed.Count, bytes);
     }

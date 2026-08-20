@@ -154,6 +154,17 @@ public sealed class SnapshotStoreTests
         Assert.Equal(all[0].Manifest.SettingsSha256, all[1].Manifest.SettingsSha256);
     }
 
+    /// <summary>
+    /// Puts a file on the fake filesystem and returns the payload entry that copies it. A
+    /// <see cref="CapturedFile"/> names a source rather than carrying bytes, so a payload fixture
+    /// has to put the source somewhere the store can read it from.
+    /// </summary>
+    private static CapturedFile Source(FakeFileSystem fs, string path, string relative, string content)
+    {
+        fs.AddFile(path, content);
+        return new CapturedFile(relative, path, fs.GetFileSize(path));
+    }
+
     // -------------------------------------------------------------- tier 2
 
     private static SnapshotPayload PluginPayload =>
@@ -239,8 +250,8 @@ public sealed class SnapshotStoreTests
         {
             Files =
             [
-                new("wavelink-backups/AutoBackup/Settings.auto.1.json", "auto"u8.ToArray()),
-                new("presets/FabFilter/Pro-Q 4/Vocals/Bright.ffp", "bright"u8.ToArray()),
+                Source(fs, @"C:\src\Settings.auto.1.json", "wavelink-backups/AutoBackup/Settings.auto.1.json", "auto"),
+                Source(fs, @"C:\src\Bright.ffp", "presets/FabFilter/Pro-Q 4/Vocals/Bright.ffp", "bright"),
             ],
             Tiers = ["presets"],
         };
@@ -265,7 +276,7 @@ public sealed class SnapshotStoreTests
 
         var payload = PluginPayload with
         {
-            Files = [new("presets/FabFilter/one.ffp", "original"u8.ToArray())],
+            Files = [Source(fs, @"C:\src\one.ffp", "presets/FabFilter/one.ffp", "original")],
             Tiers = ["presets"],
         };
 
@@ -434,5 +445,117 @@ public sealed class SnapshotStoreTests
         var (bytes, analysis) = Content();
 
         Assert.IsType<StoreUnavailable>(store.Write(bytes, analysis, SnapshotTrigger.Manual, "x").Error);
+    }
+
+    /// <summary>
+    /// The manifest records what the COPY wrote, not what the capture measured beforehand. The
+    /// two used to be the same number by construction, because the store hashed the bytes it had
+    /// been handed; now the bytes never pass through it, and a file that changed length between
+    /// being chosen and being copied must be recorded at its real length or the guard rejects a
+    /// snapshot that is perfectly intact.
+    /// </summary>
+    [Fact]
+    public void A_files_recorded_size_and_hash_are_the_ones_the_copy_produced()
+    {
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        // A stale figure on the payload entry — the shape of a file rewritten between the walk
+        // that found it and the copy that took it.
+        fs.AddFile(@"C:\src\grew.ffp", "the file as it actually is now");
+        var payload = PluginPayload with
+        {
+            Files = [new CapturedFile("presets/appdata/grew.ffp", @"C:\src\grew.ffp", SizeBytes: 3)],
+            Tiers = ["presets"],
+        };
+
+        var snapshot = store.Write(bytes, analysis, SnapshotTrigger.Manual, "x", payload: payload).Value;
+
+        Assert.Equal(30, snapshot.Manifest.Files["presets/appdata/grew.ffp"].SizeBytes);
+        Assert.True(new SnapshotGuard(fs).Verify(snapshot.Directory).IsSuccess);
+    }
+
+    // ------------------------------ write progress (04-in-progress.md, technical-debt.md §4.21)
+
+    /// <summary>
+    /// Collects reports on the calling thread. NOT <see cref="Progress{T}"/>: that posts to the
+    /// captured synchronization context, and a test has none, so every report would land on the
+    /// thread pool after the assertions had already run.
+    /// </summary>
+    private sealed class Reports : IProgress<SnapshotWriteProgress>, IEnumerable<SnapshotWriteProgress>
+    {
+        private readonly List<SnapshotWriteProgress> reports = [];
+
+        public SnapshotWriteProgress this[Index index] => reports[index];
+
+        public void Report(SnapshotWriteProgress value) => reports.Add(value);
+
+        public IEnumerator<SnapshotWriteProgress> GetEnumerator() => reports.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            GetEnumerator();
+    }
+
+    /// <summary>
+    /// The bar the design asks for is determinate, so the numbers behind it have to be real ones.
+    /// This pins that the total is known from the first report and that the written figure only
+    /// ever counts bytes already on disk.
+    /// </summary>
+    [Fact]
+    public void A_write_reports_real_bytes_against_a_total_it_knew_up_front()
+    {
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var payload = PluginPayload with
+        {
+            Files = [Source(fs, @"C:\src\preset.ffp", "presets/appdata/preset.ffp", "a preset file")],
+            Tiers = ["presets"],
+        };
+
+        var reports = new Reports();
+        var snapshot = store.Write(
+            bytes, analysis, SnapshotTrigger.Manual, "x", payload: payload,
+            progress: reports).Value;
+
+        Assert.NotEmpty(reports);
+
+        // One total, stated from the first report and never revised.
+        Assert.Single(reports.Select(r => r.TotalBytes).Distinct());
+
+        // Monotonic, and finishing on exactly what the manifest says the snapshot holds.
+        Assert.Equal(reports.Select(r => r.WrittenBytes).Order(), reports.Select(r => r.WrittenBytes));
+        Assert.Equal(snapshot.Manifest.TotalSizeBytes, reports[^1].WrittenBytes);
+        Assert.True(reports[^1].Done);
+        Assert.Equal(1, reports[^1].Fraction);
+    }
+
+    [Fact]
+    public void Only_the_last_report_says_done()
+    {
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var payload = PluginPayload with
+        {
+            Files = [Source(fs, @"C:\src.ffp", "presets/appdata/a.ffp", "aaa")],
+            Tiers = ["presets"],
+        };
+
+        var reports = new Reports();
+        store.Write(
+            bytes, analysis, SnapshotTrigger.Manual, "x", payload: payload, progress: reports);
+
+        Assert.Single(reports, r => r.Done);
+    }
+
+    /// <summary>A write with nowhere to report to is the ordinary case and must not change.</summary>
+    [Fact]
+    public void A_write_with_no_progress_listener_behaves_exactly_as_before()
+    {
+        var (store, _, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        Assert.True(store.Write(bytes, analysis, SnapshotTrigger.Manual, "x").IsSuccess);
     }
 }

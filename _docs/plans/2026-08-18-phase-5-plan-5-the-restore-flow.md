@@ -1,6 +1,6 @@
 ---
 title: "Phase 5, plan 5: the restore flow"
-status: completed
+status: published
 created: 2026-08-18
 updated: 2026-08-19
 tags: [plan, phase-5, wpf, restore]

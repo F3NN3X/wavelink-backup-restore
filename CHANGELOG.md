@@ -23,10 +23,170 @@ heading here.
 
 ## [Unreleased]
 
-Nothing yet. Phase 7 — **release** — is next: the privacy gate, the two notifications, the update
-mechanism and packaging. See [phase-7-release.md](_docs/dev-phases/phase-7-release.md).
+**Phase 7's work landed early, as a debt-clearing pass**: the privacy gate, the two notifications
+and the update mechanism are all here. What remains of
+[phase-7-release.md](_docs/dev-phases/phase-7-release.md) is packaging, signing, and running the
+release loop once for real.
+
+### Added
+
+- **The app can update itself.** A new `UPDATES` section in Settings: what version you have, when
+  it last looked, and a weekly check you can switch off. An available update shows its version,
+  release date and size, with *What changed* and *Install and restart*. Nothing installs without
+  you pressing something, and an available update is never a notification or a badge — the one
+  exception is a backup made by a newer version, whose *Get the update* now opens this section
+  with a check already running instead of landing nowhere.
+
+  Updates are **verified against a checksum the release publishes**, and an update without one is
+  refused rather than installed hopefully. The new version is staged beside the install and
+  swapped in by rename, so an interruption at any point leaves a working app — the previous
+  install is moved aside, not deleted, and only removed once the new one is in place.
+
+  **It never asks for administrator rights.** Where the app is installed somewhere you cannot
+  write, it says so and offers the download instead. Overwriting a program's own binaries with
+  files from the internet is not something to do quietly with elevated rights.
+  See [ADR-012](_docs/decisions/ADR-012-check-only-updates-with-a-staged-swap.md) and
+  [the runbook](_docs/operations/runbooks/releasing-and-updating.md).
+
+- **Copy diagnostics.** In Settings, beside *where these settings live*: everything the app knows
+  about itself, on the clipboard, with **hardware serial numbers and your Windows user name
+  removed**. `wlbackup diagnostics` prints the same thing.
+
+  This exists because settings files get attached to bug reports, and that file carries both. The
+  report describes structure — how many inputs, what they are called, which tiers each backup
+  holds — and **never includes the settings file itself**, redacted or otherwise. Nothing is ever
+  uploaded, and there is no setting that would make it. Your channel names are kept on purpose:
+  they are what nearly every support question is actually about.
+
+- **The two tray notifications the design specifies, and no others.** *Nothing has been backed up
+  for 9 days*, which fires once rather than daily and re-arms only after a backup actually
+  happens; and *Wave Link reset your settings*, after a rejected restore. A successful backup
+  never notifies.
+
+- **A "backing up" state.** The strip that shows a restore's four stages now has its other half:
+  *Backing up your setup…*, the size, and a progress bar whose numbers are real — bytes on disk
+  against a total known before the first write.
+
+- **When Windows starts.** Two switches in Settings: start with Windows and sit in the tray, and
+  whether closing the window hides it there. If Task Manager has disabled the startup entry, the
+  switch reads off and says why rather than fighting it.
+
+- **A first run with no Wave Link now says so, and offers a way in.** *Wave Link not found*, where
+  it looked, and a *Choose the settings file…* button — the only route into the app for an
+  installation discovery cannot find.
+
+- **A rejected restore can be acted on.** It was the app's worst moment and it offered nothing: a
+  bar stating that Wave Link had reset your settings, with no way to act and no way to close it.
+  It now carries *Show the log* and *Restore "Before restore"*, and selects that backup in the
+  list so the button and the row are visibly the same thing.
+
+- **Pointing the backup folder somewhere that is not a backup folder now says so**, in place,
+  with *Choose another…* and *Keep the current folder* — instead of silently pointing at your
+  Recordings folder and showing an empty list.
+
+- **The real icon set.** Every glyph is now a Lucide path rather than a hand-drawn approximation
+  of one. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+- **A release pipeline.** Pushing a `v*` tag builds, tests, packages and publishes the release the
+  updater looks for, with its checksum. The version comes from the tag.
+
+- **You can set how often automatic backups happen.** *At most one an hour* was a constant, and the
+  Settings dialog said so as though it were a fact about the world. It is a stepper now — 15 min,
+  30 min, 1 h, 2 h, 4 h, 12 h, 24 h — and the row's title is the value read back as a sentence, so
+  the label and the control cannot drift. It remains a **cap on change-driven backups, not a
+  timer**: nothing is written when nothing changes, so a shorter interval does not make the app
+  busier on a quiet machine.
+- **And a daily backup at a time you choose.** Off by default; on, it starts at 03:00 and steps in
+  half hours, wrapping at midnight. It takes a backup whether or not anything changed — dedup means
+  an unchanged one stores nothing — and it does not fight the interval cap: if an ordinary automatic
+  backup already happened after today's set time, the day is covered and the daily one is skipped.
+  A machine that was asleep at 03:00 captures when it wakes rather than losing the day. The row says
+  plainly that your computer has to be awake and the app running; this is not a scheduled task.
+- **The plug-in files can be restored from the app**, not only from the CLI. A row in the restore
+  dialog, off every time, absent when the backup holds no plug-in binaries. Confirming with it on
+  hands the restore to an elevated copy of the app and Windows shows its own consent dialog.
+  Declining leaves everything as it was and says so, and the settings and presets restore either
+  way. [technical-debt.md](_docs/technical-debt.md) §4.17, closed.
+
+### Changed
+
+- **Backups no longer read plug-in files into memory to copy them.** A capture used to hold every
+  preset and every plug-in binary at once — about 40 MB on a typical rig, and unbounded if you run
+  a large sampler on a channel. Files are now streamed, so the memory cost is a buffer.
+
+- **Unchanged plug-ins are not re-read on every backup.** Their fingerprint is reused when the
+  path, size and modification time all match, which on an automatic backup is the common case.
+
+- **Arrow keys move through the whole list**, rather than stopping at each date. The list was one
+  control per date, which is also what made three backups look selected at once; it is now one
+  control, and the workaround that used to hold that together is gone.
+
+- **Keyboard and screen-reader support to Windows conventions**, not just the four keys the design
+  names: `Alt` shortcuts on dialog buttons, `Shift+F10` and the Menu key opening a row's actions,
+  `Delete` on a selected row, and labels that read as sentences.
+
+- **The main window's minimum width is 1124px**, up from 980. Below that the last column was being
+  clipped with no way to scroll to it.
+
+- **A failed manual backup reports inline** rather than in a message box.
+
+- **The tray icon follows the DPI of the screen holding the taskbar**, and re-renders when
+  monitors change. It was a fixed size, correct at 100% and 150% scaling and soft above.
+
+- **Preset paths inside a snapshot name their root** — `presets/appdata/…` and
+  `presets/documents/…`. Required rather than cosmetic: once presets can come from two places, a
+  path that does not say which one cannot be restored to the right one.
+- **`plugins.json` is schema 2**: `presetSource` (one string) became `presetSources` (an array,
+  at most one folder per root). **Snapshots already on disk are unaffected** — a preset path with
+  no root segment reads as `%APPDATA%`, which is the only place those files came from, and the
+  schema-1 `presetSource` key is still read.
+- `TierCapture` and `TierRestore` take a Documents path alongside the AppData one, so a test can
+  redirect both.
 
 ---
+
+### Fixed
+
+- **Restoring plug-in files no longer asks for administrator rights unless it needs them.** The
+  app assumed it always would, because plug-ins usually live in a folder every account shares. On
+  many machines they don't need it — several plug-in installers make that folder writable so their
+  own updates run without a prompt — so the app now checks first, and says which kind of restore
+  this will be before you confirm.
+
+- **A backup's recorded size is what was written**, not what was measured beforehand. The two are
+  normally identical; they differ when a file changes while a backup is being taken, and the
+  recorded figure was the stale one.
+
+- **Settings' drive line prints all three figures** the design gives it — how many backups, how
+  much they use, how much is free — instead of free space alone.
+
+- **In high contrast, the "what goes in a backup" bar is labelled.** Its colour segments carry no
+  meaning there, and nothing replaced them.
+
+- **Nothing in the Settings dialog took effect until the next launch.** Every control there commits
+  as you change it, and the commit reached the settings file but never the running app — so
+  switching a tier on, or automatic backups off, appeared to work and did nothing until you
+  restarted. Both are live now. §4.20.
+- **The keep-count stepper's − and + buttons did nothing.** They were declared, the number beside
+  them was bound, and no handler was ever wired. Found while adding two steppers next to them; a
+  view test now presses the `+` of every stepper in the dialog and asserts the value moved. §4.20.
+- **Tier 3 was capturing 2% of your presets.** Preset discovery only ever looked in
+  `%APPDATA%\<Vendor>\`, and running it against a real rig for the first time
+  ([technical-debt.md](_docs/technical-debt.md) §4.18) showed what that misses: for FabFilter
+  Pro-Q 4 it found three files — an interface default, a MIDI map and a cache — while the 172
+  `.ffp` presets the Settings dialog promises as *"your EQ curves, your gate thresholds"* sat in
+  `Documents\FabFilter\Presets\Pro-Q 4\`. Discovery now reads **both roots**. On the reference
+  rig a snapshot went from **61 preset files to 491**.
+- **Crash reports were being backed up as presets.** `%APPDATA%\Supertone\Clear` holds crash
+  dumps and nothing else, and tier 3 captured two of them and told the user it had saved two
+  presets. `Reports`, `Logs`, `Crashes` and `Diagnostics` directories are now skipped at any
+  depth. Clear reports its folder with a count of **zero**, which is the honest answer and a state
+  `presetFileCount` was designed to show.
+- **Documents is resolved through `GetFolderPath`, never composed from `%USERPROFILE%`.** The
+  reference rig has it redirected to another drive entirely — a composed path would look in an
+  empty folder and quietly report that the user has no presets. The same trap
+  [technical-debt.md](_docs/technical-debt.md) §5 already records for `%LOCALAPPDATA%`, and the
+  test constants now sit on a different drive so it cannot come back.
 
 ## [0.6.0] — 2026-08-19
 
@@ -429,15 +589,29 @@ register. Root `README.md`, `CHANGELOG.md` and `.gitignore`.
 
 A gate, not a version. Before any public `1.0.0`:
 
-- [ ] **Redacting "copy diagnostics" action.** Settings files contain hardware serial numbers
-      and the Windows username, and users attach backups to bug reports without thinking about
-      it. This gates going public rather than following it — see
-      [`technical-debt.md`](_docs/technical-debt.md) §6.
+- [x] **Redacting "copy diagnostics" action.** Shipped 2026-08-20, in Settings and as
+      `wlbackup diagnostics`. Serial numbers, the Windows user name and snapshot display names are
+      removed; the settings file is never included at all; nothing is uploaded. §6, paid.
 - [x] **Packaging decided deliberately.** `WaveLinkBackup.Cli` sets `SelfContained=true` in the
       csproj, so a local publish and CI cannot produce different artifacts.
 - [x] **MIT attribution** preserved for upstream, in `LICENSE` and `README.md`.
 - [x] **Windows-only stated above the fold** in `README.md`.
-- [ ] **The VST3 bundle path covered by a fixture test.** It cannot be exercised by the
-      author's machine and will silently capture nothing if wrong. Phase 6.
+- [x] **The VST3 bundle path covered by a fixture test.** Both directions, `TierCaptureTests`
+      and `TierRestoreTests`. Closed in phase 6 — §2.3.
+- [ ] **Code signing.** Owed before the updater is trusted in anger: the checksum it verifies
+      proves the bytes are the ones the release named, not that the release is ours. It is also
+      what would make elevating during an update defensible — see
+      [ADR-012](_docs/decisions/ADR-012-check-only-updates-with-a-staged-swap.md).
+- [ ] **Run the release loop once, end to end.** The pipeline and the updater are built and
+      unit-tested; the download, the swap and the relaunch have met fixtures and temp directories
+      only. Record the result in
+      [the runbook](_docs/operations/runbooks/releasing-and-updating.md).
+- [ ] **Set `WLBACKUP_UPDATE_OWNER` / `_REPO`** in the published build, once the repository has a
+      remote. Until then the UPDATES section correctly hides itself, which also means nobody has
+      exercised it.
+- [ ] **Decide the pre-release rule** before a `-beta` tag exists. `1.4.0-beta.2` currently reads
+      as `1.4.0` and would be offered to everyone.
+- [ ] **The by-eye pass.** §4.15 — the dialog frosting has never been seen, and nothing in the
+      suite can assert that a blur rendered.
 
 <!-- Add the [Unreleased] / version compare links here once the repository has a remote. -->

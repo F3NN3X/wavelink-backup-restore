@@ -95,6 +95,7 @@ public static class CommandLineParser
         "prune" => Verb.Prune,
         "empty-trash" or "empty" => Verb.EmptyTrash,
         "watch" => Verb.Watch,
+        "diagnostics" => Verb.Diagnostics,
         "help" or "--help" or "-h" or "-?" => Verb.Help,
         "version" or "--version" => Verb.Version,
         _ => Verb.None,

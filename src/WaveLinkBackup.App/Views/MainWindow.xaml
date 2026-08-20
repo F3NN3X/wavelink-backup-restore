@@ -5,10 +5,20 @@
         xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
         xmlns:vm="clr-namespace:WaveLinkBackup.App.ViewModels"
          Title="Wave Link Backup"
-         Height="760" Width="1180" MinHeight="560" MinWidth="980"
+         Height="760" Width="1180" MinHeight="560" MinWidth="1124"
          WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Background="Transparent">
+
+    <!--
+      MinWidth is 1124, not the 980 it was.
+
+      The row's own six columns need 1084px, plus the list's 40px of padding - so at 980 the
+      overflow cell was simply clipped, with no horizontal scroll and none designed (audit §2.9c).
+      The design's own numbers do this to themselves: its six columns need 1084 in a window it
+      allows to be 980 wide. Raising the floor is the answer that invents no visuals - the layout
+      the design draws is now the only layout there is.
+    -->
 
     <!--
       Background="Transparent", and AllowsTransparency stays FALSE.
@@ -53,6 +63,9 @@
 
     <Window.Resources>
         <views:SentenceCaseConverter x:Key="WlSentenceCase" />
+        <!-- The backing-up strip's 2px determinate bar. Same converter the Settings proportion
+             bar uses: a 0..1 fraction and a track width in, that fraction of it out. -->
+        <views:FractionToWidthConverter x:Key="WlFractionWidthConverter" />
     </Window.Resources>
 
     <!--
@@ -316,15 +329,43 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
+                <!--
+                  06-errors.md, "Inline strips - anatomy": "22px mono wl-muted error number ·
+                  11px hollow dot · sentence ... over mono meta ... · action · 26px dismiss ×".
+
+                  The number is the first thing in the strip and the only place in the app that
+                  prints an error's code, which is what makes a support conversation possible at
+                  all. RestoreOutcomeStrip has carried ErrorNumber since it was built; nothing
+                  rendered it, so an inline error arrived with an empty glyph slot where the
+                  number belongs.
+                -->
+                <TextBlock Grid.Column="0" Text="{Binding Strip.ErrorNumber}"
+                           FontFamily="{DynamicResource WlMonoFont}" FontSize="22"
+                           Foreground="{DynamicResource WlMuted}" Margin="0,0,12,0"
+                           VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
                 <!-- The outcome glyph: a ringed check (confirmed), a hollow circle
-                     (unconfirmed - neutral, NOT amber), a warning triangle (rejected), or a
-                     close-in-circle (failed). Each is shown only for its own Kind. -->
-                <Grid Grid.Column="0" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
+                     (unconfirmed - neutral, NOT amber, and the same marker every inline error
+                     takes), a warning triangle (rejected), or a close-in-circle (failed). Each is
+                     shown only for its own Kind. -->
+                <Grid Grid.Column="1" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
 
                     <!-- SucceededConfirmed: ringed check in WlOk. -->
                     <Grid>
@@ -345,8 +386,12 @@
                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Grid>
 
-                    <!-- SucceededUnconfirmed: neutral hollow circle - NOT amber. -->
-                    <Ellipse>
+                    <!-- SucceededUnconfirmed, and every inline error: the neutral hollow circle -
+                         NOT amber. 06's inline-strip anatomy asks for the same 11px dot the
+                         unconfirmed outcome uses, and for the same reason: nothing happened, so
+                         nothing is un-whole. -->
+                    <Ellipse Width="11" Height="11"
+                             HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Ellipse.Style>
                             <Style TargetType="Ellipse">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -355,6 +400,9 @@
                                 <Setter Property="StrokeThickness" Value="1.5" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Strip.Kind}" Value="SucceededUnconfirmed">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -398,34 +446,127 @@
                     </Grid>
                 </Grid>
 
-                <!-- Title + detail: title in the body role, detail in mono meta. -->
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Strip.Title}" Style="{StaticResource WlBodyText}"
-                               FontSize="13" Foreground="{DynamicResource WlStrong}" />
-                    <TextBlock Text="{Binding Strip.Detail}" Style="{StaticResource WlMonoMetaText}"
-                               Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0" />
+                <!--
+                  Sentence over mono meta - 03 and 06 draw the same two lines, but an inline error
+                  fills them from different properties. The catalog splits an error into a short
+                  Title and the designed SENTENCE (Body, which the strip carries as Detail), and
+                  the machine-specific line (a path, a PID, a checksum) arrives separately as
+                  MonoMeta. Rendering Title/Detail unchanged put the designed sentence in the mono
+                  meta role and dropped MonoMeta on the floor, so an inline error read as a short
+                  heading over its own sentence in the wrong typeface, with no path or PID at all.
+                -->
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <TextBlock Foreground="{DynamicResource WlStrong}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource WlBodyText}">
+                                <!-- 03/06: the sentence is Rubik 400 13.5px. -->
+                                <Setter Property="FontSize" Value="13.5" />
+                                <Setter Property="Text" Value="{Binding Strip.Title}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
+                                        <Setter Property="Text" Value="{Binding Strip.Detail}" />
+                                    </DataTrigger>
+
+                                    <!-- 03 §3: the rejected strip's HEADLINE is Rubik 500 14px,
+                                         heavier than the other three states' sentence, because it
+                                         is the only one reporting a configuration that is gone. -->
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="Rejected">
+                                        <Setter Property="FontSize" Value="14" />
+                                        <Setter Property="FontWeight" Value="Medium" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <!--
+                      03 §3's BODY, which only the rejected strip has: "Restore 'Before restore'
+                      to get back to where you were." Rubik 400 13px, wrapped, max 560px, and the
+                      sentence that makes the primary button beside it mean something.
+                    -->
+                    <TextBlock Foreground="{DynamicResource WlText}" TextWrapping="Wrap"
+                               MaxWidth="560" HorizontalAlignment="Left" Margin="0,4,0,0"
+                               Text="{Binding Strip.Detail}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource WlBodyText}">
+                                <Setter Property="FontSize" Value="13" />
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="Rejected">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <TextBlock Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource WlMonoMetaText}">
+                                <Setter Property="Text" Value="{Binding Strip.Detail}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
+                                        <Setter Property="Text" Value="{Binding Strip.MonoMeta}" />
+                                    </DataTrigger>
+
+                                    <!-- 03 §3 gives the rejected strip a headline, a BODY and a
+                                         mono meta line - three rows, not two. The body is the
+                                         sentence above; this is the machine line under it. -->
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="Rejected">
+                                        <Setter Property="Text" Value="{Binding Strip.MonoMeta}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </StackPanel>
 
-                <!-- "Check again" secondary action: SucceededUnconfirmed only. -->
-                <Button Grid.Column="2" x:Name="StripActionButton"
-                        Content="{Binding Strip.ActionLabel}"
-                        Margin="16,0,0,0" VerticalAlignment="Center"
-                        AutomationProperties.Name="{Binding Strip.ActionLabel}">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource WlSecondaryButton}">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Strip.HasAction}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
+                <!--
+                  The secondary/ghost action: "Check again" on an unconfirmed restore, "Show the
+                  log" on a rejected one, the designed action on an inline error.
+                -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="StripActionButton"
+                            Content="{Binding Strip.ActionLabel}"
+                            Margin="16,0,0,0" VerticalAlignment="Center"
+                            AutomationProperties.Name="{Binding Strip.ActionLabel}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource WlSecondaryButton}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.HasAction}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!--
+                      03-restore-outcomes.md §3's PRIMARY action, and the only one in the strip:
+                      Restore "Before restore". It is the recovery path for the only failure that
+                      costs someone their mixer, and until 0.6.1 the rejected strip named the way
+                      back in prose and gave the user no way to take it (technical-debt.md §4.21).
+                    -->
+                    <Button x:Name="StripPrimaryActionButton"
+                            Content="{Binding Strip.PrimaryActionLabel}"
+                            Margin="8,0,0,0" VerticalAlignment="Center"
+                            AutomationProperties.Name="{Binding Strip.PrimaryActionLabel}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource WlPrimaryButton}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.HasPrimaryAction}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
 
                 <!-- Close (X): shown whenever Dismissible. Rejected is never Dismissible, so it
                      cannot be closed - only AcknowledgeReject clears it. -->
-                <Button Grid.Column="3" x:Name="StripDismissButton"
+                <Button Grid.Column="4" x:Name="StripDismissButton"
                         Margin="8,0,0,0" VerticalAlignment="Center"
                         AutomationProperties.Name="Dismiss">
                     <Button.Style>
@@ -439,6 +580,85 @@
                         </Style>
                     </Button.Style>
                 </Button>
+            </Grid>
+        </Border>
+
+        <!--
+          ================================================================================
+          Row 2 - the BACKING-UP strip (04-in-progress.md, first half). The same slot as the two
+          strips below and above it, and mutually exclusive with both: a capture and a restore
+          never run at once, and the outcome strip only fills once one of them has finished.
+
+          Its half of 04 had no implementation at all - the restore half shipped complete and this
+          was a BackupHost.IsCapturing flag that only the tray icon read (technical-debt.md §4.21
+          item 2).
+
+          The 2px bar is DETERMINATE, and its numbers are real: SnapshotWriteProgress reports bytes
+          on disk against a total the payload knew before the first write. 04 bans a spinner
+          because "a spinner implies uncertainty that does not exist here", which makes a
+          determinate bar over invented stages the worse version of the same claim.
+          ================================================================================
+        -->
+        <Border x:Name="BackingUpStrip" Grid.Row="2" Background="{DynamicResource WlChrome}"
+                BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1"
+                Padding="20,10,20,0">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding BackupProgress.IsCapturing}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- glyph + sentence + meta -->
+                    <RowDefinition Height="Auto" /> <!-- the 2px determinate bar -->
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" /> <!-- hollow circle -->
+                        <ColumnDefinition Width="*" />    <!-- sentence -->
+                        <ColumnDefinition Width="Auto" /> <!-- mono meta, right -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 04: an 11px HOLLOW circle in WlLine2. Neutral by construction - a backup
+                         in flight is not a state anything has gone wrong in. -->
+                    <Ellipse Grid.Column="0" Width="11" Height="11" Fill="Transparent"
+                             Stroke="{DynamicResource WlLine2}" StrokeThickness="1"
+                             VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                    <TextBlock Grid.Column="1" Text="{Binding BackupProgress.Sentence}"
+                               Foreground="{DynamicResource WlStrong}" VerticalAlignment="Center"
+                               Style="{StaticResource WlBodyText}" FontSize="13.5"
+                               AutomationProperties.Name="Backup in progress" />
+
+                    <TextBlock Grid.Column="2" Text="{Binding BackupProgress.Meta}"
+                               Style="{StaticResource WlMonoMetaText}"
+                               Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center"
+                               HorizontalAlignment="Right"
+                               AutomationProperties.Name="How much has been written" />
+                </Grid>
+
+                <!-- The bar sits ON the strip's bottom edge, full width, which is why the Border
+                     above has no bottom padding. FractionToWidthConverter is the same one the
+                     Settings proportion bar uses; the track's ActualWidth is its parameter. -->
+                <Border Grid.Row="1" x:Name="BackupProgressTrack" Height="2"
+                        Background="{DynamicResource WlLine}" HorizontalAlignment="Stretch">
+                    <Border x:Name="BackupProgressFill" Height="2"
+                            Background="{DynamicResource WlAccent}" HorizontalAlignment="Left">
+                        <Border.Width>
+                            <MultiBinding Converter="{StaticResource WlFractionWidthConverter}">
+                                <Binding Path="BackupProgress.Fraction" />
+                                <Binding ElementName="BackupProgressTrack" Path="ActualWidth" />
+                            </MultiBinding>
+                        </Border.Width>
+                    </Border>
+                </Border>
             </Grid>
         </Border>
 
@@ -565,11 +785,28 @@
           ================================================================================
         -->
         <Border x:Name="ColumnHeaderBorder" Grid.Row="3" BorderBrush="{DynamicResource WlLine}"
-                BorderThickness="0,0,0,1" Padding="20,11,20,9">
+                BorderThickness="0,0,0,1">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Visibility" Value="Visible" />
+                    <Setter Property="Padding" Value="20,11,20,9" />
                     <Style.Triggers>
+                        <!--
+                          The NAME column is starred in both this header and every row, and each
+                          resolves that star against its OWN available width. The rows sit inside
+                          ListScrollViewer and lose 10px to the scroll bar the moment it appears;
+                          this header does not. Without matching that gutter, NAME would be 10px
+                          wider up here than down there and every column after it would sit 10px
+                          right of the cells it heads. 30 = the 20px inset plus the 10px the
+                          ScrollBar style pins its width to.
+                        -->
+                        <DataTrigger Value="Visible">
+                            <DataTrigger.Binding>
+                                <Binding Path="ComputedVerticalScrollBarVisibility"
+                                         ElementName="ListScrollViewer" />
+                            </DataTrigger.Binding>
+                            <Setter Property="Padding" Value="20,11,30,9" />
+                        </DataTrigger>
                         <DataTrigger Binding="{Binding List.State}" Value="Empty">
                             <Setter Property="Visibility" Value="Collapsed" />
                         </DataTrigger>
@@ -592,32 +829,18 @@
         <Grid Grid.Row="4">
 
             <!--
-              Loaded: the groups, each a date header followed by its rows. Groups is already
-              pre-grouped by the view model (SnapshotListViewModel.Groups), so this is an
-              ItemsControl over Groups rather than a flat ListBox with GroupStyle - there is no
-              flat row collection to hand a CollectionView, and building one here would mean
-              re-deriving the TODAY/YESTERDAY grouping this ItemsControl's own data already
-              carries.
+              Loaded: ONE ListBox over List.View, grouped by each row's own GroupHeader.
 
-              Each group's own Rows is now a real ListBox (10b fix), not a hand-placed
-              ListBoxItem per row - the expansion moved INTO WlRowTemplate (RowStyles.xaml) so
-              nothing stops this from being a genuine Selector any more. One ListBox per group is
-              expected, and every one of them two-way binds the SAME List.Selected. That binding
-              is what carries a CLICK up to the view model; it does NOT keep the groups in step
-              with each other, which is what it was once believed to do. A Selector handed an item
-              its own Items collection does not contain declines the write and keeps its existing
-              container selected, so clicking through three date groups left three rows highlighted
-              at once. What looks selected is decided by the ROW's own IsSelected instead - see
-              WlRowTemplate (RowStyles.xaml), and
-              MainWindowSelectionTests.Selecting_in_a_second_group_deselects_the_row_already_selected_in_the_first.
-            -->
-            <!--
-              Loaded's own region: the scrollable rows above a fixed footer strip that appears
-              only while a search is hiding rows (fix 1 - 07-search.md's footer strip was
-              computed on the view model, SearchFooter/ShowAllLabel, and unit-tested, but never
-              actually rendered anywhere). Visibility for List.State == Loaded now lives on THIS
-              wrapping Grid rather than on ListScrollViewer directly, so the scroll region and the
-              footer show and hide together.
+              It was one ListBox per date group, which is what gave native row selection at all —
+              and made the list several Selectors. WPF has no notion of a selection spanning them,
+              so three date groups could hold three selected rows, and arrow keys stopped dead at
+              every date boundary. GroupSelection existed to carry the single-select rule in
+              explicit code, and Home/End had their own code-behind to reach the true first and
+              last row (technical-debt.md §4.14, [[three-backups-look-selected-at-once]]).
+
+              A single Selector is single-select and continuous BY CONSTRUCTION, so all of that is
+              deleted rather than managed: GroupSelection is gone, SelectedItem is an ordinary
+              TwoWay binding again, and ↑/↓/Home/End are WPF's own.
             -->
             <Grid x:Name="ListLoadedRegion">
                 <Grid.RowDefinitions>
@@ -637,7 +860,7 @@
 
             <ScrollViewer x:Name="ListScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
                           CanContentScroll="True"
-                          PreviewKeyDown="ListScrollViewer_PreviewKeyDown">
+>
                 <!-- Escape clears the search from anywhere in the list, same reasoning as
                      SearchBox's own CommandBindings above. -->
                 <ScrollViewer.CommandBindings>
@@ -645,79 +868,46 @@
                                     Executed="ClearSearch_Executed" />
                 </ScrollViewer.CommandBindings>
 
-                <ItemsControl x:Name="GroupsHost" ItemsSource="{Binding List.Groups}" Focusable="False"
-                              AutomationProperties.Name="Backups"
-                              VirtualizingPanel.IsVirtualizing="True"
-                              VirtualizingPanel.VirtualizationMode="Recycling"
-                              VirtualizingPanel.ScrollUnit="Pixel">
-                    <ItemsControl.ItemsPanel>
+                <ListBox x:Name="GroupsHost" ItemsSource="{Binding List.View}"
+                         SelectedItem="{Binding List.Selected, Mode=TwoWay}"
+                         ItemContainerStyle="{StaticResource WlRowTemplate}"
+                         BorderThickness="0" Background="Transparent" Padding="0"
+                         FocusVisualStyle="{x:Null}"
+                         AutomationProperties.Name="Backups"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Pixel"
+                         ScrollViewer.CanContentScroll="True"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <VirtualizingStackPanel />
                         </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel>
-                                <!-- Group header: same tracked role and tracking as the column
-                                     header, no rule under it ("no separator line"). README gives
-                                     "padding 14-16px 20px 7px" - 14 top, 20 each side, 7 bottom,
-                                     i.e. Margin="20,14,20,7". The old "14,20,20,7" was the same
-                                     CSS-order slip as the column header above, and it left every
-                                     date header 6px left of the rows it introduces. -->
-                                <views:TrackedText Text="{Binding Header}" Tracking=".18"
-                                                    Margin="20,14,20,7"
-                                                    Style="{StaticResource WlColumnHeaderTrackedText}"
-                                                    Foreground="{DynamicResource WlMuted}" />
+                    </ListBox.ItemsPanel>
 
-                                <!--
-                                  ItemContainerStyle="{StaticResource WlRowTemplate}" is what makes
-                                  this a real Selector: WPF generates one ListBoxItem per Row
-                                  through that style, so native container-generation, arrow-key
-                                  selection movement and Selector.SelectedItem all come free -
-                                  nothing a hand-placed ListBoxItem could offer. No border, no
-                                  background, no focus rectangle of its own: WlRowTemplate's own
-                                  ControlTemplate owns the entire visual, including the row's
-                                  selected-state fill - the ListBox itself should show nothing of
-                                  its own.
+                    <!--
+                      The date header: same tracked role and tracking as the column header, and no
+                      rule under it ("no separator line"). README gives "padding 14-16px 20px 7px"
+                      - 14 top, 20 each side, 7 bottom.
 
-                                  SelectedItem is OneWayToSource, and the direction is the whole
-                                  point. It carries a CLICK up to the shared List.Selected and
-                                  nothing back down.
-
-                                  TwoWay - what this was - cannot work with one Selector per group.
-                                  Selecting a row in group B writes it into group A's SelectedItem
-                                  too; A does not contain that item, so it declines the write and
-                                  writes its OWN current row back to the shared property; B then
-                                  declines that and writes back; the two ListBoxes ping-pong
-                                  through the one property until WPF's binding loop detection stops
-                                  them, leaving both rows selected. What looks selected is decided
-                                  by the ROW's own IsSelected instead (WlRowTemplate), which
-                                  SnapshotListViewModel.Selected keeps to exactly one row across
-                                  every group.
-
-                                  It binds through the WINDOW's DataContext rather than this
-                                  DataTemplate's own (which is the Row, then the Group) -
-                                  List.Selected lives on the shared ShellViewModel, reached the
-                                  same way the row template's own IsHighContrast checks already
-                                  reach it (RelativeSource AncestorType=Window).
-                                -->
-                                <ListBox ItemsSource="{Binding Rows}"
-                                         ItemContainerStyle="{StaticResource WlRowTemplate}"
-                                         BorderThickness="0" Background="Transparent" Padding="0"
-                                         FocusVisualStyle="{x:Null}"
-                                         ScrollViewer.CanContentScroll="True"
-                                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                    <ListBox.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <VirtualizingStackPanel />
-                                        </ItemsPanelTemplate>
-                                    </ListBox.ItemsPanel>
-                                </ListBox>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                      GroupStyle rather than a header inside the item template, so the header is
+                      NOT a selectable row: a group container is not a ListBoxItem, which is what
+                      keeps ↓ from stopping on a date on its way between two backups.
+                    -->
+                    <ListBox.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <views:TrackedText Text="{Binding Name}" Tracking=".18"
+                                                       Margin="20,14,20,7"
+                                                       Style="{StaticResource WlColumnHeaderTrackedText}"
+                                                       Foreground="{DynamicResource WlMuted}" />
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListBox.GroupStyle>
+                </ListBox>
             </ScrollViewer>
 
                 <!--
@@ -781,8 +971,11 @@
                 <TextBlock Text="{Binding List.NoResultsDetail}" Style="{StaticResource WlMonoMetaText}"
                            Foreground="{DynamicResource WlMuted}" Margin="0,8,0,0"
                            HorizontalAlignment="Center" TextAlignment="Center" />
+                <!-- 07: "action  secondary \"Clear the search\", 6px above". Secondary, not
+                     ghost: it is the only way out of an empty result, and a ghost button in the
+                     middle of an otherwise empty panel has no edge to be found by. -->
                 <Button x:Name="ClearSearchLinkButton" Content="Clear the search"
-                        Style="{StaticResource WlGhostButton}" Margin="0,6,0,0"
+                        Style="{StaticResource WlSecondaryButton}" Margin="0,6,0,0"
                         HorizontalAlignment="Center" />
             </StackPanel>
 
@@ -864,8 +1057,10 @@
                                 FontSize="14.5" Padding="14,0,14,0" />
                     </StackPanel>
 
-                    <!-- Checkbox: checked by default - auto-backup on by default. 22px below. -->
-                    <CheckBox x:Name="KeepAutoBackupCheckbox" IsChecked="True" Margin="0,22,0,0"
+                    <!-- Checkbox: reads and writes the real auto-backup setting (wired in
+                         WireBottomBar). It used to be IsChecked="True" and nothing else - it
+                         showed a state it had not read and changed a setting it never wrote. -->
+                    <CheckBox x:Name="KeepAutoBackupCheckbox" Margin="0,22,0,0"
                               HorizontalAlignment="Center" VerticalAlignment="Center"
                               Foreground="{DynamicResource WlText}" FontSize="13.5">
                         <TextBlock Text="Keep backing up on its own when my settings change" />
@@ -900,6 +1095,56 @@
                                    Text="{Binding FoundSettingsPath}"
                                    FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
                                    Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+                    </StackPanel>
+
+                    <!--
+                      06-errors.md, error 1, "First-run variant": the OTHER half of the line above.
+                      When discovery found nothing there is no green found-line, and the design puts
+                      an amber dot, the not-found sentence, the mono LOOKED IN line at 80%, and the
+                      secondary button 10px below in its place.
+
+                      FirstRunError1Label and FirstRunLookedInLabel have been implemented, correct
+                      and unit-tested since plan 7; nothing referenced either of them, so a first run
+                      on a machine with no Wave Link showed an empty gap (technical-debt.md §4.10 and
+                      §4.21 item 3). An explicit settings path is what makes the app useful to a
+                      non-MSIX user (§2.2), which is why the button matters more here than anywhere.
+                    -->
+                    <StackPanel x:Name="NotFoundPanel" Margin="0,40,0,0" HorizontalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <!-- Mirrors FoundLinePanel above: visible by default, collapsed
+                                     when the label is null. The two are mutually exclusive by
+                                     construction - FirstRunError1Label is non-null only when
+                                     discovery failed, FoundLine only when it succeeded. -->
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding FirstRunError1Label}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Ellipse Width="7" Height="7" Fill="{DynamicResource WlWarn}"
+                                     VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <views:TrackedText Text="{Binding FirstRunError1Label}"
+                                               FontFamily="{DynamicResource WlMonoFont}" FontSize="11"
+                                               FontWeight="Medium" Tracking="0.14"
+                                               Foreground="{DynamicResource WlWarn}"
+                                               VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center"
+                                   Text="{Binding FirstRunLookedInLabel}"
+                                   FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
+                                   Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+
+                        <Button x:Name="ChooseSettingsFileButton" Margin="0,10,0,0"
+                                HorizontalAlignment="Center"
+                                Style="{StaticResource WlSecondaryButton}"
+                                Content="Choose the settings file…"
+                                AutomationProperties.Name="Choose the settings file" />
                     </StackPanel>
 
                     <!-- Footer strip: store path left, provenance line right. -->

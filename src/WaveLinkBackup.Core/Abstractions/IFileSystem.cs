@@ -39,8 +39,48 @@ public interface IFileSystem
     /// <summary><see cref="ReadSharedBytes"/> as UTF-8 text. Used for log files.</summary>
     string ReadSharedText(string path);
 
+    /// <summary>
+    /// Whether the file can be opened for reading right now, under
+    /// <see cref="ReadSharedBytes"/>'s share mode.
+    ///
+    /// Exists so a caller can decide a tier's fate — tier 4 is all or nothing — without reading
+    /// the bytes to find out. It opens a handle and closes it; it reads nothing.
+    /// </summary>
+    bool CanReadShared(string path);
+
+    /// <summary>
+    /// Copies a file without either end of it being held in memory, hashing the bytes as they
+    /// pass, and returns what the manifest needs to record.
+    ///
+    /// **Both halves matter.** A sample-library instrument runs to hundreds of megabytes and
+    /// nothing stops one being on a channel, so <see cref="ReadSharedBytes"/> into
+    /// <see cref="WriteBytes"/> puts the whole file on the heap twice. Returning the hash from the
+    /// same pass is what stops the caller reading it a second time to compute one.
+    ///
+    /// Reads with <see cref="ReadSharedBytes"/>'s share mode, for the same reason.
+    /// </summary>
+    FileCopy CopyFile(string source, string destination);
+
     /// <summary>Creates the directory and any missing parents. No-op if it exists.</summary>
     void CreateDirectory(string path);
+
+    /// <summary>
+    /// Whether this process could write a file into <paramref name="directory"/> **right now**,
+    /// as it is currently running.
+    ///
+    /// Asked rather than assumed, because the assumption is wrong more often than it looks.
+    /// `C:\Program Files\Common Files\VST3` is not user-writable by Windows' default ACL — but
+    /// several audio plug-in installers loosen it so their own updates need no administrator, and
+    /// on a machine where one has, tier 4 restores perfectly well with no prompt at all. Deciding
+    /// from the path alone means prompting people who did not need to be asked.
+    ///
+    /// **Probes by writing**, not by reading the ACL. An effective-permissions calculation has to
+    /// account for group membership, inherited denies, UAC's filtered token and the odd
+    /// virtualisation case; a temp file in the target directory answers the question that is
+    /// actually being asked. A missing directory reports whether its nearest existing ancestor
+    /// would accept the creation.
+    /// </summary>
+    bool CanWriteDirectory(string directory);
 
     /// <summary>Deletes a directory and everything in it.</summary>
     void DeleteDirectory(string path);
@@ -68,3 +108,7 @@ public interface IFileSystem
     /// </summary>
     long? GetAvailableFreeBytes(string path);
 }
+
+/// <summary>What a <see cref="IFileSystem.CopyFile"/> wrote, as the manifest records it.</summary>
+/// <param name="Sha256">Lowercase hex, computed over the bytes as they were copied.</param>
+public readonly record struct FileCopy(string Sha256, long SizeBytes);

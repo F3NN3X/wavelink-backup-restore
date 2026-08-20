@@ -35,21 +35,35 @@ public sealed record CaptureEstimate(
 /// dishonesty that only stays fixed if one place decides it.
 /// </summary>
 /// <param name="appDataPath">
-/// Roaming <c>%APPDATA%</c>, where tier 3 looks. Injected rather than read from the environment for
-/// the same reason <see cref="Discovery.SettingsLocator.SystemLocalAppData"/> is: a test cannot
-/// redirect a folder the code asks Windows for.
+/// Roaming <c>%APPDATA%</c>, one of the two places tier 3 looks. Injected rather than read from the
+/// environment for the same reason <see cref="Discovery.SettingsLocator.SystemLocalAppData"/> is: a
+/// test cannot redirect a folder the code asks Windows for.
 /// </param>
-public sealed class TierCapture(IFileSystem fileSystem, string appDataPath)
+/// <param name="documentsPath">
+/// The user's Documents folder, the other place tier 3 looks — where FabFilter and every vendor
+/// that treats a preset as a document keeps the files (technical-debt.md §4.18).
+/// </param>
+public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, string documentsPath)
 {
     private readonly WaveLinkBackupFiles waveLinkBackups = new(fileSystem);
-    private readonly PresetFiles presets = new(fileSystem, appDataPath);
+    private readonly PresetFiles presets = new(fileSystem, appDataPath, documentsPath);
     private readonly PluginBinaryFiles binaries = new(fileSystem);
 
     /// <summary>Roaming AppData, resolved through GetFolderPath — never a composed string.</summary>
     public static string SystemAppData =>
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
-    public static TierCapture For(IFileSystem fileSystem) => new(fileSystem, SystemAppData);
+    /// <summary>
+    /// Documents, resolved through GetFolderPath. The reference rig has it redirected to another
+    /// drive entirely, so a composed <c>%USERPROFILE%\Documents</c> would look in an empty folder
+    /// and report that the user has no presets — the same trap technical-debt.md §5 records for
+    /// <c>%LOCALAPPDATA%</c>, with a quieter failure.
+    /// </summary>
+    public static string SystemDocuments =>
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+    public static TierCapture For(IFileSystem fileSystem) =>
+        new(fileSystem, SystemAppData, SystemDocuments);
 
     /// <summary>
     /// Everything a snapshot should carry beyond `Settings.json`, with the toggles applied.
@@ -58,15 +72,27 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath)
     /// tier 4 is all-or-nothing but its failure costs only tier 4. The settings file is the
     /// product, and no plugin, preset or stale copy of Wave Link's own is worth losing it over.
     /// </summary>
-    public SnapshotPayload Gather(SettingsInspection live, BackupSettings settings)
+    /// <param name="previous">
+    /// The newest snapshot's plugins.json, when there is one. Used for ONE thing: skipping the
+    /// tier 2 hash of a binary that has not been touched since it was written
+    /// (technical-debt.md §4.16). Null is always correct and always safe — it means every binary
+    /// is read and hashed, which is what every capture did before this parameter existed.
+    /// </param>
+    public SnapshotPayload Gather(
+        SettingsInspection live, BackupSettings settings, PluginManifest? previous = null)
     {
+        var previousByPath = (previous?.Plugins ?? [])
+            .Where(p => p.FilePath.Length > 0)
+            .GroupBy(p => p.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
         var files = new List<CapturedFile>();
         var tiers = new List<string>();
 
         // ---- Tier 1's other half. Always on, like the settings file it sits beside.
         foreach (var file in waveLinkBackups.Discover(live.Location))
         {
-            if (Read(file) is { } captured) files.Add(captured);
+            if (Take(file) is { } captured) files.Add(captured);
         }
 
         // ---- Tier 3, per plugin, so that an empty capture is visible in plugins.json rather
@@ -86,7 +112,7 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath)
                     // Two plugins from one vendor can resolve to the same folder. It is captured
                     // once; both record what their own lookup found.
                     if (!capturedPaths.Add(file.RelativePath)) continue;
-                    if (Read(file) is { } captured) files.Add(captured);
+                    if (Take(file) is { } captured) files.Add(captured);
                 }
             }
 
@@ -111,9 +137,9 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath)
 
                 foreach (var file in found.Files)
                 {
-                    var bytes = Read(file);
-                    if (bytes is null) { complete = false; break; }
-                    captured4.Add(bytes);
+                    var binary = Take(file);
+                    if (binary is null) { complete = false; break; }
+                    captured4.Add(binary);
                 }
 
                 if (!complete) break;
@@ -140,6 +166,8 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath)
         var entries = live.Plugins.Select(plugin =>
         {
             var preset = presetsByPlugin.GetValueOrDefault(plugin.FilePath, PresetDiscovery.Nothing);
+            var identity = binaries.HashOf(
+                plugin.FilePath, previousByPath.GetValueOrDefault(plugin.FilePath));
 
             return new PluginManifestEntry(
                 Name: plugin.Name,
@@ -147,12 +175,14 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath)
                 Version: plugin.Version,
                 UniqueId: plugin.UniqueId,
                 FilePath: plugin.FilePath,
-                Sha256: Hash(plugin.FilePath),
+                Sha256: identity.Sha256,
                 Channels: plugin.Channels,
-                PresetSource: preset.Source,
+                PresetSources: preset.SourcePaths,
                 PresetFileCount: preset.Files.Count,
                 PresetBytes: preset.Bytes,
-                BinaryPath: binaryRoots.GetValueOrDefault(plugin.FilePath));
+                BinaryPath: binaryRoots.GetValueOrDefault(plugin.FilePath),
+                BinarySizeBytes: identity.SizeBytes,
+                BinaryLastWriteUtc: identity.LastWriteUtc);
         });
 
         return new SnapshotPayload(
@@ -171,22 +201,17 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath)
         PluginBinaryBytes: live.Plugins.Sum(binaries.Measure));
 
     /// <summary>
-    /// Null for every way a read can fail. The caller decides what that costs: tier 4 gives up the
-    /// whole tier, everything else drops the file.
+    /// Null when the file cannot be opened. The caller decides what that costs: tier 4 gives up
+    /// the whole tier, everything else drops the file.
+    ///
+    /// It opens and closes rather than reading — the bytes are the store's business, and reading
+    /// them here to find out whether they are readable is what made a capture hold the whole
+    /// plug-in set in memory (technical-debt.md §4.19).
     /// </summary>
-    private CapturedFile? Read(SourceFile file)
-    {
-        try
-        {
-            return new CapturedFile(file.RelativePath, fileSystem.ReadSharedBytes(file.Path));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
-    private string? Hash(string filePath) => binaries.HashOf(filePath);
+    private CapturedFile? Take(SourceFile file) =>
+        fileSystem.CanReadShared(file.Path)
+            ? new CapturedFile(file.RelativePath, file.Path, file.SizeBytes)
+            : null;
 
     /// <summary>
     /// `plugins/Name.vst3/Contents/x86_64-win/Name.vst3` back to `plugins/Name.vst3` - the

@@ -33,7 +33,9 @@ public sealed record ShellFacts(
     bool AutoBackupEnabled,
     bool FolderMissing,
     string StorePath,
-    long? FreeBytes);
+    long? FreeBytes,
+    string? WaveLinkVersion = null,
+    string? LogsPath = null);
 
 /// <summary>
 /// The status strip, the bottom bar, and what the four action buttons may do.
@@ -85,6 +87,14 @@ public sealed class ShellViewModel : ObservableObject
         get => restoreProgress;
         private set => Set(ref restoreProgress, value);
     }
+
+    /// <summary>
+    /// The backing-up strip's state (04-in-progress.md's first half). One instance for the
+    /// window's life, like <see cref="RestoreProgress"/> — and for the same reason: 04 says the
+    /// strip is "replaced in place by the result line" and never reappear-flashes, which a model
+    /// swapped out per capture would make hard to hold to.
+    /// </summary>
+    public BackupProgressModel BackupProgress { get; } = new();
 
     /// <summary>
     /// True while a restore runs. The window uses it to (a) show the in-progress strip instead of
@@ -385,6 +395,13 @@ public sealed class ShellViewModel : ObservableObject
 
         RefreshAutostart();
     }
+
+    /// <summary>
+    /// What the last <see cref="Apply"/> was told. Read by the window for the few lines that are
+    /// composed at render time from machine-specific figures — 03 §3's rejection meta among them —
+    /// rather than being a property the view model can name in advance.
+    /// </summary>
+    public ShellFacts Facts => facts;
 
     /// <summary>Called by the window on load, on F5, after a capture, and on every host tick.</summary>
     public void Apply(ShellFacts facts)

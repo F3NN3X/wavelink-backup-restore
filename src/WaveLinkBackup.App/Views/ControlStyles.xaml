@@ -20,7 +20,28 @@
       §4.7 names TrayIconRenderer as the substitution point once a real icon set exists; this
       caption glyph is the same substitution point.
     -->
-    <Geometry x:Key="WlShieldCheckGeometry">M12 2 L20 5 V11 C20 16 16.5 19.5 12 21 C7.5 19.5 4 16 4 11 V5 Z M8.5 12 L11 14.5 L15.5 9.5</Geometry>
+    <!--
+      LUCIDE, verbatim (technical-debt.md §4.7). These were hand-drawn stand-ins "in the Lucide
+      idiom" since the first screen was built, and README §icons asked for the real set at the same
+      weight and size. This is that substitution: every path below is copied from the lucide-icons
+      repository unchanged, on the same 24px grid.
+
+      Lucide is ISC-licensed — see ../../../THIRD-PARTY-NOTICES.md, which carries the copyright and
+      the licence text in full.
+
+      Two mechanical differences from the .svg files, and no others:
+
+        1. Lucide draws several glyphs with <circle>, which the WPF path mini-language has no
+           element for. Each is written as the two half-arcs that describe the same circle, with
+           the original cx/cy/r named in a comment so it can be checked against the source.
+        2. Multiple <path> elements per icon are concatenated into one Geometry, which is what a
+           single Path element can render.
+
+      The STROKE stays 1.75px, not Lucide's own 2px: the design fixed that weight for this app
+      (README "Space, shape, motion"), and it is the one figure here that is ours rather than
+      theirs.
+    -->
+    <Geometry x:Key="WlShieldCheckGeometry">M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z M9 12l2 2 4-4</Geometry>
 
     <!--
       The three caption buttons: 46x34, which is Windows' own caption hit target. No border and
@@ -43,7 +64,8 @@
                         <Border x:Name="HoverLayer" Background="{DynamicResource WlHover}" Opacity="0" />
                         <Border x:Name="Surface" Background="{TemplateBinding Background}"
                                 SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -95,7 +117,8 @@
                                 Opacity="0" />
                         <Border x:Name="Surface" Background="{TemplateBinding Background}"
                                 SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -140,14 +163,22 @@
       guard tests only check that the KEY exists, same rule RowStyles.xaml's own comment states
       for its three glyphs).
     -->
-    <Geometry x:Key="WlSearchGeometry">M10 4 A6 6 0 1 0 10 16 A6 6 0 1 0 10 4 Z M14.5 14.5 L20.5 20.5</Geometry>
-    <Geometry x:Key="WlGearGeometry">M9 12 A3 3 0 1 0 15 12 A3 3 0 1 0 9 12 Z M12 2 L12 5 M12 19 L12 22 M2 12 L5 12 M19 12 L22 12 M4.9 4.9 L7.05 7.05 M16.95 16.95 L19.1 19.1 M19.1 4.9 L16.95 7.05 M7.05 16.95 L4.9 19.1</Geometry>
-    <Geometry x:Key="WlCloseGeometry">M5 5 L15 15 M15 5 L5 15</Geometry>
-    <Geometry x:Key="WlPencilGeometry">M4 20 L4 16 L15 5 L19 9 L8 20 Z M13 7 L17 11</Geometry>
-    <Geometry x:Key="WlTrashGeometry">M5 7 L19 7 M9 7 L9 4 L15 4 L15 7 M7 7 L7.6 20 L16.4 20 L17 7 M10 11 L10 16 M14 11 L14 16</Geometry>
-    <Geometry x:Key="WlRotateCcwGeometry">M4 4 L4 9 L9 9 M4.6 15 A8 8 0 1 0 6.2 6.2</Geometry>
-    <Geometry x:Key="WlDownloadTrayGeometry">M12 3 L12 14 M7 9 L12 14 L17 9 M4 18 L4 20 L20 20 L20 18</Geometry>
-    <Geometry x:Key="WlFolderGeometry">M3 6 A1.5 1.5 0 0 1 4.5 4.5 H9 L11 7 H19.5 A1.5 1.5 0 0 1 21 8.5 V17 A1.5 1.5 0 0 1 19.5 18.5 H4.5 A1.5 1.5 0 0 1 3 17 Z</Geometry>
+    <!-- lucide/search. The ring is <circle cx="11" cy="11" r="8">. -->
+    <Geometry x:Key="WlSearchGeometry">M3 11 A8 8 0 1 0 19 11 A8 8 0 1 0 3 11 Z M21 21l-4.34-4.34</Geometry>
+    <!-- lucide/settings. The hub is <circle cx="12" cy="12" r="3">. -->
+    <Geometry x:Key="WlGearGeometry">M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915 M9 12 A3 3 0 1 0 15 12 A3 3 0 1 0 9 12 Z</Geometry>
+    <!-- lucide/x. -->
+    <Geometry x:Key="WlCloseGeometry">M18 6 6 18 M6 6l12 12</Geometry>
+    <!-- lucide/pencil. -->
+    <Geometry x:Key="WlPencilGeometry">M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z M15 5l4 4</Geometry>
+    <!-- lucide/trash-2. -->
+    <Geometry x:Key="WlTrashGeometry">M10 11v6 M14 11v6 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2</Geometry>
+    <!-- lucide/rotate-ccw. -->
+    <Geometry x:Key="WlRotateCcwGeometry">M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5</Geometry>
+    <!-- lucide/download. -->
+    <Geometry x:Key="WlDownloadTrayGeometry">M12 15V3 M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5</Geometry>
+    <!-- lucide/folder. -->
+    <Geometry x:Key="WlFolderGeometry">M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z</Geometry>
 
     <!--
       Reused three times verbatim (row 2's real column header, and the Empty/FolderMissing
@@ -159,14 +190,32 @@
       element that is a common ancestor of THIS header and the row template nested three layers
       deep inside the list; setting it on either alone would not reach the other.
     -->
+    <!--
+      NAME carries NO SharedSizeGroup, and that is the one deliberate asymmetry in these six.
+
+      WPF does not honour star sizing inside a shared size group - a starred definition that names
+      one is measured as if it were Auto (confirmed empirically, not read: a probe grid at 1140px
+      resolved a `Width="*" MinWidth="200"` shared column to exactly 200). NAME is the design's
+      `minmax(200px,1fr)`, so naming it here silently pinned the whole six-column block to its
+      984px minimum and left ~156px of dead space to the right of every row's overflow cell in a
+      1180px window. The other five are fixed widths, where sharing costs nothing and still pins
+      the header to the rows; NAME lines up on its own because the header and the row resolve the
+      same star against the same available width - which is what MainWindow's own scrollbar-gutter
+      padding on the header exists to keep true.
+
+      The widths are the design's column widths PLUS the 20px gap, because the gap is expressed as
+      a right Margin on each cell's content (inside the column) rather than as a seventh column.
+      120+20, 124+20, 300+20, 200+20; NAME's minimum is 200+20; the overflow column has no cell
+      after it and so carries no gap.
+    -->
     <DataTemplate x:Key="WlColumnHeaderRowTemplate">
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="200" SharedSizeGroup="WlColName" />
-                <ColumnDefinition Width="120" SharedSizeGroup="WlColTaken" />
-                <ColumnDefinition Width="124" SharedSizeGroup="WlColWhy" />
-                <ColumnDefinition Width="300" SharedSizeGroup="WlColInputs" />
-                <ColumnDefinition Width="200" SharedSizeGroup="WlColContents" />
+                <ColumnDefinition Width="*" MinWidth="220" />
+                <ColumnDefinition Width="140" SharedSizeGroup="WlColTaken" />
+                <ColumnDefinition Width="144" SharedSizeGroup="WlColWhy" />
+                <ColumnDefinition Width="320" SharedSizeGroup="WlColInputs" />
+                <ColumnDefinition Width="220" SharedSizeGroup="WlColContents" />
                 <ColumnDefinition Width="40" SharedSizeGroup="WlColOverflow" />
             </Grid.ColumnDefinitions>
 
@@ -199,6 +248,16 @@
       it plain - see WlSecondaryButton/WlPrimaryButton below, which need their own idle-state
       chrome (a border, a fill) that a pure ghost has none of.
     -->
+    <!--
+      Every button template's ContentPresenter sets RecognizesAccessKey. It is False by default on
+      a bare ContentPresenter, which means an underscore in a Content string renders as a literal
+      underscore and the Alt-accelerator never exists - so the dialogs' accelerators would have
+      LOOKED wired while doing nothing (technical-debt.md §7.4, and the same shape of defect as
+      §4.20's unwired stepper).
+
+      Windows shows the underline only once Alt is pressed, or always if the user has asked for
+      that in Ease of Access - which is why this costs the design's copy nothing.
+    -->
     <Style x:Key="WlGhostButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource WlText}" />
@@ -222,7 +281,8 @@
                                 CornerRadius="8" Opacity="0" />
                         <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="8"
                                 Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -336,7 +396,8 @@
                         <Border x:Name="Surface" Background="{TemplateBinding Background}"
                                 BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8"
                                 Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -422,7 +483,8 @@
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Surface" Background="{DynamicResource WlAccent}" CornerRadius="8"
                             Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <!-- No hover LAYER here: this surface is an opaque fill, so a layer behind
@@ -512,7 +574,8 @@
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Surface" Background="{DynamicResource WlDanger}" CornerRadius="8"
                             Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <!-- No hover LAYER here: this surface is an opaque fill, so a layer behind
@@ -711,7 +774,8 @@
                         <Border x:Name="Surface" Background="{TemplateBinding Background}"
                                 BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
                                 CornerRadius="8" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>

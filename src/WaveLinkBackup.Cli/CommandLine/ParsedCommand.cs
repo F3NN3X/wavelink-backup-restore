@@ -14,6 +14,13 @@ public enum Verb
     Prune,
     EmptyTrash,
     Watch,
+
+    /// <summary>
+    /// Everything the app knows about itself, redacted, on stdout. The CLI's half of
+    /// technical-debt.md §6: a user asked for a diagnostic on a headless machine has to be given
+    /// one, or they will paste their settings file instead.
+    /// </summary>
+    Diagnostics,
 }
 
 /// <summary>

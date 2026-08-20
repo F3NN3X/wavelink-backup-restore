@@ -1,4 +1,6 @@
 using WaveLinkBackup.App.Startup;
+using WaveLinkBackup.App.Tests.Fakes;
+using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.Core.Automation;
 using WaveLinkBackup.Core.Tests.Fakes;
@@ -400,6 +402,18 @@ public sealed class SettingsViewModelTests
         Assert.Equal(0.75, model.Segments[1].Fraction); // the plug-ins: 3 of 4 KB
     }
 
+    // README Screen 3 colours the bar in ROW order - ok, warn, then accent at 75% - and the view
+    // picks the brush off Tier. The view used to match one hard-coded English row label instead,
+    // which painted every other segment ok; nothing catches that but the number reaching the view.
+    [Fact]
+    public void Each_segment_carries_the_tier_it_came_from()
+    {
+        var model = Bar(Setup(1 * 1024), new("Effect presets", "", 2 * 1024, true, false),
+            new("The effect plug-ins themselves", "", 3 * 1024, true, false));
+
+        Assert.Equal([1, 3, 4], model.Segments.Select(s => s.Tier));
+    }
+
     [Fact]
     public void Locked_and_zero_byte_tiers_contribute_nothing_to_the_bar()
     {
@@ -409,6 +423,20 @@ public sealed class SettingsViewModelTests
 
         Assert.Single(model.Segments);
         Assert.Equal("Your setup", model.Segments[0].Name);
+    }
+
+    // screens/14: the keep-count row's title is the value read back, exactly as the interval
+    // row's is. The XAML carried the sentence with the number deleted out of it.
+    [Fact]
+    public void The_keep_count_label_reads_the_value_back()
+    {
+        var (model, _, _) = Rig();
+
+        model.AutoBackupKeepCount = 30;
+        Assert.Equal("Keep the last 30 automatic backups", model.KeepCountLabel);
+
+        model.StepKeepCount(-1);
+        Assert.Equal("Keep the last 29 automatic backups", model.KeepCountLabel);
     }
 
     [Fact]
@@ -448,5 +476,305 @@ public sealed class SettingsViewModelTests
         // The effects list and the unbuilt tiers carry no separate number - they print "—", not 0 B.
         Assert.Equal("—", EffectsList().SizeText);
         Assert.Equal("43 KB", Setup().SizeText);
+    }
+
+    // ------------------------------------------------- when to back up (screens/14-backup-timing)
+
+    [Fact]
+    public void The_interval_stepper_moves_along_the_ladder_and_commits()
+    {
+        // A ladder rather than free-form minutes, so every position is a number a person would
+        // actually choose.
+        var (vm, saved) = Model();
+
+        vm.StepInterval(-1);
+        Assert.Equal(30, vm.AutoBackupIntervalMinutes);
+        Assert.Equal(30, saved[^1].AutoBackupIntervalMinutes);
+
+        vm.StepInterval(+1);
+        vm.StepInterval(+1);
+        Assert.Equal(120, vm.AutoBackupIntervalMinutes);
+    }
+
+    [Fact]
+    public void The_interval_stepper_stops_at_both_ends_rather_than_wrapping()
+    {
+        // A stepper that jumps from 24 h to 15 min on one press is a stepper that mis-sets itself.
+        var (vm, _) = Model();
+
+        for (var i = 0; i < 10; i++) vm.StepInterval(-1);
+        Assert.Equal(15, vm.AutoBackupIntervalMinutes);
+
+        for (var i = 0; i < 20; i++) vm.StepInterval(+1);
+        Assert.Equal(1440, vm.AutoBackupIntervalMinutes);
+    }
+
+    [Fact]
+    public void A_hand_edited_interval_snaps_onto_the_ladder()
+    {
+        // The settings file is a text file someone can edit. 47 minutes is not a rung, and the
+        // stepper has to know where it is standing before it can move.
+        var (vm, _) = Model(BackupSettings.Default with { AutoBackupIntervalMinutes = 47 });
+
+        vm.StepInterval(+1);
+
+        Assert.Contains(vm.AutoBackupIntervalMinutes, BackupSettings.IntervalLadder);
+    }
+
+    [Theory]
+    [InlineData(15, "15 MIN", "At most one automatic backup every 15 minutes")]
+    [InlineData(60, "1 H", "At most one automatic backup an hour")]
+    [InlineData(240, "4 H", "At most one automatic backup every 4 hours")]
+    [InlineData(1440, "24 H", "At most one automatic backup a day")]
+    public void The_row_title_is_the_value_read_back(int minutes, string readout, string label)
+    {
+        // The label and the control cannot drift, because the label IS the control's value. The old
+        // copy said "at most one an hour" beside a constant nobody could change, and that was the
+        // whole problem.
+        var (vm, _) = Model(BackupSettings.Default with { AutoBackupIntervalMinutes = minutes });
+
+        Assert.Equal(readout, vm.IntervalText);
+        Assert.Equal(label, vm.IntervalLabel);
+    }
+
+    [Fact]
+    public void Switching_the_daily_backup_on_starts_at_three_in_the_morning()
+    {
+        var (vm, saved) = Model();
+
+        Assert.False(vm.DailyBackupEnabled);
+
+        vm.DailyBackupEnabled = true;
+
+        Assert.Equal("03:00", vm.DailyTimeText);
+        Assert.Equal(180, saved[^1].DailyBackupMinutes);
+    }
+
+    [Fact]
+    public void Switching_it_off_forgets_the_time_rather_than_keeping_a_dead_value()
+    {
+        // null IS "off" in the settings file, and two ways to say off is one too many.
+        var (vm, saved) = Model(BackupSettings.Default with { DailyBackupMinutes = 5 * 60 });
+
+        vm.DailyBackupEnabled = false;
+
+        Assert.Null(saved[^1].DailyBackupMinutes);
+        Assert.Equal(string.Empty, vm.DailyTimeText);
+    }
+
+    [Fact]
+    public void The_daily_time_steps_by_half_an_hour_and_wraps_at_midnight()
+    {
+        // Wrapping is right here and wrong for the interval: a clock is a circle, a duration ladder
+        // has two ends.
+        var (vm, _) = Model(BackupSettings.Default with { DailyBackupMinutes = 23 * 60 + 30 });
+
+        Assert.Equal("23:30", vm.DailyTimeText);
+
+        vm.StepDailyTime(+1);
+        Assert.Equal("00:00", vm.DailyTimeText);
+
+        vm.StepDailyTime(-1);
+        Assert.Equal("23:30", vm.DailyTimeText);
+    }
+
+    [Fact]
+    public void Stepping_the_time_while_the_daily_backup_is_off_does_nothing()
+    {
+        var (vm, saved) = Model();
+        var before = saved.Count;
+
+        vm.StepDailyTime(+1);
+
+        Assert.Equal(before, saved.Count);
+        Assert.Null(vm.DailyBackupMinutes);
+    }
+
+    [Fact]
+    public void The_keep_count_stepper_moves_the_value()
+    {
+        // Its two buttons had no handler at all until the interval and daily steppers were added
+        // beside them: the control rendered, the readout bound, and pressing either did nothing.
+        var (vm, saved) = Model();
+        var start = vm.AutoBackupKeepCount;
+
+        vm.StepKeepCount(+1);
+        Assert.Equal(start + 1, vm.AutoBackupKeepCount);
+        Assert.Equal(start + 1, saved[^1].AutoBackupKeepCount);
+
+        vm.StepKeepCount(-1);
+        Assert.Equal(start, vm.AutoBackupKeepCount);
+    }
+
+    /// <summary>A view model over the given settings, plus every value it commits.</summary>
+    private static (SettingsViewModel Vm, List<BackupSettings> Saved) Model(BackupSettings? settings = null)
+    {
+        var saved = new List<BackupSettings>();
+
+        var vm = SettingsViewModel.Build(
+            settings ?? BackupSettings.Default,
+            s => { saved.Add(s); return true; },
+            new WhereSettingsLiveModel(@"C:\s.json", "1 KB"));
+
+        return (vm, saved);
+    }
+
+    // ---------------- WHEN WINDOWS STARTS (screens/12, technical-debt.md §4.21 item 4)
+
+    private const string Exe = @"C:\Program Files\WaveLinkBackup\WaveLinkBackup.exe";
+
+    /// <summary>
+    /// The real <see cref="RunKeyAutostart"/> over the fake registry, exactly as the App wires it —
+    /// so Task Manager's veto is exercised end to end rather than mocked at the model boundary.
+    /// </summary>
+    private static (SettingsViewModel Vm, FakeRegistryKeys Registry, List<bool> Hides) Startup(
+        FakeRegistryKeys? registry = null)
+    {
+        var keys = registry ?? new FakeRegistryKeys();
+        var hides = new List<bool>();
+        var hidden = true;
+
+        var vm = SettingsViewModel.Build(
+            BackupSettings.Default,
+            _ => true,
+            new WhereSettingsLiveModel(@"C:\s\settings.json", "1 KB"),
+            null,
+            new StartupSeam(
+                new RunKeyAutostart(keys, Exe),
+                () => hidden,
+                value => { hidden = value; hides.Add(value); }));
+
+        return (vm, keys, hides);
+    }
+
+    [Fact]
+    public void Without_a_startup_seam_the_section_hides_itself()
+    {
+        var vm = SettingsViewModel.Build(
+            BackupSettings.Default, _ => true, new WhereSettingsLiveModel(@"C:\s\settings.json", "1 KB"));
+
+        Assert.False(vm.HasStartupSection);
+        Assert.False(vm.StartWithWindows);
+        Assert.False(vm.CanStartWithWindows);
+    }
+
+    [Fact]
+    public void Turning_start_with_windows_on_writes_the_run_key_and_reads_back_on()
+    {
+        var (vm, registry, _) = Startup();
+
+        Assert.True(vm.HasStartupSection);
+        Assert.False(vm.StartWithWindows);
+
+        vm.StartWithWindows = true;
+
+        Assert.True(vm.StartWithWindows);
+        Assert.NotNull(registry.GetString(RunKeyAutostart.RunKeyPath, RunKeyAutostart.ValueName));
+
+        vm.StartWithWindows = false;
+
+        Assert.False(vm.StartWithWindows);
+        Assert.Null(registry.GetString(RunKeyAutostart.RunKeyPath, RunKeyAutostart.ValueName));
+    }
+
+    /// <summary>
+    /// "Task Manager wins; the note says so rather than fighting it." The toggle must read back
+    /// OFF and refuse, not report the value it was asked for.
+    /// </summary>
+    [Fact]
+    public void A_task_manager_veto_holds_the_toggle_off_and_says_why()
+    {
+        // Task Manager's approval record with the disable bit set - the same 12 bytes the real
+        // key holds. Written through the fake rather than faked at the IAutostart boundary, so
+        // the veto rule itself is what is under test.
+        var registry = new FakeRegistryKeys().WithBinary(
+            RunKeyAutostart.ApprovedKeyPath, RunKeyAutostart.ValueName,
+            [0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+        var (vm, _, _) = Startup(registry);
+
+        Assert.False(vm.CanStartWithWindows);
+        Assert.NotNull(vm.StartupBlockedNote);
+
+        vm.StartWithWindows = true;
+
+        Assert.False(vm.StartWithWindows);
+    }
+
+    [Fact]
+    public void Closing_hides_to_tray_commits_through_the_seam_it_was_given()
+    {
+        var (vm, _, hides) = Startup();
+
+        Assert.True(vm.ClosingHidesToTray);
+
+        vm.ClosingHidesToTray = false;
+
+        Assert.False(vm.ClosingHidesToTray);
+        Assert.Equal([false], hides);
+    }
+
+    // ---------------- the stats line (audit §2.9a) and error 9 (§4.21 item 8)
+
+    private static SettingsViewModel Bare() => SettingsViewModel.Build(
+        BackupSettings.Default, _ => true, new WhereSettingsLiveModel(@"C:\s\settings.json", "1 KB"));
+
+    [Fact]
+    public void The_stats_line_prints_all_three_figures_the_design_gives_it()
+    {
+        var vm = Bare();
+        vm.BackupCount = 4;
+        vm.UsedBytes = 12_400_000;
+        vm.FreeSpaceBytes = 118_000_000_000;
+
+        Assert.Contains("4 BACKUPS", vm.FreeSpaceText, StringComparison.Ordinal);
+        Assert.Contains("USED", vm.FreeSpaceText, StringComparison.Ordinal);
+        Assert.Contains("FREE ON THIS DRIVE", vm.FreeSpaceText, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Each figure omits itself rather than printing a zero, which is the same convention the
+    /// bottom bar uses for free space it cannot read.
+    /// </summary>
+    [Fact]
+    public void The_stats_line_omits_a_figure_it_does_not_have()
+    {
+        var vm = Bare();
+        vm.BackupCount = 1;
+
+        Assert.Equal("1 BACKUP", vm.FreeSpaceText);
+    }
+
+    [Fact]
+    public void The_stats_line_is_empty_when_nothing_is_known()
+    {
+        Assert.Equal(string.Empty, Bare().FreeSpaceText);
+    }
+
+    [Fact]
+    public void Error_9_shows_the_folder_and_its_file_count_and_clears_on_keep()
+    {
+        var vm = Bare();
+
+        Assert.False(vm.ShowsNotABackupFolder);
+
+        vm.ShowNotABackupFolder(@"D:\Recordings\", 38);
+
+        Assert.True(vm.ShowsNotABackupFolder);
+        Assert.Equal(@"D:\Recordings\ · 38 FILES · NO manifest.json", vm.NotABackupFolderMeta);
+        Assert.Equal("That folder is not a Wave Link Backup", vm.NotABackupFolderTitle);
+
+        vm.ClearNotABackupFolder();
+
+        Assert.False(vm.ShowsNotABackupFolder);
+    }
+
+    [Fact]
+    public void Error_9_says_FILE_not_FILES_for_one()
+    {
+        var vm = Bare();
+        vm.ShowNotABackupFolder(@"D:\x\", 1);
+
+        Assert.Contains("1 FILE ·", vm.NotABackupFolderMeta, StringComparison.Ordinal);
     }
 }

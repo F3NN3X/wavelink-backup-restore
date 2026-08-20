@@ -23,7 +23,9 @@ public sealed class PluginManifestTests
     private static PluginManifest Sample => new(PluginManifest.CurrentSchemaVersion, [
         new("Pro-Q 4", "FabFilter", "4.1.2", "a1b2c3d4", ProQPath, "9f86d0",
             Channels: ["Wave Mic 1", "Voice"],
-            PresetSource: @"C:\Users\test\AppData\Roaming\FabFilter\Pro-Q 4",
+            PresetSources: [
+                @"C:\Users\test\AppData\Roaming\FabFilter\Pro-Q 4",
+                @"G:\win_user-folders\Documents\FabFilter\Presets\Pro-Q 4"],
             PresetFileCount: 12, PresetBytes: 4096, BinaryPath: "plugins/FabFilter Pro-Q 4.vst3"),
         new("Saturn 2", null, null, null, @"C:\VST3\Saturn 2.vst3", null, Channels: []),
     ]);
@@ -155,6 +157,31 @@ public sealed class PluginManifestTests
         Assert.Equal("Pro-Q 4", manifest.Plugins.Single().Name);
     }
 
+    [Fact]
+    public void A_schema_1_manifest_still_says_where_its_presets_came_from()
+    {
+        // Schema 1 wrote one presetSource string because tier 3 only looked in one place. Reading
+        // it through the old key rather than dropping it matters more here than anywhere else in
+        // this file: that folder is the evidence for why the heuristic changed (§4.18).
+        var plugin = Read("""
+            {"schemaVersion":1,"plugins":[{"name":"Pro-Q 4","filePath":"C:\\a.vst3",
+             "presetSource":"C:\\Users\\test\\AppData\\Roaming\\FabFilter\\Pro-Q 4",
+             "presetFileCount":3}]}
+            """).Plugins.Single();
+
+        Assert.Equal([@"C:\Users\test\AppData\Roaming\FabFilter\Pro-Q 4"], plugin.PresetSources);
+        Assert.Equal(@"C:\Users\test\AppData\Roaming\FabFilter\Pro-Q 4", plugin.PresetSource);
+        Assert.Equal(3, plugin.PresetFileCount);
+    }
+
+    [Fact]
+    public void A_plugin_that_saved_nothing_anywhere_reads_back_as_no_sources_rather_than_null()
+    {
+        // Never null, so nothing downstream needs a guard before enumerating.
+        Assert.Empty(Read("""{"plugins":[{"name":"Pro-Q 4","filePath":"C:\\a.vst3"}]}""")
+            .Plugins.Single().PresetSources);
+    }
+
     // ------------------------------------------------------------------- the binary hash
 
     private static PluginBinaryFiles Binaries(FakeFileSystem fs) => new(fs);
@@ -226,7 +253,7 @@ public sealed class PluginManifestTests
             .AddFile(ProQPath, "plugin bytes");
 
         var store = new SnapshotStore(fs, new FakeClock(), LocalAppData + @"\WaveLinkBackup");
-        var capture = new TierCapture(fs, LocalAppData + @"\Roaming");
+        var capture = new TierCapture(fs, LocalAppData + @"\Roaming", @"G:\win_user-folders\Documents");
         var snapshot = new BackupService(
                 SettingsInspector.For(fs, LocalAppData), store,
                 gatherPayload: live => capture.Gather(live, BackupSettings.Default))

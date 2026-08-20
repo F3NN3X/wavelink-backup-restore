@@ -79,7 +79,7 @@ deliberately not in 1.0).
 |---|---|---|
 | Hash-dedup | ✅ | `BackupService.CaptureAutomatic`; manual captures are never deduped, deliberately |
 | Snapshot metadata | ✅ | `manifest.json` carries all seven fields |
-| Watch, don't poll | ✅ | `FileSystemSettingsWatcher` + ~60s debounce, at most one automatic capture an hour |
+| Watch, don't poll | ✅ | `FileSystemSettingsWatcher` + ~60s debounce. The hourly cap is now the user's to set (15 min – 24 h), alongside an optional daily backup ([14-backup-timing.md](../operations/design/screens/14-backup-timing.md)) |
 | Snapshot on shutdown | ✅ | `CaptureOnShutdown` |
 | Store outside `LocalState` | ✅ | [[ADR-003]] — the critical inherited defect |
 | Adjacent Elgato configs | ⛔ | Scope widening; not planned |
@@ -98,7 +98,7 @@ deliberately not in 1.0).
 | Fix 2 — the JSON encoder | ⛔ | Withdrawn: the recommendation was inverted. See the corrections block |
 | Fix 3 — no duplicate-key detection | ✅ | Phase 1 |
 | Fix 4 — manual tool, not a safety net | ✅ | Phase 3 |
-| Fix 5 — the runtime dependency | 🔨 | **Phase 7 §4** — ADR-010. CLI is settled (NativeAOT, 3.2 MB); the WPF app is not |
+| Fix 5 — the runtime dependency | 🔨 | **Phase 7 §4** — ADR-012. CLI is settled (NativeAOT, 3.2 MB); the WPF app is not |
 
 ## §8 · Language
 
@@ -112,10 +112,10 @@ deliberately not in 1.0).
 |---|---|---|
 | 1 · Settings + Wave Link's own backups (~470 KB) | ✅ | Phase 6 §8 |
 | 2 · Plugin manifest (~4 KB) | ✅ | `plugins.json`, phase 6 §1–2 |
-| 3 · Plugin presets (~10 MB, opt-in, on) | ✅ | Phase 6 §3 — captured and restored; the discovery heuristic is unverified against a real vendor folder ([technical-debt.md](../technical-debt.md) §4.18) |
-| 4 · Plugin binaries (~40 MB, opt-in, off) | ✅ | Phase 6 §4 — restore is CLI-only until elevation has a designed surface (§4.17) |
+| 3 · Plugin presets (~10 MB, opt-in, on) | ✅ | Phase 6 §3 — captured and restored from **both** `%APPDATA%` and Documents. The heuristic was measured against the reference rig and was wrong; the fix took a snapshot from 61 preset files to 491 ([technical-debt.md](../technical-debt.md) §4.18) |
+| 4 · Plugin binaries (~40 MB, opt-in, off) | ✅ | Phase 6 §4 — and restorable from the shell since the elevation surface was designed ([13-elevation.md](../operations/design/screens/13-elevation.md), §4.17) |
 | A `.vst3` may be a **directory** — synthetic bundle fixture | ✅ | Fixtures on both sides: capture recurses, restore rebuilds the tree. [[vst3-backs-up-as-nothing]] |
-| Elevation for tier 4 restore only; tiers 1–3 admin-free | ✅ | Reported as *needs elevation* rather than an access-denied trace, and it never fails the restore |
+| Elevation for tier 4 restore only; tiers 1–3 admin-free | ✅ | Reported as *needs elevation* rather than an access-denied trace, and it never fails the restore. The shell asks for it through an opt-in row and a real UAC prompt; declining is error 13, neutral, and costs nothing |
 | Version drift flagged on restore | ✅ | Phase 6 §5 — only when both versions are known |
 | Licences are never captured, and the UI says so | ✅ | The Settings dialog's first plain-language note |
 
@@ -137,6 +137,7 @@ deliberately not in 1.0).
 | Health check relative to the user's own history, never an absolute threshold | ✅ | Every row compares against that user's snapshots |
 | Glob the package family; never hard-code the store identity | ✅ | `SettingsLocator` |
 | Resolve plugins from `FilePath`; standard dirs are fallback only | ✅ | `PluginReferences`; phase 6 §4 keeps the rule for capture |
+| `Environment.GetFolderPath` for **Documents** too, never `%USERPROFILE%\Documents` | ✅ | `TierCapture.SystemDocuments`. The reference rig has it redirected to another drive; a composed path finds an empty folder and reports the user has no presets |
 | Never gate on a Wave Link version; record it and warn on mismatch | ✅ | Recorded per snapshot |
 | `Environment.GetFolderPath`, never a composed `%LOCALAPPDATA%` | ✅ | `SnapshotStore.DefaultStorePath` |
 | Backups labelled machine-local | ✅ | The Settings dialog's second plain-language note |

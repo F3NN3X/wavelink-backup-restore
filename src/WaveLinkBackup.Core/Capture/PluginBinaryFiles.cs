@@ -1,5 +1,6 @@
 using WaveLinkBackup.Core.Abstractions;
 using WaveLinkBackup.Core.Analysis;
+using WaveLinkBackup.Core.Snapshots;
 
 namespace WaveLinkBackup.Core.Capture;
 
@@ -19,6 +20,17 @@ public sealed record BinaryDiscovery(bool Found, bool IsBundle, IReadOnlyList<So
     public static BinaryDiscovery Missing { get; } = new(false, false, []);
 
     public long Bytes => FileTree.TotalBytes(Files);
+}
+
+/// <summary>
+/// A binary as tier 2 records it: what it hashed to, and the two figures that say whether that
+/// hash is still current.
+/// </summary>
+/// <param name="Sha256">Null for every way the hash can fail — see <see cref="PluginBinaryFiles.HashOf(string)"/>.</param>
+public readonly record struct BinaryIdentity(string? Sha256, long SizeBytes, DateTime? LastWriteUtc)
+{
+    /// <summary>The path resolved to nothing, or to a bundle, which hashes to null by design.</summary>
+    public static BinaryIdentity Unknown { get; } = new(null, 0, null);
 }
 
 /// <summary>
@@ -93,12 +105,40 @@ public sealed class PluginBinaryFiles(IFileSystem fileSystem)
     /// A **bundle hashes to null**: what identifies a bundle is its whole tree, and recording the
     /// hash of nothing would be worse than recording that we have none.
     /// </summary>
-    public string? HashOf(string filePath)
-    {
-        if (string.IsNullOrWhiteSpace(filePath)) return null;
-        if (fileSystem.DirectoryExists(filePath)) return null;
-        if (!fileSystem.FileExists(filePath)) return null;
+    public string? HashOf(string filePath) => HashOf(filePath, previous: null).Sha256;
 
+    /// <summary>
+    /// The same, but reusing <paramref name="previous"/>'s hash when the binary has not been
+    /// touched since that entry was written — same path, same length, same last-write time.
+    ///
+    /// **This is a cache with an invalidation rule**, and it exists because tier 2 is always on:
+    /// every automatic capture the watcher fires used to read every referenced binary in full,
+    /// ~40 MB on the reference rig, for a value that changes only when the user updates a plug-in
+    /// (technical-debt.md §4.16). <see cref="PluginManifestEntry.BinaryMatches"/> is deliberately
+    /// strict, so the failure direction is a needless hash rather than a stale one.
+    ///
+    /// Returns the size and time it measured as well, because they are what the NEXT capture
+    /// compares against and re-measuring them would be a second round of stat calls.
+    /// </summary>
+    public BinaryIdentity HashOf(string filePath, PluginManifestEntry? previous)
+    {
+        if (string.IsNullOrWhiteSpace(filePath)) return BinaryIdentity.Unknown;
+        if (fileSystem.DirectoryExists(filePath)) return BinaryIdentity.Unknown;
+        if (!fileSystem.FileExists(filePath)) return BinaryIdentity.Unknown;
+
+        var size = fileSystem.GetFileSize(filePath);
+        var written = fileSystem.GetLastWriteTimeUtc(filePath);
+
+        if (previous is not null && previous.BinaryMatches(size, written))
+        {
+            return new BinaryIdentity(previous.Sha256, size, written);
+        }
+
+        return new BinaryIdentity(Hash(filePath), size, written);
+    }
+
+    private string? Hash(string filePath)
+    {
         try
         {
             return Convert.ToHexStringLower(

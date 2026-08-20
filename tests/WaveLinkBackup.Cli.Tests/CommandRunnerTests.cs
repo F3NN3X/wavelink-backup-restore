@@ -455,4 +455,72 @@ public sealed class CommandRunnerTests
             Assert.Contains(option, help, StringComparison.Ordinal);
         }
     }
+
+    /// <summary>
+    /// The wiring behind technical-debt.md §4.16, not the rule itself — <c>TierCaptureTests</c>
+    /// owns the rule. §4.20's lesson applies here exactly: the cache being right is no evidence
+    /// that a shell hands it the previous manifest to be right ABOUT.
+    /// </summary>
+    [Fact]
+    public void A_second_backup_does_not_re_read_a_plugin_binary_nothing_has_touched()
+    {
+        const string ProQ = @"C:\Program Files\Common Files\VST3\FabFilter Pro-Q 4.vst3";
+
+        const string WithPlugin = """
+            {"MixerConfiguration":{"InputSettings":{
+              "a":{"InputName":"MIC_NAME","AudioPluginConfigurations":[
+                {"Name":"Pro-Q 4","Vendor":"FabFilter",
+                 "FilePath":"C:\\Program Files\\Common Files\\VST3\\FabFilter Pro-Q 4.vst3"}]}}}}
+            """;
+
+        var h = new Harness();
+        h.Fs.AddFile(SettingsPath, WithPlugin.Replace("MIC_NAME", "Wave Mic 1", StringComparison.Ordinal));
+        h.Fs.AddFile(ProQ, "pro-q bytes");
+
+        Assert.Equal(0, h.Run("backup"));
+        var readsAfterFirst = h.Fs.ReadCounts[ProQ];
+
+        // A different settings file, so the second capture is not deduped away.
+        h.Fs.AddFile(SettingsPath, WithPlugin.Replace("MIC_NAME", "Renamed Mic", StringComparison.Ordinal));
+        Assert.Equal(0, h.Run("backup"));
+
+        Assert.Equal(readsAfterFirst, h.Fs.ReadCounts[ProQ]);
+        Assert.Equal(2, h.Store.List().Count);
+    }
+
+    // ------------------------------------ diagnostics (technical-debt.md §6)
+
+    /// <summary>
+    /// The CLI's half of the privacy debt. A user asked for a diagnostic on a headless machine has
+    /// to be given one, or they will paste their settings file instead.
+    /// </summary>
+    [Fact]
+    public void Diagnostics_prints_a_report_that_carries_neither_a_serial_nor_a_user_name()
+    {
+        var h = new Harness();
+        h.Fs.AddFile(SettingsPath, Healthy);
+
+        Assert.Equal(0, h.Run("diagnostics"));
+
+        var printed = h.Out.All;
+
+        Assert.Contains("diagnostics", printed, StringComparison.OrdinalIgnoreCase);
+
+        // Healthy's own endpoint key carries the reference rig's serial.
+        Assert.DoesNotContain("BS33J1A05009", printed, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// A live inspection that FAILS is not a failure of this verb — "Wave Link could not be read"
+    /// is often the very thing being diagnosed.
+    /// </summary>
+    [Fact]
+    public void Diagnostics_still_reports_when_wave_link_cannot_be_read()
+    {
+        var h = new Harness();
+        h.Fs.Delete(SettingsPath);
+
+        Assert.Equal(0, h.Run("diagnostics"));
+        Assert.NotEmpty(h.Out.Lines);
+    }
 }

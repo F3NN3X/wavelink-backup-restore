@@ -224,4 +224,59 @@ public class RestoreDialogModelTests
 
         Assert.DoesNotContain(model.Rows, r => r.Label == "Saved presets");
     }
+
+    // ------------------ the plug-in row says which restore this is (technical-debt.md §7.5)
+
+    /// <summary>
+    /// The row promised a UAC prompt unconditionally, because the app elevated unconditionally.
+    /// Now that it only elevates when the destinations actually refuse a write, the copy has to
+    /// follow — a dialog that promises a prompt and produces none is the dialog lying about what
+    /// its button does, which on the app's one irreversible screen is the last place for it.
+    /// </summary>
+    [Fact]
+    public void A_restore_that_needs_administrator_says_so()
+    {
+        var row = new PluginFilesRow(new PluginBinaryPayload(6, 39_800_000, NeedsElevation: true));
+
+        Assert.True(row.NeedsElevation);
+        Assert.Equal(PluginFilesRow.RowDescriptionElevated, row.Description);
+        Assert.StartsWith("NEEDS ADMINISTRATOR ·", row.MetaText, StringComparison.Ordinal);
+        Assert.Contains("administrator rights", row.Description, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_restore_that_does_not_need_administrator_does_not_claim_it_will_ask()
+    {
+        var row = new PluginFilesRow(new PluginBinaryPayload(6, 39_800_000, NeedsElevation: false));
+
+        Assert.False(row.NeedsElevation);
+        Assert.Equal(PluginFilesRow.RowDescriptionPlain, row.Description);
+        Assert.StartsWith("NO ADMINISTRATOR NEEDED ·", row.MetaText, StringComparison.Ordinal);
+
+        // The word must not appear at all: a row headed "no administrator needed" whose sentence
+        // still mentions the prompt reads as a contradiction.
+        Assert.DoesNotContain("administrator rights", row.Description, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Both variants still print the figures from the snapshot, never the design mock's
+    /// ([[ADR-006]]) — the elevation wording is the only thing that changes.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Either_way_the_row_prints_the_snapshots_own_figures(bool needsElevation)
+    {
+        var row = new PluginFilesRow(new PluginBinaryPayload(1, 24_000_000, needsElevation));
+
+        Assert.Contains("1 PLUG-IN", row.MetaText, StringComparison.Ordinal);
+        Assert.DoesNotContain("39.8", row.MetaText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_row_is_off_every_time_whichever_variant_it_is()
+    {
+        Assert.False(new PluginFilesRow(new PluginBinaryPayload(6, 1, true)).Enabled);
+        Assert.False(new PluginFilesRow(new PluginBinaryPayload(6, 1, false)).Enabled);
+    }
 }

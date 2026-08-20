@@ -2,7 +2,7 @@
 title: "Technical Debt"
 status: published
 created: 2026-08-16
-updated: 2026-08-19
+updated: 2026-08-20
 tags: [meta, technical-debt]
 ---
 
@@ -17,7 +17,26 @@ project rests on that nobody had checked. Both were worth writing down now, beca
 the fork landed the first list would become real, and the second list is the set of things that
 will look obvious in hindsight.
 
-**That has since changed.** Phases 1–5 have shipped real code — `Core`, `Cli`, and a WPF shell
+**That has since changed, and as of 2026-08-20 the list is almost empty.** Phases 1–6 shipped
+`Core`, `Cli` and a WPF shell, and a debt-clearing pass closed everything in §1, §4, §5, §6 and §7
+that a commit can close.
+
+**What is left — four things, none of which a commit can close:**
+
+| | Why it cannot be closed here |
+|---|---|
+| **§4.15** — 0.5.1's dialog frosting has never been seen | Nothing in the suite can assert that a blur rendered. It needs somebody to look at it, alongside the rest of [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md). |
+| **§2.2** — whether non-MSIX Wave Link installs exist | A fact about the world, not about this code. The *mitigation* is complete — an explicit settings path bypasses discovery, and error 1's first-run variant now offers one (§4.10) — so a non-MSIX user has a route in whether or not such installs turn out to exist. |
+| **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link, written up in the entry. Not a defect — an unanswered question, and §7.5 already removed the prompt in the common case, so the answer may well be "leave it". |
+| **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run this when endpoint inspection lands; the AOT publish itself already works. |
+
+§3 is untouched on purpose: those are choices made with eyes open, not debt.
+
+The original status note follows.
+
+#### As of phase 5
+
+Phases 1–5 have shipped real code — `Core`, `Cli`, and a WPF shell
 that is now the process — so §1 and §7 entries have been resolved against it. As of phase 5 plan
 8, §4.8 item 4 (the settings placeholder) and §4.9 (the dormant restore-outcome strip) are both
 closed; §4.10 (the not-found first-run variant) is the one deferred minor still open from the app.
@@ -72,7 +91,17 @@ existed to prevent.
 idea is not re-derived from the spec body and re-adopted.
 **See:** [[every-snapshot-differs-with-no-real-change]] and the audit's withdrawn finding 2.
 
-### 1.3 No duplicate-key detection
+### 1.3 ~~No duplicate-key detection~~ — **CLOSED in our port (phase 1); confirmed 2026-08-19**
+
+> `Analysis/DuplicateKeyScanner` is the `JsonDocument` tree walk this entry asked for, and
+> `SettingsAnalysis` runs it on every read — the result reaches the manifest as
+> `HasDuplicateKeys` and the UI as the SUSPECT badge. `DuplicateKeyScannerTests` covers both
+> shapes of duplicate. §2.1 unblocked it the day it was answered; the entry stayed open because
+> nothing came back to close it.
+>
+> **Still worth offering upstream**, where the defect is unfixed. Original entry below.
+
+#### Original entry
 
 `Validate()` only asserts that `MixerConfiguration.InputSettings` is an object. The defect
 that motivated this entire project — case-insensitively duplicated keys, which Wave Link
@@ -104,7 +133,7 @@ identical copies.
 exists to fill**, and the reason forking rather than just using it is justified.
 **Resolution:** [[ADR-007]]. Due in phase 3.
 
-### 1.6 `WavelinkSEService` is never closed — **NEW, found at intake 2026-08-16**
+### 1.6 ~~`WavelinkSEService` is never closed~~ — **FIXED in our port at intake, 2026-08-16**
 
 `ProcessControl.FindGuiProcess` only ever looks for `Elgato.WaveLink`. `WavelinkSEService` is
 never enumerated, closed or verified — so upstream's "verified exited" assertion can pass with
@@ -151,10 +180,12 @@ duplicate:
 
 **No silent data loss** — the feared outcome is not real. §1.3's fix proceeds unchanged.
 
-**New, smaller debt this uncovered:** any `JsonNode.Parse` of an untrusted settings file can
-throw `ArgumentException` from a dictionary insert. Unhandled, the user sees "An item with the
-same key has already been added. Key: A" instead of "this settings file is malformed". Catch
-and translate. **Phase:** 1.
+**New, smaller debt this uncovered — closed:** any `JsonNode.Parse` of an untrusted settings file
+can throw `ArgumentException` from a dictionary insert. Unhandled, the user sees "An item with the
+same key has already been added. Key: A" instead of "this settings file is malformed". It is
+closed twice over: **nothing in the codebase calls `JsonNode.Parse` at all** — every parse is
+`JsonDocument.Parse` — and every one of those call sites catches `ArgumentException` beside
+`JsonException` and translates it. Confirmed 2026-08-19.
 
 ### 2.2 Whether non-MSIX Wave Link installs exist
 
@@ -169,9 +200,14 @@ discovery entirely** — unlike upstream, which requires the override to match a
 `SettingsLocatorTests.An_explicit_path_bypasses_discovery_entirely`. `SettingsLocation.CanRelaunch`
 is false for such a path, so callers can say "restored, but you will need to start Wave Link
 yourself" rather than failing obscurely.
-**Still open:** whether such installs exist, and **the amber not-found UI variant is not
-designed** — see [README.md](operations/design/README.md) *Gaps*.
-**Phase:** 5 for the UI.
+**The UI half is DONE (2026-08-20, §4.10).** Error 1's first-run variant is drawn — the amber dot,
+the `LOOKED IN …` line, and a *Choose the settings file…* button that persists an explicit path and
+re-points the capture at it. So a non-MSIX user has a route into the app whether or not such
+installs turn out to exist.
+
+**Still open, and not by a commit:** whether they exist at all. That is a fact about the world —
+the release-channel installer, and whatever Elgato ships for managed deployment. The cost of the
+answer being "yes" is now zero, which is the useful half.
 
 ### 2.3 ~~Whether the VST3 bundle path works~~ — **ANSWERED 2026-08-19 (phase 6)**
 
@@ -258,7 +294,11 @@ spec-coverage pass, which is the argument for having written one.)*
 
 ---
 
-## 7 · Design decisions that outdated shipped code — **three shipped, one is phase-5 UI work**
+## 7 · Design decisions that outdated shipped code — **FIVE CLOSED, §7.6 is an open question**
+
+> 7.1–7.5 are all closed (7.4 and 7.5 on 2026-08-20). **§7.6 is not a defect** — it is a
+> question §7.5 raised, with a reversible experiment attached and a recommendation that the
+> answer may well be "leave it alone".
 
 > **Status 2026-08-17:** 7.1, 7.2 and 7.3 are **implemented and tested** (351 tests green).
 > 7.4 is keyboard and focus, which is WPF work and arrives with the shell.
@@ -432,7 +472,36 @@ tooltip (*"the backup folder can't be used"*), plus the nine-day notification in
 **Needs a test that pins the absence of retrying**, not just the presence of the error — two
 consecutive ticks after a failure must produce exactly one `CaptureAutomatic` call.
 
-### 7.4 Keyboard and focus — **Windows conventions, not just the design's list**
+### 7.4 ~~Keyboard and focus~~ — **CLOSED 2026-08-20**
+
+> Every item on the list, and most of them by making the structure right rather than by handling a
+> key:
+>
+> - **Arrow keys with `Home`/`End`** — §4.14's flat list. `Home`/`End` had hand-written
+>   code-behind because neither could reach past its own group's Selector; both are WPF's own now,
+>   and a guard test pins that the code-behind is gone rather than merely unused.
+> - **`Shift+F10` and the Menu key open the row's overflow** — the row had a decorative `···` and
+>   no menu anywhere. There is a real one now, and it is on the CONTAINER rather than on the glyph,
+>   which is the whole difference: WPF opens a control's `ContextMenu` for both keys and for a
+>   right-click, with no code. Its three items reuse the same `RoutedUICommand`s as the bottom bar,
+>   so it greys itself on a damaged row without knowing what damaged means.
+> - **Alt-accelerators on dialog buttons** — and the trap underneath them, which is §4.20's lesson
+>   again: a bare `ContentPresenter` has `RecognizesAccessKey` **false**, so an underscore renders
+>   as a literal underscore and no accelerator exists. Every button template sets it, and a test
+>   counts presenters against recognisers. The destructive buttons get one too, and a separate test
+>   pins that this did NOT weaken the focus rule — focus still starts on Cancel and `IsDefault`
+>   stays off everywhere.
+> - **`Ctrl+F`, `F2`, `F5`, `Delete`, `Enter`, `Escape`** — already in `ShellCommands`; now pinned
+>   gesture by gesture rather than assumed.
+> - **`Space` activating the focused control**, and full keyboard reachability — WPF's, and
+>   `FocusRingTests` already holds the visible focus ring.
+> - **Screen-reader labels** — `SnapshotRowViewModel.AutomationName` and `SlotsAutomationName` were
+>   already built to read as sentences, including the five-slot health strip this entry names. Every
+>   surface added in this session carries `AutomationProperties.Name` for the same reason.
+>
+> Original entry below.
+
+#### Original entry
 
 The design closes Escape / Enter / F5 / focus-ring. **Decided 2026-08-17:** implement to
 Windows conventions generally, not only the four keys named.
@@ -451,13 +520,83 @@ System"*.
 
 ---
 
-## 4 · ~~Design gaps carried into the build~~ — **the original six CLOSED 2026-08-17, except item 6**
+### 7.5 ~~Tier 4 restore asked for administrator rights it often did not need~~ — **FIXED 2026-08-20**
+
+> The app elevated whenever the user opted into a tier 4 restore, inferring *needs administrator*
+> from the fact that plug-ins usually live under `Program Files`. **That inference is wrong on the
+> reference rig**, and measurably so: `C:\Program Files\Common Files\VST3` carries an explicit
+> `Everyone:(OI)(CI)(F)` ACE, so a non-elevated process writes there fine. It is not the Windows
+> default — several audio plug-in installers set it so their own updates need no administrator,
+> which means the mistake is common rather than exotic.
+>
+> **It is measured now.** `IFileSystem.CanWriteDirectory` probes by writing a uniquely-named
+> `DeleteOnClose` file, not by reading the ACL: an effective-permissions calculation has to account
+> for group membership, inherited denies and UAC's filtered token, while a temp file answers the
+> question actually being asked. `RestoreOrchestrator.Plan` probes each captured plug-in's own
+> folder and reports `PluginBinaryPayload.NeedsElevation`; the window elevates only on that.
+>
+> **The row's copy follows the measurement** — `NEEDS ADMINISTRATOR` becomes
+> `NO ADMINISTRATOR NEEDED`, and the sentence stops mentioning rights at all. A dialog that
+> promises a prompt and produces none is the dialog lying about its own button, on the one
+> irreversible screen in the app.
+>
+> **A second, quieter defect fell out.** `IRestoreService.RestoreAsync` had no options parameter,
+> so tier 4 was reachable *only* through the elevated copy. Not elevating would have restored
+> nothing — the opt-in now carries through as `RestoreOptions`.
+>
+> **Measured on this machine, 2026-08-20:** the shared VST3 folder and its `FabFilter` subfolder
+> probe writable; `C:\Windows\System32` probes not writable. A tier 4 restore here now needs
+> no prompt at all.
+
+### 7.6 Where a restored plug-in should go when its own folder is unwritable — **OPEN, needs one experiment**
+
+**Not a defect. An unanswered question**, raised by §7.5 and recorded because answering it wrongly
+would break a channel silently — the failure mode [[vst3-backs-up-as-nothing]] and §4.18 both
+already cost this project a phase.
+
+**Full method, findings and the experiment protocol:**
+[audits/2026-08-20-plugin-resolution-and-elevation.md](audits/2026-08-20-plugin-resolution-and-elevation.md).
+Summarised here because that is where a debt belongs; the audit is where the commands are.
+
+**The question.** Tier 4 restores a `.vst3` to the absolute `FilePath` the settings recorded. When
+that folder refuses a write, the alternative is the user-level VST3 location
+(`%LOCALAPPDATA%\Programs\Common\VST3`), which needs no administrator. Whether that works turns on
+one thing nobody has verified: **does Wave Link resolve a channel's plug-in by `PluginId`, or by
+`FilePath`?**
+
+**What is measured** (this rig, 2026-08-20): Wave Link is JUCE-based; every third-party `PluginId`
+in `Settings.json` matches a cache `uniqueId` exactly, so a path-independent identity **exists**;
+the only configurable scan folder is VST2 and it is empty; and all 154 cached plug-ins are VST3 in
+the shared folder, so the user-level one could not be observed being scanned.
+
+**Why that is not enough.** The recorded paths all agree with the cache today, because nothing has
+moved — so the data **cannot distinguish** the two resolution strategies. That is the whole reason
+this is an entry rather than an implementation.
+
+**What closes it:** the experiment in the audit — copy one on-channel plug-in to the user folder,
+rename the shared copy, restart, see whether the channel still loads and whether `FilePath` was
+rewritten. Three outcomes, each with its consequence, tabulated there. Reversible; take a backup
+first.
+
+**Recommendation, pending the answer: probably do not build the fallback.** §7.5 already removes
+the prompt on any machine whose VST3 folder has been loosened, which is the common case and
+includes this one. What remains is one prompt, on an explicit opt-in, for writing to a folder every
+account shares — which is what UAC is for. A fallback destination trades that for a file somewhere
+other than where it came from, a possible duplicate at the old path, and the loss of a promise tier
+4 currently keeps.
+
+**The answer is worth having regardless**, because it also settles whether tier 2's drift check
+could key on `PluginId` rather than path — making "the plug-in moved" a state this app can
+describe instead of one indistinguishable from "the plug-in is gone" — and because it removes one
+of the two reasons [post-1.0.md](dev-phases/post-1.0.md) refuses portable backups.
+
+---
+
+## 4 · ~~Design gaps carried into the build~~ — **ALL CLOSED except §4.15, which needs a human**
 
 > **The heading is about items 1–6 only.** Everything from 4.7 down arrived later, as the build
 > found its own gaps, and several are open — check each item's own status line rather than this
-> one. Open as of 0.5.1: **4.7** (no icon set), **4.8** (tray minors), **4.10** (the first-run
-> not-found variant), **4.11** (duplicated total-size arithmetic), **4.14** (arrow keys stop at a
-> date group), **4.15** (0.5.1's frosting unseen).
+> one. Open as of 0.6.4: **4.15** only — and it needs a human, not a commit.
 
 All six were undesigned. Five are now specified in
 [operations/design/screens/](operations/design/screens/00-index.md), which also designed
@@ -488,7 +627,35 @@ its own rule violation; nothing had been built against it, so the correction cos
 **Not closed:** Windows high-contrast mode, and item 6. See §7 for the four decisions that
 outdated shipped code.
 
-### 4.7 There is no icon set — **open, 2026-08-17**
+### 4.7 ~~There is no icon set~~ — **CLOSED 2026-08-20**
+
+> **Substituted, exactly as this entry said it would be: a data change.** Every glyph in the app is
+> now a Lucide path copied verbatim onto the same 24px grid — the eleven README §icons names, plus
+> `check`, `x` and `circle-slash`, plus the tray renderer's four constants that this entry called
+> the substitution point. `THIRD-PARTY-NOTICES.md` carries the ISC licence and names which Lucide
+> icon each one came from.
+>
+> **The paths were fetched, not recalled.** Writing plausible-looking path data from memory would
+> have replaced hand-drawn stand-ins with differently-hand-drawn stand-ins while calling them the
+> real set — worse than the honest state this entry described. Two of them would have been wrong:
+> Lucide's current `settings` gear is a 2.34-radius arc chain rather than the twelve-spoke star,
+> and `triangle-alert`'s dot is `M12 17h.01`.
+>
+> **Two mechanical differences from the .svg files, and no others**, both recorded in the notices
+> file and beside each affected path: Lucide draws several glyphs with `<circle>`, which the WPF
+> path mini-language has no element for, so each is written as the two half-arcs describing the
+> same circle with the original `cx`/`cy`/`r` named in a comment; and icons Lucide draws as several
+> `<path>` elements are concatenated into one `Geometry`. **The stroke stays 1.75px, not Lucide's
+> 2px** — that weight is this design's, and it is the one figure in the icon work that is ours.
+>
+> **`IconSetTests` guards the silent failure.** A path WPF cannot parse, or one that parses to
+> nothing, renders as an empty box with no error anywhere — a mistyped digit in a 200-character
+> path is exactly the kind of thing that ships. Every geometry is asserted to parse, to have
+> extent, and to sit inside the 24px grid; all four tray states are asserted to still render.
+>
+> Original entry below.
+
+#### Original entry
 
 `README.md` §icons says the prototype's glyphs are *"hand-drawn monoline SVG stand-ins in the
 Lucide idiom (1.75px stroke, 24px grid). Substitute the codebase's real icon set at the same
@@ -512,17 +679,20 @@ stand-in that works is exactly the kind of thing that quietly becomes permanent.
 24px grid and renders them at runtime. The four glyph constants in that file are the
 substitution point.
 
-### 4.8 Deferred minors from the tray shell — **open, 2026-08-17**
+### 4.8 ~~Deferred minors from the tray shell~~ — **CLOSED 2026-08-20**
+
+> All five are resolved: 2 and 4 in phase 5, 1 and 5 in this session, and 3 by settling the
+> question rather than flipping the control — see its row.
 
 Plans 2 and 3 shipped. Five things were deliberately left, none blocking.
 
 | # | Minor | Why it was left, and what fixing it costs |
 |---|---|---|
-| 1 | **The tray icon renders at a fixed 32px.** Correct at 100% and 150% scaling, soft at 200%+ | The right size comes from the DPI of the screen holding the taskbar, and it should re-render on a DPI change. The renderer already takes `pixelSize`, so this is a caller change plus a `WM_DPICHANGED` hook |
+| 1 | ~~**The tray icon renders at a fixed 32px.**~~ **Closed 2026-08-20.** `TrayIconRenderer.PixelSizeFor` derives the size from 16px × the DPI of the screen holding the taskbar, snapped to the sizes an `.ico` is normally cut at (16/20/24/32/48/64) — the shell rescales whatever it is given, and 38px scaled to 40 is blurrier than 48 scaled down. The DPI is asked of `Shell_TrayWnd` directly rather than inferred from a screen rectangle, because that window IS the taskbar. `SystemEvents.DisplaySettingsChanged` re-renders it, which covers the taskbar moving to a differently-scaled monitor. An unreadable DPI falls back to 32 — the size it always drew | — |
 | 2 | ~~**Mono letter-spacing is not implemented.**~~ **Closed, phase 5 plan 4, Task 2.** `Views/TrackedText.cs` is a custom `FrameworkElement` with its own `Tracking` dependency property (em-based, matching the type scale's `.18em`/`.06em` figures) and does its own glyph-run layout — `TextBlock`'s missing `CharacterSpacing` is no longer a blocker. Used throughout plan 4: the tray readout, the column headers, the status strip, and every slot label | — |
-| 3 | **`Back up automatically` shows a trailing check, not a switch.** `screens/12`'s ASCII sketch writes `[toggle]` | A switch inside a menu is not something Windows draws, so the sketch was read as shorthand. One template change in `TrayMenuStyles.xaml` if the literal reading was meant |
+| 3 | **`Back up automatically` shows a trailing check, not a switch.** `screens/12`'s ASCII sketch writes `[toggle]` | **Settled 2026-08-20: the check stays, and this is now a decision rather than an open question.** Windows draws no switch in a native context menu; a hand-drawn one would be the only control in the app that ignores the platform it sits in, in the one surface the user reaches most often. `screens/12`'s own sentence — "Nothing here opens a submenu" — reads as a menu that behaves like a menu, and the sketch's `[toggle]` is shorthand for "this is the on/off control", which a trailing check already is. Reopen only if the design says the literal reading was meant |
 | 4 | ~~**`Settings…` opens a placeholder `MessageBox`, from the tray and — since phase 5 plan 4, Task 10b — the main window's own gear button too.**~~ **Closed, phase 5 plan 8.** The real 680px settings dialog ships: in-place commit (no Save button), atomic persistence to `%LOCALAPPDATA%\WaveLinkBackup\settings.json`, and the two new sections. Both the tray menu item and the main window's gear button call `App.OpenSettings()`, which now builds a `SettingsViewModel` and shows the dialog instead of a `MessageBox`. | — |
-| 5 | **A failed manual backup shows a raw `MessageBox`** carrying `CoreError.Message` | The twelve designed error screens (`06-errors.md`) are a later phase-5 session. Reporting it plainly beats swallowing it, but the wording is Core's log phrasing, not the design's |
+| 5 | ~~**A failed manual backup shows a raw `MessageBox`** carrying `CoreError.Message`~~ **Closed 2026-08-20.** The designed errors landed in phase 5, and this call site kept the box for everything they did not cover. It now goes to the danger strip via `Strip.ShowFailure`, exactly as a failed restore does — inline, where 06 places a consequence of a press, instead of a modal in Core's log phrasing | — |
 
 Two related items are **not** debt and are recorded elsewhere because they are traps rather than
 shortfalls: [the tray menu keeping its startup
@@ -551,7 +721,21 @@ Transparent in HighContrast per `11-high-contrast.md`, and nobody has watched th
 "failed" in a real high-contrast theme. The rule is applied; the pixels are not yet checked. That
 is now part of plan 10's high-contrast verification pass, not an open debt of its own.
 
-### 4.10 First-run "Wave Link not found" variant — **open, carried forward from plan 7**
+### 4.10 ~~First-run "Wave Link not found" variant~~ — **CLOSED 2026-08-20**
+
+> The amendment below was right that only the markup was missing. It is drawn now: the amber dot,
+> the `WAVE LINK NOT FOUND · NO SETTINGS FILE IN THE USUAL PLACE` line, the mono `LOOKED IN …`
+> second line at 80%, and the secondary *Choose the settings file…* 10px below it — bound to
+> `FirstRunError1Label` and `FirstRunLookedInLabel`, which had been correct and referenced by
+> nothing since plan 7.
+>
+> **The button is the point.** `App.ChooseSettingsFile` persists an explicit path and re-points the
+> capture path at it, which is the only route a **non-MSIX install** has into this app at all
+> (§2.2). Before it, such a user saw an empty gap where the found-line goes and had no way in.
+>
+> Original entry below.
+
+#### Original entry
 
 Phase 5 plan 7 shipped the first-run / empty state (Screen 4) with its **found** variant: the
 green dot, *"Found Wave Link's settings — 5 inputs · C:\Users\…\LocalState\Settings.json"*, and
@@ -573,7 +757,47 @@ does not yet special-case first-run-when-not-found beyond that strip.
 the neutral note. **Phase:** 5, after plan 7. **See:** §2.2 (non-MSIX installs) and
 [[file-parses-but-wave-link-resets]].
 
-### 4.11 Total-size arithmetic is copy-pasted, not shared — **open, found in the phase-5 audit, 2026-08-19**
+> **Amended 2026-08-19, by the design-conformance audit.** Two thirds of "what closes this" turn
+> out to be done already. `06-errors.md` **does** specify the variant — *"First-run variant (the
+> amber status line the empty state reserves space for)"*, with the centred amber dot, the
+> `LOOKED IN …` mono second line and the *"Choose the settings file…"* button — and
+> `ShellViewModel.FirstRunError1Label` / `FirstRunLookedInLabel` implement it, correctly and with
+> tests. What is missing is only the markup that binds them: nothing in the app references either
+> property. This is smaller than the entry above describes, and it is no longer blocked on design.
+> See [audits/2026-08-19-design-conformance.md](audits/2026-08-19-design-conformance.md) §2.3.
+
+### 4.22 ~~The audit's three small ones~~ — **CLOSED 2026-08-20**
+
+> [audits/2026-08-19-design-conformance.md](audits/2026-08-19-design-conformance.md) §2.9 a, b
+> and c. Recorded here because the audit is a snapshot and this list is the ledger.
+>
+> **a · The stats line printed free space only.** The design's line is
+> `N BACKUPS · X MB USED · Y GB FREE ON THIS DRIVE`; the count and the used bytes live on the
+> shell and were never plumbed through, which the code's own comment said. All three now come from
+> the same store read that fills the trash row, and each omits itself when it is not known.
+>
+> **b · The proportion bar kept its colours in high contrast and gained no labels.**
+> `11-high-contrast.md`: "the proportion bar loses its colour segments; label the segments
+> instead." In high contrast every fill is transparent, so the four bands were one
+> undifferentiated track with nothing carrying the encoding. `ProportionSegment.Label` and a
+> legend below the bar, shown only in high contrast.
+>
+> **c · The row grid was clipped below ~1124px.** The window minimum goes 980 → 1124. The design's
+> own six columns need 1084 in a window it allows to be 980 wide, so it does this to itself;
+> raising the floor is the answer that invents no visuals and adds no interaction the design never
+> specified. Decided with the user, 2026-08-20.
+
+### 4.11 ~~Total-size arithmetic is copy-pasted, not shared~~ — **FIXED 2026-08-19**
+
+> `SnapshotManifest.TotalSizeBytes` is the one place it lives, and all five call sites —
+> `DeleteDialogModel`, `SnapshotRowViewModel`, `SnapshotListViewModel`, `HealthProbe` and
+> `SnapshotStore.TrashSize` — read it. The two remaining `Sum(f => f.SizeBytes)` in the codebase
+> are deliberately different sums over FILTERED sets (`RestoreOrchestrator`'s per-tier figure,
+> `SettingsViewModel`'s per-row one) and are left alone. Two tests in `ManifestFieldTests`.
+>
+> Original entry below.
+
+#### Original entry
 
 `manifest.Files.Values.Sum(f => f.SizeBytes)` (or the equivalent) is independently reimplemented
 in at least five places: `DeleteDialogModel`, `SnapshotRowViewModel`, `SnapshotListViewModel`,
@@ -643,7 +867,27 @@ Phase 6 §5 still owns making it *appear*: both properties are null until there 
 manifest to compare against, so the block renders nothing today. What changed is that §5 now has
 somewhere to put each half.
 
-### 4.14 The list is several Selectors, and arrow keys stop at a group boundary — **open, 2026-08-19**
+### 4.14 ~~The list is several Selectors, and arrow keys stop at a group boundary~~ — **FIXED 2026-08-20**
+
+> Built exactly as the entry proposed, and it deleted everything it said it would.
+>
+> One flat `ListBox` over a `ListCollectionView` grouped on each row's own `GroupHeader`. The
+> header comes from a `GroupStyle`, which matters more than it looks: a group container is not a
+> `ListBoxItem`, so `↓` does not stop on a date on its way between two backups.
+>
+> **`GroupSelection` is gone** — file deleted, not merely unused. So is the `Home`/`End`
+> code-behind, and the `SelectionChanged` routing. `SelectedItem` is an ordinary TwoWay binding
+> again, which is what a single Selector allows and what several Selectors made actively harmful.
+>
+> `MainWindowSelectionTests` was rewritten rather than repaired: it existed to pin the workaround.
+> It now pins the property that actually has to hold — one selection across dates, the Selector and
+> the model agreeing, and rows under different dates in one continuous Items collection. Five
+> source-guard tests in `MainWindowTemplateTests` were inverted for the same reason, each saying in
+> place why the old assertion was pinning the defect.
+>
+> Original entry below.
+
+#### Original entry
 
 One `ListBox` per date group is what gives native row selection at all (Task 10b), and it is why
 `↑`/`↓` move within a group and stop at its edge. `Home`/`End` are the exception — they were given
@@ -679,7 +923,28 @@ notices, because the fallback looks deliberate.
 and the restored letter-spacing are all in the same category. **Fix if absent:** the fallback is
 already correct; the question is only whether to keep the call.
 
-### 4.16 Tier 2 rehashes every plugin binary on every capture — **open, 2026-08-19**
+### 4.16 ~~Tier 2 rehashes every plugin binary on every capture~~ — **FIXED 2026-08-19**
+
+> Built as the entry describes, with the measurement it asked for replaced by the cheaper move of
+> making the skip conservative enough that being wrong costs a hash rather than a stale value.
+>
+> **The rule:** `PluginManifestEntry.BinaryMatches` says yes only when the entry has a hash, a
+> recorded size AND a recorded write time, and both figures equal what the binary measures now.
+> Any of those missing or different means hash it. plugins.json goes to **schema 3** to carry
+> `binarySizeBytes` and `binaryLastWriteUtc`; the addition is purely additive, and a schema-2
+> entry reads back as one that always needs rehashing.
+>
+> `TierCapture.Gather` takes the previous manifest as an optional third argument — null is always
+> correct and always safe. Both shells pass the newest snapshot's plugins.json; the CLI wiring has
+> its own test, per §4.20's lesson that a tested rule is no evidence anything reaches it.
+>
+> **The second read is gone too.** §4.19's streaming copy means tier 4 no longer re-reads the same
+> binary to copy it, so an unchanged plug-in set now costs one `stat` per plug-in on a capture that
+> claims tiers 1–3, and one streamed pass when it claims tier 4.
+>
+> Original entry below.
+
+#### Original entry
 
 `PluginManifestBuilder` reads each referenced `.vst3` in full to hash it, and it runs on every
 capture — including the automatic ones the watcher fires. On the reference rig that is ~40 MB per
@@ -695,26 +960,104 @@ with an invalidation rule, so it is worth having a measurement before writing on
 being missed on a rig with a large plugin set. **Worse since 0.6.0**, where tier 4 can read the
 same 40 MB a second time to copy it.
 
-### 4.17 The shell cannot restore plug-in binaries — **open, 2026-08-19**
+### 4.17 ~~The shell cannot restore plug-in binaries~~ — **CLOSED 2026-08-19**
 
-Tier 4 restore is built, tested and reachable from the CLI (`wlbackup restore <id> --with-plugins`).
-The WPF shell never asks for it: `RestoreOptions.Default` is presets-on, binaries-off, and no
-control offers otherwise.
+> The blocker was never the code — tier 4 restore has been built and tested since phase 6. It was
+> that elevation had no designed surface, and inventing one in XAML is the thing [[ADR-004]] and the
+> design package exist to prevent. So the surface was designed first:
+> [13-elevation.md](operations/design/screens/13-elevation.md), in 06-errors.md's own shape and
+> under its own rules.
+>
+> **What was designed.** One row in the restore dialog — *"Also put the plug-in files back"*, the
+> Settings dialog's row shape, off every time, **absent** rather than disabled when the snapshot
+> holds no binaries. And a thirteenth error for the declined prompt: an inline result strip,
+> **neutral**, because declining changed nothing — the settings and presets went back, the plug-ins
+> on this machine are as they were, and the backup still holds them.
+>
+> **How it elevates.** The shell starts a second copy of ITSELF with `--restore <id>
+> --with-plugins` and waits; Windows draws its own consent dialog. We never paint an administrator
+> prompt — a program that draws its own is teaching people to trust a thing they should not. The
+> elevated copy takes the pre-restore snapshot itself, so at the moment Windows asks, nothing has
+> been touched and a decline costs exactly nothing.
+>
+> **The one non-obvious part** is that the elevated copy must skip the single-instance mutex. It is
+> `Local\` and per-user, so the elevated copy runs as the *same* user, would find the mutex held by
+> the window that started it, conclude it is a second launch and exit without restoring anything.
+> It is not a second instance — it is one operation, and the race the mutex prevents is two watchers
+> over one settings file. `ShellArguments.IsHeadlessRestore` is that distinction, with the reasoning
+> on it.
+>
+> **Pinned by** `ElevatedRestoreTests` (13 tests: the flags, what the elevated copy does and
+> refuses to do without the flag, the pre-restore snapshot, the exit codes against the CLI's, the
+> row's presence rule and its measured size) and two `RestoreDialogViewTests` that render the row in
+> all three themes — the guard that exists because this dialog once could not open at all.
+>
+> **Left deliberately undone:** a "don't ask again" (Windows will not remember it and neither
+> should the row), and elevating the whole app at launch.
 
-**Why:** `C:\Program Files\Common Files\VST3` needs administrator rights, and elevation has no
-designed surface — no UAC prompt in any screen, and no error state for a declined one among the
-twelve in `06-errors.md`. Building one in XAML during phase 6 would have been inventing design in
-code, which is the thing [[ADR-004]] and the design package both exist to prevent.
+### 4.18 ~~Tier 3's preset heuristic has never met a real vendor folder~~ — **MEASURED AND FIXED 2026-08-19**
 
-**What the user gets meanwhile:** the binaries are IN the snapshot and the restore dialog names any
-plug-in that is missing, which is the design's own answer — *"Install it and restore again to get
-it back."*
+> Run against the reference rig at last, and it was wrong in exactly the way this entry feared —
+> **capturing the wrong thing quietly.** Both halves of the fix and the evidence are below.
+>
+> **What one capture found.** `%APPDATA%\FabFilter\Pro-Q 4` exists, so the heuristic read it and
+> reported three saved presets. The three files are `InterfaceDefaults.ffd`,
+> `MidiControllerMap.ffm` and `PresetCache.dat`. The user's actual presets — the `.ffp` files the
+> Settings dialog promises as *"your EQ curves, your gate thresholds"* — were 172 files in
+> `Documents\FabFilter\Presets\Pro-Q 4\`, in a folder tier 3 never looked at.
+>
+> [[ADR-006]]'s two measurements were both correct and both misread: `%APPDATA%\FabFilter` does
+> hold 246 files, and they are caches and factory component presets; `%APPDATA%\Supertone\Clear`
+> does hold crash reports only — and tier 3 captured two of them and counted them as presets.
+>
+> | Plug-in | Captured before | Captured now |
+> |---|---|---|
+> | FabFilter Pro-Q 4 | 3 | 175 |
+> | FabFilter Pro-C 2 | 2 | 111 |
+> | FabFilter Saturn 2 | 53 (factory `Component Presets`) | 131 |
+> | FabFilter Pro-L 2 | 2 | 62 |
+> | FabFilter Pro-DS | 1 | 12 |
+> | Supertone Clear | 2 crash reports | 0, with the folder still recorded |
+> | **Snapshot** | 61 preset files | **491 preset files, 4.4 MB** |
+>
+> **The fix, in three parts.**
+>
+> 1. **Two roots, not one.** `PresetFiles` reads `%APPDATA%` and Documents, and takes at most one
+>    folder from each. Additive rather than first-wins, because FabFilter keeps the MIDI map in one
+>    and the presets in the other, and choosing would mean losing half the user's work.
+> 2. **The roots have different fallbacks, deliberately.** `%APPDATA%\<Vendor>` ends the AppData
+>    candidates because a vendor folder there is config-sized whatever it holds.
+>    `Documents\<Vendor>` does **not** end the Documents candidates — a vendor folder in Documents
+>    is as likely to be a project library as a preset folder, and that fallback would turn a
+>    ten-megabyte tier into a hundred-gigabyte one on somebody's machine. Documents stops at
+>    `<Vendor>\Presets`.
+> 3. **Some files are never presets.** A `Reports`, `Logs`, `Crashes` or `Diagnostics` directory is
+>    skipped at any depth. Clear now reports its folder with a count of zero, which is the state
+>    `PresetFileCount` was designed to show: *we looked here and there was nothing worth keeping.*
+>
+> **The snapshot layout changed with it,** because it had to: a preset stored at
+> `presets/<Vendor>/…` cannot be restored to the right place once there are two places it could
+> have come from. Preset paths now name their root — `presets/appdata/…`, `presets/documents/…` —
+> and `plugins.json` is **schema 2**, with `presetSources` as an array. Snapshots already on disk
+> are unaffected: a path with no root segment reads as AppData, which is the only place those files
+> came from, and the schema-1 `presetSource` string is still read.
+>
+> **Pinned by** `TierCaptureTests.Presets_in_Documents_are_captured_as_well_as_the_ones_in_AppData`,
+> `A_vendor_folder_in_Documents_is_never_taken_whole`,
+> `Crash_reports_are_not_presets_and_are_never_captured`, and
+> `TierRestoreTests.A_preset_from_Documents_goes_back_to_Documents_and_not_to_AppData` and
+> `A_snapshot_written_before_the_roots_existed_still_restores_into_AppData`.
+>
+> **One number for §5.** The reference rig has Documents redirected to `G:\win_user-folders\`.
+> A composed `%USERPROFILE%\Documents` would have found an empty folder and reported that the user
+> has no presets — the same trap as `%LOCALAPPDATA%`, failing more quietly. Both roots resolve
+> through `Environment.GetFolderPath`, and the test constants sit on a different drive so the trap
+> cannot be reintroduced by a test that passes.
+>
+> **Still a heuristic.** Two vendors were checked, not twenty. The original entry is kept below
+> because its reasoning is what caught this.
 
-**What closes this:** a designed elevation flow (a row in the restore dialog, and the "we asked and
-you said no" state), then `RestoreOptions` wired to it. **Phase:** 7 at the earliest; it is not on
-the 1.0 gate list.
-
-### 4.18 Tier 3's preset heuristic has never met a real vendor folder — **open, needs a machine, 2026-08-19**
+#### Original entry
 
 `PresetFiles` tries `<Vendor>\<Plugin>`, then `<Vendor>\<file name>`, then the vendor folder. Every
 test uses a synthetic tree. [[ADR-006]] measured `%APPDATA%\FabFilter` at 246 preset files and
@@ -727,7 +1070,29 @@ capture and one look at that file.
 **Check by eye**, alongside 0.5.1's visual items (§4.15). **Fix if wrong:** the order of the
 candidates, or a per-vendor exception list — the heuristic is deliberately in one class.
 
-### 4.19 Tier 4 reads whole binaries into memory — **open, 2026-08-19**
+### 4.19 ~~Tier 4 reads whole binaries into memory~~ — **FIXED 2026-08-19**
+
+> `IFileSystem.CopyFile` is the seam the entry asked for: 1 MiB at a time through an
+> `IncrementalHash`, returning the SHA-256 and the length of what it wrote. Peak memory is the
+> buffer.
+>
+> **It was worse than this entry described.** The peak was not one plug-in — `CapturedFile`
+> carried a `byte[]`, and `TierCapture` built the whole list before the store wrote any of it, so
+> a capture held the ENTIRE preset and binary set at once (~40 MB on the reference rig, unbounded
+> with a sample-library instrument on a channel). `CapturedFile` now names a source path and a
+> size; the store copies from it.
+>
+> **Two things fell out.** The manifest now records what the copy actually wrote rather than what
+> the capture measured beforehand — pinned by a test where the two differ, which the old shape
+> could not express. And the readability check that decided tier 4's all-or-nothing fate moved to
+> `IFileSystem.CanReadShared`, which opens and closes and reads nothing.
+>
+> `TierRestore` streams too. Five tests in `FileSystemTests` against the real filesystem, one
+> deliberately larger than the buffer.
+>
+> Original entry below.
+
+#### Original entry
 
 Capture and restore both go `ReadSharedBytes` → `WriteBytes`, so a 24 MB `Clear.vst3` is a 24 MB
 array. One file at a time, so the peak is one plugin rather than the set — acceptable, and the
@@ -737,9 +1102,74 @@ reason `IFileSystem` has no streaming copy today.
 hundreds of megabytes, and nothing stops one being on a channel). **Fix:** a `CopyFile` on the
 seam, which also lets §4.16's hash-skip reuse it.
 
+### 4.20 ~~The Settings dialog committed to a file nothing re-read, and one stepper did nothing at all~~ — **FIXED 2026-08-19**
+
+> Found while adding the two backup-timing controls, because both would have landed in the same
+> trap. Two defects, one cause: the dialog's "changes apply as you make them" was only half true.
+>
+> **The save callback wrote the file and stopped.** `App.BuildSettingsViewModel` passed
+> `s => repo.Save(s).IsSuccess`, so a committed change reached disk and never reached the running
+> app. `App.settings` — the record `GatherPayload` closes over — stayed stale, which means the tier
+> toggles shipped in 0.6.0 took effect on the **next launch**, not the next capture, despite a
+> comment in `Compose` saying the closure existed precisely so they would not. The automatic-backup
+> switch had the same problem, more quietly. `App.ApplySettings` is now the one place a settings
+> change becomes true: written, held, and re-applied to the host.
+>
+> **The keep-count stepper's buttons had no handler.** `DecrementKeepCountButton` and
+> `IncrementKeepCountButton` were declared in XAML with the readout bound and the view model's clamp
+> unit-tested — and nothing ever wired a `Click`. Pressing either did nothing, for the whole of
+> phases 5 and 6. Nothing caught it because the model was tested and the wiring was not.
+>
+> **Pinned by** `SettingsDialogViewTests.Every_stepper_button_is_wired_to_something`, which presses
+> the `+` of every stepper in the dialog and asserts each value MOVED — only the `+` halves, so an
+> unwired handler cannot hide behind its opposite cancelling out. Verified to fail when the wiring
+> is removed.
+>
+> **The lesson worth keeping:** a view-model property with a commit path is not evidence that a
+> control reaches it. These two suites now overlap on purpose.
+
+### 4.21 ~~Eight designed surfaces are specified and undrawn~~ — **ALL EIGHT CLOSED 2026-08-20**
+
+Full detail, with what exists behind each one:
+[audits/2026-08-19-design-conformance.md](audits/2026-08-19-design-conformance.md) §2. Summarised
+here because that is where a debt belongs, and because §4.20's lesson repeats itself in almost
+every line of it — a view model with a tested property is not evidence that anything renders it.
+
+| | Surface | Design | State |
+|---|---|---|---|
+| 1 | The rejected restore has no action and cannot be dismissed | `03` §3 | **CLOSED 2026-08-20.** Headline, body, mono meta, ghost *Show the log*, primary *Restore "Before restore"*, and that row rendered selected below. `AcknowledgeReject` is called by the primary action — the only exit the design allows. A rejection with no pre-restore copy says so and lets itself be cleared, rather than being permanent for a second reason |
+| 2 | Backing-up in-progress state | `04` | **CLOSED 2026-08-20.** `BackupProgressModel` + the strip: hollow circle, *Backing up your setup…*, `470 KB · WRITING`, and a 2px determinate bar. Determinate on **real** bytes — `SnapshotWriteProgress` reports what is on disk against a total the payload knew before the first write. 04 bans a spinner because it "implies uncertainty that does not exist here", which makes an invented percentage the worse version of the same claim |
+| 3 | First run, Wave Link not found | `06` | **CLOSED 2026-08-20** — see §4.10 |
+| 4 | Settings `WHEN WINDOWS STARTS` | `12` | **CLOSED 2026-08-20.** Both toggles, the Task-Manager-veto note, and the Run-key line. `StartupSeam` carries the two seams in; the section hides itself entirely when nothing is behind it, rather than drawing controls that write nowhere |
+| 5 | Settings `UPDATES` | `12` | **CLOSED 2026-08-20.** The three rows, the failed-update block, and a real updater behind them — feed, checksum-verified download, staged install, relaunch. Error 8's *"Get the update"* deep-links here and opens with a check already running. The design's restraint rule is structural: `UpdateViewModel` takes no success as an input, so it cannot produce a congratulatory anything, and the only unprompted act is the weekly look. **Where to look is read from the environment, not compiled in** — this repo has no remote, and a hard-coded owner/repo would be §5's exact mistake; unset hides the section. `.github/workflows/release.yml` produces the shape the updater looks for |
+| 6 | The two tray notifications | `12` | **CLOSED 2026-08-20.** `TrayNotifications` decides both, as a pure function. The nine-day notice fires once per EPISODE — it re-arms when a backup happens, so a machine that recovers and falls behind again is told twice, which is two real problems rather than a nag. Nothing here can produce a success notice, because nothing here takes a success as an input. **One documented difference from the design:** each notice's action is the whole notification rather than a labelled button. A classic balloon has no buttons and Windows renders one as a toast that drops them; real toast buttons need an AppUserModelID and a Start-menu shortcut, which is an installer concern this app does not have yet. The label is stated in the body and clicking anywhere does the thing |
+| 7 | Error 2's chooser rows | `06` §2 | **CLOSED 2026-08-20.** Version, `RUNNING` chip, ellipsised path, `SETTINGS SAVED … · N INPUTS · N KB`, the selected-row fill and 3px accent edge, and *Remember this one*. Each candidate is inspected on its own — the dialog exists because discovery could NOT choose between them, so nothing may lean on a "current" one. **The `RUNNING` chip is an approximation and the model says so**: Windows offers no mapping from a running MSIX process back to its package, so it goes to whichever candidate's settings file was written most recently, and only while Wave Link is up |
+| 8 | Error 9, in Settings after *Change folder…* | `06` §9 | **CLOSED 2026-08-20.** Rendered in place under *Change folder…*, with *Choose another…* and *Keep the current folder*. 06's placement table files error 9 under Dialogs; §9's own text says "appears in Settings, in place", which is the more specific instruction and is what shipped. Changing the folder to somewhere holding files but no snapshot now raises it instead of silently pointing the store at a Recordings folder |
+
+**Every one of these was the §4.20 lesson repeating**: a view model with a tested property is not
+evidence that anything renders it. Each now has a view test that walks the real tree or reads the
+real markup, not just a model test.
+
 ---
 
-## 5 · Numbers that are not constants
+## 5 · Numbers that are not constants — **now enforced, 2026-08-20**
+
+> **Four of the five are guard tests**, in `SourceGuardTests`, because a list "most likely to be
+> violated by someone moving fast" is exactly the kind of thing a reading catches once and a test
+> catches forever: the package family id, a composed `%LOCALAPPDATA%`, a comparison against a Wave
+> Link version, and an absolute `Program Files` path. Comments are stripped before each scan — the
+> rules are about code, not about the prose explaining the rules.
+>
+> **Each guard was verified to FAIL** against a file that violates all four, then the file was
+> removed. A guard nobody has seen fail is a guard nobody knows works.
+>
+> The fifth — "5 inputs / 43 KB is one user's rig" — has no source shape to scan for. It is held
+> by `HealthFingerprint` comparing against that user's own previous snapshot, which is structural
+> rather than checkable by grep.
+>
+> The audit that prompted this found **no violations in shipped code**: every hit was a comment, or
+> one of the two places that print `%LOCALAPPDATA%` as designed display copy (06's `LOOKED IN` glob
+> line, and the bottom bar shortening a resolved path back for display).
 
 Measured on one machine on 2026-08-15. Each becomes a bug if hard-coded. Reproduced from
 `SPEC.md` §11 because this is the list most likely to be violated by someone moving fast.
@@ -754,7 +1184,43 @@ Measured on one machine on 2026-08-15. Each becomes a bug if hard-coded. Reprodu
 
 ---
 
-## 6 · Privacy — a debt the moment the repo is public
+## 6 · ~~Privacy — a debt the moment the repo is public~~ — **PAID 2026-08-20**
+
+> **`Redaction` and `Diagnostics`, in Core**, plus "Copy diagnostics" in Settings and a
+> `wlbackup diagnostics` verb. The debt is paid in the only way that works: not by telling people
+> not to attach their settings file, but by giving them something better to paste.
+>
+> **The threat is not an attacker, it is helpfulness.** Users attach whatever the app gives them,
+> they will not think about it, and by then it is in a public tracker with a permanent URL. So the
+> redactor **fails closed**: an endpoint ID whose shape it does not recognise is masked wholesale
+> rather than passed through in the hope that it is harmless. A redactor that works on the shapes
+> it was written for and lets an unknown one through is worse than none, because it teaches the
+> user the output is safe.
+>
+> **What goes:** hardware serial numbers (the leading segment of a Core Audio endpoint ID), the
+> Windows user name (both the profile-path segment and the name anywhere else it appears — a store
+> on `D:\joran-backups\` is caught too), and every snapshot's display name, which is the one
+> free-text field people put anything in.
+>
+> **What stays, deliberately:** channel names. They are what the user calls their own channels,
+> they are the subject of nearly every support question, and they name a setup rather than a
+> person. And the port half of each endpoint ID, which says which physical input a channel is on
+> and identifies nothing — every Wave:3 on earth has the same one.
+>
+> **The settings file is never included, redacted or otherwise.** A redacted copy of a file is
+> still a copy of a file; the report describes STRUCTURE — counts, names, versions, which tiers a
+> snapshot claims — because nobody needs the file to answer a support question.
+>
+> **Nothing is ever uploaded**, and there is no setting that would create one. It returns a string;
+> the shell puts it on the clipboard and the CLI prints it. The line printed beside the button says
+> so, and is kept by construction rather than by whoever adds the next field remembering to.
+>
+> The one assertion this whole feature exists for — the report contains neither a serial number nor
+> a user name — is a test, so a future field that bypasses `Redaction` fails the build.
+>
+> Original entry below.
+
+#### Original entry
 
 `Settings.json` contains hardware serial numbers inside device IDs, and absolute paths
 including the Windows username. **Users will attach snapshots to bug reports.** They will not

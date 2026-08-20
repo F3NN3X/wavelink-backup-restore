@@ -59,7 +59,7 @@ public sealed class HealthProbe(SnapshotStore store, IFileSystem fileSystem, ICl
     public HealthVerdict Check(Snapshot snapshot)
     {
         var verified = store.Verify(snapshot).IsSuccess;
-        var manifestBytes = snapshot.Manifest.Files.Values.Sum(f => f.SizeBytes);
+        var manifestBytes = snapshot.Manifest.TotalSizeBytes;
 
         // Measured only when it matters: 02's damaged detail line needs both figures, and a
         // whole row needs neither.

@@ -84,4 +84,49 @@ public sealed class TrayIconRendererTests
         Assert.Equal((byte)(255 * 0.55), normal);
         Assert.Equal(255, contrast);
     }
+
+    // ------------------------------ DPI sizing (technical-debt.md §4.8 minor 1)
+
+    /// <summary>
+    /// The fixed 32px this replaced was right at 100% and 150% scaling and soft above. Windows
+    /// asks the notification area for a 16px logical icon, so the render size is 16 × the DPI of
+    /// the screen holding the taskbar.
+    /// </summary>
+    [Theory]
+    [InlineData(1.00, 16)]
+    [InlineData(1.25, 20)]
+    [InlineData(1.50, 24)]
+    [InlineData(1.75, 32)]
+    [InlineData(2.00, 32)]
+    [InlineData(3.00, 48)]
+    [InlineData(4.00, 64)]
+    public void The_render_size_follows_the_taskbars_dpi(double scale, int expected)
+    {
+        Assert.Equal(expected, TrayIconRenderer.PixelSizeFor(scale));
+    }
+
+    /// <summary>
+    /// A DPI that cannot be read falls back to what the app already drew, rather than to something
+    /// smaller. The icon being slightly soft is survivable; the icon being absent is not.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    public void An_unreadable_dpi_falls_back_to_the_size_that_was_always_used(double scale)
+    {
+        Assert.Equal(32, TrayIconRenderer.PixelSizeFor(scale));
+    }
+
+    [Fact]
+    public void Every_snapped_size_actually_renders()
+    {
+        foreach (var size in (int[])[16, 20, 24, 32, 48, 64])
+        {
+            using var icon = Wpf.Run(() => TrayIconRenderer.Render(
+                TrayStatus.Watching, System.Windows.Media.Colors.White, size));
+
+            Assert.Equal(size, icon.Width);
+        }
+    }
 }

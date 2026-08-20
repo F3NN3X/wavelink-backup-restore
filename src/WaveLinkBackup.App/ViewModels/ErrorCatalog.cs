@@ -30,8 +30,8 @@ public enum ErrorWeight
 }
 
 /// <summary>
-/// The twelve errors as data, so placement and weight are decided in ONE testable place rather
-/// than scattered across views (06-errors.md). The catalog is the single source of truth for the
+/// The thirteen errors as data, so placement and weight are decided in ONE testable place rather
+/// than scattered across views (06-errors.md, and 13-elevation.md for the thirteenth). The catalog is the single source of truth for the
 /// weight rule; a future edit that re-weights an error fails the catalog tests before it ships.
 ///
 /// Copy here is the designed sentence/heading per error, taken verbatim from 06-errors.md. Where
@@ -52,7 +52,7 @@ public sealed record AppError(
     string Body,
     string? MonoLine = null)
 {
-    /// <summary>All twelve, in the order 06-errors.md numbers them.</summary>
+    /// <summary>All thirteen, in the order the design numbers them.</summary>
     public static IReadOnlyList<AppError> All { get; } = new[]
     {
         // 1 — Wave Link not found / settings file missing. A standing fact → status strip.
@@ -126,9 +126,29 @@ public sealed record AppError(
         new AppError(12, ErrorPlacement.ReplacesList, ErrorWeight.Neutral,
             "The backup folder can't be used",
             "The backup folder is missing or cannot be used right now. Nothing is lost — point at a folder to continue."),
+
+        // 13 — Administrator rights declined for tier 4. Consequence of a press → inline. Neutral.
+        //
+        // Neutral is where the weight rule earns its keep. Amber means the configuration - live or
+        // restorable - is not whole; declining changed NOTHING. The plug-ins on this machine are
+        // exactly as they were, the backup still holds them, and the settings and presets went
+        // back. It is a refusal, like every other neutral strip. Where a plug-in genuinely is
+        // missing, the dialog's amber block already said so before the button was pressed.
+        // (13-elevation.md §13.)
+        new AppError(13, ErrorPlacement.InlineStrip, ErrorWeight.Neutral,
+            "The plug-in files were left alone",
+            "The plug-in files were left alone. Your settings and presets were restored."),
     };
 
-    /// <summary>Look up one of the twelve by its code (1–12).</summary>
+    /// <summary>
+    /// Administrator rights were declined at the UAC prompt, so tier 4 was skipped. Named rather
+    /// than looked up by number at the call site, because it is the one error with no
+    /// <see cref="CoreError"/> behind it — nothing in Core failed, and nothing in Core can know
+    /// what a person clicked.
+    /// </summary>
+    public static AppError ElevationDeclined => ByCode(13);
+
+    /// <summary>Look up one by its code (1–13).</summary>
     public static AppError ByCode(int code) => All[code - 1];
 }
 

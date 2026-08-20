@@ -27,7 +27,8 @@
     </ResourceDictionary.MergedDictionaries>
 
     <!-- The check for "Back up automatically". Lucide idiom, 24px grid, same as the tray glyphs. -->
-    <Geometry x:Key="WlCheckGeometry">M8.5 12 L11 14.5 L15.5 9.5</Geometry>
+    <!-- lucide/check, matching RowStyles.xaml's copy (technical-debt.md §4.7). -->
+    <Geometry x:Key="WlCheckGeometry">M20 6 9 17l-5-5</Geometry>
 
     <Style x:Key="WlTrayMenu" TargetType="ContextMenu">
         <!--

@@ -7,6 +7,36 @@ namespace WaveLinkBackup.Core.Restore;
 public sealed record PlanRow(string Label, string Now, string After, bool Changes);
 
 /// <summary>
+/// What tier 4 a snapshot is carrying, if any — the one part of a restore that can need
+/// administrator rights ([[ADR-006]]).
+///
+/// Answered here rather than left to the shell to work out, because the shell's only correct
+/// question is "is there anything to offer, and what does it cost". A dialog that offers to put
+/// plug-in files back when the snapshot holds none is offering a capability the restore is about
+/// to refuse (operations/design/screens/13-elevation.md).
+/// </summary>
+/// <param name="Count">How many plug-ins have their binary in this snapshot.</param>
+/// <param name="Bytes">What those binaries weigh, so the row can print an honest figure.</param>
+/// <param name="NeedsElevation">
+/// Whether any destination directory refuses a write from this process as it is currently
+/// running — **measured, not inferred from the path**.
+///
+/// It is false more often than the path suggests. `C:\Program Files\Common Files\VST3` is
+/// read-only for Users under Windows' default ACL, but several audio plug-in installers grant
+/// Everyone full control so their own updates need no administrator, and on such a machine every
+/// plug-in restores with no prompt. Assuming from the path prompts people who did not need asking
+/// — which is the whole point of measuring ([[ADR-011]], and technical-debt.md's own rule that a
+/// path that looks like a constant is not one).
+/// </param>
+public sealed record PluginBinaryPayload(int Count, long Bytes, bool NeedsElevation = true)
+{
+    public static PluginBinaryPayload None { get; } = new(0, 0, NeedsElevation: false);
+
+    /// <summary>False hides the whole opt-in row, which is the common case: tier 4 is off by default.</summary>
+    public bool Any => Count > 0;
+}
+
+/// <summary>
 /// What a restore would do, described before it does it.
 ///
 /// PURE - two fingerprints in, a description out. This is exactly the restore dialog's
@@ -26,8 +56,12 @@ public sealed record RestorePlan(
     IReadOnlyList<string> InputNamesLost,
     bool SnapshotIsSuspect,
     string? VersionWarning,
-    PluginRestoreCheck? Plugins = null)
+    PluginRestoreCheck? Plugins = null,
+    PluginBinaryPayload? Binaries = null)
 {
+    /// <summary>Never null, so the dialog can ask without a guard.</summary>
+    public PluginBinaryPayload BinaryPayload => Binaries ?? PluginBinaryPayload.None;
+
     /// <summary>Anything the user should read before pressing the button.</summary>
     public bool HasWarnings =>
         LosesInputs || SnapshotIsSuspect || VersionWarning is not null || Plugins?.HasMissing == true;

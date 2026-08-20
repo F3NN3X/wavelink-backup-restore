@@ -1,0 +1,89 @@
+# Publishes the artifact the in-app updater downloads.
+#
+# The updater needs exactly two things in a release, and this exists so that the shape it looks
+# for is produced by CI rather than by hand: a `*win-x64.zip` and a `.sha256` beside it. The
+# checksum is not optional — UpdateDownloader REFUSES an update that has no published checksum
+# rather than installing whatever arrived (see its own comment on what that does and does not
+# prove).
+#
+# `--self-contained true` matches the CLI's csproj rather than overriding it. technical-debt.md
+# §1.5 is about upstream's pipeline disagreeing with its project file; ours agrees on purpose, and
+# a local `dotnet publish` produces the same artifact this does.
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # The version comes from the tag, so the running build can compare itself against a release
+      # tag without anybody remembering to edit Directory.Build.props first. ReleaseVersion.Parse
+      # reads `v1.4.0`; this strips the `v` for the assembly.
+      - name: Version from the tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test --configuration Release --nologo
+
+      - name: Publish
+        run: >
+          dotnet publish src/WaveLinkBackup.App/WaveLinkBackup.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:Version=${{ steps.version.outputs.version }}
+          --output publish/app
+
+      # Into the SAME directory, so one archive is one install. Both projects are self-contained,
+      # so both carry the runtime; the shared assemblies are identical files and the per-app
+      # .deps.json / .runtimeconfig.json are named after their own assembly, so they do not
+      # collide. UNVERIFIED - this has never run. If the first release produces a warning or a
+      # clobbered file here, publish them to separate folders and merge deliberately.
+      - name: Publish the CLI beside it
+        run: >
+          dotnet publish src/WaveLinkBackup.Cli/WaveLinkBackup.Cli.csproj
+          --configuration Release
+          --runtime win-x64
+          -p:Version=${{ steps.version.outputs.version }}
+          --output publish/app
+
+      # The archive's ROOT is the install directory's contents, not a folder containing them:
+      # UpdateInstaller expands it and expects to find WaveLinkBackup.exe at the top level, and
+      # refuses the update if it does not.
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          $name = "WaveLinkBackup-${{ steps.version.outputs.version }}-win-x64.zip"
+          Compress-Archive -Path publish/app/* -DestinationPath $name
+          $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name" | Out-File -FilePath "$name.sha256" -Encoding ascii -NoNewline
+          "archive=$name" >> $env:GITHUB_OUTPUT
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.package.outputs.archive }}
+            ${{ steps.package.outputs.archive }}.sha256

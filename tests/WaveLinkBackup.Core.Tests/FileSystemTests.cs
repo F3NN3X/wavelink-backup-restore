@@ -162,4 +162,135 @@ public sealed class FileSystemTests : IDisposable
         Assert.Null(fs.GetAvailableFreeBytes(""));
         Assert.Null(fs.GetAvailableFreeBytes("   "));
     }
+
+    // ------------------------------------------------ the streaming seam (technical-debt.md §4.19)
+
+    [Fact]
+    public void A_copied_file_arrives_byte_for_byte_with_the_hash_of_what_was_written()
+    {
+        // Larger than the 1 MiB buffer on purpose: a single-pass copy and a looping one are
+        // indistinguishable below it, and the loop is the whole point.
+        var bytes = new byte[(1024 * 1024) + 7777];
+        Random.Shared.NextBytes(bytes);
+
+        var source = Path.Combine(root, "big.vst3");
+        var destination = Path.Combine(root, "copy", "big.vst3");
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        File.WriteAllBytes(source, bytes);
+
+        var copied = fs.CopyFile(source, destination);
+
+        Assert.Equal(bytes, File.ReadAllBytes(destination));
+        Assert.Equal(bytes.LongLength, copied.SizeBytes);
+        Assert.Equal(
+            Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)),
+            copied.Sha256);
+    }
+
+    [Fact]
+    public void A_copy_overwrites_a_file_that_is_already_there()
+    {
+        var source = Path.Combine(root, "new.ffp");
+        var destination = Path.Combine(root, "old.ffp");
+        File.WriteAllText(source, "new");
+        File.WriteAllText(destination, "the older, longer content");
+
+        fs.CopyFile(source, destination);
+
+        Assert.Equal("new", File.ReadAllText(destination));
+    }
+
+    /// <summary>
+    /// The share mode is the reason this seam exists at all: Settings.json is locked while Wave
+    /// Link runs, which is when most captures happen.
+    /// </summary>
+    [Fact]
+    public void A_file_held_open_for_writing_elsewhere_can_still_be_copied()
+    {
+        var source = Path.Combine(root, "locked.json");
+        File.WriteAllText(source, "{}");
+
+        using var holder = new FileStream(
+            source, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+
+        var copied = fs.CopyFile(source, Path.Combine(root, "copy.json"));
+
+        Assert.Equal(2, copied.SizeBytes);
+    }
+
+    [Fact]
+    public void CanReadShared_answers_no_for_a_file_that_is_not_there_and_yes_for_one_that_is()
+    {
+        var path = Path.Combine(root, "here.json");
+        File.WriteAllText(path, "{}");
+
+        Assert.True(fs.CanReadShared(path));
+        Assert.False(fs.CanReadShared(Path.Combine(root, "absent.json")));
+    }
+
+    [Fact]
+    public void CanReadShared_reads_nothing_and_leaves_no_handle_behind()
+    {
+        var path = Path.Combine(root, "probe.json");
+        File.WriteAllText(path, "{}");
+
+        Assert.True(fs.CanReadShared(path));
+
+        // Would throw if the probe had left the file open.
+        File.Delete(path);
+        Assert.False(File.Exists(path));
+    }
+
+    // ------------------------- the writability probe (technical-debt.md §7.5)
+
+    [Fact]
+    public void A_directory_this_process_owns_is_writable()
+    {
+        Assert.True(fs.CanWriteDirectory(root));
+    }
+
+    /// <summary>
+    /// A destination that does not exist yet is writable if it could be CREATED, which is a
+    /// question about its nearest existing ancestor — a plug-in bundle's own folder often does not
+    /// exist until the restore makes it.
+    /// </summary>
+    [Fact]
+    public void A_directory_that_does_not_exist_yet_answers_for_its_nearest_ancestor()
+    {
+        Assert.True(fs.CanWriteDirectory(Path.Combine(root, "not", "created", "yet")));
+    }
+
+    [Fact]
+    public void A_path_that_is_not_a_path_is_not_writable()
+    {
+        Assert.False(fs.CanWriteDirectory(string.Empty));
+        Assert.False(fs.CanWriteDirectory("   "));
+    }
+
+    /// <summary>
+    /// The probe must leave nothing behind. It writes a real file to answer the question, and a
+    /// stray probe file in somebody's VST3 folder would be this program littering in the one place
+    /// it is trying to be careful about.
+    /// </summary>
+    [Fact]
+    public void The_probe_leaves_nothing_behind()
+    {
+        var before = Directory.GetFileSystemEntries(root).Length;
+
+        Assert.True(fs.CanWriteDirectory(root));
+
+        Assert.Equal(before, Directory.GetFileSystemEntries(root).Length);
+        Assert.Empty(Directory.GetFiles(root, ".wlbackup-probe-*"));
+    }
+
+    /// <summary>
+    /// A location no process can write. Answering false rather than throwing is the contract: the
+    /// caller uses it to decide whether to ask for administrator rights, and an exception there
+    /// would turn a question into a failure.
+    /// </summary>
+    [Fact]
+    public void An_unwritable_location_answers_false_rather_than_throwing()
+    {
+        Assert.False(fs.CanWriteDirectory(@"\\?\GLOBALROOT\Device\Null"));
+    }
 }

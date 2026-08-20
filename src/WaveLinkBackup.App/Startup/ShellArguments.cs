@@ -1,3 +1,4 @@
+using WaveLinkBackup.App.Updates;
 using WaveLinkBackup.Core.Automation;
 
 namespace WaveLinkBackup.App.Startup;
@@ -12,14 +13,57 @@ namespace WaveLinkBackup.App.Startup;
 /// (operations/design/screens/08-settings-persistence.md).
 /// </summary>
 /// <param name="Error">Non-null when parsing failed. The shell shows it and exits.</param>
+/// <param name="RestoreSnapshotId">
+/// Set only by the elevated copy this app starts of ITSELF, to put tier 4's plug-in files back
+/// (operations/design/screens/13-elevation.md). Not a documented flag and not in any help text:
+/// it names one snapshot and means "do this restore and exit", which is not something a user has
+/// any reason to type.
+/// </param>
+/// <param name="WithPlugins">
+/// Whether that restore includes tier 4. Only meaningful alongside
+/// <paramref name="RestoreSnapshotId"/> — it is the entire reason the elevated copy exists.
+/// </param>
+/// <param name="ApplyUpdateForProcessId">
+/// Set only by the STAGED copy an update starts of itself, and for the same reason
+/// <paramref name="RestoreSnapshotId"/> exists: a process cannot overwrite its own executable
+/// while it is running, so a newer copy has to do the swap from outside the directory being
+/// replaced. Names the process to wait for.
+/// </param>
+/// <param name="ApplyUpdateInstallDirectory">Which directory the staged copy replaces.</param>
 public sealed record ShellArguments(
     bool StartInTray = false,
     string? StorePath = null,
     string? SettingsPath = null,
     int? KeepCount = null,
-    string? Error = null)
+    string? Error = null,
+    string? RestoreSnapshotId = null,
+    bool WithPlugins = false,
+    int? ApplyUpdateForProcessId = null,
+    string? ApplyUpdateInstallDirectory = null)
 {
     public bool IsValid => Error is null;
+
+    /// <summary>
+    /// True when this process exists to perform one restore and exit — no window, no tray, no
+    /// watcher, and no single-instance mutex.
+    ///
+    /// The mutex is the important omission. It is `Local\` and per-user, so the elevated copy runs
+    /// as the SAME user and would find the mutex already taken by the window that started it, see
+    /// itself as a second launch, and exit without restoring anything. That is correct behaviour
+    /// for a second launch and wrong for this one, because this process is not a second instance —
+    /// it is one operation, and the race the mutex prevents is two watchers over one settings file.
+    /// </summary>
+    public bool IsHeadlessRestore => RestoreSnapshotId is not null;
+
+    /// <summary>
+    /// True when this process exists to replace an install and exit.
+    ///
+    /// It omits the same things a headless restore does, and one more: it must NOT read or write
+    /// settings, because the directory holding this copy is about to be renamed out from under it.
+    /// All it does is wait, rename twice, and start the result.
+    /// </summary>
+    public bool IsApplyingUpdate =>
+        ApplyUpdateForProcessId is not null && ApplyUpdateInstallDirectory is not null;
 
     private static ShellArguments Failed(string error) => new(Error: error);
 
@@ -45,6 +89,26 @@ public sealed record ShellArguments(
                 case "--settings":
                     if (!TryValue(args, ref i, out var settings)) return Failed("--settings needs a path.");
                     result = result with { SettingsPath = settings };
+                    break;
+
+                case "--restore":
+                    if (!TryValue(args, ref i, out var id)) return Failed("--restore needs a backup id.");
+                    result = result with { RestoreSnapshotId = id };
+                    break;
+
+                case "--with-plugins":
+                    result = result with { WithPlugins = true };
+                    break;
+
+                case UpdateInstaller.ApplyFlag:
+                    if (!TryValue(args, ref i, out var pid)) return Failed($"{UpdateInstaller.ApplyFlag} needs a process id.");
+                    if (!int.TryParse(pid, out var processId)) return Failed($"'{pid}' is not a process id.");
+                    if (!TryValue(args, ref i, out var target)) return Failed($"{UpdateInstaller.ApplyFlag} needs a folder.");
+                    result = result with
+                    {
+                        ApplyUpdateForProcessId = processId,
+                        ApplyUpdateInstallDirectory = target,
+                    };
                     break;
 
                 case "--keep":

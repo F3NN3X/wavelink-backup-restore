@@ -39,12 +39,14 @@ public sealed class CommandRunner(
     string localAppDataPath,
     IRecycleBin recycleBin,
     BackupSettings? settings = null,
-    string? appDataPath = null)
+    string? appDataPath = null,
+    string? documentsPath = null)
 {
     private readonly BackupSettings settings = settings ?? BackupSettings.Default;
 
     /// <summary>Roaming AppData, where tier 3 looks. Same reason as localAppDataPath.</summary>
     private readonly string appDataPath = appDataPath ?? TierCapture.SystemAppData;
+    private readonly string documentsPath = documentsPath ?? TierCapture.SystemDocuments;
 
     public int Run(ParsedCommand command)
     {
@@ -68,6 +70,7 @@ public sealed class CommandRunner(
             Verb.Prune => Prune(command),
             Verb.EmptyTrash => EmptyTrash(command),
             Verb.Watch => Watch(command),
+            Verb.Diagnostics => Diagnostics(command),
             _ => Help(),
         };
     }
@@ -119,7 +122,7 @@ public sealed class CommandRunner(
         var store = Store(command);
         var orchestrator = new RestoreOrchestrator(
             fileSystem, process, store, new SettingsWriter(fileSystem, process),
-            new SettingsReader(fileSystem), GatherPayload, appDataPath);
+            new SettingsReader(fileSystem), live => GatherPayload(live, store), appDataPath, documentsPath);
 
         var plan = orchestrator.Plan(command.Arguments[0], live.Value);
         if (!plan.IsSuccess) return Fail(plan.Error);
@@ -301,6 +304,30 @@ public sealed class CommandRunner(
     /// The first production caller of <see cref="AutoBackupCoordinator.Tick"/>. Three phases
     /// of automation have never run outside a test until this verb.
     /// </summary>
+    /// <summary>
+    /// The redacted self-description (technical-debt.md §6). It prints; it never sends.
+    ///
+    /// A live inspection that FAILS is not a failure of this verb — "Wave Link could not be read"
+    /// is often the very thing being diagnosed, and refusing to produce a report in that case
+    /// would leave the user with nothing to paste but their settings file.
+    /// </summary>
+    private int Diagnostics(ParsedCommand command)
+    {
+        var live = Inspector().Inspect(command.SettingsPath);
+
+        foreach (var line in Core.Analysis.Diagnostics.Lines(
+                     typeof(CommandRunner).Assembly.GetName().Version?.ToString() ?? "unknown",
+                     settings,
+                     live.IsSuccess ? live.Value : null,
+                     Store(command).List(),
+                     clock.UtcNow.ToLocalTime()))
+        {
+            output.Write(line);
+        }
+
+        return ExitCode.Success;
+    }
+
     private int Watch(ParsedCommand command)
     {
         var live = Inspector().Inspect(command.SettingsPath);
@@ -309,7 +336,11 @@ public sealed class CommandRunner(
         var interval = TimeSpan.FromSeconds(command.IntervalSeconds ?? 15);
 
         using var watcher = new FileSystemSettingsWatcher(live.Value.Location.LocalStatePath);
-        using var coordinator = new AutoBackupCoordinator(watcher, Service(command), clock);
+        // The settings file's timings, not this verb's --interval: that flag is how often `watch`
+        // LOOKS, and the policy is how often it is allowed to CAPTURE. Two different numbers that
+        // would be confusing to conflate, which is why the flag keeps its own name.
+        using var coordinator = new AutoBackupCoordinator(
+            watcher, Service(command), clock, AutoBackupPolicy.For(settings));
 
         using var stopping = new CancellationTokenSource();
         ConsoleCancelEventHandler onCancel = (_, e) =>
@@ -363,20 +394,33 @@ public sealed class CommandRunner(
     private SnapshotStore Store(ParsedCommand command) =>
         new(fileSystem, clock, command.StorePath ?? settings.StorePath);
 
-    private BackupService Service(ParsedCommand command) => new(
-        Inspector(),
-        Store(command),
-        command.KeepCount ?? settings.AutoBackupKeepCount,
-        command.SettingsPath ?? settings.ChosenWaveLinkPath,
-        GatherPayload);
+    private BackupService Service(ParsedCommand command)
+    {
+        var store = Store(command);
+
+        return new BackupService(
+            Inspector(),
+            store,
+            command.KeepCount ?? settings.AutoBackupKeepCount,
+            command.SettingsPath ?? settings.ChosenWaveLinkPath,
+            live => GatherPayload(live, store));
+    }
 
     /// <summary>
     /// Tiers 1-extra, 2, 3 and 4, resolved at capture time against the settings this run is
     /// using. Every capture path goes through here so a `wlbackup backup` and a backup taken by
     /// the GUI put the same things in a snapshot.
     /// </summary>
-    private SnapshotPayload? GatherPayload(SettingsInspection live) =>
-        new TierCapture(fileSystem, appDataPath).Gather(live, settings);
+    private SnapshotPayload? GatherPayload(SettingsInspection live, SnapshotStore store)
+    {
+        // The newest snapshot's plugins.json, so tier 2 can skip re-hashing a binary nothing has
+        // touched (technical-debt.md §4.16). Null on every doubt — it only ever costs a hash.
+        var newest = store.List().FirstOrDefault();
+        var previous = newest is null ? null : new SnapshotPluginReader(fileSystem).Read(newest);
+
+        return new TierCapture(fileSystem, appDataPath, documentsPath)
+            .Gather(live, settings, previous);
+    }
 
     private int Fail(CoreError error)
     {

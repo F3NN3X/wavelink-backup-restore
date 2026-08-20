@@ -35,12 +35,13 @@ happened*. See [README.md](README.md) for how the system is organised and how to
 
 ## Current state
 
-**Phases 0–5 are complete. Phase 6 (plugin tiers) has started — §1 has landed.**
+**Phases 0–6 are complete. Phase 7 (release) is next, and 1.0 is gated on the privacy work
+rather than on features.**
 
 **There is a working program with a window.** `wlbackup` backs up, lists, restores, renames,
 deletes, verifies, prunes, empties the trash and watches from the CLI; the WPF shell does the
 same from a tray app with a window — the four designed screens, the twelve errors, the settings
-dialog, and high contrast, all built and tested. **1,050 tests** (Core 318, CLI 91, App 641).
+dialog, and high contrast, all built and tested. **1,207 tests** (Core 423, CLI 97, App 687).
 Published as a **3.2 MB NativeAOT binary**, verified against a real install.
 
 **All three founding problems are solved.** Snapshots survive an MSIX package reset
@@ -62,7 +63,17 @@ than the list: see [the session note](sessions/2026-08-19-design-audit-and-ui-fi
 four gotchas it produced. Motion and the missing-plug-in warning
 ([technical-debt.md](technical-debt.md) §4.12–4.13) closed with it.
 
-**The design is complete** (package v5): thirteen state-group specs, nothing undesigned.
+**Phase 6 closed 2026-08-19, and the two things it deferred closed with it.** All four tiers
+capture and restore. Tier 3 was then run against a real vendor folder for the first time and
+found to be capturing the wrong files — an interface default and a MIDI map where 172 presets
+should have been — so it reads **two roots** now ([[ADR-010]]), and a snapshot went from 61
+preset files to 491. Tier 4 restore reached the shell once elevation had a designed surface
+([[ADR-011]]). Automatic backups gained a settable interval and an optional daily time.
+
+**The design is complete** (package v5): thirteen state-group specs, nothing undesigned. Two
+further specs — elevation and backup timing — were written in this repo rather than exported;
+see [README.md](README.md) → *operations/* for why that is a last resort and how they survive a
+re-export.
 **It is a tray app with a window**, not the reverse — `screens/12` is explicit, and that framing
 lands scope the original four screens did not carry.
 
@@ -83,7 +94,7 @@ lands scope the original four screens did not carry.
 
 ## Decisions
 
-The shape of the project in eight records. Read `ADR-001` and `ADR-002` first — the rest
+The shape of the project in eleven records. Read `ADR-001` and `ADR-002` first — the rest
 follow from them.
 
 | ADR | Decision |
@@ -97,13 +108,22 @@ follow from them.
 | [ADR-007](decisions/ADR-007-hash-dedup-and-file-watching.md) | Content-hash dedup and a file watcher, not a schedule |
 | [ADR-008](decisions/ADR-008-windows-only-scope.md) | Windows-only, and say so out loud |
 | [ADR-009](decisions/ADR-009-hand-rolled-cli-parsing.md) | Hand-rolled command-line parsing, no dependency |
+| [ADR-010](decisions/ADR-010-two-preset-roots-and-a-rooted-snapshot-layout.md) | Two preset roots, and a snapshot layout that names them — corrects ADR-006's tier 3 |
+| [ADR-011](decisions/ADR-011-elevate-by-relaunching-the-shell.md) | Elevate by relaunching the shell, for one restore, and never otherwise |
+| [ADR-012](decisions/ADR-012-check-only-updates-with-a-staged-swap.md) | Update by staging beside the install and swapping, never elevated |
 
 ---
 
 ## Gotchas
 
-Ten ways this goes wrong. Titled by symptom, because that is what you will be searching
-for at the time.
+Twenty-two ways this goes wrong. Titled by symptom, because that is what you will be searching
+for at the time — you do not know the cause yet, which is why you are searching.
+
+Grouped by where they bite. **The whole table is here on purpose**: it listed ten of sixteen
+between 0.5.1 and 0.6.0, which made it look complete and quietly hid the six the design audit
+produced.
+
+### Capture and restore
 
 | Symptom | Gotcha |
 |---|---|
@@ -117,6 +137,48 @@ for at the time.
 | A plugin backs up as zero bytes | [vst3-backs-up-as-nothing.md](knowledge-base/gotchas/vst3-backs-up-as-nothing.md) |
 | Someone else's backup produces dead channels | [restored-backup-has-dead-channels.md](knowledge-base/gotchas/restored-backup-has-dead-channels.md) |
 | Deleting one backup takes its neighbours with it | [deleting-one-backup-takes-its-neighbours.md](knowledge-base/gotchas/deleting-one-backup-takes-its-neighbours.md) |
+| The backup says it saved your presets, and they are not in it | [backup-says-it-saved-your-presets-and-it-did-not.md](knowledge-base/gotchas/backup-says-it-saved-your-presets-and-it-did-not.md) |
+| Windows asks for rights the app already had | [windows-asks-for-rights-the-app-already-had.md](knowledge-base/gotchas/windows-asks-for-rights-the-app-already-had.md) |
+
+### The shell
+
+Four of these came out of the 0.5.1 design audit — the first three below, plus the selection one
+— and the finding was the group rather than any member: every one lived in a view no test had
+ever constructed. The two tray entries were hit while building phase 5, and the settings one two
+phases later, by the same gap.
+
+| Symptom | Gotcha |
+|---|---|
+| The window never opens and nothing says why | [the-window-never-opens-and-nothing-says-why.md](knowledge-base/gotchas/the-window-never-opens-and-nothing-says-why.md) |
+| A dialog opens as a black rectangle | [a-dialog-opens-as-a-black-rectangle.md](knowledge-base/gotchas/a-dialog-opens-as-a-black-rectangle.md) |
+| A binding expression appears on screen | [a-binding-expression-appears-on-screen.md](knowledge-base/gotchas/a-binding-expression-appears-on-screen.md) |
+| Three backups look selected at once | [three-backups-look-selected-at-once.md](knowledge-base/gotchas/three-backups-look-selected-at-once.md) |
+| A control in the Settings dialog moves and nothing happens | [a-settings-control-moves-and-nothing-happens.md](knowledge-base/gotchas/a-settings-control-moves-and-nothing-happens.md) |
+| The tray icon refuses every image you draw | [the-tray-icon-refuses-every-image-you-draw.md](knowledge-base/gotchas/the-tray-icon-refuses-every-image-you-draw.md) |
+| The tray menu keeps the theme it started with | [tray-menu-keeps-the-theme-it-started-with.md](knowledge-base/gotchas/tray-menu-keeps-the-theme-it-started-with.md) |
+| An accelerator shows as a literal underscore | [an-accelerator-shows-as-a-literal-underscore.md](knowledge-base/gotchas/an-accelerator-shows-as-a-literal-underscore.md) |
+
+### The suite, and the seams under it
+
+Both found while clearing the debt list, and both are the same shape: the production code was
+right and the *test environment* was not, which is the direction it is easy to look in last.
+
+| Symptom | Gotcha |
+|---|---|
+| A progress report never arrives in a test | [a-progress-report-never-arrives-in-a-test.md](knowledge-base/gotchas/a-progress-report-never-arrives-in-a-test.md) |
+| The serializer that never throws, throws | [the-serializer-that-never-throws-throws.md](knowledge-base/gotchas/the-serializer-that-never-throws-throws.md) |
+
+---
+
+## Runbooks
+
+Things done *to* a running system. This folder's trigger — *"there is a running system to operate,
+realistically the first release"* — fired on 2026-08-20, when the release pipeline and the
+in-app updater were built.
+
+| Runbook | When |
+|---|---|
+| [Releasing a version, and how the app updates itself](operations/runbooks/releasing-and-updating.md) | Cutting a release, and every question about how the app finds one. One document, because a release in the wrong shape is invisible to the updater. |
 
 ---
 
@@ -138,6 +200,7 @@ Extracted from shipped code, each naming its real callers.
 | [named-method-seams.md](knowledge-base/patterns/named-method-seams.md) | Choosing the wrong file share mode |
 | [preconditions-inside-the-operation.md](knowledge-base/patterns/preconditions-inside-the-operation.md) | Writing while Wave Link is still exiting |
 | [guards-that-can-fail.md](knowledge-base/patterns/guards-that-can-fail.md) | A guard that silently never matches |
+| [decisions-as-pure-functions.md](knowledge-base/patterns/decisions-as-pure-functions.md) | A conditional rule that is wrong in the one branch nobody exercised |
 
 ## Plans
 
@@ -151,6 +214,8 @@ Extracted from shipped code, each naming its real callers.
 | Audit | Subject |
 |---|---|
 | [2026-08-15 — voltybat/WaveLinkSettingsUtility](audits/2026-08-15-voltybat-wavelinksettingsutility.md) | The upstream we are forking: what to take, what to fix first |
+| [2026-08-19 — the app against the design package](audits/2026-08-19-design-conformance.md) | Every screen read against `operations/design/`: one structural layout defect, six smaller fixes, eight designed surfaces never drawn |
+| [2026-08-20 — plug-in resolution and elevation](audits/2026-08-20-plugin-resolution-and-elevation.md) | The app was asking for administrator rights it already had. **Carries an open question and the experiment that answers it** — read this before touching tier 4 restore |
 
 ---
 
@@ -158,6 +223,19 @@ Extracted from shipped code, each naming its real callers.
 
 | Date | Session |
 |---|---|
+| 2026-08-20 | [Asking for administrator rights only when the write needs them](sessions/2026-08-20-elevation-only-when-needed.md) |
+| 2026-08-20 | [Clearing the technical-debt list](sessions/2026-08-20-clearing-the-technical-debt.md) |
+| 2026-08-19 | [The two things phase 6 deferred, and a settable backup schedule](sessions/2026-08-19-preset-roots-elevation-and-timing.md) |
+| 2026-08-19 | [Phase 6 — all four tiers capture and restore](sessions/2026-08-19-phase-6-tiers-complete.md) |
+| 2026-08-19 | [Phase 6 — plug-in discovery](sessions/2026-08-19-phase-6-plugin-discovery.md) |
+| 2026-08-19 | [The design audit, and the UI fixes it produced](sessions/2026-08-19-design-audit-and-ui-fixes.md) |
+| 2026-08-19 | [Phase 5 — the settings dialog](sessions/2026-08-19-phase-5-settings-dialog.md) |
+| 2026-08-19 | [Phase 5 — high contrast](sessions/2026-08-19-phase-5-high-contrast.md) |
+| 2026-08-19 | [Phase 5 — the tray shell](sessions/2026-08-19-phase-5-tray-shell.md) |
+| 2026-08-19 | [The phase 5 audit](sessions/2026-08-19-phase-5-audit.md) |
+| 2026-08-18 | [Phase 5 — the restore outcome strip](sessions/2026-08-18-phase-5-restore-outcome-strip.md) |
+| 2026-08-17 | [Phase 5 — the tray shell and theme following](sessions/2026-08-17-phase-5-tray-shell-and-theme-following.md) |
+| 2026-08-17 | [Phase 5 — Core foundations](sessions/2026-08-17-phase-5-core-foundations.md) |
 | 2026-08-17 | [Phase 5 part 1 — the Core changes, and a design that answered back](sessions/2026-08-17-phase-5-core-changes.md) |
 | 2026-08-17 | [Design integration, and deciding what phase 5 actually is](sessions/2026-08-17-design-integration-and-phase-5-scope.md) |
 | 2026-08-16 | [Phase 4 — Core gets a caller, and AOT lands at 3.2 MB](sessions/2026-08-16-phase-4-cli-build.md) |

@@ -10,6 +10,17 @@ namespace WaveLinkBackup.Core.Abstractions;
 public interface IClock
 {
     DateTimeOffset UtcNow { get; }
+
+    /// <summary>
+    /// The same instant, carrying the user's own offset.
+    ///
+    /// Needed by exactly one thing: the daily backup time (operations/design/screens/
+    /// 14-backup-timing.md). "Every day at 03:00" means 03:00 where the person is, so the only
+    /// place in this program that cares about a wall clock rather than an elapsed span has to be
+    /// told what the wall clock says. Everything else compares DateTimeOffsets, whose arithmetic
+    /// is absolute and does not care about offsets at all.
+    /// </summary>
+    DateTimeOffset Now => UtcNow.ToLocalTime();
 }
 
 public sealed class SystemClock : IClock

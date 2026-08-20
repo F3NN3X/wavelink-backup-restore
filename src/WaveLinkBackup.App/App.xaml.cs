@@ -10,6 +10,7 @@ using H.NotifyIcon.Core;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Services;
 using WaveLinkBackup.App.Startup;
+using WaveLinkBackup.App.Updates;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Views;
@@ -83,6 +84,12 @@ public partial class App : Application
     internal ShellState ShellState { get; private set; } = ShellState.Default;
 
     /// <summary>
+    /// The Run-key seam, held because BOTH the shell view model and the Settings dialog's
+    /// WHEN WINDOWS STARTS section read it (screens/12).
+    /// </summary>
+    private IAutostart? autostart;
+
+    /// <summary>
     /// The newest snapshot, for the menu readout and the tooltip.
     ///
     /// Read from the STORE rather than from BackupHost.LastBackupAt, which only knows about
@@ -106,6 +113,41 @@ public partial class App : Application
         {
             MessageBox.Show(arguments.Error, "Wave Link Backup", MessageBoxButton.OK, MessageBoxImage.Warning);
             Shutdown(1);
+            return;
+        }
+
+        // BEFORE the mutex and before ANY file is read, for the same reason the headless restore
+        // is - and one more. This copy is running from a staging directory that is about to be
+        // renamed into place, so it must do nothing but wait, swap and relaunch. Reading settings
+        // here would be reading them from a path that is about to stop existing.
+        if (arguments.IsApplyingUpdate)
+        {
+            var installer = new UpdateInstaller();
+            var target = arguments.ApplyUpdateInstallDirectory!;
+
+            var swapped = installer.Apply(
+                arguments.ApplyUpdateForProcessId!.Value, target, TimeSpan.FromSeconds(30));
+
+            // Relaunch either way: on success the new install, on failure the old one that was put
+            // back. The one thing this must never do is leave the user with nothing running.
+            UpdateInstaller.Relaunch(
+                target, System.IO.Path.GetFileName(Environment.ProcessPath ?? "WaveLinkBackup.exe"));
+
+            Shutdown(swapped ? 0 : 1);
+            return;
+        }
+
+        // BEFORE the mutex, because this copy is not an instance of the app - it is one restore,
+        // started elevated by the copy the user is looking at, and the mutex would make it exit
+        // without doing the thing it was started for (screens/13-elevation.md).
+        if (arguments.IsHeadlessRestore)
+        {
+            var elevatedFileSystem = new FileSystem();
+            var elevatedSettings = arguments.ApplyTo(
+                new SettingsRepository(elevatedFileSystem, SettingsRepository.DefaultDirectory).Read());
+
+            Shutdown(HeadlessRestore.Run(
+                arguments, elevatedSettings, elevatedFileSystem, new WaveLinkProcess(), new SystemClock()));
             return;
         }
 
@@ -141,7 +183,7 @@ public partial class App : Application
 
         settings = arguments.ApplyTo(settingsRepository.Read());
 
-        (host, service, store, waveLinkProcess, restoreService, shell) =
+        (host, service, store, waveLinkProcess, restoreService, shell, autostart) =
             Compose(fileSystem, settings, GatherPayload);
         host.AutoBackupEnabled = settings.AutoBackupEnabled;
         host.Start();
@@ -155,6 +197,11 @@ public partial class App : Application
         shell.RefreshAutostart();
 
         tray = BuildTray();
+
+        // A monitor being plugged in, unplugged, or rescaled can move the taskbar to a screen with
+        // a different DPI, and the tray icon is a BITMAP - it does not reflow, it just gets soft.
+        // Re-rendering on the change is the whole of technical-debt.md §4.8 minor 1's second half.
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
         // Now that there is an icon to repaint, follow the OS. screens/11 requires high contrast
         // to be reacted to at runtime rather than needing a restart, and the same is true of
@@ -180,7 +227,7 @@ public partial class App : Application
 
     private static (
         BackupHost Host, BackupService Service, SnapshotStore Store, IWaveLinkProcess WaveLinkProcess,
-        IRestoreService RestoreService, ShellViewModel Shell)
+        IRestoreService RestoreService, ShellViewModel Shell, IAutostart Autostart)
         Compose(
             IFileSystem fileSystem,
             BackupSettings settings,
@@ -204,8 +251,11 @@ public partial class App : Application
             ? live.Value.Location.LocalStatePath
             : SettingsLocator.SystemLocalAppData;
 
+        // The user's own timings (screens/14-backup-timing.md): the interval cap they chose, and
+        // the daily copy if they switched one on. AutoBackupPolicy.Default is the pair of constants
+        // these two settings replaced.
         var coordinator = new AutoBackupCoordinator(
-            new FileSystemSettingsWatcher(watchPath), service, clock);
+            new FileSystemSettingsWatcher(watchPath), service, clock, AutoBackupPolicy.For(settings));
 
         // The window's own data model. Built here rather than in MainWindow's constructor so it
         // exists (and RefreshShellFacts can reach it) even before any window is ever shown - the
@@ -218,8 +268,9 @@ public partial class App : Application
         // The autostart seam (screens/12): the Run key for THIS executable. ProcessPath is null
         // until the process has started, so it is resolved at composition time - by then
         // App.xaml.cs has run and Environment.ProcessPath points at the real exe.
-        var autostart = new RunKeyAutostart(new WindowsRegistryKeys(), Environment.ProcessPath ?? string.Empty);
-        var shell = new ShellViewModel(list, autostart);
+        var runKeyAutostart = new RunKeyAutostart(
+            new WindowsRegistryKeys(), Environment.ProcessPath ?? string.Empty);
+        var shell = new ShellViewModel(list, runKeyAutostart);
 
         // The shell-facing restore seam. Built here rather than in MainWindow so it exists even
         // before any window is shown - the same reason the shell VM is built here. It wraps Core's
@@ -227,7 +278,7 @@ public partial class App : Application
         var waveLinkProcess = new WaveLinkProcess();
         var restoreService = new RestoreService(fileSystem, waveLinkProcess, store, gatherPayload);
 
-        return (new BackupHost(coordinator, clock), service, store, waveLinkProcess, restoreService, shell);
+        return (new BackupHost(coordinator, clock), service, store, waveLinkProcess, restoreService, shell, runKeyAutostart);
     }
 
     private TaskbarIcon BuildTray()
@@ -239,6 +290,16 @@ public partial class App : Application
         };
 
         icon.TrayLeftMouseUp += (_, _) => ShowMainWindow();
+
+        // The notification's action. Both designed notices carry one, and neither can be a button
+        // on a classic balloon - see Notify. Consumed on click so a stale action cannot fire from
+        // a later, unrelated notification.
+        icon.TrayBalloonTipClicked += (_, _) =>
+        {
+            var action = pendingNotificationAction;
+            pendingNotificationAction = null;
+            action?.Invoke();
+        };
 
         // Built in code rather than declared in a window's XAML, so nothing loads it into a
         // visual tree and the icon would never appear without this.
@@ -339,9 +400,13 @@ public partial class App : Application
     /// the row the capture just wrote (README: "Back up now inserts a row at the top of TODAY
     /// and selects it") - the tray menu's own entry point keeps discarding it, same as before.
     /// </summary>
-    internal Result<Snapshot> BackUpNow()
+    /// <param name="progress">
+    /// Byte-level progress for the window's backing-up strip. Null from the tray menu, which has
+    /// no strip to drive.
+    /// </param>
+    internal Result<Snapshot> BackUpNow(IProgress<SnapshotWriteProgress>? progress = null)
     {
-        var result = service!.BackUpNow("Manual");
+        var result = service!.BackUpNow("Manual", progress: progress);
 
         // No message box here: MainWindow.BackUpNowAsync renders the failure as one of the twelve
         // designed errors (06-errors.md) - inline strip for 3/5, message box otherwise. The tray
@@ -358,15 +423,32 @@ public partial class App : Application
     internal void OpenStoreFolder() =>
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{settings.StorePath}\""));
 
-    private void ToggleAutoBackup()
-    {
-        host!.AutoBackupEnabled = !host.AutoBackupEnabled;
+    private void ToggleAutoBackup() => SetAutoBackup(!host!.AutoBackupEnabled);
 
-        settings = settings with { AutoBackupEnabled = host.AutoBackupEnabled };
-        settingsRepository!.Save(settings);
+    /// <summary>
+    /// Whether the watcher is running, set to an absolute value rather than flipped.
+    ///
+    /// Internal because Screen 4's own checkbox — "Keep backing up on its own when my settings
+    /// change" — is the first-run screen's one setting, and it needs to say what it means rather
+    /// than what the last press did. It was `IsChecked="True"` in the XAML and wired to nothing:
+    /// a control that showed a state it did not read and changed a setting it did not write.
+    /// </summary>
+    internal void SetAutoBackup(bool enabled)
+    {
+        if (host is null || settingsRepository is null) return;
+        if (host.AutoBackupEnabled == enabled) return;
+
+        host.AutoBackupEnabled = enabled;
+
+        settings = settings with { AutoBackupEnabled = enabled };
+        settingsRepository.Save(settings);
 
         RefreshTray();
+        RefreshShellFacts();
     }
+
+    /// <summary>The current value, so a control can start out showing the truth.</summary>
+    internal bool AutoBackupEnabled => host?.AutoBackupEnabled ?? settings.AutoBackupEnabled;
 
     private void TogglePause()
     {
@@ -381,10 +463,21 @@ public partial class App : Application
     /// each time (the file may have changed while the window was closed) and shows it modally over
     /// the main window when one is open, otherwise as a standalone modal.
     /// </summary>
-    internal void OpenSettings()
+    /// <summary>
+    /// Error 8's "Get the update": Settings, at UPDATES, with a check already running so the new
+    /// version's row is showing by the time the user looks at it (screens/12).
+    ///
+    /// The check is the ONLY thing started automatically here. Installing is still a press — "It
+    /// never installs anything without you" holds on this path exactly as it does on every other.
+    /// </summary>
+    internal void OpenSettingsAtUpdates() => OpenSettings(scrollToUpdates: true);
+
+    internal void OpenSettings() => OpenSettings(scrollToUpdates: false);
+
+    private void OpenSettings(bool scrollToUpdates)
     {
         var vm = BuildSettingsViewModel();
-        var dialog = new Views.SettingsDialog(vm);
+        var dialog = new Views.SettingsDialog(vm) { ScrollToUpdates = scrollToUpdates };
         var owner = MainWindow != null ? (Window)MainWindow : null;
         if (owner is not null && owner.IsLoaded)
         {
@@ -395,6 +488,31 @@ public partial class App : Application
         {
             dialog.Show();
         }
+    }
+
+    /// <summary>
+    /// Save a settings change AND make it true of the running app. The Settings dialog has no Save
+    /// button - every control commits immediately - so this is what "commits immediately" has to
+    /// mean: written to disk, and reflected in the objects already running.
+    ///
+    /// Only writing the file was the old behaviour, and it made every control on that screen a
+    /// control that appeared not to work until the next launch. The tier toggles were the visible
+    /// case (App holds the record GatherPayload closes over, and it stayed stale), the automatic-
+    /// backup switch the quiet one.
+    /// </summary>
+    private bool ApplySettings(BackupSettings next)
+    {
+        if (!settingsRepository!.Save(next).IsSuccess) return false;
+
+        settings = next;
+
+        if (host is not null)
+        {
+            host.AutoBackupEnabled = next.AutoBackupEnabled;
+            host.Policy = AutoBackupPolicy.For(next);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -427,11 +545,25 @@ public partial class App : Application
         // when our own settings file last recorded the choice (the moment the user picked).
         var whichLive = BuildWhichWaveLink(repo);
 
+        // WHEN WINDOWS STARTS (screens/12): the Run key and the shell's own close behaviour. Both
+        // seams were built and tested phases ago with nothing bound to either of them
+        // (technical-debt.md §4.21 item 4). Null when autostart is unavailable, which hides the
+        // whole section rather than drawing two toggles that write nowhere.
+        var startup = autostart is null ? null : new StartupSeam(
+            autostart,
+            () => ShellState.ClosingHidesToTray,
+            hides =>
+            {
+                ShellState = ShellState with { ClosingHidesToTray = hides };
+                shellStateRepository?.Save(ShellState);
+            });
+
         var vm = SettingsViewModel.Build(
             settings,
-            s => repo.Save(s).IsSuccess,
+            ApplySettings,
             whereLive,
-            whichLive);
+            whichLive,
+            startup);
 
         // WHAT GOES IN A BACKUP: every figure MEASURED from what a capture would take on this
         // machine right now (phase 6 §7) - never the design mock's 470 KB / 4 KB / 10 MB / 40 MB.
@@ -465,9 +597,86 @@ public partial class App : Application
                 count, bytes, store.TrashPath,
                 store.TrashGoesToRecycleBin(new RecycleBin()));
             vm.FreeSpaceBytes = fileSystem!.GetAvailableFreeBytes(settings.StorePath);
+
+            // The other two thirds of the design's stats line, from the same read (audit §2.9a).
+            var snapshots = store.List();
+            vm.BackupCount = snapshots.Count;
+            vm.UsedBytes = snapshots.Sum(s => s.Manifest.TotalSizeBytes);
         }
 
+        // UPDATES (screens/12). Built here because it needs the release feed and the HTTP client,
+        // and hidden entirely when no feed is configured - a "Check now" that cannot reach anything
+        // is worse than no button.
+        vm.Updates = BuildUpdateViewModel();
+
         return vm;
+    }
+
+    /// <summary>
+    /// Where releases are looked for. Read from the environment rather than compiled in, because
+    /// it is a fact about a DEPLOYMENT and not about the program (technical-debt.md §5): this repo
+    /// has no remote yet, and a hard-coded owner/repo would be a constant that is wrong the moment
+    /// one exists. Absent means the UPDATES section hides itself.
+    /// </summary>
+    internal static UpdateSource ReleaseSource => new(
+        Environment.GetEnvironmentVariable("WLBACKUP_UPDATE_OWNER") ?? string.Empty,
+        Environment.GetEnvironmentVariable("WLBACKUP_UPDATE_REPO") ?? string.Empty);
+
+    /// <summary>
+    /// One client for the life of the process. A new HttpClient per check is the classic way to
+    /// exhaust sockets, and this one is used at most weekly.
+    /// </summary>
+    private static readonly System.Net.Http.HttpClient updateHttp = new()
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+    };
+
+    private UpdateViewModel BuildUpdateViewModel()
+    {
+        var source = ReleaseSource;
+        var feed = new GitHubReleaseFeed(source, updateHttp);
+
+        return new UpdateViewModel(
+            check: ct => feed.CheckAsync(ReleaseVersion.Current, ct),
+            install: (release, progress, ct) => InstallUpdateAsync(release, progress, ct),
+            persist: (checkForUpdates, checkedAt) => ApplySettings(
+                settings with { CheckForUpdates = checkForUpdates, LastUpdateCheckUtc = checkedAt }),
+            autoCheckEnabled: settings.CheckForUpdates,
+            lastCheckedAt: settings.LastUpdateCheckUtc,
+            isConfigured: source.IsConfigured);
+    }
+
+    /// <summary>
+    /// Download, verify, stage, hand over. Returns null when the hand-over started — at which
+    /// point this process is on its way out and has nothing left to report — or the mono line for
+    /// the failed-update block.
+    ///
+    /// **The shutdown is deliberate and complete.** The staged copy cannot rename a directory this
+    /// process holds a handle on, so the watcher, the tray and the store all have to go first, and
+    /// a last backup is taken on the way out exactly as a Quit would.
+    /// </summary>
+    private async Task<string?> InstallUpdateAsync(
+        UpdateRelease release, IProgress<double> progress, CancellationToken ct)
+    {
+        var staging = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), "WaveLinkBackup-update");
+
+        var download = await new UpdateDownloader(updateHttp)
+            .DownloadAsync(release, staging, progress, ct)
+            .ConfigureAwait(true);
+
+        if (!download.Succeeded) return download.FailureDetail;
+
+        var install = System.IO.Path.GetDirectoryName(Environment.ProcessPath);
+        if (install is null) return "COULDN'T FIND THIS APP'S OWN FOLDER · NOTHING CHANGED";
+
+        var started = new UpdateInstaller().Begin(download.Path!, install);
+        if (!started.Started) return started.FailureDetail;
+
+        // Everything that holds a file handle inside the install directory, and the last backup a
+        // Quit would take. ShutdownEverything ends the process, so nothing after this runs.
+        ShutdownEverything();
+        return null;
     }
 
     /// <summary>
@@ -481,7 +690,24 @@ public partial class App : Application
     /// snapshot, so all three produce the same shape of backup.
     /// </summary>
     private SnapshotPayload? GatherPayload(SettingsInspection live) =>
-        fileSystem is null ? null : TierCapture.For(fileSystem).Gather(live, settings);
+        fileSystem is null
+            ? null
+            : TierCapture.For(fileSystem).Gather(live, settings, NewestPluginManifest());
+
+    /// <summary>
+    /// The newest snapshot's plugins.json, or null when there is no snapshot, no store, or
+    /// nothing readable in it. Handed to the capture for one purpose: letting tier 2 skip
+    /// re-hashing a plug-in binary nothing has touched (technical-debt.md §4.16).
+    ///
+    /// Null on every doubt. The cost of a null is a capture that hashes as it always did.
+    /// </summary>
+    private PluginManifest? NewestPluginManifest()
+    {
+        if (fileSystem is null || store is null) return null;
+
+        var newest = store.List().FirstOrDefault();
+        return newest is null ? null : new SnapshotPluginReader(fileSystem).Read(newest);
+    }
 
     private CaptureEstimate MeasureTiers()
     {
@@ -553,7 +779,7 @@ public partial class App : Application
             || candidates.Count <= 1)
             return;
 
-        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error))
+        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error, DescribeInstall(candidates)))
         {
             Owner = owner,
         };
@@ -581,6 +807,18 @@ public partial class App : Application
 
         if (picker.ShowDialog(owner) != true) return;
 
+        // Error 9 (06-errors.md §9), raised in place rather than as a modal. A folder holding
+        // files but no snapshot is almost always a mis-click - a Recordings folder, a project
+        // directory - and pointing the store at it silently would hide every existing backup
+        // behind an empty list. An EMPTY folder is fine: that is "start fresh in an empty one",
+        // which the error's own copy invites.
+        if (NotABackupFolder(picker.FolderName) is { } fileCount)
+        {
+            vm.ShowNotABackupFolder(picker.FolderName, fileCount);
+            return;
+        }
+
+        vm.ClearNotABackupFolder();
         SetStorePath(picker.FolderName);
 
         // Re-detect: the trash row and free-space figure both describe the NEW volume.
@@ -661,8 +899,164 @@ public partial class App : Application
         RefreshShellFacts();
     }
 
+    /// <summary>
+    /// "Copy diagnostics" (technical-debt.md §6): everything the app knows about itself, redacted,
+    /// on the clipboard.
+    ///
+    /// **On the clipboard and nowhere else.** There is no upload here and no setting that would
+    /// create one — the whole point is to give the user something safe to paste, not to collect
+    /// anything. <see cref="Diagnostics.Report"/> runs every field through
+    /// <see cref="Redaction"/>, so the promise printed beside the button is kept by construction
+    /// rather than by whoever adds the next field remembering.
+    /// </summary>
+    internal void CopyDiagnostics(SettingsViewModel vm)
+    {
+        if (fileSystem is null) return;
+
+        var live = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
+            .Inspect(settings.ChosenWaveLinkPath);
+
+        var report = Core.Analysis.Diagnostics.Report(
+            ReleaseVersion.Display(ReleaseVersion.Current),
+            settings,
+            live.IsSuccess ? live.Value : null,
+            store?.List() ?? [],
+            DateTimeOffset.Now);
+
+        try
+        {
+            Clipboard.SetText(report);
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            // Another process holds the clipboard - common, transient, and not worth an error
+            // screen of its own on a diagnostic action. The button is pressable again.
+            return;
+        }
+
+        vm.DiagnosticsCopied = true;
+    }
+
+    /// <summary>
+    /// What each error-2 candidate turns out to be, so its row can say more than a path
+    /// (06 §2, technical-debt.md §4.21 item 7).
+    ///
+    /// Each candidate is inspected on its own — the whole point of the dialog is that discovery
+    /// could not choose between them, so nothing here may lean on the "current" one. A candidate
+    /// that cannot be read yields null, and its row falls back to a path and a radio.
+    ///
+    /// The RUNNING chip is an approximation the model documents: Windows gives no mapping from a
+    /// running MSIX process back to its package, so it goes to whichever candidate's settings file
+    /// was written most recently, and only while Wave Link is actually up.
+    /// </summary>
+    private Func<string, ErrorInstallDetail?> DescribeInstall(IReadOnlyList<string> candidates)
+    {
+        var running = waveLinkProcess?.IsRunning ?? false;
+
+        var newest = running
+            ? candidates
+                .Where(c => fileSystem!.FileExists(c))
+                .OrderByDescending(c => fileSystem!.GetLastWriteTimeUtc(c))
+                .FirstOrDefault()
+            : null;
+
+        return path =>
+        {
+            if (fileSystem is null) return null;
+
+            var inspection = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
+                .Inspect(path);
+
+            if (!inspection.IsSuccess) return null;
+
+            var saved = fileSystem.FileExists(path)
+                ? new DateTimeOffset(fileSystem.GetLastWriteTimeUtc(path), TimeSpan.Zero).ToLocalTime()
+                : (DateTimeOffset?)null;
+
+            return new ErrorInstallDetail(
+                inspection.Value.Analysis.WaveLinkVersion,
+                inspection.Value.Analysis.Fingerprint.InputCount,
+                inspection.Value.Bytes.LongLength,
+                saved,
+                IsRunning: string.Equals(path, newest, StringComparison.OrdinalIgnoreCase));
+        };
+    }
+
+    /// <summary>
+    /// How many files a folder holds when it holds files but no backups, or null when it is a
+    /// usable store — empty, or already holding snapshots.
+    ///
+    /// The test is for a snapshot directory rather than for a <c>manifest.json</c> at the top
+    /// level: the store's own shape is one directory per snapshot, so a top-level manifest would
+    /// never be there even in a perfectly good store.
+    /// </summary>
+    private int? NotABackupFolder(string path)
+    {
+        if (fileSystem is null) return null;
+
+        var files = fileSystem.EnumerateFiles(path, "*");
+        var directories = fileSystem.EnumerateDirectories(path, "*");
+
+        if (files.Count == 0 && directories.Count == 0) return null;
+
+        var holdsASnapshot = directories.Any(d =>
+            fileSystem.FileExists(System.IO.Path.Combine(d, SnapshotManifest.ManifestFileName)));
+
+        return holdsASnapshot ? null : files.Count;
+    }
+
     /// <summary>Error 12's "Use the default folder": same as SetStorePath with the default.</summary>
     internal void UseDefaultStore() => SetStorePath(SnapshotStore.DefaultStorePath);
+
+    /// <summary>
+    /// Error 1's "Choose the settings file…" — the escape hatch for a Wave Link discovery cannot
+    /// find.
+    ///
+    /// This is the only route a **non-MSIX install** has into the app at all
+    /// (technical-debt.md §2.2): <c>SettingsLocator.Locate(explicitSettingsPath)</c> bypasses
+    /// discovery entirely, so an explicit path makes the program useful on a machine where every
+    /// automatic answer is "not found". Persisted, so it is asked once.
+    /// </summary>
+    internal void ChooseSettingsFile(Window owner)
+    {
+        var picker = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Choose Wave Link's Settings.json",
+            Filter = "Wave Link settings (Settings.json)|Settings.json|JSON files (*.json)|*.json",
+            CheckFileExists = true,
+        };
+
+        if (picker.ShowDialog(owner) != true) return;
+
+        settings = settings with { ChosenWaveLinkPath = picker.FileName };
+        settingsRepository?.Save(settings);
+
+        // Rebuild the capture path around the chosen file, exactly as a folder change does — the
+        // watcher and every later capture must read the file the user just pointed at, not the one
+        // discovery failed to find.
+        ApplyChosenWaveLink();
+    }
+
+    /// <summary>
+    /// Re-point everything that reads Wave Link's settings at <c>settings.ChosenWaveLinkPath</c>,
+    /// then re-read the facts so the not-found screen collapses on its own.
+    /// </summary>
+    private void ApplyChosenWaveLink()
+    {
+        if (fileSystem is null || host is null || store is null) return;
+
+        service = new BackupService(
+            SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData),
+            store,
+            settings.AutoBackupKeepCount,
+            settings.ChosenWaveLinkPath,
+            GatherPayload);
+
+        host.SetStore(store, service);
+
+        RefreshTray();
+        RefreshShellFacts();
+    }
 
     /// <summary>
     /// Error 12's "Look again": re-probe the CURRENT path. No settings change - the user is
@@ -675,6 +1069,91 @@ public partial class App : Application
         RefreshShellFacts();
     }
 
+    /// <summary>
+    /// The two designed tray notifications, and their rules. Held rather than constructed per call
+    /// because the nine-day notice fires ONCE per episode, which is state.
+    /// </summary>
+    private readonly TrayNotifications notifications = new();
+
+    /// <summary>
+    /// Show one, with its action wired.
+    ///
+    /// **Its action is the whole notification, not a button.** The design draws each notice with a
+    /// labelled action; a classic tray balloon has no buttons, and Windows renders one as a toast
+    /// that drops them. Real toast buttons need an AppUserModelID and a Start-menu shortcut - an
+    /// installer concern this app does not have yet. So the label is stated in the body and
+    /// clicking anywhere on the notice does the thing, which keeps the action reachable and says
+    /// what it is. Recorded in technical-debt.md §4.21 item 6 rather than left as a silent
+    /// difference from the design.
+    /// </summary>
+    private void Notify(TrayNotification? notification)
+    {
+        if (notification is null || tray is null) return;
+
+        pendingNotificationAction = notification.Kind switch
+        {
+            TrayNotificationKind.NothingBackedUp => () =>
+            {
+                ShowMainWindow();
+                OpenSettings();
+            },
+            TrayNotificationKind.WaveLinkReset => ShowMainWindow,
+            _ => null,
+        };
+
+        tray.ShowNotification(
+            notification.Title,
+            $"{notification.Body}\n\n{notification.ActionLabel}");
+    }
+
+    /// <summary>What clicking the most recent notification does. Null when there is nothing to do.</summary>
+    private Action? pendingNotificationAction;
+
+    /// <summary>
+    /// The second designed notification: Wave Link rejected a restored backup and reset the live
+    /// configuration. Raised by the window when a restore comes back Rejected, because the window
+    /// may well be hidden at that point — a headless restore is a supported path, and the strip it
+    /// draws is no use to somebody who is not looking at it.
+    /// </summary>
+    internal void NotifyWaveLinkReset() =>
+        Notify(TrayNotifications.WaveLinkReset(Core.Restore.RestoreOrchestrator.PreRestoreName));
+
+    /// <summary>
+    /// The DPI scale of the screen holding the taskbar, which is the screen the tray icon is drawn
+    /// on — and not necessarily the one holding the window, or the primary one.
+    ///
+    /// Asked of <c>Shell_TrayWnd</c> directly, because that IS the taskbar: any indirection through
+    /// a screen rectangle would have to guess which screen it sits on. Falls back to 1.0 when the
+    /// window cannot be found or the API is unavailable, which reproduces the fixed 32px this
+    /// replaced (technical-debt.md §4.8 minor 1).
+    /// </summary>
+    private static double TaskbarDpiScale()
+    {
+        try
+        {
+            var taskbar = FindWindowW("Shell_TrayWnd", null);
+            if (taskbar == IntPtr.Zero) return 1.0;
+
+            var dpi = GetDpiForWindow(taskbar);
+            return dpi <= 0 ? 1.0 : dpi / 96.0;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return 1.0;
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern IntPtr FindWindowW(string lpClassName, string? lpWindowName);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    /// <summary>Re-render the tray icon at the new taskbar DPI. Marshalled: SystemEvents can
+    /// raise on a non-UI thread, and the renderer builds WPF visuals.</summary>
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(RefreshTray);
+
     private void RefreshTray()
     {
         if (tray is null || host is null) return;
@@ -686,7 +1165,7 @@ public partial class App : Application
         // The new icon is installed before the old one is disposed: the shell has taken a copy
         // by then, and freeing it first would flash an empty slot.
         var previous = trayIcon;
-        trayIcon = TrayIconRenderer.Render(status, colour);
+        trayIcon = TrayIconRenderer.Render(status, colour, TrayIconRenderer.PixelSizeFor(TaskbarDpiScale()));
         tray.Icon = trayIcon;
         previous?.Dispose();
 
@@ -698,6 +1177,11 @@ public partial class App : Application
         }
 
         tray.ToolTipText = TrayState.Tooltip(host.Conditions, newest.TakenAt);
+
+        // The nine-day notice (screens/12, "Notifications - exactly two"). Checked on every tray
+        // refresh, which is every host tick, and fired at most once per episode - the decision and
+        // the once-ness both live in TrayNotifications so they can be asserted from a table.
+        Notify(notifications.NothingBackedUp(newest.TakenAt, DateTimeOffset.Now));
 
         Item("LastBackupHeader").Header = Readout();
         Item("AutoBackup").IsChecked = host.AutoBackupEnabled;
@@ -781,7 +1265,9 @@ public partial class App : Application
             AutoBackupEnabled: host?.AutoBackupEnabled ?? false,
             FolderMissing: !fileSystem.DirectoryExists(settings.StorePath),
             StorePath: settings.StorePath,
-            FreeBytes: fileSystem.GetAvailableFreeBytes(settings.StorePath)));
+            FreeBytes: fileSystem.GetAvailableFreeBytes(settings.StorePath),
+            WaveLinkVersion: inspection.IsSuccess ? inspection.Value.Analysis.WaveLinkVersion : null,
+            LogsPath: inspection.IsSuccess ? inspection.Value.Location.LogsPath : null));
     }
 
     /// <summary>
@@ -807,7 +1293,7 @@ public partial class App : Application
 
         error2Prompted = true;
 
-        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error))
+        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error, DescribeInstall(candidates)))
         {
             Owner = MainWindow,
         };
@@ -874,6 +1360,7 @@ public partial class App : Application
 
         // SystemEvents holds a static subscription; leaving it attached keeps the process alive
         // past Shutdown, which on a tray app is indistinguishable from a leak.
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         systemTheme?.Dispose();
         instance?.Dispose();
 

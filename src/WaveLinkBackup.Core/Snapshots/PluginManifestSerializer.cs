@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Globalization;
 using System.Text.Json;
 
 namespace WaveLinkBackup.Core.Snapshots;
@@ -43,10 +44,21 @@ public static class PluginManifestSerializer
                 foreach (var channel in plugin.Channels) writer.WriteStringValue(channel);
                 writer.WriteEndArray();
 
-                WriteNullable(writer, "presetSource", plugin.PresetSource);
+                writer.WriteStartArray("presetSources");
+                foreach (var source in plugin.PresetSources) writer.WriteStringValue(source);
+                writer.WriteEndArray();
+
                 writer.WriteNumber("presetFileCount", plugin.PresetFileCount);
                 writer.WriteNumber("presetBytes", plugin.PresetBytes);
                 WriteNullable(writer, "binaryPath", plugin.BinaryPath);
+                writer.WriteNumber("binarySizeBytes", plugin.BinarySizeBytes);
+
+                // Round-trip "O" so a tick is not lost between capture and the next capture's
+                // comparison — the whole value of the field is that it compares exactly.
+                WriteNullable(
+                    writer,
+                    "binaryLastWriteUtc",
+                    plugin.BinaryLastWriteUtc?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
 
                 writer.WriteEndObject();
             }
@@ -112,10 +124,12 @@ public static class PluginManifestSerializer
                         FilePath: path ?? string.Empty,
                         Sha256: String(element, "sha256"),
                         Channels: Strings(element, "channels"),
-                        PresetSource: String(element, "presetSource"),
+                        PresetSources: PresetSources(element),
                         PresetFileCount: (int)Number(element, "presetFileCount"),
                         PresetBytes: Number(element, "presetBytes"),
-                        BinaryPath: String(element, "binaryPath")));
+                        BinaryPath: String(element, "binaryPath"),
+                        BinarySizeBytes: Number(element, "binarySizeBytes"),
+                        BinaryLastWriteUtc: Timestamp(element, "binaryLastWriteUtc")));
                 }
             }
 
@@ -128,6 +142,23 @@ public static class PluginManifestSerializer
     /// <see cref="PluginManifest.Empty"/>, which is a rig with no third-party plugins.
     /// </summary>
     private static PluginManifest Unreadable => new(0, []);
+
+    /// <summary>
+    /// The folders tier 3 read, from either shape of the file.
+    ///
+    /// Schema 1 wrote a single `presetSource` string, because tier 3 only ever looked in one
+    /// place. Schema 2 writes a `presetSources` array, because it looks in two (technical-debt.md
+    /// §4.18). An old snapshot is read through the old key rather than losing the answer, which
+    /// matters more here than anywhere else in this file: the folder it names is the evidence for
+    /// why the heuristic changed.
+    /// </summary>
+    private static IReadOnlyList<string> PresetSources(JsonElement element)
+    {
+        var many = Strings(element, "presetSources");
+        if (many.Count > 0) return many;
+
+        return String(element, "presetSource") is { } one ? [one] : [];
+    }
 
     private static void WriteNullable(Utf8JsonWriter writer, string name, string? value)
     {
@@ -162,6 +193,17 @@ public static class PluginManifestSerializer
         && value.TryGetInt64(out var number)
             ? number
             : 0;
+
+    /// <summary>
+    /// A round-trip UTC timestamp, or null for anything that does not parse. Null is the safe
+    /// answer: it makes <see cref="PluginManifestEntry.BinaryMatches"/> say no, and the capture
+    /// hashes as it always did.
+    /// </summary>
+    private static DateTime? Timestamp(JsonElement element, string name) =>
+        String(element, name) is { } text
+        && DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
+            ? parsed.ToUniversalTime()
+            : null;
 
     /// <summary>A string property, or null when absent, wrong-typed or blank.</summary>
     private static string? String(JsonElement element, string name) =>

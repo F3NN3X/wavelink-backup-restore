@@ -2,7 +2,7 @@
 title: "Wave Link Backup Documentation System"
 status: published
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-20
 tags: [meta, documentation]
 ---
 
@@ -39,10 +39,12 @@ _docs/
 │   ├── patterns/            # proven solutions, extracted from shipping code
 │   └── recipes/             # step-by-step guides
 ├── operations/
+│   ├── runbooks/            # operating a released system
 │   └── design/              # the design handoff (vendored export — see note below)
 │       ├── README.md        #   part 1: the four finished screens
 │       ├── CHANGES-SINCE-V1.md  # diff against the previous export — read first
-│       ├── screens/         #   part 2: eleven state-group specs + PNGs
+│       ├── screens/         #   part 2: 11 exported state-group specs + PNGs,
+│       │                     #   plus 13-/14- authored here (see note below)
 │       ├── tokens/ assets/  #   token CSS and brand marks
 ├── plans/                   # designs and implementation plans, written before the work
 ├── sessions/                # structured session notes
@@ -62,8 +64,15 @@ not here yet, and each has a trigger that creates it:
 
 | Folder | Create it when |
 |---|---|
-| `operations/runbooks/` | There is a running system to operate — realistically, the first release. |
 | `operations/diagrams/` | A diagram earns its keep over prose. |
+
+> `operations/runbooks/` **was** on this list. Its trigger — *"there is a running system to
+> operate, realistically the first release"* — fired on 2026-08-20, when the release pipeline and
+> the in-app updater were built. It holds one runbook.
+>
+> **Two triggers have now fired** (this one and `patterns/`), which is the argument for the row
+> that remains: the mechanism works, so `operations/diagrams/` can wait until a diagram earns it
+> rather than being created hopefully.
 
 > `knowledge-base/patterns/` **was** on this list. Its trigger — *"the first line of production
 > code ships"* — fired on 2026-08-16 with phase 1, and it now holds four patterns. Kept as a
@@ -88,6 +97,7 @@ not here yet, and each has a trigger that creates it:
 | Has this bitten us before? | `knowledge-base/gotchas/` |
 | How do I do X? | `knowledge-base/recipes/` |
 | What happened, and when? | `sessions/` |
+| How do I ship a release? | `operations/runbooks/` |
 | What is left? | `dev-phases/`, `technical-debt.md` |
 | What does that word mean here? | `glossary.md` |
 
@@ -155,12 +165,23 @@ load-bearing. If the order does not matter, it is not a recipe, it is a paragrap
 
 ---
 
-### `operations/` — design, and later runbooks and diagrams
+### `operations/` — design and runbooks, and later diagrams
 
 **Purpose:** things done *to* a running system rather than to the code.
 
+`operations/runbooks/` holds procedures for operating a release: cutting one, and what the app
+does with it. **A runbook is not a recipe.** A recipe is for a task with a load-bearing order
+(`knowledge-base/recipes/`); a runbook is for a *system* — it carries the procedure, the contract
+the procedure has to satisfy, and a symptom table for when it does not. If it has no symptom
+table, it is probably a recipe.
+
+**Say what is verified.** A runbook describes a system that may not have run yet. Mark what was
+measured and what is still unverified, and update it the first time reality disagrees — an
+untested procedure written in the confident voice is worse than no procedure.
+
 `operations/design/` holds the design handoff — tokens, the four finished screens, eleven
-state-group specs in `screens/`, and a self-contained HTML prototype. `README.md` and
+exported state-group specs in `screens/` plus two written here, and a self-contained HTML
+prototype. `README.md` and
 `screens/` are **both current and non-overlapping**: the README is the only spec for the four
 finished screens, `screens/` the only spec for the states they lack. Neither supersedes the
 other. The prototype is a reference, **not production code, and must not be ported literally**.
@@ -175,6 +196,19 @@ Keep this one folder with subdirectories rather than several tiny top-level fold
 >
 > `CHANGES-SINCE-V1.md` is the diff against the previous export. Read it before re-reading the
 > README; it names which of the already-specified screens changed.
+
+> **Two files in `screens/` are locally authored, and they are the exception to the exemption
+> above.** `13-elevation.md` and `14-backup-timing.md` were written in this repo, not exported
+> from the design tool, because the code they specify could not be built without a design and
+> the design tool was not going to produce one on its own schedule. **They carry frontmatter and
+> a provenance banner precisely so a re-export cannot silently delete them** — a wholesale
+> replacement of this folder must preserve any file whose first line is `---`. If the design tool
+> later produces its own version of either screen, the exported one wins and the local file moves
+> to `archive/`.
+>
+> Adding a locally authored file here is a **last resort**, not a pattern. The alternative was
+> inventing design in XAML, which [[ADR-004]] exists to prevent; the cost is this paragraph and
+> the risk it describes.
 
 ---
 

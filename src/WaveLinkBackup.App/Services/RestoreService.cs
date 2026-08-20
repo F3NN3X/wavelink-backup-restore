@@ -69,8 +69,18 @@ public interface IRestoreService
     /// its constructor dependencies; only this - "what is on disk right now" - it cannot know for
     /// itself, because it does not own the locator or the chosen-path setting.
     /// </param>
+    /// <param name="options">
+    /// What to put back. Defaults to settings and presets — the tiers that never need a prompt.
+    /// The window passes <c>PluginBinaries: true</c> only when the user opted in AND the
+    /// destinations were measured as writable; when they are not, the elevated copy does the whole
+    /// restore instead ([[ADR-011]]).
+    /// </param>
     Task<RestoreResultView> RestoreAsync(
-        string snapshotId, SettingsInspection live, IProgress<RestoreStage>? progress, CancellationToken ct);
+        string snapshotId,
+        SettingsInspection live,
+        IProgress<RestoreStage>? progress,
+        CancellationToken ct,
+        RestoreOptions? options = null);
 }
 
 /// <summary>
@@ -109,7 +119,11 @@ public sealed class RestoreService(
     }
 
     public Task<RestoreResultView> RestoreAsync(
-        string snapshotId, SettingsInspection live, IProgress<RestoreStage>? progress, CancellationToken ct)
+        string snapshotId,
+        SettingsInspection live,
+        IProgress<RestoreStage>? progress,
+        CancellationToken ct,
+        RestoreOptions? options = null)
     {
         var orchestrator = new RestoreOrchestrator(
             fileSystem, process, store, new SettingsWriter(fileSystem, process),
@@ -126,7 +140,7 @@ public sealed class RestoreService(
 
                 progress?.Report(RestoreStage.ClosingWaveLink);
 
-                var result = orchestrator.Restore(snapshotId, live);
+                var result = orchestrator.Restore(snapshotId, live, options);
                 if (!result.IsSuccess)
                 {
                     // The close, the write, or the pre-restore snapshot failed. Wave Link may be

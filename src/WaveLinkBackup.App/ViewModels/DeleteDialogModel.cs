@@ -106,8 +106,7 @@ public sealed record DeleteDialogModel(
     }
 
     /// <summary>The snapshot's weight, as the row and every readout compute it.</summary>
-    private static long SizeOf(SnapshotManifest manifest) =>
-        manifest.Files.Values.Sum(f => f.SizeBytes);
+    private static long SizeOf(SnapshotManifest manifest) => manifest.TotalSizeBytes;
 
     /// <summary>Uppercase mono, matching the row's WHY pill: MANUAL · AUTOMATIC · PRE-RESTORE.</summary>
     private static string TriggerLabel(SnapshotTrigger trigger) => trigger switch

@@ -54,7 +54,8 @@ public sealed class RestoreOrchestrator(
     SettingsWriter writer,
     SettingsReader reader,
     Func<SettingsInspection, SnapshotPayload?>? gatherPayload = null,
-    string? appDataPath = null)
+    string? appDataPath = null,
+    string? documentsPath = null)
 {
     private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(10);
 
@@ -103,7 +104,10 @@ public sealed class RestoreOrchestrator(
         // 5. Tiers 3 and 4, while Wave Link is still closed - a plug-in binary cannot be
         //    replaced under a host that has it loaded, and presets are read at scan time.
         //    Reported, never fatal: the settings file is already back.
-        var tiers = new TierRestore(fileSystem, appDataPath ?? TierCapture.SystemAppData).Restore(
+        var tiers = new TierRestore(
+            fileSystem,
+            appDataPath ?? TierCapture.SystemAppData,
+            documentsPath ?? TierCapture.SystemDocuments).Restore(
             found.Value,
             new SnapshotPluginReader(fileSystem).Read(found.Value),
             options ?? RestoreOptions.Default);
@@ -127,6 +131,53 @@ public sealed class RestoreOrchestrator(
     /// What <see cref="Restore"/> would do. Cheap, read-only, and safe to call while Wave
     /// Link runs - this is what the confirmation dialog shows.
     /// </summary>
+    /// <summary>
+    /// The plug-ins whose binaries this snapshot holds, and what they weigh. Zero for every
+    /// snapshot taken with tier 4 off, which is the default and therefore the common case.
+    /// </summary>
+    private PluginBinaryPayload BinaryPayload(SnapshotManifest manifest, PluginManifest plugins)
+    {
+        var captured = plugins.Plugins.Where(p => p.BinaryPath is not null).ToList();
+        var roots = captured.Select(p => p.BinaryPath!).ToList();
+
+        if (roots.Count == 0) return PluginBinaryPayload.None;
+
+        // Summed over the manifest's own file entries, so a bundle counts every file inside it and
+        // a snapshot whose binaries were pruned reports what is actually there.
+        var bytes = manifest.Files
+            .Where(f => roots.Any(root =>
+                string.Equals(f.Key, root, StringComparison.OrdinalIgnoreCase)
+                || f.Key.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase)))
+            .Sum(f => f.Value.SizeBytes);
+
+        return new PluginBinaryPayload(roots.Count, bytes, NeedsElevation(captured));
+    }
+
+    /// <summary>
+    /// Whether ANY plug-in's destination refuses a write from this process as it is currently
+    /// running. Measured by probing each one, not inferred from the path — see
+    /// <see cref="PluginBinaryPayload.NeedsElevation"/> for why the inference is wrong often
+    /// enough to matter.
+    ///
+    /// **Any, not all.** Elevation is one prompt for the whole restore, so a single unwritable
+    /// destination needs it; there is no partial answer that helps.
+    ///
+    /// A plug-in with no recorded <c>FilePath</c> counts as needing it. That is the conservative
+    /// direction: the cost of a wrong "yes" is a prompt the user could have been spared, and the
+    /// cost of a wrong "no" is a restore that silently puts nothing back.
+    /// </summary>
+    private bool NeedsElevation(IReadOnlyList<PluginManifestEntry> captured) =>
+        captured.Any(p =>
+        {
+            if (string.IsNullOrWhiteSpace(p.FilePath)) return true;
+
+            // The plug-in's own parent: a bundle IS a directory and is written inside its parent,
+            // and a single file is written beside its siblings. Both are the same question.
+            var parent = Path.GetDirectoryName(p.FilePath.TrimEnd('\\', '/'));
+
+            return string.IsNullOrEmpty(parent) || !fileSystem.CanWriteDirectory(parent);
+        });
+
     public Result<RestorePlan> Plan(string snapshotId, SettingsInspection live)
     {
         var found = store.Get(snapshotId);
@@ -145,6 +196,11 @@ public sealed class RestoreOrchestrator(
         {
             Plugins = new PluginResolution(fileSystem)
                 .Check(recorded, new PluginCacheReader(fileSystem).Read(live.Location)),
+
+            // Read off the manifest rather than the disk: the sizes are already recorded, and the
+            // restore dialog must not spend forty megabytes of reads to decide whether to draw a
+            // row.
+            Binaries = BinaryPayload(found.Value.Manifest, recorded),
         };
     }
 }

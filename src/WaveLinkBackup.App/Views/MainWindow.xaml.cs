@@ -11,6 +11,7 @@ using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.Core.Io;
+using WaveLinkBackup.Core.Restore;
 using WaveLinkBackup.Core.Results;
 using WaveLinkBackup.Core.Snapshots;
 
@@ -23,21 +24,29 @@ public partial class MainWindow : Window
     private readonly ShellViewModel shell;
     private readonly IRestoreService restoreService;
     private readonly Func<Result<SettingsInspection>> inspectLive;
+    private readonly IElevation elevation;
     private CancellationTokenSource? restoreCts;
 
+    /// <param name="elevation">
+    /// How the window asks Windows for administrator rights, for the one restore that can need
+    /// them (screens/13-elevation.md). A seam because no test can answer a UAC prompt, and a
+    /// restore path only a human can exercise is one nobody exercises.
+    /// </param>
     public MainWindow(
         IWindowChrome chrome,
         ISystemTheme systemTheme,
         ShellState state,
         ShellViewModel shell,
         IRestoreService restoreService,
-        Func<Result<SettingsInspection>> inspectLive)
+        Func<Result<SettingsInspection>> inspectLive,
+        IElevation? elevation = null)
     {
         this.chrome = chrome;
         this.systemTheme = systemTheme;
         this.shell = shell;
         this.restoreService = restoreService;
         this.inspectLive = inspectLive;
+        this.elevation = elevation ?? new ShellExecuteElevation();
 
         InitializeComponent();
 
@@ -99,12 +108,6 @@ public partial class MainWindow : Window
     /// </summary>
     private void WireBottomBar()
     {
-        // Single-select across the date groups. Attached to GroupsHost so it survives the
-        // virtualizing panel creating and recycling each group's own ListBox.
-        GroupsHost.AddHandler(
-            System.Windows.Controls.Primitives.Selector.SelectionChangedEvent,
-            new SelectionChangedEventHandler(GroupSelectionChanged));
-
         RenameButton.Click += (_, _) => BeginRename();
         DeleteButton.Click += (_, _) => DeleteSelected();
         RestoreButton.Click += async (_, _) => await RestoreSelectedAsync();
@@ -120,6 +123,26 @@ public partial class MainWindow : Window
         // picker - so there is one code path for each.
         EmptyBackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
         ChooseWhereToKeepButton.Click += (_, _) => ChooseWhereToKeep_Click();
+
+        // Error 1's first-run variant: the one route a non-MSIX install has into the app
+        // (technical-debt.md §2.2). Nothing bound FirstRunError1Label before 0.6.1, so this
+        // button and the two lines above it did not exist on screen at all.
+        ChooseSettingsFileButton.Click += (_, _) =>
+            (Application.Current as App)?.ChooseSettingsFile(this);
+
+        // Screen 4's checkbox - "Keep backing up on its own when my settings change" - is the
+        // first-run screen's one setting. It is read from the app once here and written back on
+        // every change, rather than carrying IsChecked="True" and no handler, which is what it had:
+        // a control that always looked on and never turned anything on or off.
+        //
+        // A bare harness (no App) leaves it unchecked and inert rather than throwing, the same
+        // seam the two buttons above already use.
+        if (Application.Current is App settingsOwner)
+        {
+            KeepAutoBackupCheckbox.IsChecked = settingsOwner.AutoBackupEnabled;
+            KeepAutoBackupCheckbox.Checked += (_, _) => settingsOwner.SetAutoBackup(true);
+            KeepAutoBackupCheckbox.Unchecked += (_, _) => settingsOwner.SetAutoBackup(false);
+        }
     }
 
     /// <summary>
@@ -213,6 +236,7 @@ public partial class MainWindow : Window
     {
         StripDismissButton.Click += (_, _) => shell.Strip.Dismiss();
         StripActionButton.Click += (_, _) => shell.Strip.OnAction?.Invoke();
+        StripPrimaryActionButton.Click += (_, _) => shell.Strip.OnPrimaryAction?.Invoke();
 
         autoDismissTimer = new DispatcherTimer { Interval = RestoreOutcomeStrip.AutoDismissAfter };
         autoDismissTimer.Tick += (_, _) =>
@@ -355,7 +379,91 @@ public partial class MainWindow : Window
             return; // Cancel or Escape - nothing was touched.
         }
 
-        await RunRestoreAsync(row.Id, row.Name, live);
+        // The tier 4 opt-in. Off unless the user moved it in the dialog just now, and never
+        // remembered - the Settings dialog's plug-in-files switch decides what goes INTO a backup
+        // and is deliberately not read here (screens/13-elevation.md).
+        var wantsPlugins = model.PluginFiles?.Enabled == true;
+
+        // Elevate ONLY when the destinations actually refuse this process a write. The plan
+        // measured that when it was built, by probing each plug-in's own folder rather than
+        // matching its path against `C:\Program Files` - and the difference is not academic:
+        // several audio plug-in installers grant Everyone full control of the shared VST3 folder
+        // so their own updates need no administrator, and on such a machine this restore needs no
+        // prompt at all. Asking anyway would be asking for rights we do not need, which is how a
+        // prompt stops meaning anything.
+        if (wantsPlugins && model.PluginFiles!.NeedsElevation)
+        {
+            await RunElevatedRestoreAsync(row.Id, row.Name);
+            return;
+        }
+
+        await RunRestoreAsync(
+            row.Id, row.Name, live,
+            new RestoreOptions(Presets: true, PluginBinaries: wantsPlugins));
+    }
+
+    /// <summary>
+    /// The restore the shell cannot do itself: tier 4 writes into
+    /// `C:\Program Files\Common Files\VST3`, which needs administrator rights this process does
+    /// not have and cannot acquire in place. A second, elevated copy of this same executable does
+    /// the whole restore and exits with a code (screens/13-elevation.md).
+    ///
+    /// The in-progress strip runs throughout, already at "Closing Wave Link". The restore has begun
+    /// as far as the user is concerned, and a separate "waiting for permission" state would be a
+    /// screen nobody sees for more than a second. Nothing has been written while Windows is asking:
+    /// the elevated copy takes the pre-restore snapshot itself.
+    /// </summary>
+    private async Task RunElevatedRestoreAsync(string snapshotId, string snapshotName)
+    {
+        shell.BeginRestore(snapshotName);
+        shell.RestoreProgress.Advance(RestoreStage.ClosingWaveLink);
+
+        restoreCts = new CancellationTokenSource();
+        var token = restoreCts.Token;
+
+        ElevationOutcome outcome;
+        try
+        {
+            // Off the UI thread: RunElevated blocks until the elevated copy exits, and the strip
+            // has to keep animating while Windows shows its consent dialog.
+            outcome = await Task.Run(
+                () => elevation.RunElevated(["--restore", snapshotId, "--with-plugins"], token), token);
+        }
+        finally
+        {
+            shell.CompleteRestore();
+        }
+
+        switch (outcome.Result)
+        {
+            case ElevationResult.Declined:
+                // Error 13. Neutral, because declining changed nothing - the settings and presets
+                // went back, and the plug-ins are exactly as they were. The action re-runs the same
+                // restore rather than firing a second UAC prompt on its own.
+                shell.Strip.OnAction = () => _ = RunElevatedRestoreAsync(snapshotId, snapshotName);
+                shell.Strip.ShowError(
+                    AppError.ElevationDeclined,
+                    monoMeta: "ADMINISTRATOR RIGHTS DECLINED · YOUR PLUG-INS ARE STILL IN THE BACKUP",
+                    actionLabel: "Try again as administrator");
+                break;
+
+            case ElevationResult.Completed:
+                // The elevated copy verified from the log and we cannot see its verdict from here,
+                // so this reports the honest one: the write went through, this process did not
+                // confirm it. Never Confirmed - claiming a confirmation nobody read would be the
+                // exact dishonesty 03-restore-outcomes.md exists to prevent.
+                shell.Strip.ShowResult(RestoreResult.Unconfirmed);
+                break;
+
+            default:
+                shell.Strip.ShowFailure(
+                    outcome.ExitCode is { } code
+                        ? $"The restore failed (code {code}). Your current settings are still in place."
+                        : "The restore could not be started with administrator rights.");
+                break;
+        }
+
+        await shell.List.RefreshAsync();
     }
 
     /// <summary>
@@ -363,7 +471,11 @@ public partial class MainWindow : Window
     /// reports and hands the finished result to the existing outcome strip. Kept separate from
     /// RestoreSelectedAsync so the confirmation dialog is not part of this method's lifecycle.
     /// </summary>
-    private async Task RunRestoreAsync(string snapshotId, string snapshotName, SettingsInspection live)
+    private async Task RunRestoreAsync(
+        string snapshotId,
+        string snapshotName,
+        SettingsInspection live,
+        RestoreOptions? options = null)
     {
         // Begin BEFORE the first stage report: it swaps in a fresh four-stage model (stage 0 current)
         // and marks the window restoring, which is what makes the strip show instead of the outcome.
@@ -375,7 +487,8 @@ public partial class MainWindow : Window
         RestoreResultView view;
         try
         {
-            view = await restoreService.RestoreAsync(snapshotId, live, progress, restoreCts.Token);
+            view = await restoreService.RestoreAsync(
+                snapshotId, live, progress, restoreCts.Token, options);
         }
         finally
         {
@@ -404,8 +517,96 @@ public partial class MainWindow : Window
         }
         else
         {
-            shell.Strip.ShowResult(view.Result);
+            ShowRestoreOutcome(view);
         }
+    }
+
+    /// <summary>
+    /// The finished result, with the rejected state's recovery wired to something.
+    ///
+    /// 03-restore-outcomes.md §3 gives a rejected restore a ghost "Show the log" and a primary
+    /// <c>Restore "Before restore"</c>, and renders that row selected below the strip "so the
+    /// button and the row are visibly the same object". Until 0.6.1 the state drew none of it and
+    /// <c>AcknowledgeReject</c> was called by nothing, so the bar was permanent for the life of
+    /// the process — the recovery path for the only failure that costs someone their mixer
+    /// (technical-debt.md §4.21 item 1).
+    /// </summary>
+    private void ShowRestoreOutcome(RestoreResultView view)
+    {
+        if (view.Result != RestoreResult.Rejected)
+        {
+            shell.Strip.ShowResult(view.Result);
+            return;
+        }
+
+        var recovery = view.PreRestoreSnapshotId;
+
+        shell.Strip.OnAction = ShowWaveLinkLog;
+        shell.Strip.OnPrimaryAction = recovery is null ? null : () =>
+        {
+            // Acknowledging FIRST is what makes the bar go away at all: Dismiss() refuses while
+            // the kind is Rejected, and acting on it is the only exit the design allows.
+            shell.Strip.AcknowledgeReject();
+            _ = RestoreRecoveryAsync(recovery);
+        };
+
+        shell.Strip.ShowResult(view.Result, recovery, RejectionMeta(view));
+
+        // screens/12's second notification. The strip below is the full account; this is what
+        // reaches somebody whose window is behind Wave Link's, which after a restore it usually is.
+        (Application.Current as App)?.NotifyWaveLinkReset();
+
+        // The "Before restore" row, selected, immediately below the strip.
+        if (recovery is not null) shell.List.Select(recovery);
+    }
+
+    /// <summary>
+    /// 03 §3's mono meta line: <c>WAVE LINK 3.3.0.4108 REWROTE settings.json AT 23:12 · 1 INPUT
+    /// NOW</c>. Every figure is read from what the app knows at that moment; nothing here is
+    /// fixed text pretending to be a measurement (technical-debt.md §5).
+    /// </summary>
+    private string RejectionMeta(RestoreResultView view)
+    {
+        var version = shell.Facts.WaveLinkVersion is { Length: > 0 } v ? $"WAVE LINK {v} " : string.Empty;
+        var count = shell.Facts.WaveLinkInputs;
+        var inputs = $" · {count} INPUT{(count == 1 ? string.Empty : "S")} NOW";
+
+        return $"{version}REWROTE settings.json AT {DateTime.Now:HH:mm}{inputs}";
+    }
+
+    /// <summary>
+    /// Opens the folder holding Wave Link's own log — the evidence for WHY the file was rejected,
+    /// and 03's reason for making this strip persist. The folder rather than the file: the newest
+    /// log's name is Wave Link's business, and a folder that opens beats a path that might not.
+    /// </summary>
+    private void ShowWaveLinkLog()
+    {
+        var logs = shell.Facts.LogsPath;
+        if (string.IsNullOrWhiteSpace(logs)) return;
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(logs)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // Nothing to say: the strip is still there with the rest of what it knows, and a
+            // second error about a failed folder open would bury it.
+        }
+    }
+
+    /// <summary>
+    /// Restores the "Before restore" copy the rejected restore took on its way in. It goes through
+    /// the same confirmation the list's own Restore does — this is still a restore, and 05's
+    /// pre-restore dialog variant exists for exactly this moment.
+    /// </summary>
+    private async Task RestoreRecoveryAsync(string snapshotId)
+    {
+        shell.List.Select(snapshotId);
+        await RestoreSelectedAsync();
     }
 
     /// <summary>
@@ -444,6 +645,15 @@ public partial class MainWindow : Window
 
         var dialog = new ErrorDialog(ErrorDialogModel.Build(error)) { Owner = this };
         dialog.ShowDialog();
+
+        // Error 8's primary is "Get the update", and 12 has it deep-linking to Settings' UPDATES
+        // section "with the new version's row already showing". It landed nowhere until that
+        // section existed (technical-debt.md §4.21 item 5) - this is the link.
+        if (dialog.Confirmed && appError.Code == 8)
+        {
+            (Application.Current as App)?.OpenSettingsAtUpdates();
+        }
+
         RestoreFocusToList();
         return true;
     }
@@ -455,19 +665,39 @@ public partial class MainWindow : Window
         // branch never runs there.
         if (Application.Current is not App app) return;
 
-        var result = app.BackUpNow();
+        // 04-in-progress.md's backing-up strip. Up before the first byte is measured and down
+        // only once the outcome takes its place, so the strip is "replaced in place by the result
+        // line" rather than flashing out and back (technical-debt.md §4.21 item 2).
+        shell.BackupProgress.Begin();
+
+        var progress = new Progress<SnapshotWriteProgress>(shell.BackupProgress.Report);
+
+        Result<Snapshot> result;
+        try
+        {
+            // Off the UI thread so the bar can actually move. A capture is usually well under a
+            // second, but "usually" is doing the work there: tier 4 copies plug-in binaries, and
+            // the one rig where that is slow is the one where a frozen window would be noticed.
+            result = await Task.Run(() => app.BackUpNow(progress));
+        }
+        finally
+        {
+            shell.BackupProgress.Complete();
+        }
 
         await shell.List.RefreshAsync();
 
         if (!result.IsSuccess)
         {
             // 06-errors.md: a failed "Back up now" is the consequence of the press, so its
-            // live-settings errors (3 unreadable, 5 still running) render as inline strips - not
-            // the old message box. AppErrorMapper decides placement; only inline forwards here.
+            // live-settings errors (3 unreadable, 5 still running) render as inline strips.
+            // AppErrorMapper decides placement; only inline forwards here.
             if (TryShowInlineError(result.Error)) return;
 
-            MessageBox.Show(result.Error!.Message, "Wave Link Backup",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            // Everything else goes to the danger strip, exactly as a failed restore does. It used
+            // to be a raw MessageBox carrying CoreError.Message - a modal in Core's log phrasing,
+            // for a failure the design places inline (technical-debt.md §4.8 minor 5).
+            shell.Strip.ShowFailure(result.Error!.Message);
         }
         else
         {
@@ -531,48 +761,15 @@ public partial class MainWindow : Window
     /// explicitly says is fine to leave for Task 12's by-eye pass to confirm, rather than
     /// restructure the list to close.
     /// </summary>
-    private void ListScrollViewer_PreviewKeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Home && e.Key != Key.End) return;
-        if (shell.List.Groups.Count == 0) return;
-
-        var group = e.Key == Key.Home ? shell.List.Groups[0] : shell.List.Groups[^1];
-        if (group.Rows.Count == 0) return;
-
-        var row = e.Key == Key.Home ? group.Rows[0] : group.Rows[^1];
-
-        shell.List.Select(row.Id);
-        e.Handled = true;
-
-        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => FocusRow(row)));
-    }
-
     /// <summary>
-    /// Single-select across every date group. The list is one Selector per group, so nothing in
-    /// WPF makes a selection in one clear the others - see <see cref="GroupSelection"/> for why
-    /// binding them all to one property makes it worse rather than better.
-    ///
-    /// Bubbling: this is attached once to GroupsHost, the ItemsControl above every group's ListBox,
-    /// rather than to each ListBox as it is generated. A virtualizing panel creates and recycles
-    /// those, so per-ListBox subscription would need code that runs on container generation and
-    /// would leak handlers on recycle.
+    /// Puts keyboard focus on a row's container. One lookup, not a walk: the list is a single
+    /// ListBox now, so the row either has a container in it or has not been realised yet.
     /// </summary>
-    private void GroupSelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (e.OriginalSource is not ListBox source) return;
-
-        GroupSelection.Apply(shell.List, FindDescendants<ListBox>(GroupsHost), source, e.AddedItems);
-    }
-
     private void FocusRow(SnapshotRowViewModel row)
     {
-        foreach (var listBox in FindDescendants<ListBox>(GroupsHost))
+        if (GroupsHost.ItemContainerGenerator.ContainerFromItem(row) is ListBoxItem container)
         {
-            if (listBox.ItemContainerGenerator.ContainerFromItem(row) is ListBoxItem container)
-            {
-                container.Focus();
-                return;
-            }
+            container.Focus();
         }
     }
 

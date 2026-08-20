@@ -17,6 +17,16 @@ public readonly record struct TierBadge(string Label, bool IsPresent);
 /// </summary>
 public sealed class SnapshotRowViewModel : ObservableObject
 {
+    /// <summary>
+    /// The date header this row sits under: TODAY, YESTERDAY, or <c>MON 18 AUG</c>.
+    ///
+    /// Carried by the row rather than by a group object, because a <c>CollectionView</c> groups on
+    /// a property — and that is what let the list become ONE Selector instead of one per date
+    /// (technical-debt.md §4.14). It also removes the way a row's date and its header could
+    /// disagree: there is now only one of them.
+    /// </summary>
+    public string GroupHeader { get; init; } = string.Empty;
+
     private static readonly string[] TierOrder = ["settings", "presets", "plugins"];
 
     private readonly SnapshotManifest manifest;
@@ -44,7 +54,7 @@ public sealed class SnapshotRowViewModel : ObservableObject
         // wait for the probe.
         health = manifest.IsSuspect ? SnapshotHealth.Suspect : SnapshotHealth.Whole;
 
-        SizeBytes = manifest.Files.Values.Sum(f => f.SizeBytes);
+        SizeBytes = manifest.TotalSizeBytes;
         TakenAt = manifest.CreatedUtc.ToLocalTime();
 
         Slots = InputSlots.Build(manifest.InputNames, peakInputCount);
