@@ -496,8 +496,7 @@ System"*.
 
 > **The heading is about items 1–6 only.** Everything from 4.7 down arrived later, as the build
 > found its own gaps, and several are open — check each item's own status line rather than this
-> one. Open as of 0.6.3: **4.7** (no icon set) and **4.15** (0.5.1's frosting unseen — it needs a
-> human, not a commit).
+> one. Open as of 0.6.4: **4.15** only (0.5.1's frosting unseen — it needs a human, not a commit).
 
 All six were undesigned. Five are now specified in
 [operations/design/screens/](operations/design/screens/00-index.md), which also designed
@@ -528,7 +527,35 @@ its own rule violation; nothing had been built against it, so the correction cos
 **Not closed:** Windows high-contrast mode, and item 6. See §7 for the four decisions that
 outdated shipped code.
 
-### 4.7 There is no icon set — **open, 2026-08-17**
+### 4.7 ~~There is no icon set~~ — **CLOSED 2026-08-20**
+
+> **Substituted, exactly as this entry said it would be: a data change.** Every glyph in the app is
+> now a Lucide path copied verbatim onto the same 24px grid — the eleven README §icons names, plus
+> `check`, `x` and `circle-slash`, plus the tray renderer's four constants that this entry called
+> the substitution point. `THIRD-PARTY-NOTICES.md` carries the ISC licence and names which Lucide
+> icon each one came from.
+>
+> **The paths were fetched, not recalled.** Writing plausible-looking path data from memory would
+> have replaced hand-drawn stand-ins with differently-hand-drawn stand-ins while calling them the
+> real set — worse than the honest state this entry described. Two of them would have been wrong:
+> Lucide's current `settings` gear is a 2.34-radius arc chain rather than the twelve-spoke star,
+> and `triangle-alert`'s dot is `M12 17h.01`.
+>
+> **Two mechanical differences from the .svg files, and no others**, both recorded in the notices
+> file and beside each affected path: Lucide draws several glyphs with `<circle>`, which the WPF
+> path mini-language has no element for, so each is written as the two half-arcs describing the
+> same circle with the original `cx`/`cy`/`r` named in a comment; and icons Lucide draws as several
+> `<path>` elements are concatenated into one `Geometry`. **The stroke stays 1.75px, not Lucide's
+> 2px** — that weight is this design's, and it is the one figure in the icon work that is ours.
+>
+> **`IconSetTests` guards the silent failure.** A path WPF cannot parse, or one that parses to
+> nothing, renders as an empty box with no error anywhere — a mistyped digit in a 200-character
+> path is exactly the kind of thing that ships. Every geometry is asserted to parse, to have
+> extent, and to sit inside the 24px grid; all four tray states are asserted to still render.
+>
+> Original entry below.
+
+#### Original entry
 
 `README.md` §icons says the prototype's glyphs are *"hand-drawn monoline SVG stand-ins in the
 Lucide idiom (1.75px stroke, 24px grid). Substitute the codebase's real icon set at the same

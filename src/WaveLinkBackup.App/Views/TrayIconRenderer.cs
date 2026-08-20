@@ -19,17 +19,33 @@ namespace WaveLinkBackup.App.Views;
 public static class TrayIconRenderer
 {
     /// <summary>
-    /// Lucide idiom — 24px grid, monoline. README §icons says to substitute the codebase's real
-    /// icon set at the same weight and size; there is no icon set yet, so these are drawn to the
-    /// same grid and should be replaced with the real shield-check mark when one exists.
+    /// LUCIDE, verbatim — the substitution point this class was written to have
+    /// (technical-debt.md §4.7). Every path is copied unchanged from the lucide-icons repository
+    /// on the same 24px grid; see THIRD-PARTY-NOTICES.md for the ISC licence, and
+    /// ControlStyles.xaml's own note for the two mechanical differences from the .svg files.
+    ///
+    /// The four states compose a shield with one of four marks inside it, which is the design's
+    /// own construction (screens/12) rather than four whole Lucide icons — so the shield body is
+    /// lucide/shield-check's outline, and each mark is the glyph Lucide draws for that meaning.
     /// </summary>
     private const string ShieldPath =
-        "M12 2 L20 5 V11 C20 16 16.5 19.5 12 21 C7.5 19.5 4 16 4 11 V5 Z";
+        "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1"
+        + "c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z";
 
-    private const string CheckPath = "M8.5 12 L11 14.5 L15.5 9.5";
-    private const string ArrowPath = "M12 8 V14.5 M9 12 L12 15 L15 12";
-    private const string BangPath = "M12 7.5 V13 M12 15.5 V16.5";
-    private const string SlashPath = "M6 18 L18 6";
+    /// <summary>lucide/shield-check's own check, which is why it needs no rescaling to sit in it.</summary>
+    private const string CheckPath = "M9 12l2 2 4-4";
+
+    /// <summary>
+    /// lucide/download's arrow, shortened to the shield's interior. The tray icon renders at 16px
+    /// and Lucide's full-height arrow would touch the shield's own outline at that size.
+    /// </summary>
+    private const string ArrowPath = "M12 8v6 M9 11.5l3 3 3-3";
+
+    /// <summary>lucide/triangle-alert's stem and dot, without its triangle — the shield IS the frame.</summary>
+    private const string BangPath = "M12 8v5 M12 16h.01";
+
+    /// <summary>lucide/circle-slash's slash, without its circle, for the same reason.</summary>
+    private const string SlashPath = "M8.5 15.5 15.5 8.5";
 
     /// <summary>
     /// Produces a System.Drawing.Icon rather than an ImageSource, and TaskbarIcon.Icon is set

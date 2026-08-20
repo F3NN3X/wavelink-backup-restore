@@ -46,9 +46,13 @@
     -->
     <views:StringNotNullToVisibilityConverter x:Key="RenameCueVisible" />
 
-    <Geometry x:Key="WlCheckGeometry">M8.5 12 L11 14.5 L15.5 9.5</Geometry>
-    <Geometry x:Key="WlWarningTriangleGeometry">M12 2 L22 20 L2 20 Z M11 9 L13 9 L12.5 15.5 L11.5 15.5 Z M11.25 17 L12.75 17 L12.75 18.5 L11.25 18.5 Z</Geometry>
-    <Geometry x:Key="WlCircleSlashGeometry">M12 2 L17 4 L20 9 L20 15 L17 20 L12 22 L7 20 L4 15 L4 9 L7 4 Z M5 7 L7 5 L19 17 L17 19 Z</Geometry>
+    <!-- lucide/check. Verbatim, like the rest of the set - see ControlStyles.xaml's own note
+         on the two mechanical differences and the ISC licence (technical-debt.md §4.7). -->
+    <Geometry x:Key="WlCheckGeometry">M20 6 9 17l-5-5</Geometry>
+    <!-- lucide/triangle-alert. -->
+    <Geometry x:Key="WlWarningTriangleGeometry">M21.73 18l-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3 M12 9v4 M12 17h.01</Geometry>
+    <!-- lucide/circle-slash. The ring is <circle cx="12" cy="12" r="10">. -->
+    <Geometry x:Key="WlCircleSlashGeometry">M2 12 A10 10 0 1 0 22 12 A10 10 0 1 0 2 12 Z M9 15 15 9</Geometry>
 
     <!--
       TrackedText is a FrameworkElement, not a TextBlock, so Typography's ten Style resources -
