@@ -393,6 +393,24 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Whether to draw UPDATES at all.</summary>
     public bool HasUpdatesSection => updates is { IsConfigured: true };
 
+    /// <summary>
+    /// Whether the diagnostics have just been copied. Drives the button's confirmation — a copy
+    /// that says nothing leaves the user pressing it again, which on a clipboard action is the one
+    /// failure mode that costs them nothing to cause and everything to notice.
+    /// </summary>
+    public bool DiagnosticsCopied
+    {
+        get => diagnosticsCopied;
+        set
+        {
+            if (Set(ref diagnosticsCopied, value)) Raise(nameof(CopyDiagnosticsLabel));
+        }
+    }
+
+    private bool diagnosticsCopied;
+
+    public string CopyDiagnosticsLabel => diagnosticsCopied ? "Copied" : "Copy diagnostics";
+
     /// <summary>Read-only display of WHERE BACKUPS ARE KEPT. Change folder… re-points it.</summary>
     public string BackupFolder => backupFolder;
 

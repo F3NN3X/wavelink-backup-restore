@@ -487,4 +487,40 @@ public sealed class CommandRunnerTests
         Assert.Equal(readsAfterFirst, h.Fs.ReadCounts[ProQ]);
         Assert.Equal(2, h.Store.List().Count);
     }
+
+    // ------------------------------------ diagnostics (technical-debt.md §6)
+
+    /// <summary>
+    /// The CLI's half of the privacy debt. A user asked for a diagnostic on a headless machine has
+    /// to be given one, or they will paste their settings file instead.
+    /// </summary>
+    [Fact]
+    public void Diagnostics_prints_a_report_that_carries_neither_a_serial_nor_a_user_name()
+    {
+        var h = new Harness();
+        h.Fs.AddFile(SettingsPath, Healthy);
+
+        Assert.Equal(0, h.Run("diagnostics"));
+
+        var printed = h.Out.All;
+
+        Assert.Contains("diagnostics", printed, StringComparison.OrdinalIgnoreCase);
+
+        // Healthy's own endpoint key carries the reference rig's serial.
+        Assert.DoesNotContain("BS33J1A05009", printed, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// A live inspection that FAILS is not a failure of this verb — "Wave Link could not be read"
+    /// is often the very thing being diagnosed.
+    /// </summary>
+    [Fact]
+    public void Diagnostics_still_reports_when_wave_link_cannot_be_read()
+    {
+        var h = new Harness();
+        h.Fs.Delete(SettingsPath);
+
+        Assert.Equal(0, h.Run("diagnostics"));
+        Assert.NotEmpty(h.Out.Lines);
+    }
 }

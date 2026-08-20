@@ -24,6 +24,8 @@ public static class HelpText
         "  verify [id]       Check a backup still matches its recorded hashes.",
         "  prune             Delete old automatic backups. Yours are never touched.",
         "  watch             Back up automatically when settings change. Ctrl+C to stop.",
+        "  diagnostics       Print what this app knows about itself, with serial numbers and",
+        "                    your user name removed. Nothing is ever uploaded.",
         "  version           Print the version.",
         "  help              Print this.",
         "",

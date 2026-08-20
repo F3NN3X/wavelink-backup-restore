@@ -973,6 +973,33 @@
                                 <Run Text="{Binding WhereSettingsLive.FilePath, Mode=OneWay}" /><Run
                                      Text=" · " /><Run Text="{Binding WhereSettingsLive.SizeText, Mode=OneWay}" />
                             </TextBlock>
+                            <!--
+                              "Copy diagnostics" (technical-debt.md §6, SPEC.md §11's privacy note).
+
+                              It exists because the alternative is a user attaching their settings
+                              file to a public issue, and that file carries hardware serial numbers
+                              and their Windows user name. Telling people not to attach things does
+                              not work; giving them something better to paste does.
+
+                              The line beside it is a PROMISE about what the button does, and it is
+                              kept by construction: Diagnostics.Report runs every field through
+                              Redaction and returns a string. Nothing uploads anything, and there is
+                              no setting that would make it.
+                            -->
+                            <Grid Margin="0,14,0,0">
+                                <TextBlock Text="SERIAL NUMBERS AND YOUR USER NAME ARE REMOVED · NOTHING IS EVER UPLOADED"
+                                           Style="{StaticResource WlMonoMetaText}"
+                                           Foreground="{DynamicResource WlMuted}"
+                                           VerticalAlignment="Center" HorizontalAlignment="Left"
+                                           TextWrapping="Wrap" MaxWidth="420"
+                                           AutomationProperties.Name="What copy diagnostics leaves out" />
+
+                                <Button x:Name="CopyDiagnosticsButton" Content="{Binding CopyDiagnosticsLabel}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                                        Style="{StaticResource WlSecondaryButton}"
+                                        AutomationProperties.Name="Copy diagnostics to the clipboard" />
+                            </Grid>
+
                             <!-- The flag-override line, at 80% opacity. -->
                             <TextBlock Text="A COMMAND-LINE FLAG OVERRIDES THIS FILE FOR THAT ONE RUN AND ISN'T SAVED"
                                        Style="{StaticResource WlMonoMetaText}" Foreground="{DynamicResource WlMuted}"

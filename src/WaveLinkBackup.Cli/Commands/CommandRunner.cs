@@ -70,6 +70,7 @@ public sealed class CommandRunner(
             Verb.Prune => Prune(command),
             Verb.EmptyTrash => EmptyTrash(command),
             Verb.Watch => Watch(command),
+            Verb.Diagnostics => Diagnostics(command),
             _ => Help(),
         };
     }
@@ -303,6 +304,30 @@ public sealed class CommandRunner(
     /// The first production caller of <see cref="AutoBackupCoordinator.Tick"/>. Three phases
     /// of automation have never run outside a test until this verb.
     /// </summary>
+    /// <summary>
+    /// The redacted self-description (technical-debt.md §6). It prints; it never sends.
+    ///
+    /// A live inspection that FAILS is not a failure of this verb — "Wave Link could not be read"
+    /// is often the very thing being diagnosed, and refusing to produce a report in that case
+    /// would leave the user with nothing to paste but their settings file.
+    /// </summary>
+    private int Diagnostics(ParsedCommand command)
+    {
+        var live = Inspector().Inspect(command.SettingsPath);
+
+        foreach (var line in Core.Analysis.Diagnostics.Lines(
+                     typeof(CommandRunner).Assembly.GetName().Version?.ToString() ?? "unknown",
+                     settings,
+                     live.IsSuccess ? live.Value : null,
+                     Store(command).List(),
+                     clock.UtcNow.ToLocalTime()))
+        {
+            output.Write(line);
+        }
+
+        return ExitCode.Success;
+    }
+
     private int Watch(ParsedCommand command)
     {
         var live = Inspector().Inspect(command.SettingsPath);

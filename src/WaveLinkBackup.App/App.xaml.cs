@@ -900,6 +900,44 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// "Copy diagnostics" (technical-debt.md §6): everything the app knows about itself, redacted,
+    /// on the clipboard.
+    ///
+    /// **On the clipboard and nowhere else.** There is no upload here and no setting that would
+    /// create one — the whole point is to give the user something safe to paste, not to collect
+    /// anything. <see cref="Diagnostics.Report"/> runs every field through
+    /// <see cref="Redaction"/>, so the promise printed beside the button is kept by construction
+    /// rather than by whoever adds the next field remembering.
+    /// </summary>
+    internal void CopyDiagnostics(SettingsViewModel vm)
+    {
+        if (fileSystem is null) return;
+
+        var live = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
+            .Inspect(settings.ChosenWaveLinkPath);
+
+        var report = Core.Analysis.Diagnostics.Report(
+            ReleaseVersion.Display(ReleaseVersion.Current),
+            settings,
+            live.IsSuccess ? live.Value : null,
+            store?.List() ?? [],
+            DateTimeOffset.Now);
+
+        try
+        {
+            Clipboard.SetText(report);
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            // Another process holds the clipboard - common, transient, and not worth an error
+            // screen of its own on a diagnostic action. The button is pressable again.
+            return;
+        }
+
+        vm.DiagnosticsCopied = true;
+    }
+
+    /// <summary>
     /// What each error-2 candidate turns out to be, so its row can say more than a path
     /// (06 §2, technical-debt.md §4.21 item 7).
     ///

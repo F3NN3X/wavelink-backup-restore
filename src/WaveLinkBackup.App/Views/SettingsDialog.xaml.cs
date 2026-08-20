@@ -75,6 +75,11 @@ public partial class SettingsDialog : Window
         DecrementDailyTimeButton.Click += (_, _) => model.StepDailyTime(-1);
         IncrementDailyTimeButton.Click += (_, _) => model.StepDailyTime(+1);
 
+        // Copy diagnostics: App owns it, because building the report needs the store, the live
+        // inspection and the running version, and this view owns none of those.
+        CopyDiagnosticsButton.Click += (_, _) =>
+            (Application.Current as App)?.CopyDiagnostics(model);
+
         // Error 9's two actions, sitting in place under "Change folder…" (06-errors.md §9).
         // "Choose another…" is the same picker the row above uses; "Keep the current folder" only
         // clears the block - the store never moved, so there is nothing to undo.

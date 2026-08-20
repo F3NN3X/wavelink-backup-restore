@@ -1025,7 +1025,24 @@ real markup, not just a model test.
 
 ---
 
-## 5 · Numbers that are not constants
+## 5 · Numbers that are not constants — **now enforced, 2026-08-20**
+
+> **Four of the five are guard tests**, in `SourceGuardTests`, because a list "most likely to be
+> violated by someone moving fast" is exactly the kind of thing a reading catches once and a test
+> catches forever: the package family id, a composed `%LOCALAPPDATA%`, a comparison against a Wave
+> Link version, and an absolute `Program Files` path. Comments are stripped before each scan — the
+> rules are about code, not about the prose explaining the rules.
+>
+> **Each guard was verified to FAIL** against a file that violates all four, then the file was
+> removed. A guard nobody has seen fail is a guard nobody knows works.
+>
+> The fifth — "5 inputs / 43 KB is one user's rig" — has no source shape to scan for. It is held
+> by `HealthFingerprint` comparing against that user's own previous snapshot, which is structural
+> rather than checkable by grep.
+>
+> The audit that prompted this found **no violations in shipped code**: every hit was a comment, or
+> one of the two places that print `%LOCALAPPDATA%` as designed display copy (06's `LOOKED IN` glob
+> line, and the bottom bar shortening a resolved path back for display).
 
 Measured on one machine on 2026-08-15. Each becomes a bug if hard-coded. Reproduced from
 `SPEC.md` §11 because this is the list most likely to be violated by someone moving fast.
@@ -1040,7 +1057,43 @@ Measured on one machine on 2026-08-15. Each becomes a bug if hard-coded. Reprodu
 
 ---
 
-## 6 · Privacy — a debt the moment the repo is public
+## 6 · ~~Privacy — a debt the moment the repo is public~~ — **PAID 2026-08-20**
+
+> **`Redaction` and `Diagnostics`, in Core**, plus "Copy diagnostics" in Settings and a
+> `wlbackup diagnostics` verb. The debt is paid in the only way that works: not by telling people
+> not to attach their settings file, but by giving them something better to paste.
+>
+> **The threat is not an attacker, it is helpfulness.** Users attach whatever the app gives them,
+> they will not think about it, and by then it is in a public tracker with a permanent URL. So the
+> redactor **fails closed**: an endpoint ID whose shape it does not recognise is masked wholesale
+> rather than passed through in the hope that it is harmless. A redactor that works on the shapes
+> it was written for and lets an unknown one through is worse than none, because it teaches the
+> user the output is safe.
+>
+> **What goes:** hardware serial numbers (the leading segment of a Core Audio endpoint ID), the
+> Windows user name (both the profile-path segment and the name anywhere else it appears — a store
+> on `D:\joran-backups\` is caught too), and every snapshot's display name, which is the one
+> free-text field people put anything in.
+>
+> **What stays, deliberately:** channel names. They are what the user calls their own channels,
+> they are the subject of nearly every support question, and they name a setup rather than a
+> person. And the port half of each endpoint ID, which says which physical input a channel is on
+> and identifies nothing — every Wave:3 on earth has the same one.
+>
+> **The settings file is never included, redacted or otherwise.** A redacted copy of a file is
+> still a copy of a file; the report describes STRUCTURE — counts, names, versions, which tiers a
+> snapshot claims — because nobody needs the file to answer a support question.
+>
+> **Nothing is ever uploaded**, and there is no setting that would create one. It returns a string;
+> the shell puts it on the clipboard and the CLI prints it. The line printed beside the button says
+> so, and is kept by construction rather than by whoever adds the next field remembering to.
+>
+> The one assertion this whole feature exists for — the report contains neither a serial number nor
+> a user name — is a test, so a future field that bypasses `Redaction` fails the build.
+>
+> Original entry below.
+
+#### Original entry
 
 `Settings.json` contains hardware serial numbers inside device IDs, and absolute paths
 including the Windows username. **Users will attach snapshots to bug reports.** They will not

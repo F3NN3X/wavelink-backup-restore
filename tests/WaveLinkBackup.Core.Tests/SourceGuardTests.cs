@@ -87,4 +87,64 @@ public sealed class SourceGuardTests
         Assert.DoesNotMatch(regex, "var b = fileSystem.ReadSharedBytes(path);");
         Assert.Equal("", StripComments("// File.ReadAllBytes(path)").Trim());
     }
+
+    // ---------------------------------- technical-debt.md §5: numbers that are not constants
+
+    /// <summary>
+    /// The package family id is stable per Store identity and must never be assumed. SPEC.md §11
+    /// and technical-debt.md §5 both say to glob <c>Elgato.WaveLink_*</c>, and this is the one
+    /// entry on that list where a hard-coded value would work perfectly on the author's machine
+    /// and find nothing on somebody else's.
+    /// </summary>
+    [Fact]
+    public void Core_never_hard_codes_the_package_family_id()
+    {
+        var offenders = Offenders(@"g54w8ztgkx496");
+
+        Assert.True(offenders.Length == 0,
+            "The package family id is hard-coded. Glob Elgato.WaveLink_* instead:" +
+            $"{Environment.NewLine}{offenders}");
+    }
+
+    /// <summary>
+    /// %LOCALAPPDATA% is redirected on some corporate and OneDrive setups, so a composed path is
+    /// a path that is right here and wrong there. Environment.GetFolderPath, never a string.
+    /// </summary>
+    [Fact]
+    public void Core_never_composes_a_profile_path_from_a_string()
+    {
+        var offenders = Offenders(@"""[^""]*(%LOCALAPPDATA%|%APPDATA%|%USERPROFILE%)[^""]*""");
+
+        Assert.True(offenders.Length == 0,
+            "A profile path is composed from a literal. Use Environment.GetFolderPath:" +
+            $"{Environment.NewLine}{offenders}");
+    }
+
+    /// <summary>
+    /// "Never gate on one version; record it and warn on mismatch." 3.3.0.4108 is a beta and
+    /// release users are on 3.2.9 — a comparison against either is a rule about one moment.
+    /// </summary>
+    [Fact]
+    public void Core_never_compares_against_a_wave_link_version()
+    {
+        var offenders = Offenders(@"(==|!=|>=|<=|>|<)\s*""3\.[0-9.]+""");
+
+        Assert.True(offenders.Length == 0,
+            "A Wave Link version is being gated on. Record it and warn on mismatch:" +
+            $"{Environment.NewLine}{offenders}");
+    }
+
+    /// <summary>
+    /// The VST3 folder is a DEFAULT and is overridable. Plug-in paths are resolved from each
+    /// plug-in's own FilePath; the standard directories are a fallback, never the answer.
+    /// </summary>
+    [Fact]
+    public void Core_never_treats_the_standard_vst3_folder_as_the_plugin_location()
+    {
+        var offenders = Offenders(@"""[A-Za-z]:\\Program Files[^""]*""");
+
+        Assert.True(offenders.Length == 0,
+            "An absolute Program Files path is a literal in Core. Resolve from FilePath:" +
+            $"{Environment.NewLine}{offenders}");
+    }
 }
