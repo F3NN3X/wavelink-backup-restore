@@ -110,12 +110,13 @@ follow from them.
 | [ADR-009](decisions/ADR-009-hand-rolled-cli-parsing.md) | Hand-rolled command-line parsing, no dependency |
 | [ADR-010](decisions/ADR-010-two-preset-roots-and-a-rooted-snapshot-layout.md) | Two preset roots, and a snapshot layout that names them — corrects ADR-006's tier 3 |
 | [ADR-011](decisions/ADR-011-elevate-by-relaunching-the-shell.md) | Elevate by relaunching the shell, for one restore, and never otherwise |
+| [ADR-012](decisions/ADR-012-check-only-updates-with-a-staged-swap.md) | Update by staging beside the install and swapping, never elevated |
 
 ---
 
 ## Gotchas
 
-Eighteen ways this goes wrong. Titled by symptom, because that is what you will be searching
+Twenty-one ways this goes wrong. Titled by symptom, because that is what you will be searching
 for at the time — you do not know the cause yet, which is why you are searching.
 
 Grouped by where they bite. **The whole table is here on purpose**: it listed ten of sixteen
@@ -154,6 +155,29 @@ phases later, by the same gap.
 | A control in the Settings dialog moves and nothing happens | [a-settings-control-moves-and-nothing-happens.md](knowledge-base/gotchas/a-settings-control-moves-and-nothing-happens.md) |
 | The tray icon refuses every image you draw | [the-tray-icon-refuses-every-image-you-draw.md](knowledge-base/gotchas/the-tray-icon-refuses-every-image-you-draw.md) |
 | The tray menu keeps the theme it started with | [tray-menu-keeps-the-theme-it-started-with.md](knowledge-base/gotchas/tray-menu-keeps-the-theme-it-started-with.md) |
+| An accelerator shows as a literal underscore | [an-accelerator-shows-as-a-literal-underscore.md](knowledge-base/gotchas/an-accelerator-shows-as-a-literal-underscore.md) |
+
+### The suite, and the seams under it
+
+Both found while clearing the debt list, and both are the same shape: the production code was
+right and the *test environment* was not, which is the direction it is easy to look in last.
+
+| Symptom | Gotcha |
+|---|---|
+| A progress report never arrives in a test | [a-progress-report-never-arrives-in-a-test.md](knowledge-base/gotchas/a-progress-report-never-arrives-in-a-test.md) |
+| The serializer that never throws, throws | [the-serializer-that-never-throws-throws.md](knowledge-base/gotchas/the-serializer-that-never-throws-throws.md) |
+
+---
+
+## Runbooks
+
+Things done *to* a running system. This folder's trigger — *"there is a running system to operate,
+realistically the first release"* — fired on 2026-08-20, when the release pipeline and the
+in-app updater were built.
+
+| Runbook | When |
+|---|---|
+| [Releasing a version, and how the app updates itself](operations/runbooks/releasing-and-updating.md) | Cutting a release, and every question about how the app finds one. One document, because a release in the wrong shape is invisible to the updater. |
 
 ---
 
@@ -175,6 +199,7 @@ Extracted from shipped code, each naming its real callers.
 | [named-method-seams.md](knowledge-base/patterns/named-method-seams.md) | Choosing the wrong file share mode |
 | [preconditions-inside-the-operation.md](knowledge-base/patterns/preconditions-inside-the-operation.md) | Writing while Wave Link is still exiting |
 | [guards-that-can-fail.md](knowledge-base/patterns/guards-that-can-fail.md) | A guard that silently never matches |
+| [decisions-as-pure-functions.md](knowledge-base/patterns/decisions-as-pure-functions.md) | A conditional rule that is wrong in the one branch nobody exercised |
 
 ## Plans
 
@@ -196,6 +221,18 @@ Extracted from shipped code, each naming its real callers.
 
 | Date | Session |
 |---|---|
+| 2026-08-20 | [Clearing the technical-debt list](sessions/2026-08-20-clearing-the-technical-debt.md) |
+| 2026-08-19 | [The two things phase 6 deferred, and a settable backup schedule](sessions/2026-08-19-preset-roots-elevation-and-timing.md) |
+| 2026-08-19 | [Phase 6 — all four tiers capture and restore](sessions/2026-08-19-phase-6-tiers-complete.md) |
+| 2026-08-19 | [Phase 6 — plug-in discovery](sessions/2026-08-19-phase-6-plugin-discovery.md) |
+| 2026-08-19 | [The design audit, and the UI fixes it produced](sessions/2026-08-19-design-audit-and-ui-fixes.md) |
+| 2026-08-19 | [Phase 5 — the settings dialog](sessions/2026-08-19-phase-5-settings-dialog.md) |
+| 2026-08-19 | [Phase 5 — high contrast](sessions/2026-08-19-phase-5-high-contrast.md) |
+| 2026-08-19 | [Phase 5 — the tray shell](sessions/2026-08-19-phase-5-tray-shell.md) |
+| 2026-08-19 | [The phase 5 audit](sessions/2026-08-19-phase-5-audit.md) |
+| 2026-08-18 | [Phase 5 — the restore outcome strip](sessions/2026-08-18-phase-5-restore-outcome-strip.md) |
+| 2026-08-17 | [Phase 5 — the tray shell and theme following](sessions/2026-08-17-phase-5-tray-shell-and-theme-following.md) |
+| 2026-08-17 | [Phase 5 — Core foundations](sessions/2026-08-17-phase-5-core-foundations.md) |
 | 2026-08-17 | [Phase 5 part 1 — the Core changes, and a design that answered back](sessions/2026-08-17-phase-5-core-changes.md) |
 | 2026-08-17 | [Design integration, and deciding what phase 5 actually is](sessions/2026-08-17-design-integration-and-phase-5-scope.md) |
 | 2026-08-16 | [Phase 4 — Core gets a caller, and AOT lands at 3.2 MB](sessions/2026-08-16-phase-4-cli-build.md) |

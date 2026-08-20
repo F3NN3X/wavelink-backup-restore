@@ -55,6 +55,11 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           --output publish/app
 
+      # Into the SAME directory, so one archive is one install. Both projects are self-contained,
+      # so both carry the runtime; the shared assemblies are identical files and the per-app
+      # .deps.json / .runtimeconfig.json are named after their own assembly, so they do not
+      # collide. UNVERIFIED - this has never run. If the first release produces a warning or a
+      # clobbered file here, publish them to separate folders and merge deliberately.
       - name: Publish the CLI beside it
         run: >
           dotnet publish src/WaveLinkBackup.Cli/WaveLinkBackup.Cli.csproj

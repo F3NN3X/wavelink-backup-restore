@@ -2,7 +2,7 @@
 title: "Documentation Stats"
 status: published
 created: 2026-08-16
-updated: 2026-08-19
+updated: 2026-08-20
 tags: [meta, stats]
 ---
 
@@ -20,19 +20,20 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of 2026-08-19 (unreleased, after 0.6.0).*
+*As of 2026-08-20 (unreleased, after 0.6.0).*
 
 | Artifact | Count |
 |---|---|
-| ADRs | 11 |
-| Gotchas | 18 |
-| Patterns | 4 |
+| ADRs | 12 |
+| Gotchas | 21 |
+| Patterns | 5 |
 | Recipes | 2 |
-| Audits | 1 (6 findings) |
-| Sessions | 19 |
+| Runbooks | 1 |
+| Audits | 2 (6 + 15 findings) |
+| Sessions | 20 |
 | Plans | 13 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,207 passing** — Core 423 · CLI 97 · App 687 |
+| **Tests** | **1,417 passing** — Core 462 · CLI 100 · App 855 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -43,12 +44,59 @@ Update this file **in the same commit** as the document it counts. See
 in [README.md](README.md). Each names its real callers and the test holding it down; none was
 written before the code it describes.
 
+**Runbooks went 0 → 1** on 2026-08-20. Its trigger, recorded in [README.md](README.md), was
+*"there is a running system to operate — realistically, the first release"*; building the release
+pipeline and the in-app updater is that trigger firing. **Two rows of that table remain**
+(`operations/diagrams/`), and the mechanism has now fired twice, which is the argument for leaving
+them.
+
 **Tests.** Upstream carries 40 against ~48 KB of source. Phase 1 ships 93 against a smaller
 Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ---
 
 ## Recent additions
+
+### The debt list, cleared (2026-08-20)
+
+**The whole of `technical-debt.md` that a commit can close, closed** — §1, §4, §5, §6 and §7. Three
+entries remain and none of them is code: §4.15 needs a human's eyes, §2.2 is a fact about the
+world, §2.4 needs a component that is not ported yet.
+
+- **One ADR.** [[ADR-012]] — update by staging beside the install and swapping, never elevated. Its
+  *Alternatives considered* is the useful half: MSIX, Squirrel/Velopack, reusing [[ADR-011]]'s
+  elevation, download-only, and a background poller, each with the reason it lost. **MSIX is
+  rejected *for now, not forever*** and the entry says what would change that, because a future
+  reader with a signing certificate should find the door marked rather than the subject closed.
+
+- **One runbook, and the folder it created.**
+  [releasing-and-updating.md](operations/runbooks/releasing-and-updating.md) — the release shape,
+  the pipeline, the feed configuration, what the app does with it, why it does not elevate, and a
+  symptom table. **Written as one document on purpose**: a release in the wrong shape is invisible
+  to the updater, so splitting them would let each half look correct alone.
+
+- **Three gotchas**, and the grouping is the finding. Two of the three
+  ([[a-progress-report-never-arrives-in-a-test]], [[the-serializer-that-never-throws-throws]]) are
+  the *test environment* being wrong while the production code was right — the direction it is
+  easy to look in last. The third ([[an-accelerator-shows-as-a-literal-underscore]]) is
+  [[a-settings-control-moves-and-nothing-happens]] in a new costume, which is now the third time
+  that shape has cost this project a session.
+
+- **One pattern.** [[decisions-as-pure-functions]] — extracted, not invented: four of its five
+  callers predate the session, and writing it down is what made the fifth (`TrayNotifications`)
+  take the shape it did. This is the folder working as intended after two phases of producing
+  nothing.
+
+- **The index's session table was stale**, listing eight of nineteen sessions and stopping at
+  2026-08-17 — the same failure mode the tally note below records, in a different file. All twenty
+  are listed now.
+
+- **`THIRD-PARTY-NOTICES.md`** (repo root, new): Lucide's ISC licence, H.NotifyIcon, and an
+  explicit note that upstream was read and never copied.
+
+**Not written, deliberately.** No recipe came out of this. The update flow has one procedure —
+`git tag && git push` — and the rest is reference; padding it into numbered steps would have made
+a recipe out of a paragraph, which [README.md](README.md) names as the boundary.
 
 ### The two deferred items, closed — and a settable schedule (2026-08-19)
 
@@ -763,6 +811,34 @@ see that. Read together before writing the next window.
 | [[three-backups-look-selected-at-once]] | Selection across several Selectors, and the test that passed while the bug shipped |
 | [operations/design/README.md](operations/design/README.md) | The values every one of these was audited against |
 | [2026-08-19-design-audit-and-ui-fixes.md](sessions/2026-08-19-design-audit-and-ui-fixes.md) | The narrative, including three wrong diagnoses |
+
+### Shipping a release, and the app finding it
+
+Spans a decision, an operational procedure and a designed surface. Read all three before changing
+any of them — the release shape and the updater are **one contract**, so a change to either half
+that does not look at the other will break the loop silently.
+
+| Artifact | Contribution |
+|---|---|
+| [[ADR-012]] | Why check-only with a staged swap, what it rules out, and why MSIX is deferred rather than dismissed |
+| [releasing-and-updating.md](operations/runbooks/releasing-and-updating.md) | The shape a release must have, how to cut one, and the symptom table when it fails |
+| [[ADR-011]] | The elevation path the updater deliberately does not reuse, and the difference between the two operations |
+| [operations/design/screens/12-tray-autostart-update.md](operations/design/screens/12-tray-autostart-update.md) | The designed section, and the rule that an available update is never a notification |
+| [technical-debt.md](technical-debt.md) §4.21 item 5, §5 | The debt closed, and why the feed is configuration rather than a constant |
+
+### A control that looks wired, and is not
+
+**Three sessions have now lost time to this**, in three costumes, which is why it earns an index
+entry rather than three unrelated gotchas. The shape: a view-model property that is implemented,
+correct and unit-tested, with nothing rendering or reaching it — so every test passes and the
+feature does not exist.
+
+| Artifact | Contribution |
+|---|---|
+| [[a-settings-control-moves-and-nothing-happens]] | The original: a stepper with a tested clamp and no `Click` handler, for two phases |
+| [[an-accelerator-shows-as-a-literal-underscore]] | The same, one layer down — `RecognizesAccessKey` defaults false, so every templated button silently refused access keys |
+| [technical-debt.md](technical-debt.md) §4.20, §4.21 | Eight designed surfaces with finished view models behind them and no markup |
+| [2026-08-20-clearing-the-technical-debt.md](sessions/2026-08-20-clearing-the-technical-debt.md) | What it costs to find eight at once, and the view-test rule that came out of it |
 
 ### Tier 3, and a heuristic that was wrong for two phases
 

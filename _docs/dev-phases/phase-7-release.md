@@ -2,14 +2,37 @@
 title: "Phase 7 — Release"
 status: review
 created: 2026-08-19
-updated: 2026-08-19
-related_adrs: [ADR-002, ADR-008, ADR-009]
+updated: 2026-08-20
+related_adrs: [ADR-002, ADR-008, ADR-009, ADR-012]
 tags: [dev-phase]
 ---
 
 # Phase 7 — Release
 
-**Status:** Not started.
+> ## Status, 2026-08-20: most of this landed early, out of order
+>
+> A debt-clearing pass closed almost every open entry in
+> [technical-debt.md](../technical-debt.md), and six of this phase's nine work items were inside
+> it. **The plan below is kept unedited** — its reasoning is what the work was done against, and
+> §2's notification-route table in particular predicted the exact trade-off that shipped.
+>
+> | | Work item | State |
+> |---|---|---|
+> | 1 | Diagnostics and redaction | **Done.** `Redaction` + `Diagnostics` in Core, *Copy diagnostics* in Settings, `wlbackup diagnostics` in the CLI. The 1.0 gate is closed. |
+> | 2 | The two notifications | **Done**, by the *shell balloon* route this plan's own table costed — so both notices carry their action in the body and click-anywhere rather than as a button. The plan called that "the degraded form"; it remains the right trade until there is an installer to place a Start-menu shortcut. |
+> | 3 | `WHEN WINDOWS STARTS` | **Done.** Both toggles, the Task-Manager-veto note, the Run-key line. |
+> | 4 | Packaging, distribution and **updates** | **Updates done** — see [[ADR-012]] and [the runbook](../operations/runbooks/releasing-and-updating.md). **Packaging and signing are not**, and signing is now the largest single thing left. |
+> | 5 | First-run "Wave Link not found" | **Done.** §4.10 closed, including the *Choose the settings file…* route a non-MSIX user needs. |
+> | 6 | Keyboard, focus and the icon set | **Done.** §7.4 and §4.7 closed; the icon set is real Lucide data. |
+> | 7 | Repository, licence and README | **Partly.** `THIRD-PARTY-NOTICES.md` added. The repo is still private and has no remote. |
+> | 8 | Release engineering (CI) | **Built, unverified.** `.github/workflows/release.yml` produces the shape the updater looks for. It has never run. |
+> | 9 | The 1.0 gate | **See §9's table below**, which is now mostly stale in the *good* direction: every "Gates 1.0? **Yes**" row except packaging is closed, and four of the "No" rows closed anyway. |
+>
+> **What is genuinely left:** packaging and code signing; making the repository public; running the
+> release loop once end to end; and the by-eye pass (§4.15). The
+> [release checklist](../../CHANGELOG.md) at the bottom of `CHANGELOG.md` is the current list.
+
+**Status:** Mostly delivered ahead of schedule — see the banner above. Originally: not started.
 **Entry criteria:** phases 5 and 6 complete — all four tiers capture and restore, and the shell
 renders them.
 **Exit criteria:** a stranger can download one file, run it on a clean Windows 11 machine with no

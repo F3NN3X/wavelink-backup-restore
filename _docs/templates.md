@@ -170,6 +170,67 @@ The boundary. A pattern without one gets applied everywhere and stops meaning an
 
 ---
 
+## Runbook
+
+**File:** `operations/runbooks/verb-the-system.md`
+
+**A runbook is not a recipe.** A recipe is a task whose order is load-bearing; a runbook is a
+*system* — the procedure, the contract it has to satisfy, and what to do when it does not. If
+there is nothing to put in the symptom table, write a recipe instead.
+
+**State provenance at the top.** A runbook often describes something that has not run in anger
+yet. Say which parts are measured and which are unverified, and correct it the first time reality
+disagrees.
+
+````markdown
+---
+title: "Verb the system"
+status: published
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+related_adrs: [ADR-0NN]
+tags: [runbook, area]
+---
+
+# Verb the system
+
+One sentence on what loop this describes, and why its halves belong in one document.
+
+> **Provenance.** What has been run, and what has not. Update this the first time it runs for
+> real.
+
+## 1 · The contract
+
+What has to be true for this to work at all — the shape, the names, the invariants. Put it first:
+everything below is only correct if this is.
+
+## 2 · The procedure
+
+The steps. Numbered only where the order matters.
+
+## 3 · What the system does with it
+
+The other half of the loop.
+
+## Decisions worth knowing before you change it
+
+The things that look arbitrary and are not. Link the ADR rather than restating it.
+
+## Owed before this is used in anger
+
+| | What | Why |
+|---|---|---|
+
+## When it goes wrong
+
+| Symptom | Likely cause |
+|---|---|
+
+## References
+````
+
+---
+
 ## Recipe
 
 **File:** `knowledge-base/recipes/verb-the-thing.md`

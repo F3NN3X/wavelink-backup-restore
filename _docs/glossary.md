@@ -2,7 +2,7 @@
 title: "Glossary"
 status: published
 created: 2026-08-16
-updated: 2026-08-19
+updated: 2026-08-20
 tags: [meta, glossary]
 ---
 
@@ -183,6 +183,31 @@ never acquired in place (Windows grants rights at process creation only), so it 
 **headless** copy of the app: no window, no tray, no watcher, and **no single-instance mutex** —
 that mutex is per-user and the elevated copy runs as the same user, so it would see itself as a
 second launch and exit. Tiers 1–3 never need it. See [[ADR-011]].
+
+**Staged install** — how an update is applied. A process cannot overwrite its own executable
+while running, so the new version is expanded to `<install>.staged`, that copy is started with
+`--apply-update`, and *it* does the swap from outside the directory being replaced. The previous
+install is **moved** to `<install>.previous` and deleted only once the new one is in place — so
+there is no instant at which the user has no app. Deliberately **not** elevated, unlike
+**elevation** above: that writes files the user chose from their own disk, this writes the
+program's own binaries fetched from the network. See [[ADR-012]].
+
+**Release feed** — where the app looks for a newer version: a GitHub `releases/latest` for an
+owner and repository read from the environment, never compiled in. **Unset means the whole
+UPDATES section hides**, because a *Check now* that cannot reach anything is worse than no button.
+See [releasing-and-updating.md](operations/runbooks/releasing-and-updating.md).
+
+**Redaction** — removing the two things in this app's data that identify a *person* or their
+*hardware*: the serial number leading a Core Audio endpoint ID, and the Windows user name inside
+any absolute path. It **fails closed** — an ID whose shape it does not recognise is masked
+wholesale rather than passed through — because a redactor that lets an unknown shape through is
+worse than none: it teaches the user the output is safe. Channel names are kept on purpose. See
+[[technical-debt]] §6.
+
+**Diagnostics** — the redacted self-description offered by Settings' *Copy diagnostics* and by
+`wlbackup diagnostics`. It describes **structure** — counts, channel names, versions, which tiers
+each snapshot holds — and never includes the settings file, redacted or otherwise: a redacted copy
+of a file is still a copy of a file. Nothing is ever uploaded.
 
 **Daily backup** — an optional capture at a wall-clock time each day, distinct from the
 **interval cap**. The cap is a ceiling on change-driven captures ("at most one an hour"); the
