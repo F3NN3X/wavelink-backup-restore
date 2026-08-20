@@ -2,7 +2,7 @@
 title: "Technical Debt"
 status: published
 created: 2026-08-16
-updated: 2026-08-19
+updated: 2026-08-20
 tags: [meta, technical-debt]
 ---
 
@@ -17,7 +17,25 @@ project rests on that nobody had checked. Both were worth writing down now, beca
 the fork landed the first list would become real, and the second list is the set of things that
 will look obvious in hindsight.
 
-**That has since changed.** Phases 1–5 have shipped real code — `Core`, `Cli`, and a WPF shell
+**That has since changed, and as of 2026-08-20 the list is almost empty.** Phases 1–6 shipped
+`Core`, `Cli` and a WPF shell, and a debt-clearing pass closed everything in §1, §4, §5, §6 and §7
+that a commit can close.
+
+**What is left — three things, none of which a commit can close:**
+
+| | Why it cannot be closed here |
+|---|---|
+| **§4.15** — 0.5.1's dialog frosting has never been seen | Nothing in the suite can assert that a blur rendered. It needs somebody to look at it, alongside the rest of [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md). |
+| **§2.2** — whether non-MSIX Wave Link installs exist | A fact about the world, not about this code. The *mitigation* is complete — an explicit settings path bypasses discovery, and error 1's first-run variant now offers one (§4.10) — so a non-MSIX user has a route in whether or not such installs turn out to exist. |
+| **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run this when endpoint inspection lands; the AOT publish itself already works. |
+
+§3 is untouched on purpose: those are choices made with eyes open, not debt.
+
+The original status note follows.
+
+#### As of phase 5
+
+Phases 1–5 have shipped real code — `Core`, `Cli`, and a WPF shell
 that is now the process — so §1 and §7 entries have been resolved against it. As of phase 5 plan
 8, §4.8 item 4 (the settings placeholder) and §4.9 (the dormant restore-outcome strip) are both
 closed; §4.10 (the not-found first-run variant) is the one deferred minor still open from the app.
@@ -114,7 +132,7 @@ identical copies.
 exists to fill**, and the reason forking rather than just using it is justified.
 **Resolution:** [[ADR-007]]. Due in phase 3.
 
-### 1.6 `WavelinkSEService` is never closed — **NEW, found at intake 2026-08-16**
+### 1.6 ~~`WavelinkSEService` is never closed~~ — **FIXED in our port at intake, 2026-08-16**
 
 `ProcessControl.FindGuiProcess` only ever looks for `Elgato.WaveLink`. `WavelinkSEService` is
 never enumerated, closed or verified — so upstream's "verified exited" assertion can pass with
@@ -181,9 +199,14 @@ discovery entirely** — unlike upstream, which requires the override to match a
 `SettingsLocatorTests.An_explicit_path_bypasses_discovery_entirely`. `SettingsLocation.CanRelaunch`
 is false for such a path, so callers can say "restored, but you will need to start Wave Link
 yourself" rather than failing obscurely.
-**Still open:** whether such installs exist, and **the amber not-found UI variant is not
-designed** — see [README.md](operations/design/README.md) *Gaps*.
-**Phase:** 5 for the UI.
+**The UI half is DONE (2026-08-20, §4.10).** Error 1's first-run variant is drawn — the amber dot,
+the `LOOKED IN …` line, and a *Choose the settings file…* button that persists an explicit path and
+re-points the capture at it. So a non-MSIX user has a route into the app whether or not such
+installs turn out to exist.
+
+**Still open, and not by a commit:** whether they exist at all. That is a fact about the world —
+the release-channel installer, and whatever Elgato ships for managed deployment. The cost of the
+answer being "yes" is now zero, which is the useful half.
 
 ### 2.3 ~~Whether the VST3 bundle path works~~ — **ANSWERED 2026-08-19 (phase 6)**
 
@@ -270,7 +293,7 @@ spec-coverage pass, which is the argument for having written one.)*
 
 ---
 
-## 7 · Design decisions that outdated shipped code — **three shipped, one is phase-5 UI work**
+## 7 · ~~Design decisions that outdated shipped code~~ — **ALL FOUR CLOSED (7.4 on 2026-08-20)**
 
 > **Status 2026-08-17:** 7.1, 7.2 and 7.3 are **implemented and tested** (351 tests green).
 > 7.4 is keyboard and focus, which is WPF work and arrives with the shell.
@@ -492,11 +515,11 @@ System"*.
 
 ---
 
-## 4 · ~~Design gaps carried into the build~~ — **the original six CLOSED 2026-08-17, except item 6**
+## 4 · ~~Design gaps carried into the build~~ — **ALL CLOSED except §4.15, which needs a human**
 
 > **The heading is about items 1–6 only.** Everything from 4.7 down arrived later, as the build
 > found its own gaps, and several are open — check each item's own status line rather than this
-> one. Open as of 0.6.4: **4.15** only (0.5.1's frosting unseen — it needs a human, not a commit).
+> one. Open as of 0.6.4: **4.15** only — and it needs a human, not a commit.
 
 All six were undesigned. Five are now specified in
 [operations/design/screens/](operations/design/screens/00-index.md), which also designed
