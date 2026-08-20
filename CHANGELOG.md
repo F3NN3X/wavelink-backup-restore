@@ -147,6 +147,12 @@ release loop once for real.
 
 ### Fixed
 
+- **Restoring plug-in files no longer asks for administrator rights unless it needs them.** The
+  app assumed it always would, because plug-ins usually live in a folder every account shares. On
+  many machines they don't need it — several plug-in installers make that folder writable so their
+  own updates run without a prompt — so the app now checks first, and says which kind of restore
+  this will be before you confirm.
+
 - **A backup's recorded size is what was written**, not what was measured beforehand. The two are
   normally identical; they differ when a file changes while a backup is being taken, and the
   recorded figure was the stale one.

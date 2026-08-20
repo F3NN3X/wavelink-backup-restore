@@ -21,12 +21,13 @@ will look obvious in hindsight.
 `Core`, `Cli` and a WPF shell, and a debt-clearing pass closed everything in §1, §4, §5, §6 and §7
 that a commit can close.
 
-**What is left — three things, none of which a commit can close:**
+**What is left — four things, none of which a commit can close:**
 
 | | Why it cannot be closed here |
 |---|---|
 | **§4.15** — 0.5.1's dialog frosting has never been seen | Nothing in the suite can assert that a blur rendered. It needs somebody to look at it, alongside the rest of [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md). |
 | **§2.2** — whether non-MSIX Wave Link installs exist | A fact about the world, not about this code. The *mitigation* is complete — an explicit settings path bypasses discovery, and error 1's first-run variant now offers one (§4.10) — so a non-MSIX user has a route in whether or not such installs turn out to exist. |
+| **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link, written up in the entry. Not a defect — an unanswered question, and §7.5 already removed the prompt in the common case, so the answer may well be "leave it". |
 | **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run this when endpoint inspection lands; the AOT publish itself already works. |
 
 §3 is untouched on purpose: those are choices made with eyes open, not debt.
@@ -293,7 +294,11 @@ spec-coverage pass, which is the argument for having written one.)*
 
 ---
 
-## 7 · ~~Design decisions that outdated shipped code~~ — **ALL FOUR CLOSED (7.4 on 2026-08-20)**
+## 7 · Design decisions that outdated shipped code — **FIVE CLOSED, §7.6 is an open question**
+
+> 7.1–7.5 are all closed (7.4 and 7.5 on 2026-08-20). **§7.6 is not a defect** — it is a
+> question §7.5 raised, with a reversible experiment attached and a recommendation that the
+> answer may well be "leave it alone".
 
 > **Status 2026-08-17:** 7.1, 7.2 and 7.3 are **implemented and tested** (351 tests green).
 > 7.4 is keyboard and focus, which is WPF work and arrives with the shell.
@@ -512,6 +517,89 @@ meaningless to a screen reader as five unlabelled cells, and needs an `Automatio
 name that reads as a sentence — *"5 inputs, all named: Wave Mic 1, Voice, Browser, Music,
 System"*.
 
+
+---
+
+### 7.5 ~~Tier 4 restore asked for administrator rights it often did not need~~ — **FIXED 2026-08-20**
+
+> The app elevated whenever the user opted into a tier 4 restore, inferring *needs administrator*
+> from the fact that plug-ins usually live under `Program Files`. **That inference is wrong on the
+> reference rig**, and measurably so: `C:\Program Files\Common Files\VST3` carries an explicit
+> `Everyone:(OI)(CI)(F)` ACE, so a non-elevated process writes there fine. It is not the Windows
+> default — several audio plug-in installers set it so their own updates need no administrator,
+> which means the mistake is common rather than exotic.
+>
+> **It is measured now.** `IFileSystem.CanWriteDirectory` probes by writing a uniquely-named
+> `DeleteOnClose` file, not by reading the ACL: an effective-permissions calculation has to account
+> for group membership, inherited denies and UAC's filtered token, while a temp file answers the
+> question actually being asked. `RestoreOrchestrator.Plan` probes each captured plug-in's own
+> folder and reports `PluginBinaryPayload.NeedsElevation`; the window elevates only on that.
+>
+> **The row's copy follows the measurement** — `NEEDS ADMINISTRATOR` becomes
+> `NO ADMINISTRATOR NEEDED`, and the sentence stops mentioning rights at all. A dialog that
+> promises a prompt and produces none is the dialog lying about its own button, on the one
+> irreversible screen in the app.
+>
+> **A second, quieter defect fell out.** `IRestoreService.RestoreAsync` had no options parameter,
+> so tier 4 was reachable *only* through the elevated copy. Not elevating would have restored
+> nothing — the opt-in now carries through as `RestoreOptions`.
+>
+> **Measured on this machine, 2026-08-20:** the shared VST3 folder and its `FabFilter` subfolder
+> probe writable; `C:\Windows\System32` probes not writable. A tier 4 restore here now needs
+> no prompt at all.
+
+### 7.6 Where a restored plug-in should go when its own folder is unwritable — **OPEN, needs one experiment**
+
+**Not a defect. An unanswered question**, recorded because §7.5 raised it and because answering it
+wrongly would break a channel silently — the failure mode [[vst3-backs-up-as-nothing]] and §4.18
+both already cost this project a phase.
+
+**The question.** Tier 4 restores a `.vst3` to the absolute `FilePath` the settings recorded. When
+that folder refuses a write, the alternative is the **user-level VST3 location**
+(`%LOCALAPPDATA%\Programs\Common\VST3`), which needs no administrator. Whether that works depends
+on something nobody here has verified: **does Wave Link resolve a channel's plug-in by `PluginId`,
+or by `FilePath`?**
+
+**What is measured** (this rig, 2026-08-20):
+
+| | Finding |
+|---|---|
+| Wave Link is JUCE-based | `AudioPluginCache/KnownPlugins.cache` is a JUCE `<KNOWNPLUGINS>` list with `uniqueId` / `uid` attributes |
+| There **is** a path-independent identity | Every third-party plug-in's `PluginId` in `Settings.json` matches a cache `uniqueId` exactly — all six, on this rig |
+| The paths currently agree | Each `PluginId`'s cache entry names the same file the settings do, so **today's data cannot distinguish the two resolution strategies** |
+| The configurable scan folder is **VST2 only** | `PluginHostConfiguration.AudioPluginHostSettings.VST2PluginDirectoryPath` — empty here. There is no VST3 equivalent in the settings file |
+| Nothing outside the shared folder | All 154 cached plug-ins are VST3 under the shared folder; `%LOCALAPPDATA%\Programs\Common\VST3` does not exist on this machine, so its scanning could not be observed |
+
+JUCE's `VST3PluginFormat` searches both standard VST3 locations by default, which is consistent
+with the user-level folder being scanned — but *consistent with* is not *measured*, and this
+entry exists precisely because that distinction has bitten before.
+
+**The experiment**, reversible, ~10 minutes:
+
+1. Take a backup (the tool exists for this).
+2. Copy one plug-in that is on a channel — say `FabFilter Pro-L 2.vst3` — into
+   `%LOCALAPPDATA%\Programs\Common\VST3\`.
+3. Rename the shared copy so the recorded path no longer resolves.
+4. Restart Wave Link and let it rescan.
+5. **Does the channel still load the effect?** Then read `Settings.json`: was `FilePath` rewritten?
+6. Undo: rename back, delete the user copy, restart.
+
+| Outcome | Means | Consequence |
+|---|---|---|
+| Loads, `FilePath` rewritten | Resolves by `PluginId`, then repairs the path | The user folder is a **viable** destination |
+| Loads, `FilePath` unchanged | Resolves by `PluginId`; the path is advisory | Viable, but the settings keep a stale path |
+| Effect gone | Resolves by `FilePath` | **Not viable** — restoring elsewhere silently breaks the channel |
+
+**Recommendation, pending the answer:** probably do not build it. §7.5 already removes the prompt on
+every machine whose VST3 folder has been loosened, which is the common case and includes this one.
+What remains is one UAC prompt, on an explicit opt-in, for writing to a folder every account
+shares — which is what UAC is *for*. Restoring somewhere else trades that for a changed
+destination, a possible duplicate at the old path, and a promise ("back where it came from") that
+tier 4 currently keeps.
+
+**The answer is worth having anyway**, because it also settles whether tier 2's drift check could
+key on `PluginId` rather than path, and whether "the plug-in moved" is a state this app can even
+detect.
 
 ---
 
