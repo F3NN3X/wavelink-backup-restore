@@ -810,6 +810,144 @@
                                    AutomationProperties.Name="Where the startup entry is kept" />
                     </StackPanel>
 
+                    <!--
+                      ============ UPDATES ============
+                      screens/12-tray-autostart-update.md. Three rows: the state, the available
+                      update, and the weekly-check switch - plus the failed-update block.
+
+                      It did not exist in any form, which meant error 8's "Get the update" button
+                      deep-linked to a section that was never built (technical-debt.md §4.21
+                      item 5).
+
+                      Hidden entirely when no release feed is configured. A "Check now" that cannot
+                      reach anything is worse than no button.
+                    -->
+                    <StackPanel x:Name="UpdatesSection"
+                                Visibility="{Binding HasUpdatesSection, Converter={StaticResource StartupSectionVisible}}">
+                        <views:TrackedText Text="UPDATES" Tracking=".18"
+                                   Style="{StaticResource WlColumnHeaderTrackedText}"
+                                   Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
+                                   AutomationProperties.Name="Updates section" />
+
+                        <!-- Row 1: the state and its mono line, with Check now on the right. Both
+                             the up-to-date and the available-update headline live here - the row
+                             does not change shape, only what it says. -->
+                        <Border Background="{DynamicResource WlBg}"
+                                BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="16,14">
+                                    <TextBlock Text="{Binding Updates.Headline}"
+                                               Style="{StaticResource WlRowNameText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               AutomationProperties.Name="Update state" />
+                                    <TextBlock Text="{Binding Updates.Meta}"
+                                               Style="{StaticResource WlMonoMetaText}"
+                                               Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               AutomationProperties.Name="Version and when it was last checked" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                            VerticalAlignment="Center" Margin="16,0">
+                                    <!-- The two actions for an available update. 12 gives it a
+                                         ghost "What changed" and a primary "Install and restart";
+                                         both are hidden until there IS one. -->
+                                    <Button x:Name="WhatChangedButton" Content="What changed"
+                                            Margin="0,0,9,0"
+                                            Visibility="{Binding Updates.HasUpdate, Converter={StaticResource StartupSectionVisible}}"
+                                            IsEnabled="{Binding Updates.CanAct}"
+                                            Style="{StaticResource WlGhostButton}"
+                                            AutomationProperties.Name="What changed in this release" />
+
+                                    <Button x:Name="InstallUpdateButton" Content="Install and restart"
+                                            Margin="0,0,9,0"
+                                            Visibility="{Binding Updates.HasUpdate, Converter={StaticResource StartupSectionVisible}}"
+                                            IsEnabled="{Binding Updates.CanAct}"
+                                            Style="{StaticResource WlPrimaryButton}"
+                                            AutomationProperties.Name="Install this update and restart" />
+
+                                    <Button x:Name="CheckForUpdatesButton" Content="Check now"
+                                            IsEnabled="{Binding Updates.CanAct}"
+                                            Style="{StaticResource WlSecondaryButton}"
+                                            AutomationProperties.Name="Check for updates now" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!--
+                          The failed-update block. NEUTRAL (WlSunken), not amber, and the design is
+                          explicit about why: "a failed update leaves a working app, so nothing is
+                          un-whole." The lead is strong, the rest muted - the same two-part shape
+                          the plain-language notes above use.
+                        -->
+                        <Border x:Name="UpdateFailedBlock" Margin="0,10,0,0"
+                                Background="{DynamicResource WlSunken}"
+                                BorderBrush="{DynamicResource WlLine}" BorderThickness="1"
+                                CornerRadius="8" Padding="16,14"
+                                Visibility="{Binding Updates.HasFailed, Converter={StaticResource StartupSectionVisible}}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WlSecondaryText}"
+                                           TextWrapping="Wrap" LineHeight="19.575">
+                                    <Run FontWeight="Medium" Foreground="{DynamicResource WlStrong}"
+                                         Text="{Binding Updates.FailureLead, Mode=OneWay}" /><Run Text=" " /><Run
+                                         Foreground="{DynamicResource WlMuted}"
+                                         Text="{Binding Updates.FailureBody, Mode=OneWay}" />
+                                </TextBlock>
+
+                                <TextBlock Text="{Binding Updates.Failure}"
+                                           Style="{StaticResource WlMonoMetaText}"
+                                           Foreground="{DynamicResource WlMuted}" Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           AutomationProperties.Name="Why the update failed" />
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                                    <Button x:Name="RetryUpdateButton" Content="Try again"
+                                            IsEnabled="{Binding Updates.CanAct}"
+                                            Style="{StaticResource WlSecondaryButton}"
+                                            AutomationProperties.Name="Try the update again" />
+                                    <Button x:Name="DownloadUpdateButton" Content="Download it yourself"
+                                            Margin="9,0,0,0" Style="{StaticResource WlGhostButton}"
+                                            AutomationProperties.Name="Open the releases page" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Row 3: the weekly check. It only ever LOOKS - "It never installs
+                             anything without you" - which is why the description says so. -->
+                        <Border Margin="0,10,0,0" Background="{DynamicResource WlBg}"
+                                BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="16,14">
+                                    <TextBlock Text="Check for updates on its own"
+                                               Style="{StaticResource WlRowNameText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               AutomationProperties.Name="Automatic update check label" />
+                                    <TextBlock Text="Weekly. It never installs anything without you."
+                                               Style="{StaticResource WlSecondaryText}"
+                                               Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               AutomationProperties.Name="Automatic update check description" />
+                                </StackPanel>
+
+                                <CheckBox x:Name="AutoCheckUpdatesToggle" Grid.Column="1"
+                                          VerticalAlignment="Center" Margin="16,0"
+                                          Style="{StaticResource WlToggle}"
+                                          IsChecked="{Binding Updates.AutoCheck, Mode=TwoWay}"
+                                          AutomationProperties.Name="Check for updates on its own" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
                     <!-- ============ WHERE THESE SETTINGS LIVE ============ -->
                     <!-- Always visible: it is a fact about where the file is, not a choice. The mono
                          line carries the path and its own size; the second line keeps "a command-line

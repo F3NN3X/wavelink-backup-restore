@@ -374,6 +374,25 @@ public sealed class SettingsViewModel : ObservableObject
         return ok;
     }
 
+    /// <summary>
+    /// The UPDATES section's model, or null to hide the section (screens/12). Set by the caller
+    /// after Build, like <see cref="WhatGoesIn"/> — it needs an HTTP client and a release feed,
+    /// neither of which a settings record knows about.
+    /// </summary>
+    public UpdateViewModel? Updates
+    {
+        get => updates;
+        set
+        {
+            if (Set(ref updates, value)) Raise(nameof(HasUpdatesSection));
+        }
+    }
+
+    private UpdateViewModel? updates;
+
+    /// <summary>Whether to draw UPDATES at all.</summary>
+    public bool HasUpdatesSection => updates is { IsConfigured: true };
+
     /// <summary>Read-only display of WHERE BACKUPS ARE KEPT. Change folder… re-points it.</summary>
     public string BackupFolder => backupFolder;
 

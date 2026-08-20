@@ -634,6 +634,15 @@ public partial class MainWindow : Window
 
         var dialog = new ErrorDialog(ErrorDialogModel.Build(error)) { Owner = this };
         dialog.ShowDialog();
+
+        // Error 8's primary is "Get the update", and 12 has it deep-linking to Settings' UPDATES
+        // section "with the new version's row already showing". It landed nowhere until that
+        // section existed (technical-debt.md §4.21 item 5) - this is the link.
+        if (dialog.Confirmed && appError.Code == 8)
+        {
+            (Application.Current as App)?.OpenSettingsAtUpdates();
+        }
+
         RestoreFocusToList();
         return true;
     }

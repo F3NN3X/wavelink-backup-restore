@@ -10,6 +10,7 @@ using H.NotifyIcon.Core;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Services;
 using WaveLinkBackup.App.Startup;
+using WaveLinkBackup.App.Updates;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Views;
@@ -112,6 +113,27 @@ public partial class App : Application
         {
             MessageBox.Show(arguments.Error, "Wave Link Backup", MessageBoxButton.OK, MessageBoxImage.Warning);
             Shutdown(1);
+            return;
+        }
+
+        // BEFORE the mutex and before ANY file is read, for the same reason the headless restore
+        // is - and one more. This copy is running from a staging directory that is about to be
+        // renamed into place, so it must do nothing but wait, swap and relaunch. Reading settings
+        // here would be reading them from a path that is about to stop existing.
+        if (arguments.IsApplyingUpdate)
+        {
+            var installer = new UpdateInstaller();
+            var target = arguments.ApplyUpdateInstallDirectory!;
+
+            var swapped = installer.Apply(
+                arguments.ApplyUpdateForProcessId!.Value, target, TimeSpan.FromSeconds(30));
+
+            // Relaunch either way: on success the new install, on failure the old one that was put
+            // back. The one thing this must never do is leave the user with nothing running.
+            UpdateInstaller.Relaunch(
+                target, System.IO.Path.GetFileName(Environment.ProcessPath ?? "WaveLinkBackup.exe"));
+
+            Shutdown(swapped ? 0 : 1);
             return;
         }
 
@@ -441,10 +463,21 @@ public partial class App : Application
     /// each time (the file may have changed while the window was closed) and shows it modally over
     /// the main window when one is open, otherwise as a standalone modal.
     /// </summary>
-    internal void OpenSettings()
+    /// <summary>
+    /// Error 8's "Get the update": Settings, at UPDATES, with a check already running so the new
+    /// version's row is showing by the time the user looks at it (screens/12).
+    ///
+    /// The check is the ONLY thing started automatically here. Installing is still a press — "It
+    /// never installs anything without you" holds on this path exactly as it does on every other.
+    /// </summary>
+    internal void OpenSettingsAtUpdates() => OpenSettings(scrollToUpdates: true);
+
+    internal void OpenSettings() => OpenSettings(scrollToUpdates: false);
+
+    private void OpenSettings(bool scrollToUpdates)
     {
         var vm = BuildSettingsViewModel();
-        var dialog = new Views.SettingsDialog(vm);
+        var dialog = new Views.SettingsDialog(vm) { ScrollToUpdates = scrollToUpdates };
         var owner = MainWindow != null ? (Window)MainWindow : null;
         if (owner is not null && owner.IsLoaded)
         {
@@ -571,7 +604,79 @@ public partial class App : Application
             vm.UsedBytes = snapshots.Sum(s => s.Manifest.TotalSizeBytes);
         }
 
+        // UPDATES (screens/12). Built here because it needs the release feed and the HTTP client,
+        // and hidden entirely when no feed is configured - a "Check now" that cannot reach anything
+        // is worse than no button.
+        vm.Updates = BuildUpdateViewModel();
+
         return vm;
+    }
+
+    /// <summary>
+    /// Where releases are looked for. Read from the environment rather than compiled in, because
+    /// it is a fact about a DEPLOYMENT and not about the program (technical-debt.md §5): this repo
+    /// has no remote yet, and a hard-coded owner/repo would be a constant that is wrong the moment
+    /// one exists. Absent means the UPDATES section hides itself.
+    /// </summary>
+    internal static UpdateSource ReleaseSource => new(
+        Environment.GetEnvironmentVariable("WLBACKUP_UPDATE_OWNER") ?? string.Empty,
+        Environment.GetEnvironmentVariable("WLBACKUP_UPDATE_REPO") ?? string.Empty);
+
+    /// <summary>
+    /// One client for the life of the process. A new HttpClient per check is the classic way to
+    /// exhaust sockets, and this one is used at most weekly.
+    /// </summary>
+    private static readonly System.Net.Http.HttpClient updateHttp = new()
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+    };
+
+    private UpdateViewModel BuildUpdateViewModel()
+    {
+        var source = ReleaseSource;
+        var feed = new GitHubReleaseFeed(source, updateHttp);
+
+        return new UpdateViewModel(
+            check: ct => feed.CheckAsync(ReleaseVersion.Current, ct),
+            install: (release, progress, ct) => InstallUpdateAsync(release, progress, ct),
+            persist: (checkForUpdates, checkedAt) => ApplySettings(
+                settings with { CheckForUpdates = checkForUpdates, LastUpdateCheckUtc = checkedAt }),
+            autoCheckEnabled: settings.CheckForUpdates,
+            lastCheckedAt: settings.LastUpdateCheckUtc,
+            isConfigured: source.IsConfigured);
+    }
+
+    /// <summary>
+    /// Download, verify, stage, hand over. Returns null when the hand-over started — at which
+    /// point this process is on its way out and has nothing left to report — or the mono line for
+    /// the failed-update block.
+    ///
+    /// **The shutdown is deliberate and complete.** The staged copy cannot rename a directory this
+    /// process holds a handle on, so the watcher, the tray and the store all have to go first, and
+    /// a last backup is taken on the way out exactly as a Quit would.
+    /// </summary>
+    private async Task<string?> InstallUpdateAsync(
+        UpdateRelease release, IProgress<double> progress, CancellationToken ct)
+    {
+        var staging = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), "WaveLinkBackup-update");
+
+        var download = await new UpdateDownloader(updateHttp)
+            .DownloadAsync(release, staging, progress, ct)
+            .ConfigureAwait(true);
+
+        if (!download.Succeeded) return download.FailureDetail;
+
+        var install = System.IO.Path.GetDirectoryName(Environment.ProcessPath);
+        if (install is null) return "COULDN'T FIND THIS APP'S OWN FOLDER · NOTHING CHANGED";
+
+        var started = new UpdateInstaller().Begin(download.Path!, install);
+        if (!started.Started) return started.FailureDetail;
+
+        // Everything that holds a file handle inside the install directory, and the last backup a
+        // Quit would take. ShutdownEverything ends the process, so nothing after this runs.
+        ShutdownEverything();
+        return null;
     }
 
     /// <summary>

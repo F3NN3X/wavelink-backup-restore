@@ -100,6 +100,24 @@ public static class Readable
         Upper(at.ToString("d MMM", CultureInfo.InvariantCulture));
 
     /// <summary>
+    /// Settings' UPDATES row: <c>TODAY 09:14</c>, <c>YESTERDAY 22:40</c>, or <c>12 AUG</c>.
+    ///
+    /// Not <see cref="RelativeTime"/>, which answers "how long ago" — the design's line answers
+    /// "when did it last look", and a date is the more useful shape for something that happens
+    /// weekly.
+    /// </summary>
+    public static string WhenChecked(DateTimeOffset at)
+    {
+        var day = at.ToLocalTime().Date;
+        var today = DateTimeOffset.Now.Date;
+
+        if (day == today) return $"TODAY {TimeOfDay(at.ToLocalTime())}";
+        if (day == today.AddDays(-1)) return $"YESTERDAY {TimeOfDay(at.ToLocalTime())}";
+
+        return ShortDate(at.ToLocalTime());
+    }
+
+    /// <summary>
     /// An input name shortened to fit a 57px slot: MIC 1 · VOICE · BROWSER · GAME · SYSTEM, and
     /// WAVE:3 for "Elgato Wave:3".
     ///

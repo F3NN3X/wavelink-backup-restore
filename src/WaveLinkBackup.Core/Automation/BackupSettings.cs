@@ -34,6 +34,16 @@ namespace WaveLinkBackup.Core.Automation;
 /// on a quiet machine. Sixty was a constant until the Settings dialog got a control for it, while
 /// the dialog said "at most one an hour" as though it were a fact about the world.
 /// </param>
+/// <param name="CheckForUpdates">
+/// Whether to look for a new version weekly. On by default, and it ONLY looks — screens/12: "It
+/// never installs anything without you", and an available update is never a notification, a badge
+/// or a banner. The switch exists because looking is still a network request the user may not
+/// want made.
+/// </param>
+/// <param name="LastUpdateCheckUtc">
+/// When the last check ran, successful or not. Recording a FAILED look too is deliberate:
+/// otherwise a machine that is offline for a fortnight re-checks on every tick.
+/// </param>
 /// <param name="DailyBackupMinutes">
 /// Minutes past local midnight to take a backup at each day, or null for "only when things
 /// change". Stored as an int rather than a <see cref="TimeOnly"/> because this record is written
@@ -48,7 +58,9 @@ public sealed record BackupSettings(
     bool IncludePresets = true,
     bool IncludePluginFiles = false,
     int AutoBackupIntervalMinutes = BackupSettings.DefaultIntervalMinutes,
-    int? DailyBackupMinutes = null)
+    int? DailyBackupMinutes = null,
+    bool CheckForUpdates = true,
+    DateTimeOffset? LastUpdateCheckUtc = null)
 {
     /// <summary>One hour — what the interval was when it was a constant (ADR-007).</summary>
     public const int DefaultIntervalMinutes = 60;

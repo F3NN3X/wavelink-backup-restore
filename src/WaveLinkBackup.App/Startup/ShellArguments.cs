@@ -1,3 +1,4 @@
+using WaveLinkBackup.App.Updates;
 using WaveLinkBackup.Core.Automation;
 
 namespace WaveLinkBackup.App.Startup;
@@ -22,6 +23,13 @@ namespace WaveLinkBackup.App.Startup;
 /// Whether that restore includes tier 4. Only meaningful alongside
 /// <paramref name="RestoreSnapshotId"/> — it is the entire reason the elevated copy exists.
 /// </param>
+/// <param name="ApplyUpdateForProcessId">
+/// Set only by the STAGED copy an update starts of itself, and for the same reason
+/// <paramref name="RestoreSnapshotId"/> exists: a process cannot overwrite its own executable
+/// while it is running, so a newer copy has to do the swap from outside the directory being
+/// replaced. Names the process to wait for.
+/// </param>
+/// <param name="ApplyUpdateInstallDirectory">Which directory the staged copy replaces.</param>
 public sealed record ShellArguments(
     bool StartInTray = false,
     string? StorePath = null,
@@ -29,7 +37,9 @@ public sealed record ShellArguments(
     int? KeepCount = null,
     string? Error = null,
     string? RestoreSnapshotId = null,
-    bool WithPlugins = false)
+    bool WithPlugins = false,
+    int? ApplyUpdateForProcessId = null,
+    string? ApplyUpdateInstallDirectory = null)
 {
     public bool IsValid => Error is null;
 
@@ -44,6 +54,16 @@ public sealed record ShellArguments(
     /// it is one operation, and the race the mutex prevents is two watchers over one settings file.
     /// </summary>
     public bool IsHeadlessRestore => RestoreSnapshotId is not null;
+
+    /// <summary>
+    /// True when this process exists to replace an install and exit.
+    ///
+    /// It omits the same things a headless restore does, and one more: it must NOT read or write
+    /// settings, because the directory holding this copy is about to be renamed out from under it.
+    /// All it does is wait, rename twice, and start the result.
+    /// </summary>
+    public bool IsApplyingUpdate =>
+        ApplyUpdateForProcessId is not null && ApplyUpdateInstallDirectory is not null;
 
     private static ShellArguments Failed(string error) => new(Error: error);
 
@@ -78,6 +98,17 @@ public sealed record ShellArguments(
 
                 case "--with-plugins":
                     result = result with { WithPlugins = true };
+                    break;
+
+                case UpdateInstaller.ApplyFlag:
+                    if (!TryValue(args, ref i, out var pid)) return Failed($"{UpdateInstaller.ApplyFlag} needs a process id.");
+                    if (!int.TryParse(pid, out var processId)) return Failed($"'{pid}' is not a process id.");
+                    if (!TryValue(args, ref i, out var target)) return Failed($"{UpdateInstaller.ApplyFlag} needs a folder.");
+                    result = result with
+                    {
+                        ApplyUpdateForProcessId = processId,
+                        ApplyUpdateInstallDirectory = target,
+                    };
                     break;
 
                 case "--keep":

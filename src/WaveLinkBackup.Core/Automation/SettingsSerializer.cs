@@ -51,6 +51,22 @@ public static class SettingsSerializer
             if (settings.DailyBackupMinutes is { } daily) writer.WriteNumber("dailyBackupMinutes", daily);
             else writer.WriteNull("dailyBackupMinutes");
 
+            // The UPDATES section (screens/12). Additive again, and again with no schema bump: a
+            // missing switch means the weekly check that is on by default, and a missing stamp
+            // means one has never run - which is exactly what an older settings file describes.
+            writer.WriteBoolean("checkForUpdates", settings.CheckForUpdates);
+
+            if (settings.LastUpdateCheckUtc is { } checkedAt)
+            {
+                writer.WriteString(
+                    "lastUpdateCheckUtc",
+                    checkedAt.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                writer.WriteNull("lastUpdateCheckUtc");
+            }
+
             writer.WriteEndObject();
         }
 
@@ -87,9 +103,26 @@ public static class SettingsSerializer
                 IncludePluginFiles: Bool(root, "includePluginFiles") ?? defaults.IncludePluginFiles,
                 AutoBackupIntervalMinutes:
                     Int(root, "autoBackupIntervalMinutes") ?? defaults.AutoBackupIntervalMinutes,
-                DailyBackupMinutes: Int(root, "dailyBackupMinutes"));
+                DailyBackupMinutes: Int(root, "dailyBackupMinutes"),
+                CheckForUpdates: Bool(root, "checkForUpdates") ?? defaults.CheckForUpdates,
+                LastUpdateCheckUtc: Timestamp(root, "lastUpdateCheckUtc"));
         }
     }
+
+    /// <summary>
+    /// A round-trip UTC timestamp, or null for anything that does not parse. Null is the safe
+    /// answer here: it means "never checked", which makes the next check happen — the failure
+    /// direction is one extra request, not a check that never runs again.
+    /// </summary>
+    private static DateTimeOffset? Timestamp(JsonElement root, string name) =>
+        String(root, name) is { } text
+        && DateTimeOffset.TryParse(
+            text,
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.RoundtripKind,
+            out var parsed)
+            ? parsed
+            : null;
 
     private static string? String(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
