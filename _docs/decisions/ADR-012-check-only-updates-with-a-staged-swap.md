@@ -3,7 +3,7 @@ title: "ADR-012: Update by staging beside the install and swapping, never elevat
 status: accepted
 created: 2026-08-20
 updated: 2026-08-20
-related_adrs: [ADR-011, ADR-008, ADR-004]
+related_adrs: [ADR-011, ADR-008, ADR-004, ADR-003]
 tags: [decision, updates, security, ci]
 ---
 
@@ -64,7 +64,7 @@ instant at which the user has no app.
 
 | Option | Why not |
 |---|---|
-| **MSIX / the Microsoft Store** | The best answer to all of this: signed identity, differential updates, real toast notifications with buttons, and no self-update code at all. Rejected **for now, not forever** — it needs a publisher identity and a signing certificate this project does not have, and it would change how the app is installed for every existing user. Revisit when the project has a certificate; most of what is here becomes deletable. |
+| **MSIX / the Microsoft Store** | On its face the best answer to all of this: signed identity, differential updates, real toast notifications with buttons, and no self-update code at all. **Already refused, for a better reason than the obvious ones** — see [post-1.0.md](../dev-phases/post-1.0.md)'s *Refused* table and [[ADR-003]]: an MSIX package writes into a redirected `LocalState` that **an uninstall or a reset deletes wholesale**, which is the exact defect this whole project exists because upstream had. A backup tool whose store can be erased by repairing the app is not a trade worth signing for. The certificate and the changed install story are real costs too, but they are the smaller ones. If this is ever revisited it needs an answer to the store-location problem FIRST, not a certificate. |
 | **Squirrel / Velopack / ClickOnce** | Mature, and they solve the two-process problem properly. Each brings an install-time footprint (a shortcut stub, an `Update.exe`, a deployment manifest) that changes the app from "a folder you can delete" into something with an uninstall story — a real cost for a utility whose whole shape is "configured once, then ignored". They also assume a release channel this project does not yet have, so adopting one now would be committing to their layout before the first release exists. Reconsider if the update path grows past what one class can hold. |
 | **Elevate and write to `Program Files`** ([[ADR-011]]'s path, reused) | Free to implement and rejected on principle. Tier 4 restore writes *files the user chose, from their own disk*; an update writes **this program's own binaries, fetched from the network**. A program that silently escalates to administrator to replace its own executable is the shape a supply-chain attack wants it to have — and with no code signing, the app cannot even prove the bytes are its own. It would be defensible *after* signing; it is not before. The honest answer to an unwritable install is the failed-update block the design already draws. |
 | **Download only — open the releases page and let the user install** | Smallest and safest, and genuinely tempting. Rejected because the design draws *Install and restart* as the primary action on that row, and because "download it yourself" is what the app already falls back to when it *cannot* write. Making the fallback the only path would leave the primary action undrawn — the exact debt this closes. |
@@ -88,7 +88,8 @@ pipeline whose output shape is CI's responsibility rather than a person's memory
   newer than the release it precedes. Publishing a pre-release tag today would offer it to
   everyone. That needs its own decision before a `-beta` tag exists.
 - **Differential updates.** Every update is the whole ~70 MB self-contained publish. Acceptable for
-  something that happens a few times a year; a reason to revisit MSIX if it stops being.
+  something that happens a few times a year. It is **not** an argument for MSIX, whose own
+  objection is above and is structural rather than a matter of cost.
 - **Any release not in the shape §1 of the runbook describes** is invisible to the updater. That is
   why the shape is produced by CI and pinned by the workflow rather than documented and hoped for.
 

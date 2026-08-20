@@ -55,6 +55,19 @@ show them.
 **Note:** porting it is also what finally answers [technical-debt.md](../technical-debt.md) §2.4 —
 `[ComImport]` under NativeAOT — because there is no COM interop in the codebase today.
 
+**Restoring a plug-in somewhere other than where it came from.** Blocked on one measurement,
+not on appetite: whether Wave Link resolves a channel's plug-in by `PluginId` or by `FilePath`
+([technical-debt.md](../technical-debt.md) §7.6, and
+[the audit](../audits/2026-08-20-plugin-resolution-and-elevation.md) for the experiment). If it is
+`PluginId`, an unwritable plug-in folder could fall back to the user-level VST3 location and never
+need administrator rights — and *"the plug-in moved"* becomes a state tier 2 can describe rather
+than one indistinguishable from *"the plug-in is gone"*. It would also remove one of the two
+reasons portable backups are refused above; the other, device serials in endpoint IDs, would
+remain.
+**Signal:** the experiment being run, plus a user who cannot write their own VST3 folder. The
+current recommendation is *do not build it* — one UAC prompt on an explicit opt-in is what UAC is
+for, and a fallback destination costs a promise tier 4 currently keeps.
+
 **A diff between two backups.** The store already keys on content hashes, so "what changed between
 these two" is cheap to compute and would answer "why did my mixer change" directly.
 **Signal:** the restore dialog's fingerprint line not being enough to choose between two backups.

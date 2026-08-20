@@ -550,56 +550,45 @@ System"*.
 
 ### 7.6 Where a restored plug-in should go when its own folder is unwritable — **OPEN, needs one experiment**
 
-**Not a defect. An unanswered question**, recorded because §7.5 raised it and because answering it
-wrongly would break a channel silently — the failure mode [[vst3-backs-up-as-nothing]] and §4.18
-both already cost this project a phase.
+**Not a defect. An unanswered question**, raised by §7.5 and recorded because answering it wrongly
+would break a channel silently — the failure mode [[vst3-backs-up-as-nothing]] and §4.18 both
+already cost this project a phase.
+
+**Full method, findings and the experiment protocol:**
+[audits/2026-08-20-plugin-resolution-and-elevation.md](audits/2026-08-20-plugin-resolution-and-elevation.md).
+Summarised here because that is where a debt belongs; the audit is where the commands are.
 
 **The question.** Tier 4 restores a `.vst3` to the absolute `FilePath` the settings recorded. When
-that folder refuses a write, the alternative is the **user-level VST3 location**
-(`%LOCALAPPDATA%\Programs\Common\VST3`), which needs no administrator. Whether that works depends
-on something nobody here has verified: **does Wave Link resolve a channel's plug-in by `PluginId`,
-or by `FilePath`?**
+that folder refuses a write, the alternative is the user-level VST3 location
+(`%LOCALAPPDATA%\Programs\Common\VST3`), which needs no administrator. Whether that works turns on
+one thing nobody has verified: **does Wave Link resolve a channel's plug-in by `PluginId`, or by
+`FilePath`?**
 
-**What is measured** (this rig, 2026-08-20):
+**What is measured** (this rig, 2026-08-20): Wave Link is JUCE-based; every third-party `PluginId`
+in `Settings.json` matches a cache `uniqueId` exactly, so a path-independent identity **exists**;
+the only configurable scan folder is VST2 and it is empty; and all 154 cached plug-ins are VST3 in
+the shared folder, so the user-level one could not be observed being scanned.
 
-| | Finding |
-|---|---|
-| Wave Link is JUCE-based | `AudioPluginCache/KnownPlugins.cache` is a JUCE `<KNOWNPLUGINS>` list with `uniqueId` / `uid` attributes |
-| There **is** a path-independent identity | Every third-party plug-in's `PluginId` in `Settings.json` matches a cache `uniqueId` exactly — all six, on this rig |
-| The paths currently agree | Each `PluginId`'s cache entry names the same file the settings do, so **today's data cannot distinguish the two resolution strategies** |
-| The configurable scan folder is **VST2 only** | `PluginHostConfiguration.AudioPluginHostSettings.VST2PluginDirectoryPath` — empty here. There is no VST3 equivalent in the settings file |
-| Nothing outside the shared folder | All 154 cached plug-ins are VST3 under the shared folder; `%LOCALAPPDATA%\Programs\Common\VST3` does not exist on this machine, so its scanning could not be observed |
+**Why that is not enough.** The recorded paths all agree with the cache today, because nothing has
+moved — so the data **cannot distinguish** the two resolution strategies. That is the whole reason
+this is an entry rather than an implementation.
 
-JUCE's `VST3PluginFormat` searches both standard VST3 locations by default, which is consistent
-with the user-level folder being scanned — but *consistent with* is not *measured*, and this
-entry exists precisely because that distinction has bitten before.
+**What closes it:** the experiment in the audit — copy one on-channel plug-in to the user folder,
+rename the shared copy, restart, see whether the channel still loads and whether `FilePath` was
+rewritten. Three outcomes, each with its consequence, tabulated there. Reversible; take a backup
+first.
 
-**The experiment**, reversible, ~10 minutes:
+**Recommendation, pending the answer: probably do not build the fallback.** §7.5 already removes
+the prompt on any machine whose VST3 folder has been loosened, which is the common case and
+includes this one. What remains is one prompt, on an explicit opt-in, for writing to a folder every
+account shares — which is what UAC is for. A fallback destination trades that for a file somewhere
+other than where it came from, a possible duplicate at the old path, and the loss of a promise tier
+4 currently keeps.
 
-1. Take a backup (the tool exists for this).
-2. Copy one plug-in that is on a channel — say `FabFilter Pro-L 2.vst3` — into
-   `%LOCALAPPDATA%\Programs\Common\VST3\`.
-3. Rename the shared copy so the recorded path no longer resolves.
-4. Restart Wave Link and let it rescan.
-5. **Does the channel still load the effect?** Then read `Settings.json`: was `FilePath` rewritten?
-6. Undo: rename back, delete the user copy, restart.
-
-| Outcome | Means | Consequence |
-|---|---|---|
-| Loads, `FilePath` rewritten | Resolves by `PluginId`, then repairs the path | The user folder is a **viable** destination |
-| Loads, `FilePath` unchanged | Resolves by `PluginId`; the path is advisory | Viable, but the settings keep a stale path |
-| Effect gone | Resolves by `FilePath` | **Not viable** — restoring elsewhere silently breaks the channel |
-
-**Recommendation, pending the answer:** probably do not build it. §7.5 already removes the prompt on
-every machine whose VST3 folder has been loosened, which is the common case and includes this one.
-What remains is one UAC prompt, on an explicit opt-in, for writing to a folder every account
-shares — which is what UAC is *for*. Restoring somewhere else trades that for a changed
-destination, a possible duplicate at the old path, and a promise ("back where it came from") that
-tier 4 currently keeps.
-
-**The answer is worth having anyway**, because it also settles whether tier 2's drift check could
-key on `PluginId` rather than path, and whether "the plug-in moved" is a state this app can even
-detect.
+**The answer is worth having regardless**, because it also settles whether tier 2's drift check
+could key on `PluginId` rather than path — making "the plug-in moved" a state this app can
+describe instead of one indistinguishable from "the plug-in is gone" — and because it removes one
+of the two reasons [post-1.0.md](dev-phases/post-1.0.md) refuses portable backups.
 
 ---
 

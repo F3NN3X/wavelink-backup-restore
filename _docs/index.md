@@ -116,7 +116,7 @@ follow from them.
 
 ## Gotchas
 
-Twenty-one ways this goes wrong. Titled by symptom, because that is what you will be searching
+Twenty-two ways this goes wrong. Titled by symptom, because that is what you will be searching
 for at the time — you do not know the cause yet, which is why you are searching.
 
 Grouped by where they bite. **The whole table is here on purpose**: it listed ten of sixteen
@@ -138,6 +138,7 @@ produced.
 | Someone else's backup produces dead channels | [restored-backup-has-dead-channels.md](knowledge-base/gotchas/restored-backup-has-dead-channels.md) |
 | Deleting one backup takes its neighbours with it | [deleting-one-backup-takes-its-neighbours.md](knowledge-base/gotchas/deleting-one-backup-takes-its-neighbours.md) |
 | The backup says it saved your presets, and they are not in it | [backup-says-it-saved-your-presets-and-it-did-not.md](knowledge-base/gotchas/backup-says-it-saved-your-presets-and-it-did-not.md) |
+| Windows asks for rights the app already had | [windows-asks-for-rights-the-app-already-had.md](knowledge-base/gotchas/windows-asks-for-rights-the-app-already-had.md) |
 
 ### The shell
 
@@ -214,6 +215,7 @@ Extracted from shipped code, each naming its real callers.
 |---|---|
 | [2026-08-15 — voltybat/WaveLinkSettingsUtility](audits/2026-08-15-voltybat-wavelinksettingsutility.md) | The upstream we are forking: what to take, what to fix first |
 | [2026-08-19 — the app against the design package](audits/2026-08-19-design-conformance.md) | Every screen read against `operations/design/`: one structural layout defect, six smaller fixes, eight designed surfaces never drawn |
+| [2026-08-20 — plug-in resolution and elevation](audits/2026-08-20-plugin-resolution-and-elevation.md) | The app was asking for administrator rights it already had. **Carries an open question and the experiment that answers it** — read this before touching tier 4 restore |
 
 ---
 
@@ -221,6 +223,7 @@ Extracted from shipped code, each naming its real callers.
 
 | Date | Session |
 |---|---|
+| 2026-08-20 | [Asking for administrator rights only when the write needs them](sessions/2026-08-20-elevation-only-when-needed.md) |
 | 2026-08-20 | [Clearing the technical-debt list](sessions/2026-08-20-clearing-the-technical-debt.md) |
 | 2026-08-19 | [The two things phase 6 deferred, and a settable backup schedule](sessions/2026-08-19-preset-roots-elevation-and-timing.md) |
 | 2026-08-19 | [Phase 6 — all four tiers capture and restore](sessions/2026-08-19-phase-6-tiers-complete.md) |

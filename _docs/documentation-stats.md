@@ -25,15 +25,15 @@ Update this file **in the same commit** as the document it counts. See
 | Artifact | Count |
 |---|---|
 | ADRs | 12 |
-| Gotchas | 21 |
+| Gotchas | 22 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
-| Audits | 2 (6 + 15 findings) |
-| Sessions | 20 |
+| Audits | 3 (6 + 15 + 4 findings, one open question) |
+| Sessions | 21 |
 | Plans | 13 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,417 passing** — Core 462 · CLI 100 · App 855 |
+| **Tests** | **1,432 passing** — Core 471 · CLI 100 · App 861 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,33 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Elevation, measured rather than assumed (2026-08-20)
+
+**An audit that produced a fix, a gotcha and an open question** — and the open question is the
+point. A later session should be able to pick it up cold.
+
+- **One audit**, [plug-in resolution and elevation](audits/2026-08-20-plugin-resolution-and-elevation.md).
+  It **carries its own method as runnable commands**, deliberately: the findings contradict an
+  assumption that had been in the code since phase 6, so verifying them should be cheap rather than
+  a matter of trusting this file. §3 is an *unanswered question* with a reversible experiment and a
+  table of what each outcome would mean.
+
+- **One gotcha.** [[windows-asks-for-rights-the-app-already-had]] — the shared VST3 folder carries
+  an `Everyone:(F)` ACE that a plug-in installer added, so the app was prompting for rights it
+  had. Its "plausible explanation" section carries the *second* trap too: the fix that suggests
+  itself is to read the ACL, which needs group membership, inherited denies and UAC's filtered
+  token to be right.
+
+- **A contradiction corrected, same day.** [[ADR-012]] deferred MSIX for lack of a signing
+  certificate. [post-1.0.md](dev-phases/post-1.0.md) had **already refused it for a better
+  reason** — a redirected `LocalState` an uninstall deletes wholesale, which is [[ADR-003]]'s
+  whole subject. The ADR now defers to that. Worth recording as a delta rather than a silent edit:
+  a new ADR restating a weaker version of an existing refusal is exactly what a cross-reference
+  index exists to catch.
+
+- **A row in post-1.0's *Deferred*** so the question has a home in the roadmap and not only in the
+  debt list.
 
 ### The debt list, cleared (2026-08-20)
 
@@ -825,6 +852,20 @@ that does not look at the other will break the loop silently.
 | [[ADR-011]] | The elevation path the updater deliberately does not reuse, and the difference between the two operations |
 | [operations/design/screens/12-tray-autostart-update.md](operations/design/screens/12-tray-autostart-update.md) | The designed section, and the rule that an available update is never a notification |
 | [technical-debt.md](technical-debt.md) §4.21 item 5, §5 | The debt closed, and why the feed is configuration rather than a constant |
+
+### Deciding from a path instead of from the thing itself
+
+**Three times now**, each costing a phase or a session, which is what earns an index entry. The
+shape: code decides what is true by pattern-matching a location, and is right on the machine it
+was written on.
+
+| Artifact | Contribution |
+|---|---|
+| [[backup-says-it-saved-your-presets-and-it-did-not]] | Where preset files *are* — one root guessed, 98% of them missed |
+| [[windows-asks-for-rights-the-app-already-had]] | What may be *done* to a folder — `Program Files` inferred to need administrator, when its ACL said otherwise |
+| [technical-debt.md](technical-debt.md) §5 | The same instinct as a rule, now four source guards |
+| [technical-debt.md](technical-debt.md) §7.6 | The **open** instance: whether a plug-in reference resolves by path or by identity — deliberately not guessed |
+| [audits/2026-08-20-plugin-resolution-and-elevation.md](audits/2026-08-20-plugin-resolution-and-elevation.md) | The method for answering it, and why the current data cannot |
 
 ### A control that looks wired, and is not
 
