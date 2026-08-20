@@ -64,6 +64,24 @@ public interface IFileSystem
     /// <summary>Creates the directory and any missing parents. No-op if it exists.</summary>
     void CreateDirectory(string path);
 
+    /// <summary>
+    /// Whether this process could write a file into <paramref name="directory"/> **right now**,
+    /// as it is currently running.
+    ///
+    /// Asked rather than assumed, because the assumption is wrong more often than it looks.
+    /// `C:\Program Files\Common Files\VST3` is not user-writable by Windows' default ACL — but
+    /// several audio plug-in installers loosen it so their own updates need no administrator, and
+    /// on a machine where one has, tier 4 restores perfectly well with no prompt at all. Deciding
+    /// from the path alone means prompting people who did not need to be asked.
+    ///
+    /// **Probes by writing**, not by reading the ACL. An effective-permissions calculation has to
+    /// account for group membership, inherited denies, UAC's filtered token and the odd
+    /// virtualisation case; a temp file in the target directory answers the question that is
+    /// actually being asked. A missing directory reports whether its nearest existing ancestor
+    /// would accept the creation.
+    /// </summary>
+    bool CanWriteDirectory(string directory);
+
     /// <summary>Deletes a directory and everything in it.</summary>
     void DeleteDirectory(string path);
 

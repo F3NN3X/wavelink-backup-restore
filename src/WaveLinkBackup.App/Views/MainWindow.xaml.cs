@@ -11,6 +11,7 @@ using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.Core.Io;
+using WaveLinkBackup.Core.Restore;
 using WaveLinkBackup.Core.Results;
 using WaveLinkBackup.Core.Snapshots;
 
@@ -381,13 +382,24 @@ public partial class MainWindow : Window
         // The tier 4 opt-in. Off unless the user moved it in the dialog just now, and never
         // remembered - the Settings dialog's plug-in-files switch decides what goes INTO a backup
         // and is deliberately not read here (screens/13-elevation.md).
-        if (model.PluginFiles?.Enabled == true)
+        var wantsPlugins = model.PluginFiles?.Enabled == true;
+
+        // Elevate ONLY when the destinations actually refuse this process a write. The plan
+        // measured that when it was built, by probing each plug-in's own folder rather than
+        // matching its path against `C:\Program Files` - and the difference is not academic:
+        // several audio plug-in installers grant Everyone full control of the shared VST3 folder
+        // so their own updates need no administrator, and on such a machine this restore needs no
+        // prompt at all. Asking anyway would be asking for rights we do not need, which is how a
+        // prompt stops meaning anything.
+        if (wantsPlugins && model.PluginFiles!.NeedsElevation)
         {
             await RunElevatedRestoreAsync(row.Id, row.Name);
             return;
         }
 
-        await RunRestoreAsync(row.Id, row.Name, live);
+        await RunRestoreAsync(
+            row.Id, row.Name, live,
+            new RestoreOptions(Presets: true, PluginBinaries: wantsPlugins));
     }
 
     /// <summary>
@@ -459,7 +471,11 @@ public partial class MainWindow : Window
     /// reports and hands the finished result to the existing outcome strip. Kept separate from
     /// RestoreSelectedAsync so the confirmation dialog is not part of this method's lifecycle.
     /// </summary>
-    private async Task RunRestoreAsync(string snapshotId, string snapshotName, SettingsInspection live)
+    private async Task RunRestoreAsync(
+        string snapshotId,
+        string snapshotName,
+        SettingsInspection live,
+        RestoreOptions? options = null)
     {
         // Begin BEFORE the first stage report: it swaps in a fresh four-stage model (stage 0 current)
         // and marks the window restoring, which is what makes the strip show instead of the outcome.
@@ -471,7 +487,8 @@ public partial class MainWindow : Window
         RestoreResultView view;
         try
         {
-            view = await restoreService.RestoreAsync(snapshotId, live, progress, restoreCts.Token);
+            view = await restoreService.RestoreAsync(
+                snapshotId, live, progress, restoreCts.Token, options);
         }
         finally
         {

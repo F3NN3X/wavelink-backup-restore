@@ -135,12 +135,10 @@ public sealed class RestoreOrchestrator(
     /// The plug-ins whose binaries this snapshot holds, and what they weigh. Zero for every
     /// snapshot taken with tier 4 off, which is the default and therefore the common case.
     /// </summary>
-    private static PluginBinaryPayload BinaryPayload(SnapshotManifest manifest, PluginManifest plugins)
+    private PluginBinaryPayload BinaryPayload(SnapshotManifest manifest, PluginManifest plugins)
     {
-        var roots = plugins.Plugins
-            .Where(p => p.BinaryPath is not null)
-            .Select(p => p.BinaryPath!)
-            .ToList();
+        var captured = plugins.Plugins.Where(p => p.BinaryPath is not null).ToList();
+        var roots = captured.Select(p => p.BinaryPath!).ToList();
 
         if (roots.Count == 0) return PluginBinaryPayload.None;
 
@@ -152,8 +150,33 @@ public sealed class RestoreOrchestrator(
                 || f.Key.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase)))
             .Sum(f => f.Value.SizeBytes);
 
-        return new PluginBinaryPayload(roots.Count, bytes);
+        return new PluginBinaryPayload(roots.Count, bytes, NeedsElevation(captured));
     }
+
+    /// <summary>
+    /// Whether ANY plug-in's destination refuses a write from this process as it is currently
+    /// running. Measured by probing each one, not inferred from the path — see
+    /// <see cref="PluginBinaryPayload.NeedsElevation"/> for why the inference is wrong often
+    /// enough to matter.
+    ///
+    /// **Any, not all.** Elevation is one prompt for the whole restore, so a single unwritable
+    /// destination needs it; there is no partial answer that helps.
+    ///
+    /// A plug-in with no recorded <c>FilePath</c> counts as needing it. That is the conservative
+    /// direction: the cost of a wrong "yes" is a prompt the user could have been spared, and the
+    /// cost of a wrong "no" is a restore that silently puts nothing back.
+    /// </summary>
+    private bool NeedsElevation(IReadOnlyList<PluginManifestEntry> captured) =>
+        captured.Any(p =>
+        {
+            if (string.IsNullOrWhiteSpace(p.FilePath)) return true;
+
+            // The plug-in's own parent: a bundle IS a directory and is written inside its parent,
+            // and a single file is written beside its siblings. Both are the same question.
+            var parent = Path.GetDirectoryName(p.FilePath.TrimEnd('\\', '/'));
+
+            return string.IsNullOrEmpty(parent) || !fileSystem.CanWriteDirectory(parent);
+        });
 
     public Result<RestorePlan> Plan(string snapshotId, SettingsInspection live)
     {

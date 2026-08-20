@@ -405,4 +405,71 @@ public sealed class RestoreOrchestratorTests
         Assert.All(plan.Rows, r => Assert.False(r.Changes));
         Assert.False(plan.HasWarnings);
     }
+
+    // ------------------ whether a tier 4 restore actually needs elevating (technical-debt.md §7.5)
+
+    /// <summary>
+    /// The measurement that replaced an assumption. The app used to elevate whenever the user
+    /// opted in, inferring "needs administrator" from the fact that plug-ins usually live under
+    /// `C:\Program Files`. That is wrong on any machine where a plug-in installer has loosened the
+    /// folder's ACL — which is common, and is true of the reference rig, where
+    /// `C:\Program Files\Common Files\VST3` carries an explicit `Everyone:(F)` ACE.
+    /// </summary>
+    [Fact]
+    public void A_writable_plugin_folder_means_no_elevation_is_needed()
+    {
+        var (h, snapshot) = FourTierRig();
+
+        var plan = h.Orchestrator!.Plan(snapshot.Id, h.Live()).Value;
+
+        Assert.True(plan.BinaryPayload.Any);
+        Assert.False(
+            plan.BinaryPayload.NeedsElevation,
+            "Nothing marked the plug-in folder unwritable, so the restore must not ask for rights.");
+    }
+
+    [Fact]
+    public void An_unwritable_plugin_folder_still_needs_elevation()
+    {
+        var (h, snapshot) = FourTierRig();
+        h.Fs.UnwritableDirectories.Add(@"C:\Program Files");
+
+        var plan = h.Orchestrator!.Plan(snapshot.Id, h.Live()).Value;
+
+        Assert.True(plan.BinaryPayload.NeedsElevation);
+    }
+
+    /// <summary>
+    /// **Any, not all.** Elevation is one prompt for the whole restore, so a single unwritable
+    /// destination needs it — there is no partial answer that helps the user.
+    /// </summary>
+    [Fact]
+    public void One_unwritable_destination_among_several_needs_elevation()
+    {
+        var (h, snapshot) = FourTierRig();
+
+        // The rig's own plug-in stays writable; a second one does not.
+        h.Fs.UnwritableDirectories.Add(@"C:\Program Files\Common Files\VST3\Locked");
+
+        var plan = h.Orchestrator!.Plan(snapshot.Id, h.Live()).Value;
+
+        // Only one plug-in is captured here, and it is writable, so this is still false...
+        Assert.False(plan.BinaryPayload.NeedsElevation);
+
+        // ...and marking the folder that plug-in is actually in flips it.
+        h.Fs.UnwritableDirectories.Add(@"C:\Program Files\Common Files\VST3");
+
+        Assert.True(h.Orchestrator!.Plan(snapshot.Id, h.Live()).Value.BinaryPayload.NeedsElevation);
+    }
+
+    /// <summary>
+    /// A snapshot with no plug-in binaries reports no elevation, so the row is absent AND cannot
+    /// contribute a spurious prompt to a settings-only restore.
+    /// </summary>
+    [Fact]
+    public void A_snapshot_without_plugin_binaries_needs_no_elevation()
+    {
+        Assert.False(PluginBinaryPayload.None.NeedsElevation);
+        Assert.False(PluginBinaryPayload.None.Any);
+    }
 }

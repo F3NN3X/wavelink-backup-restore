@@ -109,6 +109,44 @@ public sealed class FileSystem : IFileSystem
 
     public void CreateDirectory(string path) => Directory.CreateDirectory(path);
 
+    /// <summary>
+    /// Creates a uniquely-named empty file, then removes it. The name carries a GUID so two
+    /// probes cannot collide, and the file is opened with DeleteOnClose so an interrupted probe
+    /// leaves nothing behind even if the delete never runs.
+    /// </summary>
+    public bool CanWriteDirectory(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory)) return false;
+
+        // A destination that does not exist yet is writable if it could be CREATED, which is a
+        // question about its nearest existing ancestor.
+        var probe = directory;
+        while (!string.IsNullOrEmpty(probe) && !Directory.Exists(probe))
+        {
+            probe = Path.GetDirectoryName(probe);
+        }
+
+        if (string.IsNullOrEmpty(probe)) return false;
+
+        try
+        {
+            using var stream = new FileStream(
+                Path.Combine(probe, $".wlbackup-probe-{Guid.NewGuid():N}"),
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 1,
+                FileOptions.DeleteOnClose);
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                      or NotSupportedException or ArgumentException)
+        {
+            return false;
+        }
+    }
+
     public void DeleteDirectory(string path)
     {
         if (Directory.Exists(path)) Directory.Delete(path, recursive: true);

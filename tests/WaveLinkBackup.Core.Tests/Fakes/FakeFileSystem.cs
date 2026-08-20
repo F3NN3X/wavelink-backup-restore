@@ -152,6 +152,27 @@ public sealed class FakeFileSystem : IFileSystem
         }
     }
 
+    /// <summary>
+    /// Every directory is writable unless a test says otherwise. <see cref="UnwritableDirectories"/>
+    /// models the case the real probe exists for: a destination that refuses a write, which on a
+    /// real machine is `C:\Program Files\Common Files\VST3` under Windows' default ACL - and is
+    /// NOT that folder on a machine where a plug-in installer has loosened it.
+    /// </summary>
+    public HashSet<string> UnwritableDirectories { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public bool CanWriteDirectory(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory)) return false;
+
+        // Inherited, like a real ACL: marking a folder unwritable marks everything under it.
+        for (var probe = directory; !string.IsNullOrEmpty(probe); probe = Path.GetDirectoryName(probe))
+        {
+            if (UnwritableDirectories.Contains(probe)) return false;
+        }
+
+        return true;
+    }
+
     public void MoveDirectory(string source, string destination)
     {
         var sourcePrefix = source.TrimEnd('\\') + "\\";

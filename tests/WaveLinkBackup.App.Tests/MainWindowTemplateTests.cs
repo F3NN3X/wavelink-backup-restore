@@ -547,4 +547,21 @@ public sealed class MainWindowTemplateTests
         Assert.Contains(
             "shell.List.Select(recovery)", MainWindowCodeBehind(), StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// The window must elevate only when the plan says the destinations refuse a write. It used
+    /// to elevate whenever the opt-in was on, which prompted every user on every machine — this
+    /// pins the condition rather than the call (technical-debt.md §7.5).
+    /// </summary>
+    [Fact]
+    public void A_tier_four_restore_elevates_only_when_the_destinations_need_it()
+    {
+        var code = MainWindowCodeBehind();
+
+        Assert.Contains("model.PluginFiles!.NeedsElevation", code, StringComparison.Ordinal);
+
+        // And the unelevated path really does carry the opt-in through, or switching it on would
+        // silently restore nothing.
+        Assert.Contains("PluginBinaries: wantsPlugins", code, StringComparison.Ordinal);
+    }
 }

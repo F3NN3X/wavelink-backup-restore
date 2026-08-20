@@ -17,9 +17,20 @@ public sealed record PlanRow(string Label, string Now, string After, bool Change
 /// </summary>
 /// <param name="Count">How many plug-ins have their binary in this snapshot.</param>
 /// <param name="Bytes">What those binaries weigh, so the row can print an honest figure.</param>
-public sealed record PluginBinaryPayload(int Count, long Bytes)
+/// <param name="NeedsElevation">
+/// Whether any destination directory refuses a write from this process as it is currently
+/// running — **measured, not inferred from the path**.
+///
+/// It is false more often than the path suggests. `C:\Program Files\Common Files\VST3` is
+/// read-only for Users under Windows' default ACL, but several audio plug-in installers grant
+/// Everyone full control so their own updates need no administrator, and on such a machine every
+/// plug-in restores with no prompt. Assuming from the path prompts people who did not need asking
+/// — which is the whole point of measuring ([[ADR-011]], and technical-debt.md's own rule that a
+/// path that looks like a constant is not one).
+/// </param>
+public sealed record PluginBinaryPayload(int Count, long Bytes, bool NeedsElevation = true)
 {
-    public static PluginBinaryPayload None { get; } = new(0, 0);
+    public static PluginBinaryPayload None { get; } = new(0, 0, NeedsElevation: false);
 
     /// <summary>False hides the whole opt-in row, which is the common case: tier 4 is off by default.</summary>
     public bool Any => Count > 0;

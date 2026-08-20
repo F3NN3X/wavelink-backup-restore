@@ -19,6 +19,10 @@ public sealed class FakeRestoreService : IRestoreService
         throw new NotSupportedException("FakeRestoreService does not plan.");
 
     public Task<RestoreResultView> RestoreAsync(
-        string snapshotId, SettingsInspection live, IProgress<RestoreStage>? progress, CancellationToken ct) =>
+        string snapshotId,
+        SettingsInspection live,
+        IProgress<RestoreStage>? progress,
+        CancellationToken ct,
+        RestoreOptions? options = null) =>
         throw new NotSupportedException("FakeRestoreService does not restore.");
 }

@@ -177,9 +177,22 @@ public sealed class PluginFilesRow(PluginBinaryPayload payload) : ObservableObje
 
     public const string RowTitle = "Also put the plug-in files back";
 
-    public const string RowDescription =
+    /// <summary>
+    /// When the plug-in folder refuses this process a write — Windows' default ACL on
+    /// `C:\Program Files\Common Files\VST3`.
+    /// </summary>
+    public const string RowDescriptionElevated =
         "Windows will ask for administrator rights, because the effect plug-ins live in a folder "
         + "every account shares. Everything else restores without it.";
+
+    /// <summary>
+    /// When it does not. **This is not a rare case**: several audio plug-in installers grant
+    /// Everyone full control of the shared VST3 folder so their own updates need no administrator,
+    /// and on such a machine nothing here needs a prompt. Promising one anyway would be the
+    /// dialog lying about what the button does.
+    /// </summary>
+    public const string RowDescriptionPlain =
+        "The plug-in files go back where they came from. Nothing else on this computer changes.";
 
     /// <summary>Whether the user asked for tier 4. False until they say so, on every dialog.</summary>
     public bool Enabled
@@ -190,7 +203,14 @@ public sealed class PluginFilesRow(PluginBinaryPayload payload) : ObservableObje
 
     public string Title => RowTitle;
 
-    public string Description => RowDescription;
+    /// <summary>
+    /// Whether confirming this will produce a UAC prompt. Measured when the plan was built, not
+    /// guessed from the path.
+    /// </summary>
+    public bool NeedsElevation => payload.NeedsElevation;
+
+    public string Description =>
+        payload.NeedsElevation ? RowDescriptionElevated : RowDescriptionPlain;
 
     /// <summary>
     /// The mono micro-label: "NEEDS ADMINISTRATOR · 39.8 MB · 6 PLUG-INS". The size is the
@@ -198,6 +218,7 @@ public sealed class PluginFilesRow(PluginBinaryPayload payload) : ObservableObje
     /// tier rows follow ([[ADR-006]]).
     /// </summary>
     public string MetaText =>
-        $"NEEDS ADMINISTRATOR · {Readable.Bytes(payload.Bytes).ToUpperInvariant()} · {payload.Count} "
+        (payload.NeedsElevation ? "NEEDS ADMINISTRATOR" : "NO ADMINISTRATOR NEEDED")
+        + $" · {Readable.Bytes(payload.Bytes).ToUpperInvariant()} · {payload.Count} "
         + (payload.Count == 1 ? "PLUG-IN" : "PLUG-INS");
 }
