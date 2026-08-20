@@ -71,12 +71,22 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     private string _actionLabel = string.Empty;
     private int _errorNumber;
     private string _monoMeta = string.Empty;
+    private bool _hasPrimaryAction;
+    private string _primaryActionLabel = string.Empty;
+    private string? _recoverySnapshotId;
 
     /// <summary>
     /// The one thing the strip does when its action button is pressed. Set by the shell; null
     /// when the strip has no action (the "Check again" affordance is wired separately).
     /// </summary>
     public Action? OnAction { get; set; }
+
+    /// <summary>
+    /// The accent button's action. Only the rejected strip has one — 03-restore-outcomes.md §3
+    /// gives it a ghost "Show the log" AND a primary <c>Restore "Before restore"</c>, and the
+    /// primary is the recovery path for the only failure that costs someone their mixer.
+    /// </summary>
+    public Action? OnPrimaryAction { get; set; }
 
     public RestoreStripKind Kind
     {
@@ -133,12 +143,38 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     /// <summary>True only while showing one of 06's inline-strip errors.</summary>
     public bool IsInlineError => _kind == RestoreStripKind.InlineError;
 
+    /// <summary>Whether the strip carries an accent primary button beside the ghost one.</summary>
+    public bool HasPrimaryAction => _hasPrimaryAction;
+
+    public string PrimaryActionLabel
+    {
+        get => _primaryActionLabel;
+        private set => Set(ref _primaryActionLabel, value);
+    }
+
+    /// <summary>
+    /// The snapshot the rejected strip's primary button restores — the "Before restore" copy taken
+    /// moments earlier. Null on every other kind, and on a rejection with no such copy.
+    ///
+    /// 03 renders that row **selected** immediately below the strip, "so the button and the row
+    /// are visibly the same object". The window reads this to make the selection.
+    /// </summary>
+    public string? RecoverySnapshotId
+    {
+        get => _recoverySnapshotId;
+        private set => Set(ref _recoverySnapshotId, value);
+    }
+
     /// <summary>
     /// Show the strip for a restore that produced an outcome. Maps Core's verdict to one of the
     /// four designed states - this is the ONLY place that mapping lives.
     /// </summary>
     public void Show(RestoreOutcome outcome)
     {
+        RecoverySnapshotId = null;
+        _hasPrimaryAction = false;
+        PrimaryActionLabel = string.Empty;
+
         // A null verdict means the log could not be read: the restore cannot be CONFIRMED, which
         // 03-restore-outcomes.md treats as unconfirmed (neutral), never as a reject.
         if (outcome.Verdict is not { } verdict)
@@ -154,17 +190,28 @@ public sealed class RestoreOutcomeStrip : ObservableObject
             Raise(nameof(AutoDismisses));
             Raise(nameof(Dismissible));
             Raise(nameof(HasAction));
+        Raise(nameof(HasPrimaryAction));
+        Raise(nameof(MonoMeta));
             return;
         }
 
         if (verdict is { ParseFailed: true })
         {
+            // Same recovery as ShowResult's Rejected arm, built from the outcome's own
+            // pre-restore snapshot rather than an id passed in beside it.
             Kind = RestoreStripKind.Rejected;
-            Title = "Wave Link rejected the settings file";
-            Detail = VersionDetail(verdict);
+            Title = "Wave Link rejected this backup and reset your settings.";
+            Detail =
+                $"Restore \"{RestoreOrchestrator.PreRestoreName}\" to get back to where you were. "
+                + "That copy was taken moments ago, before any of this.";
+            _monoMeta = VersionDetail(verdict);
             _autoDismisses = false;
             _dismissible = false;
-            _hasAction = false;
+            _hasAction = true;
+            ActionLabel = "Show the log";
+            RecoverySnapshotId = outcome.PreRestoreSnapshot.Id;
+            _hasPrimaryAction = true;
+            PrimaryActionLabel = $"Restore \"{RestoreOrchestrator.PreRestoreName}\"";
         }
         else if (verdict is { Succeeded: true })
         {
@@ -191,6 +238,8 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         Raise(nameof(AutoDismisses));
         Raise(nameof(Dismissible));
         Raise(nameof(HasAction));
+        Raise(nameof(HasPrimaryAction));
+        Raise(nameof(MonoMeta));
     }
 
     /// <summary>
@@ -200,8 +249,23 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     /// Unconfirmed / Rejected map to their designed states with fixed copy; Failed delegates to
     /// <see cref="ShowFailure"/> with the message the service carried.
     /// </summary>
-    public void ShowResult(RestoreResult result)
+    /// <param name="recoverySnapshotId">
+    /// The "Before restore" snapshot this restore took on its way in. Only the Rejected arm uses
+    /// it, and only to build the recovery the design gives that state. Null means there is none —
+    /// see the Rejected arm for what the strip does then.
+    /// </param>
+    /// <param name="monoMeta">
+    /// 03 §3's machine line: <c>WAVE LINK 3.3.0.4108 REWROTE settings.json AT 23:12 · 1 INPUT
+    /// NOW</c>. Composed by the caller because every figure in it is machine-specific.
+    /// </param>
+    public void ShowResult(
+        RestoreResult result, string? recoverySnapshotId = null, string? monoMeta = null)
     {
+        RecoverySnapshotId = null;
+        _hasPrimaryAction = false;
+        PrimaryActionLabel = string.Empty;
+        _monoMeta = string.Empty;
+
         switch (result)
         {
             case RestoreResult.Confirmed:
@@ -224,12 +288,41 @@ public sealed class RestoreOutcomeStrip : ObservableObject
                 break;
 
             case RestoreResult.Rejected:
+                // 03-restore-outcomes.md §3. The headline states what happened; the body names the
+                // way back, and the primary button IS that way back. Before this the state stated
+                // a problem, offered nothing, and could not be closed for the life of the process
+                // (technical-debt.md §4.21 item 1).
                 Kind = RestoreStripKind.Rejected;
-                Title = "Wave Link rejected the settings file";
-                Detail = "The file Wave Link wrote back could not be parsed, so it regenerated its defaults. The version difference is the first thing to check.";
+                Title = "Wave Link rejected this backup and reset your settings.";
+                _monoMeta = monoMeta ?? string.Empty;
                 _autoDismisses = false;
-                _dismissible = false;
-                _hasAction = false;
+
+                // "Show the log" is the ghost action in both shapes: it is the evidence for WHY,
+                // and 03's reason for making this strip persistent at all.
+                _hasAction = true;
+                ActionLabel = "Show the log";
+
+                if (recoverySnapshotId is { Length: > 0 })
+                {
+                    RecoverySnapshotId = recoverySnapshotId;
+                    Detail =
+                        $"Restore \"{RestoreOrchestrator.PreRestoreName}\" to get back to where you were. "
+                        + "That copy was taken moments ago, before any of this.";
+                    _hasPrimaryAction = true;
+                    PrimaryActionLabel = $"Restore \"{RestoreOrchestrator.PreRestoreName}\"";
+                    _dismissible = false;
+                }
+                else
+                {
+                    // No pre-restore copy means there is nothing to act ON, and 03's "not
+                    // dismissible until acted on" would leave a permanent bar offering a recovery
+                    // that does not exist. Reading the log is then the only act available, so the
+                    // strip says so and lets the user clear it.
+                    Detail =
+                        "Wave Link rewrote its settings and there is no \"Before restore\" copy to "
+                        + "return to. The log is the first place to look.";
+                    _dismissible = true;
+                }
                 break;
 
             case RestoreResult.Failed:
@@ -244,11 +337,18 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         Raise(nameof(AutoDismisses));
         Raise(nameof(Dismissible));
         Raise(nameof(HasAction));
+        Raise(nameof(HasPrimaryAction));
+        Raise(nameof(MonoMeta));
     }
 
     /// <summary>Show the strip for a restore that FAILED (Result.Fail, no outcome).</summary>
     public void ShowFailure(string message)
     {
+        RecoverySnapshotId = null;
+        _hasPrimaryAction = false;
+        PrimaryActionLabel = string.Empty;
+        _monoMeta = string.Empty;
+
         Kind = RestoreStripKind.Failed;
         Title = "Restore failed";
         Detail = message;
@@ -259,6 +359,8 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         Raise(nameof(AutoDismisses));
         Raise(nameof(Dismissible));
         Raise(nameof(HasAction));
+        Raise(nameof(HasPrimaryAction));
+        Raise(nameof(MonoMeta));
     }
 
     /// <summary>
@@ -276,6 +378,10 @@ public sealed class RestoreOutcomeStrip : ObservableObject
             throw new ArgumentException(
                 $"Error {error.Code} is not an inline-strip error; use its own placement.", nameof(error));
 
+        RecoverySnapshotId = null;
+        _hasPrimaryAction = false;
+        PrimaryActionLabel = string.Empty;
+
         Kind = RestoreStripKind.InlineError;
         Title = error.Title;
         Detail = error.Body;
@@ -289,6 +395,8 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         Raise(nameof(AutoDismisses));
         Raise(nameof(Dismissible));
         Raise(nameof(HasAction));
+        Raise(nameof(HasPrimaryAction));
+        Raise(nameof(MonoMeta));
         Raise(nameof(ErrorNumber));
         Raise(nameof(MonoMeta));
         Raise(nameof(IsInlineError));
@@ -308,10 +416,15 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         ActionLabel = string.Empty;
         _errorNumber = 0;
         _monoMeta = string.Empty;
+        _hasPrimaryAction = false;
+        PrimaryActionLabel = string.Empty;
+        RecoverySnapshotId = null;
 
         Raise(nameof(AutoDismisses));
         Raise(nameof(Dismissible));
         Raise(nameof(HasAction));
+        Raise(nameof(HasPrimaryAction));
+        Raise(nameof(MonoMeta));
         Raise(nameof(ErrorNumber));
         Raise(nameof(MonoMeta));
         Raise(nameof(IsInlineError));
@@ -331,12 +444,18 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         _autoDismisses = false;
         _dismissible = false;
         _hasAction = false;
+        ActionLabel = string.Empty;
         _errorNumber = 0;
         _monoMeta = string.Empty;
+        _hasPrimaryAction = false;
+        PrimaryActionLabel = string.Empty;
+        RecoverySnapshotId = null;
 
         Raise(nameof(AutoDismisses));
         Raise(nameof(Dismissible));
         Raise(nameof(HasAction));
+        Raise(nameof(HasPrimaryAction));
+        Raise(nameof(MonoMeta));
         Raise(nameof(ErrorNumber));
         Raise(nameof(MonoMeta));
         Raise(nameof(IsInlineError));

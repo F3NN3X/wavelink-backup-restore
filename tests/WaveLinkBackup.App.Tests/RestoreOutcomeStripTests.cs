@@ -1,3 +1,4 @@
+using WaveLinkBackup.App.Services;
 using System.ComponentModel;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.Core.Analysis;
@@ -104,17 +105,103 @@ public sealed class RestoreOutcomeStripTests
         Assert.True(strip.TurnsStatusAmber);
         Assert.False(strip.AutoDismisses);
         Assert.False(strip.Dismissible);
-        Assert.False(strip.HasAction);
+
+        // Both actions 03 §3 gives it. This assertion used to be Assert.False(HasAction), which
+        // was pinning the absence the design never asked for - the state offered nothing at all
+        // (technical-debt.md §4.21 item 1).
+        Assert.True(strip.HasAction);
+        Assert.Equal("Show the log", strip.ActionLabel);
+        Assert.True(strip.HasPrimaryAction);
     }
 
     [Fact]
-    public void A_reject_says_wave_link_rejected_the_file()
+    public void A_reject_leads_with_the_headline_the_design_gives_it()
     {
         var strip = new RestoreOutcomeStrip();
 
         strip.Show(Outcome(new RestoreVerdict(true, true, [], "3.3.0.4108", null)));
 
-        Assert.Equal("Wave Link rejected the settings file", strip.Title);
+        // 03 §3's headline verbatim. The old copy ("Wave Link rejected the settings file") named
+        // the file rather than the consequence, and the consequence is the point: the user's live
+        // configuration is gone.
+        Assert.Equal("Wave Link rejected this backup and reset your settings.", strip.Title);
+    }
+
+    // ------------------------------- 03 §3's recovery (technical-debt.md §4.21 item 1)
+
+    [Fact]
+    public void A_reject_offers_the_before_restore_snapshot_by_name_and_by_id()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        strip.Show(Outcome(new RestoreVerdict(true, true, [], "3.3.0.4108", null)));
+
+        Assert.Equal("Restore \"Before restore\"", strip.PrimaryActionLabel);
+        Assert.Contains("Before restore", strip.Detail, StringComparison.Ordinal);
+
+        // The id is what makes the button and the row below it the same object.
+        Assert.NotNull(strip.RecoverySnapshotId);
+    }
+
+    [Fact]
+    public void Acknowledging_a_reject_is_the_only_way_it_clears()
+    {
+        var strip = new RestoreOutcomeStrip();
+        strip.ShowResult(RestoreResult.Rejected, "2026-08-19T2312-a3f81c", "META");
+
+        strip.Dismiss();
+        Assert.Equal(RestoreStripKind.Rejected, strip.Kind);
+
+        strip.AcknowledgeReject();
+        Assert.Equal(RestoreStripKind.None, strip.Kind);
+        Assert.Null(strip.RecoverySnapshotId);
+        Assert.False(strip.HasPrimaryAction);
+    }
+
+    /// <summary>
+    /// The case that would otherwise reproduce the defect: no "Before restore" copy means there is
+    /// nothing to act ON, and a strip that is never dismissible would be permanent again.
+    /// </summary>
+    [Fact]
+    public void A_reject_with_no_way_back_says_so_and_can_be_cleared()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        strip.ShowResult(RestoreResult.Rejected, recoverySnapshotId: null);
+
+        Assert.Equal(RestoreStripKind.Rejected, strip.Kind);
+        Assert.False(strip.HasPrimaryAction);
+        Assert.True(strip.HasAction);
+        Assert.True(strip.Dismissible);
+
+        strip.Dismiss();
+        Assert.Equal(RestoreStripKind.None, strip.Kind);
+    }
+
+    [Fact]
+    public void A_reject_carries_the_machine_line_the_design_prints_under_its_body()
+    {
+        var strip = new RestoreOutcomeStrip();
+
+        strip.ShowResult(
+            RestoreResult.Rejected, "2026-08-19T2312-a3f81c",
+            "WAVE LINK 3.3.0.4108 REWROTE settings.json AT 23:12 · 1 INPUT NOW");
+
+        Assert.Equal("WAVE LINK 3.3.0.4108 REWROTE settings.json AT 23:12 · 1 INPUT NOW", strip.MonoMeta);
+    }
+
+    [Fact]
+    public void A_later_outcome_does_not_inherit_the_rejects_recovery()
+    {
+        var strip = new RestoreOutcomeStrip();
+        strip.ShowResult(RestoreResult.Rejected, "2026-08-19T2312-a3f81c", "META");
+        strip.AcknowledgeReject();
+
+        strip.ShowResult(RestoreResult.Unconfirmed);
+
+        Assert.False(strip.HasPrimaryAction);
+        Assert.Null(strip.RecoverySnapshotId);
+        Assert.Equal(string.Empty, strip.MonoMeta);
     }
 
     [Fact]

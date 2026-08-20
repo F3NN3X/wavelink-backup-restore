@@ -69,6 +69,18 @@ public partial class SettingsDialog : Window
         DecrementDailyTimeButton.Click += (_, _) => model.StepDailyTime(-1);
         IncrementDailyTimeButton.Click += (_, _) => model.StepDailyTime(+1);
 
+        // Error 9's two actions, sitting in place under "Change folder…" (06-errors.md §9).
+        // "Choose another…" is the same picker the row above uses; "Keep the current folder" only
+        // clears the block - the store never moved, so there is nothing to undo.
+        ChooseAnotherFolderButton.Click += (_, _) =>
+            (Application.Current as App)?.ChangeBackupFolder(this, model);
+        KeepCurrentFolderButton.Click += (_, _) => model.ClearNotABackupFolder();
+
+        // The Run key can change behind us - Task Manager's Startup tab is the reason
+        // AutostartState has three values rather than two - so the toggle re-reads on open rather
+        // than trusting what it was constructed with.
+        Loaded += (_, _) => model.RefreshAutostart();
+
         // Focus the Close button when the dialog opens: it is the safe action and the only one that
         // needs no thought, so a keyboard user who hits Enter immediately dismisses rather than
         // changes something.

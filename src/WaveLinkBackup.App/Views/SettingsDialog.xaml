@@ -19,6 +19,11 @@
         <views:StringNotNullToVisibilityConverter x:Key="FreeSpaceLineVisible" />
         <!-- True → Visible, false → Collapsed. Used for row dividers - show on all but the last row. -->
         <views:BoolToVisibilityConverter x:Key="DividerVisible" />
+        <!-- Error 9's in-place block, and the WHEN WINDOWS STARTS section, each hide themselves
+             when their own bool is false. Separate keys from DividerVisible only so a future
+             change to one cannot silently move the others. -->
+        <views:BoolToVisibilityConverter x:Key="NotABackupFolderVisible" />
+        <views:BoolToVisibilityConverter x:Key="StartupSectionVisible" />
         <!-- Fraction x track width -> segment width. The proportion bar's segments had no width
              binding at all and every one measured to zero, so the bar rendered as an empty track. -->
         <views:FractionToWidthConverter x:Key="FractionWidth" />
@@ -174,12 +179,52 @@
                                 AutomationProperties.Name="Open the backup folder" />
                     </StackPanel>
 
-                    <!-- Drive stats line: mono 11.5px, muted. The design's full line is
-                         "N BACKUPS · X MB USED · Y GB FREE ON THIS DRIVE", but the backup count and
-                         used bytes live on the shell view-model, not here - Task 2 owns only the free
-                         figure (FreeSpaceBytes). It prints what it has and omits itself when the
-                         figure cannot be read (FreeSpaceText empty), matching the bottom bar's
-                         convention. The fuller line lands with the sections that own those numbers. -->
+                    <!--
+                      06-errors.md §9, in place, right after "Change folder…" - which is where the
+                      design puts it, and the reason it is not a modal: it is a fact about the
+                      button directly above it. Amber, because a store pointing at the wrong folder
+                      means the user's backups are not reachable.
+
+                      The placement TABLE at the top of 06 files error 9 under Dialogs; §9's own
+                      text ("appears in Settings, in place") is the more specific instruction, and
+                      it is what this implements.
+                    -->
+                    <Border x:Name="NotABackupFolderBlock" Margin="0,10,0,0"
+                            Background="{DynamicResource WlWarnSoft}"
+                            BorderBrush="{DynamicResource WlWarn}" BorderThickness="3,0,0,0"
+                            CornerRadius="8" Padding="16,14"
+                            Visibility="{Binding ShowsNotABackupFolder, Converter={StaticResource NotABackupFolderVisible}}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding NotABackupFolderTitle}"
+                                       Style="{StaticResource WlRowNameText}"
+                                       Foreground="{DynamicResource WlStrong}"
+                                       AutomationProperties.Name="Not a backup folder title" />
+                            <TextBlock Text="{Binding NotABackupFolderBody}"
+                                       Style="{StaticResource WlSecondaryText}"
+                                       Foreground="{DynamicResource WlText}" Margin="0,4,0,0"
+                                       TextWrapping="Wrap" LineHeight="19.575"
+                                       AutomationProperties.Name="Not a backup folder explanation" />
+                            <TextBlock Text="{Binding NotABackupFolderMeta}"
+                                       Style="{StaticResource WlMonoMetaText}"
+                                       Foreground="{DynamicResource WlMuted}" Margin="0,8,0,0"
+                                       AutomationProperties.Name="Not a backup folder details" />
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                                <Button x:Name="ChooseAnotherFolderButton" Content="Choose another…"
+                                        Style="{StaticResource WlSecondaryButton}"
+                                        AutomationProperties.Name="Choose another backup folder" />
+                                <Button x:Name="KeepCurrentFolderButton" Content="Keep the current folder"
+                                        Margin="9,0,0,0" Style="{StaticResource WlGhostButton}"
+                                        AutomationProperties.Name="Keep the current backup folder" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Drive stats line: mono 11.5px, muted. The design's full line -
+                         "N BACKUPS · X MB USED · Y GB FREE ON THIS DRIVE" - is now complete: the
+                         count and the used bytes are set by the caller from the same store read
+                         that fills the trash row, and each of the three omits itself when it
+                         cannot be read (audit §2.9a). -->
                     <TextBlock Margin="0,10,0,0" Style="{StaticResource WlMonoMetaText}"
                                Foreground="{DynamicResource WlMuted}"
                                Text="{Binding FreeSpaceText}"
@@ -649,6 +694,97 @@
                                    Style="{StaticResource WlSecondaryText}" Foreground="{DynamicResource WlMuted}"
                                    Margin="0,8,0,0" TextWrapping="Wrap" LineHeight="17.25"
                                    AutomationProperties.Name="Which Wave Link note" />
+                    </StackPanel>
+
+                    <!--
+                      ============ WHEN WINDOWS STARTS ============
+                      screens/12-tray-autostart-update.md. Two toggles and a note.
+
+                      RunKeyAutostart, IAutostart, AutostartState, ToggleAutostart,
+                      CanEnableAutostart, AutostartBlockedNote and ClosingHidesToTray were all
+                      built and tested in earlier phases, and NOTHING BOUND TO ANY OF THEM
+                      (technical-debt.md §4.21 item 4). Hidden entirely when the section has no
+                      seams behind it, which is what a bare test harness gets.
+                    -->
+                    <StackPanel Visibility="{Binding HasStartupSection, Converter={StaticResource StartupSectionVisible}}">
+                        <views:TrackedText Text="WHEN WINDOWS STARTS" Tracking=".18"
+                                   Style="{StaticResource WlColumnHeaderTrackedText}"
+                                   Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
+                                   AutomationProperties.Name="When Windows starts section" />
+
+                        <Border Background="{DynamicResource WlBg}"
+                                BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="16,14">
+                                    <TextBlock Text="Start with Windows and sit in the tray"
+                                               Style="{StaticResource WlRowNameText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               AutomationProperties.Name="Start with Windows label" />
+                                    <TextBlock Text="Off means nothing is watched until you open the app yourself. Automatic backups only happen while it is running."
+                                               Style="{StaticResource WlSecondaryText}"
+                                               Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               AutomationProperties.Name="Start with Windows description" />
+
+                                    <!-- The design's rule: "Task Manager wins; the note says so
+                                         rather than fighting it." Null note, no row. -->
+                                    <TextBlock Text="{Binding StartupBlockedNote}"
+                                               Style="{StaticResource WlSecondaryText}"
+                                               Foreground="{DynamicResource WlWarn}" Margin="0,6,0,0"
+                                               TextWrapping="Wrap"
+                                               Visibility="{Binding StartupBlockedNote, Converter={StaticResource FreeSpaceLineVisible}}"
+                                               AutomationProperties.Name="Why start with Windows cannot be turned on" />
+                                </StackPanel>
+
+                                <CheckBox x:Name="StartWithWindowsToggle" Grid.Column="1"
+                                          VerticalAlignment="Center" Margin="16,0"
+                                          Style="{StaticResource WlToggle}"
+                                          IsChecked="{Binding StartWithWindows, Mode=TwoWay}"
+                                          IsEnabled="{Binding CanStartWithWindows}"
+                                          AutomationProperties.Name="Start with Windows and sit in the tray" />
+                            </Grid>
+                        </Border>
+
+                        <Border Margin="0,10,0,0" Background="{DynamicResource WlBg}"
+                                BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="16,14">
+                                    <TextBlock Text="Closing the window hides it in the tray"
+                                               Style="{StaticResource WlRowNameText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               AutomationProperties.Name="Closing hides to tray label" />
+                                    <TextBlock Text="Off closes the app properly instead, and takes one last backup on the way out."
+                                               Style="{StaticResource WlSecondaryText}"
+                                               Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               AutomationProperties.Name="Closing hides to tray description" />
+                                </StackPanel>
+
+                                <CheckBox x:Name="ClosingHidesToTrayToggle" Grid.Column="1"
+                                          VerticalAlignment="Center" Margin="16,0"
+                                          Style="{StaticResource WlToggle}"
+                                          IsChecked="{Binding ClosingHidesToTray, Mode=TwoWay}"
+                                          AutomationProperties.Name="Closing the window hides it in the tray" />
+                            </Grid>
+                        </Border>
+
+                        <!-- The design prints the exact Run-key line, so anyone can check it by
+                             hand. Per-user, never per-machine, and never a scheduled task. -->
+                        <TextBlock Text="{Binding StartupRegistryLine}"
+                                   Style="{StaticResource WlMonoMetaText}"
+                                   Foreground="{DynamicResource WlMuted}" Margin="0,8,0,0"
+                                   Opacity="0.8" TextTrimming="CharacterEllipsis"
+                                   AutomationProperties.Name="Where the startup entry is kept" />
                     </StackPanel>
 
                     <!-- ============ WHERE THESE SETTINGS LIVE ============ -->

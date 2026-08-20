@@ -83,6 +83,12 @@ public partial class App : Application
     internal ShellState ShellState { get; private set; } = ShellState.Default;
 
     /// <summary>
+    /// The Run-key seam, held because BOTH the shell view model and the Settings dialog's
+    /// WHEN WINDOWS STARTS section read it (screens/12).
+    /// </summary>
+    private IAutostart? autostart;
+
+    /// <summary>
     /// The newest snapshot, for the menu readout and the tooltip.
     ///
     /// Read from the STORE rather than from BackupHost.LastBackupAt, which only knows about
@@ -155,7 +161,7 @@ public partial class App : Application
 
         settings = arguments.ApplyTo(settingsRepository.Read());
 
-        (host, service, store, waveLinkProcess, restoreService, shell) =
+        (host, service, store, waveLinkProcess, restoreService, shell, autostart) =
             Compose(fileSystem, settings, GatherPayload);
         host.AutoBackupEnabled = settings.AutoBackupEnabled;
         host.Start();
@@ -194,7 +200,7 @@ public partial class App : Application
 
     private static (
         BackupHost Host, BackupService Service, SnapshotStore Store, IWaveLinkProcess WaveLinkProcess,
-        IRestoreService RestoreService, ShellViewModel Shell)
+        IRestoreService RestoreService, ShellViewModel Shell, IAutostart Autostart)
         Compose(
             IFileSystem fileSystem,
             BackupSettings settings,
@@ -235,8 +241,9 @@ public partial class App : Application
         // The autostart seam (screens/12): the Run key for THIS executable. ProcessPath is null
         // until the process has started, so it is resolved at composition time - by then
         // App.xaml.cs has run and Environment.ProcessPath points at the real exe.
-        var autostart = new RunKeyAutostart(new WindowsRegistryKeys(), Environment.ProcessPath ?? string.Empty);
-        var shell = new ShellViewModel(list, autostart);
+        var runKeyAutostart = new RunKeyAutostart(
+            new WindowsRegistryKeys(), Environment.ProcessPath ?? string.Empty);
+        var shell = new ShellViewModel(list, runKeyAutostart);
 
         // The shell-facing restore seam. Built here rather than in MainWindow so it exists even
         // before any window is shown - the same reason the shell VM is built here. It wraps Core's
@@ -244,7 +251,7 @@ public partial class App : Application
         var waveLinkProcess = new WaveLinkProcess();
         var restoreService = new RestoreService(fileSystem, waveLinkProcess, store, gatherPayload);
 
-        return (new BackupHost(coordinator, clock), service, store, waveLinkProcess, restoreService, shell);
+        return (new BackupHost(coordinator, clock), service, store, waveLinkProcess, restoreService, shell, runKeyAutostart);
     }
 
     private TaskbarIcon BuildTray()
@@ -486,11 +493,25 @@ public partial class App : Application
         // when our own settings file last recorded the choice (the moment the user picked).
         var whichLive = BuildWhichWaveLink(repo);
 
+        // WHEN WINDOWS STARTS (screens/12): the Run key and the shell's own close behaviour. Both
+        // seams were built and tested phases ago with nothing bound to either of them
+        // (technical-debt.md §4.21 item 4). Null when autostart is unavailable, which hides the
+        // whole section rather than drawing two toggles that write nowhere.
+        var startup = autostart is null ? null : new StartupSeam(
+            autostart,
+            () => ShellState.ClosingHidesToTray,
+            hides =>
+            {
+                ShellState = ShellState with { ClosingHidesToTray = hides };
+                shellStateRepository?.Save(ShellState);
+            });
+
         var vm = SettingsViewModel.Build(
             settings,
             ApplySettings,
             whereLive,
-            whichLive);
+            whichLive,
+            startup);
 
         // WHAT GOES IN A BACKUP: every figure MEASURED from what a capture would take on this
         // machine right now (phase 6 §7) - never the design mock's 470 KB / 4 KB / 10 MB / 40 MB.
@@ -524,6 +545,11 @@ public partial class App : Application
                 count, bytes, store.TrashPath,
                 store.TrashGoesToRecycleBin(new RecycleBin()));
             vm.FreeSpaceBytes = fileSystem!.GetAvailableFreeBytes(settings.StorePath);
+
+            // The other two thirds of the design's stats line, from the same read (audit §2.9a).
+            var snapshots = store.List();
+            vm.BackupCount = snapshots.Count;
+            vm.UsedBytes = snapshots.Sum(s => s.Manifest.TotalSizeBytes);
         }
 
         return vm;
@@ -657,6 +683,18 @@ public partial class App : Application
 
         if (picker.ShowDialog(owner) != true) return;
 
+        // Error 9 (06-errors.md §9), raised in place rather than as a modal. A folder holding
+        // files but no snapshot is almost always a mis-click - a Recordings folder, a project
+        // directory - and pointing the store at it silently would hide every existing backup
+        // behind an empty list. An EMPTY folder is fine: that is "start fresh in an empty one",
+        // which the error's own copy invites.
+        if (NotABackupFolder(picker.FolderName) is { } fileCount)
+        {
+            vm.ShowNotABackupFolder(picker.FolderName, fileCount);
+            return;
+        }
+
+        vm.ClearNotABackupFolder();
         SetStorePath(picker.FolderName);
 
         // Re-detect: the trash row and free-space figure both describe the NEW volume.
@@ -737,8 +775,81 @@ public partial class App : Application
         RefreshShellFacts();
     }
 
+    /// <summary>
+    /// How many files a folder holds when it holds files but no backups, or null when it is a
+    /// usable store — empty, or already holding snapshots.
+    ///
+    /// The test is for a snapshot directory rather than for a <c>manifest.json</c> at the top
+    /// level: the store's own shape is one directory per snapshot, so a top-level manifest would
+    /// never be there even in a perfectly good store.
+    /// </summary>
+    private int? NotABackupFolder(string path)
+    {
+        if (fileSystem is null) return null;
+
+        var files = fileSystem.EnumerateFiles(path, "*");
+        var directories = fileSystem.EnumerateDirectories(path, "*");
+
+        if (files.Count == 0 && directories.Count == 0) return null;
+
+        var holdsASnapshot = directories.Any(d =>
+            fileSystem.FileExists(System.IO.Path.Combine(d, SnapshotManifest.ManifestFileName)));
+
+        return holdsASnapshot ? null : files.Count;
+    }
+
     /// <summary>Error 12's "Use the default folder": same as SetStorePath with the default.</summary>
     internal void UseDefaultStore() => SetStorePath(SnapshotStore.DefaultStorePath);
+
+    /// <summary>
+    /// Error 1's "Choose the settings file…" — the escape hatch for a Wave Link discovery cannot
+    /// find.
+    ///
+    /// This is the only route a **non-MSIX install** has into the app at all
+    /// (technical-debt.md §2.2): <c>SettingsLocator.Locate(explicitSettingsPath)</c> bypasses
+    /// discovery entirely, so an explicit path makes the program useful on a machine where every
+    /// automatic answer is "not found". Persisted, so it is asked once.
+    /// </summary>
+    internal void ChooseSettingsFile(Window owner)
+    {
+        var picker = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Choose Wave Link's Settings.json",
+            Filter = "Wave Link settings (Settings.json)|Settings.json|JSON files (*.json)|*.json",
+            CheckFileExists = true,
+        };
+
+        if (picker.ShowDialog(owner) != true) return;
+
+        settings = settings with { ChosenWaveLinkPath = picker.FileName };
+        settingsRepository?.Save(settings);
+
+        // Rebuild the capture path around the chosen file, exactly as a folder change does — the
+        // watcher and every later capture must read the file the user just pointed at, not the one
+        // discovery failed to find.
+        ApplyChosenWaveLink();
+    }
+
+    /// <summary>
+    /// Re-point everything that reads Wave Link's settings at <c>settings.ChosenWaveLinkPath</c>,
+    /// then re-read the facts so the not-found screen collapses on its own.
+    /// </summary>
+    private void ApplyChosenWaveLink()
+    {
+        if (fileSystem is null || host is null || store is null) return;
+
+        service = new BackupService(
+            SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData),
+            store,
+            settings.AutoBackupKeepCount,
+            settings.ChosenWaveLinkPath,
+            GatherPayload);
+
+        host.SetStore(store, service);
+
+        RefreshTray();
+        RefreshShellFacts();
+    }
 
     /// <summary>
     /// Error 12's "Look again": re-probe the CURRENT path. No settings change - the user is
@@ -857,7 +968,9 @@ public partial class App : Application
             AutoBackupEnabled: host?.AutoBackupEnabled ?? false,
             FolderMissing: !fileSystem.DirectoryExists(settings.StorePath),
             StorePath: settings.StorePath,
-            FreeBytes: fileSystem.GetAvailableFreeBytes(settings.StorePath)));
+            FreeBytes: fileSystem.GetAvailableFreeBytes(settings.StorePath),
+            WaveLinkVersion: inspection.IsSuccess ? inspection.Value.Analysis.WaveLinkVersion : null,
+            LogsPath: inspection.IsSuccess ? inspection.Value.Location.LogsPath : null));
     }
 
     /// <summary>

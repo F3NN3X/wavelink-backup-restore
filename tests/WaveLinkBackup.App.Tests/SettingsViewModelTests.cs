@@ -1,4 +1,6 @@
 using WaveLinkBackup.App.Startup;
+using WaveLinkBackup.App.Tests.Fakes;
+using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.Core.Automation;
 using WaveLinkBackup.Core.Tests.Fakes;
@@ -615,5 +617,164 @@ public sealed class SettingsViewModelTests
             new WhereSettingsLiveModel(@"C:\s.json", "1 KB"));
 
         return (vm, saved);
+    }
+
+    // ---------------- WHEN WINDOWS STARTS (screens/12, technical-debt.md §4.21 item 4)
+
+    private const string Exe = @"C:\Program Files\WaveLinkBackup\WaveLinkBackup.exe";
+
+    /// <summary>
+    /// The real <see cref="RunKeyAutostart"/> over the fake registry, exactly as the App wires it —
+    /// so Task Manager's veto is exercised end to end rather than mocked at the model boundary.
+    /// </summary>
+    private static (SettingsViewModel Vm, FakeRegistryKeys Registry, List<bool> Hides) Startup(
+        FakeRegistryKeys? registry = null)
+    {
+        var keys = registry ?? new FakeRegistryKeys();
+        var hides = new List<bool>();
+        var hidden = true;
+
+        var vm = SettingsViewModel.Build(
+            BackupSettings.Default,
+            _ => true,
+            new WhereSettingsLiveModel(@"C:\s\settings.json", "1 KB"),
+            null,
+            new StartupSeam(
+                new RunKeyAutostart(keys, Exe),
+                () => hidden,
+                value => { hidden = value; hides.Add(value); }));
+
+        return (vm, keys, hides);
+    }
+
+    [Fact]
+    public void Without_a_startup_seam_the_section_hides_itself()
+    {
+        var vm = SettingsViewModel.Build(
+            BackupSettings.Default, _ => true, new WhereSettingsLiveModel(@"C:\s\settings.json", "1 KB"));
+
+        Assert.False(vm.HasStartupSection);
+        Assert.False(vm.StartWithWindows);
+        Assert.False(vm.CanStartWithWindows);
+    }
+
+    [Fact]
+    public void Turning_start_with_windows_on_writes_the_run_key_and_reads_back_on()
+    {
+        var (vm, registry, _) = Startup();
+
+        Assert.True(vm.HasStartupSection);
+        Assert.False(vm.StartWithWindows);
+
+        vm.StartWithWindows = true;
+
+        Assert.True(vm.StartWithWindows);
+        Assert.NotNull(registry.GetString(RunKeyAutostart.RunKeyPath, RunKeyAutostart.ValueName));
+
+        vm.StartWithWindows = false;
+
+        Assert.False(vm.StartWithWindows);
+        Assert.Null(registry.GetString(RunKeyAutostart.RunKeyPath, RunKeyAutostart.ValueName));
+    }
+
+    /// <summary>
+    /// "Task Manager wins; the note says so rather than fighting it." The toggle must read back
+    /// OFF and refuse, not report the value it was asked for.
+    /// </summary>
+    [Fact]
+    public void A_task_manager_veto_holds_the_toggle_off_and_says_why()
+    {
+        // Task Manager's approval record with the disable bit set - the same 12 bytes the real
+        // key holds. Written through the fake rather than faked at the IAutostart boundary, so
+        // the veto rule itself is what is under test.
+        var registry = new FakeRegistryKeys().WithBinary(
+            RunKeyAutostart.ApprovedKeyPath, RunKeyAutostart.ValueName,
+            [0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+        var (vm, _, _) = Startup(registry);
+
+        Assert.False(vm.CanStartWithWindows);
+        Assert.NotNull(vm.StartupBlockedNote);
+
+        vm.StartWithWindows = true;
+
+        Assert.False(vm.StartWithWindows);
+    }
+
+    [Fact]
+    public void Closing_hides_to_tray_commits_through_the_seam_it_was_given()
+    {
+        var (vm, _, hides) = Startup();
+
+        Assert.True(vm.ClosingHidesToTray);
+
+        vm.ClosingHidesToTray = false;
+
+        Assert.False(vm.ClosingHidesToTray);
+        Assert.Equal([false], hides);
+    }
+
+    // ---------------- the stats line (audit §2.9a) and error 9 (§4.21 item 8)
+
+    private static SettingsViewModel Bare() => SettingsViewModel.Build(
+        BackupSettings.Default, _ => true, new WhereSettingsLiveModel(@"C:\s\settings.json", "1 KB"));
+
+    [Fact]
+    public void The_stats_line_prints_all_three_figures_the_design_gives_it()
+    {
+        var vm = Bare();
+        vm.BackupCount = 4;
+        vm.UsedBytes = 12_400_000;
+        vm.FreeSpaceBytes = 118_000_000_000;
+
+        Assert.Contains("4 BACKUPS", vm.FreeSpaceText, StringComparison.Ordinal);
+        Assert.Contains("USED", vm.FreeSpaceText, StringComparison.Ordinal);
+        Assert.Contains("FREE ON THIS DRIVE", vm.FreeSpaceText, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Each figure omits itself rather than printing a zero, which is the same convention the
+    /// bottom bar uses for free space it cannot read.
+    /// </summary>
+    [Fact]
+    public void The_stats_line_omits_a_figure_it_does_not_have()
+    {
+        var vm = Bare();
+        vm.BackupCount = 1;
+
+        Assert.Equal("1 BACKUP", vm.FreeSpaceText);
+    }
+
+    [Fact]
+    public void The_stats_line_is_empty_when_nothing_is_known()
+    {
+        Assert.Equal(string.Empty, Bare().FreeSpaceText);
+    }
+
+    [Fact]
+    public void Error_9_shows_the_folder_and_its_file_count_and_clears_on_keep()
+    {
+        var vm = Bare();
+
+        Assert.False(vm.ShowsNotABackupFolder);
+
+        vm.ShowNotABackupFolder(@"D:\Recordings\", 38);
+
+        Assert.True(vm.ShowsNotABackupFolder);
+        Assert.Equal(@"D:\Recordings\ · 38 FILES · NO manifest.json", vm.NotABackupFolderMeta);
+        Assert.Equal("That folder is not a Wave Link Backup", vm.NotABackupFolderTitle);
+
+        vm.ClearNotABackupFolder();
+
+        Assert.False(vm.ShowsNotABackupFolder);
+    }
+
+    [Fact]
+    public void Error_9_says_FILE_not_FILES_for_one()
+    {
+        var vm = Bare();
+        vm.ShowNotABackupFolder(@"D:\x\", 1);
+
+        Assert.Contains("1 FILE ·", vm.NotABackupFolderMeta, StringComparison.Ordinal);
     }
 }

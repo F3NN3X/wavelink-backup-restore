@@ -5,10 +5,20 @@
         xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
         xmlns:vm="clr-namespace:WaveLinkBackup.App.ViewModels"
          Title="Wave Link Backup"
-         Height="760" Width="1180" MinHeight="560" MinWidth="980"
+         Height="760" Width="1180" MinHeight="560" MinWidth="1124"
          WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Background="Transparent">
+
+    <!--
+      MinWidth is 1124, not the 980 it was.
+
+      The row's own six columns need 1084px, plus the list's 40px of padding - so at 980 the
+      overflow cell was simply clipped, with no horizontal scroll and none designed (audit §2.9c).
+      The design's own numbers do this to themselves: its six columns need 1084 in a window it
+      allows to be 980 wide. Raising the floor is the answer that invents no visuals - the layout
+      the design draws is now the only layout there is.
+    -->
 
     <!--
       Background="Transparent", and AllowsTransparency stays FALSE.
@@ -453,10 +463,39 @@
                                     <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
                                         <Setter Property="Text" Value="{Binding Strip.Detail}" />
                                     </DataTrigger>
+
+                                    <!-- 03 §3: the rejected strip's HEADLINE is Rubik 500 14px,
+                                         heavier than the other three states' sentence, because it
+                                         is the only one reporting a configuration that is gone. -->
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="Rejected">
+                                        <Setter Property="FontSize" Value="14" />
+                                        <Setter Property="FontWeight" Value="Medium" />
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
+                    <!--
+                      03 §3's BODY, which only the rejected strip has: "Restore 'Before restore'
+                      to get back to where you were." Rubik 400 13px, wrapped, max 560px, and the
+                      sentence that makes the primary button beside it mean something.
+                    -->
+                    <TextBlock Foreground="{DynamicResource WlText}" TextWrapping="Wrap"
+                               MaxWidth="560" HorizontalAlignment="Left" Margin="0,4,0,0"
+                               Text="{Binding Strip.Detail}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource WlBodyText}">
+                                <Setter Property="FontSize" Value="13" />
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="Rejected">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
                     <TextBlock Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource WlMonoMetaText}">
@@ -465,28 +504,62 @@
                                     <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
                                         <Setter Property="Text" Value="{Binding Strip.MonoMeta}" />
                                     </DataTrigger>
+
+                                    <!-- 03 §3 gives the rejected strip a headline, a BODY and a
+                                         mono meta line - three rows, not two. The body is the
+                                         sentence above; this is the machine line under it. -->
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="Rejected">
+                                        <Setter Property="Text" Value="{Binding Strip.MonoMeta}" />
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
                 </StackPanel>
 
-                <!-- "Check again" secondary action: SucceededUnconfirmed only. -->
-                <Button Grid.Column="3" x:Name="StripActionButton"
-                        Content="{Binding Strip.ActionLabel}"
-                        Margin="16,0,0,0" VerticalAlignment="Center"
-                        AutomationProperties.Name="{Binding Strip.ActionLabel}">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource WlSecondaryButton}">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Strip.HasAction}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
+                <!--
+                  The secondary/ghost action: "Check again" on an unconfirmed restore, "Show the
+                  log" on a rejected one, the designed action on an inline error.
+                -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="StripActionButton"
+                            Content="{Binding Strip.ActionLabel}"
+                            Margin="16,0,0,0" VerticalAlignment="Center"
+                            AutomationProperties.Name="{Binding Strip.ActionLabel}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource WlSecondaryButton}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.HasAction}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!--
+                      03-restore-outcomes.md §3's PRIMARY action, and the only one in the strip:
+                      Restore "Before restore". It is the recovery path for the only failure that
+                      costs someone their mixer, and until 0.6.1 the rejected strip named the way
+                      back in prose and gave the user no way to take it (technical-debt.md §4.21).
+                    -->
+                    <Button x:Name="StripPrimaryActionButton"
+                            Content="{Binding Strip.PrimaryActionLabel}"
+                            Margin="8,0,0,0" VerticalAlignment="Center"
+                            AutomationProperties.Name="{Binding Strip.PrimaryActionLabel}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource WlPrimaryButton}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.HasPrimaryAction}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
 
                 <!-- Close (X): shown whenever Dismissible. Rejected is never Dismissible, so it
                      cannot be closed - only AcknowledgeReject clears it. -->
@@ -987,6 +1060,56 @@
                                    Text="{Binding FoundSettingsPath}"
                                    FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
                                    Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+                    </StackPanel>
+
+                    <!--
+                      06-errors.md, error 1, "First-run variant": the OTHER half of the line above.
+                      When discovery found nothing there is no green found-line, and the design puts
+                      an amber dot, the not-found sentence, the mono LOOKED IN line at 80%, and the
+                      secondary button 10px below in its place.
+
+                      FirstRunError1Label and FirstRunLookedInLabel have been implemented, correct
+                      and unit-tested since plan 7; nothing referenced either of them, so a first run
+                      on a machine with no Wave Link showed an empty gap (technical-debt.md §4.10 and
+                      §4.21 item 3). An explicit settings path is what makes the app useful to a
+                      non-MSIX user (§2.2), which is why the button matters more here than anywhere.
+                    -->
+                    <StackPanel x:Name="NotFoundPanel" Margin="0,40,0,0" HorizontalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <!-- Mirrors FoundLinePanel above: visible by default, collapsed
+                                     when the label is null. The two are mutually exclusive by
+                                     construction - FirstRunError1Label is non-null only when
+                                     discovery failed, FoundLine only when it succeeded. -->
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding FirstRunError1Label}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Ellipse Width="7" Height="7" Fill="{DynamicResource WlWarn}"
+                                     VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <views:TrackedText Text="{Binding FirstRunError1Label}"
+                                               FontFamily="{DynamicResource WlMonoFont}" FontSize="11"
+                                               FontWeight="Medium" Tracking="0.14"
+                                               Foreground="{DynamicResource WlWarn}"
+                                               VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center"
+                                   Text="{Binding FirstRunLookedInLabel}"
+                                   FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
+                                   Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+
+                        <Button x:Name="ChooseSettingsFileButton" Margin="0,10,0,0"
+                                HorizontalAlignment="Center"
+                                Style="{StaticResource WlSecondaryButton}"
+                                Content="Choose the settings file…"
+                                AutomationProperties.Name="Choose the settings file" />
                     </StackPanel>
 
                     <!-- Footer strip: store path left, provenance line right. -->

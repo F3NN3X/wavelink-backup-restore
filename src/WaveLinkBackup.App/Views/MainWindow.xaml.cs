@@ -129,6 +129,12 @@ public partial class MainWindow : Window
         EmptyBackUpNowButton.Click += async (_, _) => await BackUpNowAsync();
         ChooseWhereToKeepButton.Click += (_, _) => ChooseWhereToKeep_Click();
 
+        // Error 1's first-run variant: the one route a non-MSIX install has into the app
+        // (technical-debt.md §2.2). Nothing bound FirstRunError1Label before 0.6.1, so this
+        // button and the two lines above it did not exist on screen at all.
+        ChooseSettingsFileButton.Click += (_, _) =>
+            (Application.Current as App)?.ChooseSettingsFile(this);
+
         // Screen 4's checkbox - "Keep backing up on its own when my settings change" - is the
         // first-run screen's one setting. It is read from the app once here and written back on
         // every change, rather than carrying IsChecked="True" and no handler, which is what it had:
@@ -235,6 +241,7 @@ public partial class MainWindow : Window
     {
         StripDismissButton.Click += (_, _) => shell.Strip.Dismiss();
         StripActionButton.Click += (_, _) => shell.Strip.OnAction?.Invoke();
+        StripPrimaryActionButton.Click += (_, _) => shell.Strip.OnPrimaryAction?.Invoke();
 
         autoDismissTimer = new DispatcherTimer { Interval = RestoreOutcomeStrip.AutoDismissAfter };
         autoDismissTimer.Tick += (_, _) =>
@@ -499,8 +506,92 @@ public partial class MainWindow : Window
         }
         else
         {
-            shell.Strip.ShowResult(view.Result);
+            ShowRestoreOutcome(view);
         }
+    }
+
+    /// <summary>
+    /// The finished result, with the rejected state's recovery wired to something.
+    ///
+    /// 03-restore-outcomes.md §3 gives a rejected restore a ghost "Show the log" and a primary
+    /// <c>Restore "Before restore"</c>, and renders that row selected below the strip "so the
+    /// button and the row are visibly the same object". Until 0.6.1 the state drew none of it and
+    /// <c>AcknowledgeReject</c> was called by nothing, so the bar was permanent for the life of
+    /// the process — the recovery path for the only failure that costs someone their mixer
+    /// (technical-debt.md §4.21 item 1).
+    /// </summary>
+    private void ShowRestoreOutcome(RestoreResultView view)
+    {
+        if (view.Result != RestoreResult.Rejected)
+        {
+            shell.Strip.ShowResult(view.Result);
+            return;
+        }
+
+        var recovery = view.PreRestoreSnapshotId;
+
+        shell.Strip.OnAction = ShowWaveLinkLog;
+        shell.Strip.OnPrimaryAction = recovery is null ? null : () =>
+        {
+            // Acknowledging FIRST is what makes the bar go away at all: Dismiss() refuses while
+            // the kind is Rejected, and acting on it is the only exit the design allows.
+            shell.Strip.AcknowledgeReject();
+            _ = RestoreRecoveryAsync(recovery);
+        };
+
+        shell.Strip.ShowResult(view.Result, recovery, RejectionMeta(view));
+
+        // The "Before restore" row, selected, immediately below the strip.
+        if (recovery is not null) shell.List.Select(recovery);
+    }
+
+    /// <summary>
+    /// 03 §3's mono meta line: <c>WAVE LINK 3.3.0.4108 REWROTE settings.json AT 23:12 · 1 INPUT
+    /// NOW</c>. Every figure is read from what the app knows at that moment; nothing here is
+    /// fixed text pretending to be a measurement (technical-debt.md §5).
+    /// </summary>
+    private string RejectionMeta(RestoreResultView view)
+    {
+        var version = shell.Facts.WaveLinkVersion is { Length: > 0 } v ? $"WAVE LINK {v} " : string.Empty;
+        var count = shell.Facts.WaveLinkInputs;
+        var inputs = $" · {count} INPUT{(count == 1 ? string.Empty : "S")} NOW";
+
+        return $"{version}REWROTE settings.json AT {DateTime.Now:HH:mm}{inputs}";
+    }
+
+    /// <summary>
+    /// Opens the folder holding Wave Link's own log — the evidence for WHY the file was rejected,
+    /// and 03's reason for making this strip persist. The folder rather than the file: the newest
+    /// log's name is Wave Link's business, and a folder that opens beats a path that might not.
+    /// </summary>
+    private void ShowWaveLinkLog()
+    {
+        var logs = shell.Facts.LogsPath;
+        if (string.IsNullOrWhiteSpace(logs)) return;
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(logs)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // Nothing to say: the strip is still there with the rest of what it knows, and a
+            // second error about a failed folder open would bury it.
+        }
+    }
+
+    /// <summary>
+    /// Restores the "Before restore" copy the rejected restore took on its way in. It goes through
+    /// the same confirmation the list's own Restore does — this is still a restore, and 05's
+    /// pre-restore dialog variant exists for exactly this moment.
+    /// </summary>
+    private async Task RestoreRecoveryAsync(string snapshotId)
+    {
+        shell.List.Select(snapshotId);
+        await RestoreSelectedAsync();
     }
 
     /// <summary>

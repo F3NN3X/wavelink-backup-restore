@@ -2,6 +2,8 @@ using System.Windows;
 using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Views;
+using Windows = WaveLinkBackup.App.Windows;
+using Fakes = WaveLinkBackup.App.Tests.Fakes;
 using WaveLinkBackup.Core.Automation;
 
 namespace WaveLinkBackup.App.Tests;
@@ -320,5 +322,102 @@ public sealed class SettingsDialogViewTests
 
         Assert.False(visibleWhenOff);
         Assert.True(visibleWhenOn);
+    }
+
+    // ------------- WHEN WINDOWS STARTS and error 9, drawn at last (technical-debt.md §4.21)
+
+    /// <summary>
+    /// The exact §4.20 lesson again: every autostart property was implemented and tested phases
+    /// ago, and nothing rendered any of them. This walks the real visual tree, so a section that
+    /// exists only in the model cannot pass.
+    /// </summary>
+    [Fact]
+    public void The_when_windows_starts_section_is_drawn_and_its_toggles_are_bound()
+    {
+        var model = Model();
+        var toggles = new List<string>();
+
+        ShowModel(model, e =>
+        {
+            if (e is System.Windows.Controls.CheckBox { Name.Length: > 0 } box) toggles.Add(box.Name);
+        });
+
+        Assert.Contains("StartWithWindowsToggle", toggles);
+        Assert.Contains("ClosingHidesToTrayToggle", toggles);
+    }
+
+    /// <summary>
+    /// Pressing the real control has to move the real model — the half of the pair that a
+    /// rendered-but-unbound toggle would still pass.
+    /// </summary>
+    [Fact]
+    public void The_start_with_windows_toggle_writes_through_to_the_model()
+    {
+        var (model, _) = StartupModel();
+
+        Assert.False(model.StartWithWindows);
+
+        ShowModel(model, e =>
+        {
+            if (e.Name == "StartWithWindowsToggle" && e is System.Windows.Controls.CheckBox box)
+            {
+                box.IsChecked = true;
+            }
+        });
+
+        Assert.True(model.StartWithWindows);
+    }
+
+    [Fact]
+    public void Error_9_is_drawn_in_place_when_the_model_raises_it()
+    {
+        var model = Model();
+        model.ShowNotABackupFolder(@"D:\Recordings\", 38);
+
+        var visible = Visibility.Collapsed;
+
+        ShowModel(model, e =>
+        {
+            if (e.Name == "NotABackupFolderBlock") visible = e.Visibility;
+        });
+
+        Assert.Equal(Visibility.Visible, visible);
+    }
+
+    [Fact]
+    public void Error_9_stays_hidden_until_something_raises_it()
+    {
+        var found = false;
+        var visible = Visibility.Visible;
+
+        ShowModel(Model(), e =>
+        {
+            if (e.Name != "NotABackupFolderBlock") return;
+
+            found = true;
+            visible = e.Visibility;
+        });
+
+        Assert.True(found, "NotABackupFolderBlock is gone or renamed.");
+        Assert.Equal(Visibility.Collapsed, visible);
+    }
+
+    /// <summary>A model carrying the real Run-key seam, over the fake registry.</summary>
+    private static (SettingsViewModel Model, Fakes.FakeRegistryKeys Registry) StartupModel()
+    {
+        var registry = new Fakes.FakeRegistryKeys();
+        var hides = true;
+
+        var model = SettingsViewModel.Build(
+            new BackupSettings(Store, AutoBackupEnabled: true),
+            _ => true,
+            new WhereSettingsLiveModel(@"C:\s\settings.json", "1 KB"),
+            null,
+            new StartupSeam(
+                new Windows.RunKeyAutostart(registry, @"C:\p\WaveLinkBackup.exe"),
+                () => hides,
+                value => hides = value));
+
+        return (model, registry);
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.Core.Automation;
 
 namespace WaveLinkBackup.App.ViewModels;
@@ -203,6 +204,25 @@ public sealed class WhatGoesInModel : ObservableObject
 /// everything else here. They were locked and unmovable until phase 6 built the tiers behind
 /// them; a toggle that writes a setting nothing reads is worse than one that is visibly off.
 /// </summary>
+/// <summary>
+/// The two seams behind Settings' <c>WHEN WINDOWS STARTS</c> section (screens/12).
+///
+/// A record rather than three more constructor parameters, and injected rather than reached for:
+/// one of the two lives in the registry and the other in the shell's own state file, and neither
+/// belongs to <see cref="BackupSettings"/> — settings.json describes itself in the dialog as "the
+/// folder, the automatic-backup switch, how many to keep and which Wave Link you picked", which a
+/// window behaviour would make false.
+/// </summary>
+/// <param name="Autostart">
+/// The Run-key seam. Its three states are the reason the toggle is not a bool: Task Manager can
+/// veto the entry, and the design's rule is that the toggle READS BACK what Task Manager did
+/// rather than fighting it.
+/// </param>
+public sealed record StartupSeam(
+    IAutostart Autostart,
+    Func<bool> ReadClosingHidesToTray,
+    Action<bool> WriteClosingHidesToTray);
+
 public sealed class SettingsViewModel : ObservableObject
 {
     private const int MinKeepCount = 1;
@@ -227,12 +247,20 @@ public sealed class SettingsViewModel : ObservableObject
     private bool includePluginFiles;
     private bool isHighContrast;
     private WhatGoesInModel? whatGoesIn;
+    private readonly StartupSeam? startup;
+    private AutostartState autostartState;
+    private bool closingHidesToTray;
 
+    /// <param name="startup">
+    /// The WHEN WINDOWS STARTS section's seams, or null to hide the section entirely. Null is what
+    /// a test harness and the CLI-shaped callers pass; the App passes the real ones.
+    /// </param>
     public SettingsViewModel(
         BackupSettings settings,
         Func<BackupSettings, bool> save,
         WhereSettingsLiveModel whereSettingsLive,
-        WhichWaveLinkModel? whichWaveLink = null)
+        WhichWaveLinkModel? whichWaveLink = null,
+        StartupSeam? startup = null)
     {
         this.save = save;
         persisted = settings;
@@ -246,6 +274,77 @@ public sealed class SettingsViewModel : ObservableObject
 
         WhereSettingsLive = whereSettingsLive;
         WhichWaveLink = whichWaveLink;
+
+        this.startup = startup;
+        autostartState = startup?.Autostart.Read() ?? AutostartState.Off;
+        closingHidesToTray = startup?.ReadClosingHidesToTray() ?? true;
+    }
+
+    // ----------------------------------------------- when Windows starts (screens/12)
+
+    /// <summary>
+    /// Whether to draw the section at all. False when nothing was injected to drive it — a
+    /// section of two toggles that write nowhere is worse than no section.
+    /// </summary>
+    public bool HasStartupSection => startup is not null;
+
+    /// <summary>
+    /// "Start with Windows and sit in the tray." Reads the Run key, writes the Run key, and
+    /// re-reads after every write — <see cref="IAutostart.Enable"/> can refuse, and a toggle that
+    /// showed the value it was ASKED for rather than the one that took would lie about a veto.
+    /// </summary>
+    public bool StartWithWindows
+    {
+        get => autostartState == AutostartState.On;
+        set
+        {
+            if (startup is null || value == StartWithWindows) return;
+
+            if (value) startup.Autostart.Enable();
+            else startup.Autostart.Disable();
+
+            RefreshAutostart();
+        }
+    }
+
+    /// <summary>
+    /// False when Task Manager has disabled the entry. The design: "Task Manager wins; the note
+    /// says so rather than fighting it."
+    /// </summary>
+    public bool CanStartWithWindows =>
+        startup is not null && autostartState != AutostartState.BlockedByTaskManager;
+
+    /// <summary>The note under the toggle when Task Manager holds the veto, else null.</summary>
+    public string? StartupBlockedNote => autostartState == AutostartState.BlockedByTaskManager
+        ? "Task Manager has disabled this app's startup entry. Re-enable it there first."
+        : null;
+
+    /// <summary>The Run-key line the design prints under the section, verbatim.</summary>
+    public string StartupRegistryLine =>
+        @"HKCU\Software\Microsoft\Windows\CurrentVersion\Run · WaveLinkBackup --tray";
+
+    /// <summary>"Closing the window hides it in the tray." On by default. Lives in ShellState.</summary>
+    public bool ClosingHidesToTray
+    {
+        get => closingHidesToTray;
+        set
+        {
+            if (startup is null || !Set(ref closingHidesToTray, value)) return;
+
+            startup.WriteClosingHidesToTray(value);
+        }
+    }
+
+    /// <summary>Re-read the Run key. Called after every write, and by the dialog on open.</summary>
+    public void RefreshAutostart()
+    {
+        if (startup is null) return;
+
+        autostartState = startup.Autostart.Read();
+
+        Raise(nameof(StartWithWindows));
+        Raise(nameof(CanStartWithWindows));
+        Raise(nameof(StartupBlockedNote));
     }
 
     /// <summary>
@@ -498,8 +597,85 @@ public sealed class SettingsViewModel : ObservableObject
     /// that is not there. Formatted here (not in the view) so the view stays a pure binding and
     /// the format is unit-testable without a window.
     /// </summary>
-    public string FreeSpaceText =>
-        FreeSpaceBytes is { } bytes ? $"{Readable.Bytes(bytes)} FREE" : string.Empty;
+    /// <summary>How many backups the store holds. Set by the caller, which owns the store.</summary>
+    public int BackupCount { get; set; }
+
+    /// <summary>What those backups weigh. Set by the caller, from the same read.</summary>
+    public long UsedBytes { get; set; }
+
+    /// <summary>
+    /// The design's full stats line: <c>N BACKUPS · X MB USED · Y GB FREE ON THIS DRIVE</c>.
+    ///
+    /// It printed only the free figure until 0.6.1 — the count and the used bytes live on the
+    /// shell, and the code's own comment said so while nothing plumbed them through (audit §2.9a).
+    /// Each of the three omits itself when it cannot be read, so a drive whose free space is
+    /// unknowable still prints the two figures we do have rather than the whole line vanishing.
+    /// </summary>
+    public string FreeSpaceText
+    {
+        get
+        {
+            var parts = new List<string>(3);
+
+            if (BackupCount > 0) parts.Add($"{BackupCount} BACKUP{(BackupCount == 1 ? "" : "S")}");
+            if (UsedBytes > 0) parts.Add($"{Readable.Bytes(UsedBytes)} USED");
+            if (FreeSpaceBytes is { } bytes) parts.Add($"{Readable.Bytes(bytes)} FREE ON THIS DRIVE");
+
+            return string.Join(" · ", parts);
+        }
+    }
+
+    // ------------------------------------------------- error 9, in place (06-errors.md §9)
+
+    private string? notABackupFolderPath;
+    private int notABackupFolderFileCount;
+
+    /// <summary>
+    /// Whether the amber "that folder is not a Wave Link Backup" block is showing.
+    ///
+    /// 06's placement TABLE files error 9 under Dialogs; §9's own text says it "appears in
+    /// Settings, in place, after Change folder…", which is more specific and is what this
+    /// implements. It is the one error whose whole point is sitting beside the control that
+    /// caused it.
+    /// </summary>
+    public bool ShowsNotABackupFolder => notABackupFolderPath is not null;
+
+    /// <summary>The error's mono line: <c>D:\Recordings\ · 38 FILES · NO manifest.json</c>.</summary>
+    public string NotABackupFolderMeta => notABackupFolderPath is null
+        ? string.Empty
+        : $"{notABackupFolderPath} · {notABackupFolderFileCount} FILE"
+          + $"{(notABackupFolderFileCount == 1 ? "" : "S")} · NO manifest.json";
+
+    public string NotABackupFolderTitle => AppError.ByCode(9).Title;
+
+    public string NotABackupFolderBody => AppError.ByCode(9).Body;
+
+    /// <summary>
+    /// Raise the block for <paramref name="path"/>. Called after a Change folder… that landed
+    /// somewhere holding files but no snapshot.
+    /// </summary>
+    public void ShowNotABackupFolder(string path, int fileCount)
+    {
+        notABackupFolderPath = path;
+        notABackupFolderFileCount = fileCount;
+        RaiseNotABackupFolder();
+    }
+
+    /// <summary>"Keep the current folder" — and every successful folder change.</summary>
+    public void ClearNotABackupFolder()
+    {
+        if (notABackupFolderPath is null) return;
+
+        notABackupFolderPath = null;
+        notABackupFolderFileCount = 0;
+        RaiseNotABackupFolder();
+    }
+
+    private void RaiseNotABackupFolder()
+    {
+        Raise(nameof(ShowsNotABackupFolder));
+        Raise(nameof(NotABackupFolderMeta));
+    }
 
     /// <summary>
     /// Change folder…: persist the new store path and re-point the read-only display. The
@@ -545,6 +721,7 @@ public sealed class SettingsViewModel : ObservableObject
         BackupSettings settings,
         Func<BackupSettings, bool> save,
         WhereSettingsLiveModel whereSettingsLive,
-        WhichWaveLinkModel? whichWaveLink = null) =>
-        new(settings, save, whereSettingsLive, whichWaveLink);
+        WhichWaveLinkModel? whichWaveLink = null,
+        StartupSeam? startup = null) =>
+        new(settings, save, whereSettingsLive, whichWaveLink, startup);
 }

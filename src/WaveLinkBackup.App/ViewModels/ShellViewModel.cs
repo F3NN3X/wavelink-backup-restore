@@ -33,7 +33,9 @@ public sealed record ShellFacts(
     bool AutoBackupEnabled,
     bool FolderMissing,
     string StorePath,
-    long? FreeBytes);
+    long? FreeBytes,
+    string? WaveLinkVersion = null,
+    string? LogsPath = null);
 
 /// <summary>
 /// The status strip, the bottom bar, and what the four action buttons may do.
@@ -385,6 +387,13 @@ public sealed class ShellViewModel : ObservableObject
 
         RefreshAutostart();
     }
+
+    /// <summary>
+    /// What the last <see cref="Apply"/> was told. Read by the window for the few lines that are
+    /// composed at render time from machine-specific figures — 03 §3's rejection meta among them —
+    /// rather than being a property the view model can name in advance.
+    /// </summary>
+    public ShellFacts Facts => facts;
 
     /// <summary>Called by the window on load, on F5, after a capture, and on every host tick.</summary>
     public void Apply(ShellFacts facts)

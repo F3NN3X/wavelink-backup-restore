@@ -472,4 +472,40 @@ public sealed class MainWindowTemplateTests
         Assert.Contains(
             $"Binding List.State}}\" Value=\"{state}\"", MainWindowXaml(), StringComparison.Ordinal);
     }
+
+    // ------------------------ 03 §3's rejected-restore recovery (technical-debt.md §4.21 item 1)
+
+    /// <summary>
+    /// The exact §4.20 lesson: <c>AcknowledgeReject</c> was implemented, correct and tested, and
+    /// nothing in the app called it — so the bar was permanent once shown. This asserts the
+    /// button EXISTS and that its Click reaches the model, because either half alone was the bug.
+    /// </summary>
+    [Fact]
+    public void The_rejected_strips_primary_action_exists_and_is_wired()
+    {
+        var xaml = MainWindowXaml();
+
+        Assert.Contains("x:Name=\"StripPrimaryActionButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains(
+            "Content=\"{Binding Strip.PrimaryActionLabel}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains(
+            "StripPrimaryActionButton.Click", MainWindowCodeBehind(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Something_in_the_app_actually_calls_AcknowledgeReject()
+    {
+        Assert.Contains("AcknowledgeReject()", MainWindowCodeBehind(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 03 §3: "the 'Before restore' row renders selected immediately below, so the button and the
+    /// row are visibly the same object."
+    /// </summary>
+    [Fact]
+    public void A_reject_selects_the_row_its_primary_button_names()
+    {
+        Assert.Contains(
+            "shell.List.Select(recovery)", MainWindowCodeBehind(), StringComparison.Ordinal);
+    }
 }
