@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 using System.Globalization;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.Core.Abstractions;
@@ -49,6 +51,12 @@ public sealed class SnapshotListViewModel(
 
     private readonly List<Snapshot> all = [];
 
+    /// <summary>
+    /// The grouped view over <see cref="Rows"/>. Built once and never replaced: the window binds
+    /// to it, and swapping the instance would silently drop that binding.
+    /// </summary>
+    private ListCollectionView? view;
+
     private CancellationTokenSource? probing;
     private string query = string.Empty;
     private SnapshotRowViewModel? selected;
@@ -61,6 +69,45 @@ public sealed class SnapshotListViewModel(
     /// </summary>
     public Action<Action>? Marshal { get; set; }
 
+    /// <summary>
+    /// Grouping lives here rather than in the XAML's own CollectionViewSource so a test can
+    /// assert it without a window — which is the whole reason the old shape's defect went
+    /// unnoticed for a phase.
+    /// </summary>
+    private ListCollectionView BuildView()
+    {
+        var built = new ListCollectionView(Rows);
+        built.GroupDescriptions.Add(
+            new PropertyGroupDescription(nameof(SnapshotRowViewModel.GroupHeader)));
+
+        return built;
+    }
+
+    /// <summary>
+    /// Every matching row, newest first, in ONE flat collection.
+    ///
+    /// This is the list the window binds to (through <see cref="View"/>), and it is what replaced
+    /// one <see cref="System.Windows.Controls.ListBox"/> per date group. That shape gave native
+    /// row selection but made the list several Selectors, so a selection could not span them and
+    /// arrow keys stopped dead at every date boundary (technical-debt.md §4.14). A single Selector
+    /// is single-select and continuous by construction, which deletes both problems rather than
+    /// managing them.
+    /// </summary>
+    public ObservableCollection<SnapshotRowViewModel> Rows { get; } = [];
+
+    /// <summary>
+    /// <see cref="Rows"/> grouped by <see cref="SnapshotRowViewModel.GroupHeader"/>, for the
+    /// window's <c>GroupStyle</c>. The grouping is the SAME derivation as before — it just lives
+    /// in a CollectionView instead of in a second collection of collections.
+    /// </summary>
+    public ListCollectionView View => view ??= BuildView();
+
+    /// <summary>
+    /// The date groups, still. Nothing in the app renders this any more — the view groups
+    /// <see cref="View"/> instead — but "TODAY holds these three rows" is the thing several
+    /// suites are actually about, and asserting it against a projection is clearer than
+    /// walking a CollectionView's group objects.
+    /// </summary>
     public ObservableCollection<DateGroup> Groups { get; } = [];
 
     public int TotalCount => all.Count;
@@ -276,9 +323,7 @@ public sealed class SnapshotListViewModel(
     /// row at the top of TODAY and selects it" needs a name for the thing to select.
     /// </summary>
     public void Select(string id) =>
-        Selected = Groups
-            .SelectMany(g => g.Rows)
-            .FirstOrDefault(r => string.Equals(r.Id, id, StringComparison.Ordinal));
+        Selected = Rows.FirstOrDefault(r => string.Equals(r.Id, id, StringComparison.Ordinal));
 
     private void Rebuild()
     {
@@ -292,14 +337,24 @@ public sealed class SnapshotListViewModel(
         MatchCount = matched.Count;
 
         Groups.Clear();
+        Rows.Clear();
 
         foreach (var group in matched
             .OrderByDescending(s => s.Manifest.CreatedUtc)
             .GroupBy(s => s.Manifest.CreatedUtc.ToLocalTime().Date))
         {
-            Groups.Add(new DateGroup(
-                Readable.DayGroup(new DateTimeOffset(group.Key, now.Offset), now),
-                [.. group.Select(s => new SnapshotRowViewModel(s, peak, now, NullIfEmpty(query)))]));
+            var header = Readable.DayGroup(new DateTimeOffset(group.Key, now.Offset), now);
+
+            // The header is carried BY each row rather than by a group object, because that is
+            // what a CollectionView can group on - and it keeps one row's date and one row's
+            // header from ever disagreeing.
+            var rows = group
+                .Select(s => new SnapshotRowViewModel(s, peak, now, NullIfEmpty(query)) { GroupHeader = header })
+                .ToList();
+
+            Groups.Add(new DateGroup(header, rows));
+
+            foreach (var row in rows) Rows.Add(row);
         }
 
         // Asked here, on every refresh, rather than of the store: "is the folder there" is a

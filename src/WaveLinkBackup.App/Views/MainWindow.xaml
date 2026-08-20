@@ -829,32 +829,18 @@
         <Grid Grid.Row="4">
 
             <!--
-              Loaded: the groups, each a date header followed by its rows. Groups is already
-              pre-grouped by the view model (SnapshotListViewModel.Groups), so this is an
-              ItemsControl over Groups rather than a flat ListBox with GroupStyle - there is no
-              flat row collection to hand a CollectionView, and building one here would mean
-              re-deriving the TODAY/YESTERDAY grouping this ItemsControl's own data already
-              carries.
+              Loaded: ONE ListBox over List.View, grouped by each row's own GroupHeader.
 
-              Each group's own Rows is now a real ListBox (10b fix), not a hand-placed
-              ListBoxItem per row - the expansion moved INTO WlRowTemplate (RowStyles.xaml) so
-              nothing stops this from being a genuine Selector any more. One ListBox per group is
-              expected, and every one of them two-way binds the SAME List.Selected. That binding
-              is what carries a CLICK up to the view model; it does NOT keep the groups in step
-              with each other, which is what it was once believed to do. A Selector handed an item
-              its own Items collection does not contain declines the write and keeps its existing
-              container selected, so clicking through three date groups left three rows highlighted
-              at once. What looks selected is decided by the ROW's own IsSelected instead - see
-              WlRowTemplate (RowStyles.xaml), and
-              MainWindowSelectionTests.Selecting_in_a_second_group_deselects_the_row_already_selected_in_the_first.
-            -->
-            <!--
-              Loaded's own region: the scrollable rows above a fixed footer strip that appears
-              only while a search is hiding rows (fix 1 - 07-search.md's footer strip was
-              computed on the view model, SearchFooter/ShowAllLabel, and unit-tested, but never
-              actually rendered anywhere). Visibility for List.State == Loaded now lives on THIS
-              wrapping Grid rather than on ListScrollViewer directly, so the scroll region and the
-              footer show and hide together.
+              It was one ListBox per date group, which is what gave native row selection at all —
+              and made the list several Selectors. WPF has no notion of a selection spanning them,
+              so three date groups could hold three selected rows, and arrow keys stopped dead at
+              every date boundary. GroupSelection existed to carry the single-select rule in
+              explicit code, and Home/End had their own code-behind to reach the true first and
+              last row (technical-debt.md §4.14, [[three-backups-look-selected-at-once]]).
+
+              A single Selector is single-select and continuous BY CONSTRUCTION, so all of that is
+              deleted rather than managed: GroupSelection is gone, SelectedItem is an ordinary
+              TwoWay binding again, and ↑/↓/Home/End are WPF's own.
             -->
             <Grid x:Name="ListLoadedRegion">
                 <Grid.RowDefinitions>
@@ -874,7 +860,7 @@
 
             <ScrollViewer x:Name="ListScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
                           CanContentScroll="True"
-                          PreviewKeyDown="ListScrollViewer_PreviewKeyDown">
+>
                 <!-- Escape clears the search from anywhere in the list, same reasoning as
                      SearchBox's own CommandBindings above. -->
                 <ScrollViewer.CommandBindings>
@@ -882,79 +868,46 @@
                                     Executed="ClearSearch_Executed" />
                 </ScrollViewer.CommandBindings>
 
-                <ItemsControl x:Name="GroupsHost" ItemsSource="{Binding List.Groups}" Focusable="False"
-                              AutomationProperties.Name="Backups"
-                              VirtualizingPanel.IsVirtualizing="True"
-                              VirtualizingPanel.VirtualizationMode="Recycling"
-                              VirtualizingPanel.ScrollUnit="Pixel">
-                    <ItemsControl.ItemsPanel>
+                <ListBox x:Name="GroupsHost" ItemsSource="{Binding List.View}"
+                         SelectedItem="{Binding List.Selected, Mode=TwoWay}"
+                         ItemContainerStyle="{StaticResource WlRowTemplate}"
+                         BorderThickness="0" Background="Transparent" Padding="0"
+                         FocusVisualStyle="{x:Null}"
+                         AutomationProperties.Name="Backups"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Pixel"
+                         ScrollViewer.CanContentScroll="True"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <VirtualizingStackPanel />
                         </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel>
-                                <!-- Group header: same tracked role and tracking as the column
-                                     header, no rule under it ("no separator line"). README gives
-                                     "padding 14-16px 20px 7px" - 14 top, 20 each side, 7 bottom,
-                                     i.e. Margin="20,14,20,7". The old "14,20,20,7" was the same
-                                     CSS-order slip as the column header above, and it left every
-                                     date header 6px left of the rows it introduces. -->
-                                <views:TrackedText Text="{Binding Header}" Tracking=".18"
-                                                    Margin="20,14,20,7"
-                                                    Style="{StaticResource WlColumnHeaderTrackedText}"
-                                                    Foreground="{DynamicResource WlMuted}" />
+                    </ListBox.ItemsPanel>
 
-                                <!--
-                                  ItemContainerStyle="{StaticResource WlRowTemplate}" is what makes
-                                  this a real Selector: WPF generates one ListBoxItem per Row
-                                  through that style, so native container-generation, arrow-key
-                                  selection movement and Selector.SelectedItem all come free -
-                                  nothing a hand-placed ListBoxItem could offer. No border, no
-                                  background, no focus rectangle of its own: WlRowTemplate's own
-                                  ControlTemplate owns the entire visual, including the row's
-                                  selected-state fill - the ListBox itself should show nothing of
-                                  its own.
+                    <!--
+                      The date header: same tracked role and tracking as the column header, and no
+                      rule under it ("no separator line"). README gives "padding 14-16px 20px 7px"
+                      - 14 top, 20 each side, 7 bottom.
 
-                                  SelectedItem is OneWayToSource, and the direction is the whole
-                                  point. It carries a CLICK up to the shared List.Selected and
-                                  nothing back down.
-
-                                  TwoWay - what this was - cannot work with one Selector per group.
-                                  Selecting a row in group B writes it into group A's SelectedItem
-                                  too; A does not contain that item, so it declines the write and
-                                  writes its OWN current row back to the shared property; B then
-                                  declines that and writes back; the two ListBoxes ping-pong
-                                  through the one property until WPF's binding loop detection stops
-                                  them, leaving both rows selected. What looks selected is decided
-                                  by the ROW's own IsSelected instead (WlRowTemplate), which
-                                  SnapshotListViewModel.Selected keeps to exactly one row across
-                                  every group.
-
-                                  It binds through the WINDOW's DataContext rather than this
-                                  DataTemplate's own (which is the Row, then the Group) -
-                                  List.Selected lives on the shared ShellViewModel, reached the
-                                  same way the row template's own IsHighContrast checks already
-                                  reach it (RelativeSource AncestorType=Window).
-                                -->
-                                <ListBox ItemsSource="{Binding Rows}"
-                                         ItemContainerStyle="{StaticResource WlRowTemplate}"
-                                         BorderThickness="0" Background="Transparent" Padding="0"
-                                         FocusVisualStyle="{x:Null}"
-                                         ScrollViewer.CanContentScroll="True"
-                                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                    <ListBox.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <VirtualizingStackPanel />
-                                        </ItemsPanelTemplate>
-                                    </ListBox.ItemsPanel>
-                                </ListBox>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                      GroupStyle rather than a header inside the item template, so the header is
+                      NOT a selectable row: a group container is not a ListBoxItem, which is what
+                      keeps ↓ from stopping on a date on its way between two backups.
+                    -->
+                    <ListBox.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <views:TrackedText Text="{Binding Name}" Tracking=".18"
+                                                       Margin="20,14,20,7"
+                                                       Style="{StaticResource WlColumnHeaderTrackedText}"
+                                                       Foreground="{DynamicResource WlMuted}" />
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListBox.GroupStyle>
+                </ListBox>
             </ScrollViewer>
 
                 <!--

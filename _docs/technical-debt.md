@@ -444,7 +444,36 @@ tooltip (*"the backup folder can't be used"*), plus the nine-day notification in
 **Needs a test that pins the absence of retrying**, not just the presence of the error — two
 consecutive ticks after a failure must produce exactly one `CaptureAutomatic` call.
 
-### 7.4 Keyboard and focus — **Windows conventions, not just the design's list**
+### 7.4 ~~Keyboard and focus~~ — **CLOSED 2026-08-20**
+
+> Every item on the list, and most of them by making the structure right rather than by handling a
+> key:
+>
+> - **Arrow keys with `Home`/`End`** — §4.14's flat list. `Home`/`End` had hand-written
+>   code-behind because neither could reach past its own group's Selector; both are WPF's own now,
+>   and a guard test pins that the code-behind is gone rather than merely unused.
+> - **`Shift+F10` and the Menu key open the row's overflow** — the row had a decorative `···` and
+>   no menu anywhere. There is a real one now, and it is on the CONTAINER rather than on the glyph,
+>   which is the whole difference: WPF opens a control's `ContextMenu` for both keys and for a
+>   right-click, with no code. Its three items reuse the same `RoutedUICommand`s as the bottom bar,
+>   so it greys itself on a damaged row without knowing what damaged means.
+> - **Alt-accelerators on dialog buttons** — and the trap underneath them, which is §4.20's lesson
+>   again: a bare `ContentPresenter` has `RecognizesAccessKey` **false**, so an underscore renders
+>   as a literal underscore and no accelerator exists. Every button template sets it, and a test
+>   counts presenters against recognisers. The destructive buttons get one too, and a separate test
+>   pins that this did NOT weaken the focus rule — focus still starts on Cancel and `IsDefault`
+>   stays off everywhere.
+> - **`Ctrl+F`, `F2`, `F5`, `Delete`, `Enter`, `Escape`** — already in `ShellCommands`; now pinned
+>   gesture by gesture rather than assumed.
+> - **`Space` activating the focused control**, and full keyboard reachability — WPF's, and
+>   `FocusRingTests` already holds the visible focus ring.
+> - **Screen-reader labels** — `SnapshotRowViewModel.AutomationName` and `SlotsAutomationName` were
+>   already built to read as sentences, including the five-slot health strip this entry names. Every
+>   surface added in this session carries `AutomationProperties.Name` for the same reason.
+>
+> Original entry below.
+
+#### Original entry
 
 The design closes Escape / Enter / F5 / focus-ring. **Decided 2026-08-17:** implement to
 Windows conventions generally, not only the four keys named.
@@ -467,8 +496,8 @@ System"*.
 
 > **The heading is about items 1–6 only.** Everything from 4.7 down arrived later, as the build
 > found its own gaps, and several are open — check each item's own status line rather than this
-> one. Open as of 0.6.2: **4.7** (no icon set), **4.14** (arrow keys stop at a date group),
-> **4.15** (0.5.1's frosting unseen), **4.21 item 5** (the Settings UPDATES section).
+> one. Open as of 0.6.3: **4.7** (no icon set) and **4.15** (0.5.1's frosting unseen — it needs a
+> human, not a commit).
 
 All six were undesigned. Five are now specified in
 [operations/design/screens/](operations/design/screens/00-index.md), which also designed
@@ -711,7 +740,27 @@ Phase 6 §5 still owns making it *appear*: both properties are null until there 
 manifest to compare against, so the block renders nothing today. What changed is that §5 now has
 somewhere to put each half.
 
-### 4.14 The list is several Selectors, and arrow keys stop at a group boundary — **open, 2026-08-19**
+### 4.14 ~~The list is several Selectors, and arrow keys stop at a group boundary~~ — **FIXED 2026-08-20**
+
+> Built exactly as the entry proposed, and it deleted everything it said it would.
+>
+> One flat `ListBox` over a `ListCollectionView` grouped on each row's own `GroupHeader`. The
+> header comes from a `GroupStyle`, which matters more than it looks: a group container is not a
+> `ListBoxItem`, so `↓` does not stop on a date on its way between two backups.
+>
+> **`GroupSelection` is gone** — file deleted, not merely unused. So is the `Home`/`End`
+> code-behind, and the `SelectionChanged` routing. `SelectedItem` is an ordinary TwoWay binding
+> again, which is what a single Selector allows and what several Selectors made actively harmful.
+>
+> `MainWindowSelectionTests` was rewritten rather than repaired: it existed to pin the workaround.
+> It now pins the property that actually has to hold — one selection across dates, the Selector and
+> the model agreeing, and rows under different dates in one continuous Items collection. Five
+> source-guard tests in `MainWindowTemplateTests` were inverted for the same reason, each saying in
+> place why the old assertion was pinning the defect.
+>
+> Original entry below.
+
+#### Original entry
 
 One `ListBox` per date group is what gives native row selection at all (Task 10b), and it is why
 `↑`/`↓` move within a group and stop at its edge. `Home`/`End` are the exception — they were given
@@ -952,7 +1001,7 @@ seam, which also lets §4.16's hash-skip reuse it.
 > **The lesson worth keeping:** a view-model property with a commit path is not evidence that a
 > control reaches it. These two suites now overlap on purpose.
 
-### 4.21 ~~Eight designed surfaces are specified and undrawn~~ — **SEVEN CLOSED 2026-08-20, item 5 open**
+### 4.21 ~~Eight designed surfaces are specified and undrawn~~ — **ALL EIGHT CLOSED 2026-08-20**
 
 Full detail, with what exists behind each one:
 [audits/2026-08-19-design-conformance.md](audits/2026-08-19-design-conformance.md) §2. Summarised
@@ -965,7 +1014,7 @@ every line of it — a view model with a tested property is not evidence that an
 | 2 | Backing-up in-progress state | `04` | **CLOSED 2026-08-20.** `BackupProgressModel` + the strip: hollow circle, *Backing up your setup…*, `470 KB · WRITING`, and a 2px determinate bar. Determinate on **real** bytes — `SnapshotWriteProgress` reports what is on disk against a total the payload knew before the first write. 04 bans a spinner because it "implies uncertainty that does not exist here", which makes an invented percentage the worse version of the same claim |
 | 3 | First run, Wave Link not found | `06` | **CLOSED 2026-08-20** — see §4.10 |
 | 4 | Settings `WHEN WINDOWS STARTS` | `12` | **CLOSED 2026-08-20.** Both toggles, the Task-Manager-veto note, and the Run-key line. `StartupSeam` carries the two seams in; the section hides itself entirely when nothing is behind it, rather than drawing controls that write nowhere |
-| 5 | Settings `UPDATES` | `12` | **OPEN** — the auto-updater is this session's largest remaining piece |
+| 5 | Settings `UPDATES` | `12` | **CLOSED 2026-08-20.** The three rows, the failed-update block, and a real updater behind them — feed, checksum-verified download, staged install, relaunch. Error 8's *"Get the update"* deep-links here and opens with a check already running. The design's restraint rule is structural: `UpdateViewModel` takes no success as an input, so it cannot produce a congratulatory anything, and the only unprompted act is the weekly look. **Where to look is read from the environment, not compiled in** — this repo has no remote, and a hard-coded owner/repo would be §5's exact mistake; unset hides the section. `.github/workflows/release.yml` produces the shape the updater looks for |
 | 6 | The two tray notifications | `12` | **CLOSED 2026-08-20.** `TrayNotifications` decides both, as a pure function. The nine-day notice fires once per EPISODE — it re-arms when a backup happens, so a machine that recovers and falls behind again is told twice, which is two real problems rather than a nag. Nothing here can produce a success notice, because nothing here takes a success as an input. **One documented difference from the design:** each notice's action is the whole notification rather than a labelled button. A classic balloon has no buttons and Windows renders one as a toast that drops them; real toast buttons need an AppUserModelID and a Start-menu shortcut, which is an installer concern this app does not have yet. The label is stated in the body and clicking anywhere does the thing |
 | 7 | Error 2's chooser rows | `06` §2 | **CLOSED 2026-08-20.** Version, `RUNNING` chip, ellipsised path, `SETTINGS SAVED … · N INPUTS · N KB`, the selected-row fill and 3px accent edge, and *Remember this one*. Each candidate is inspected on its own — the dialog exists because discovery could NOT choose between them, so nothing may lean on a "current" one. **The `RUNNING` chip is an approximation and the model says so**: Windows offers no mapping from a running MSIX process back to its package, so it goes to whichever candidate's settings file was written most recently, and only while Wave Link is up |
 | 8 | Error 9, in Settings after *Change folder…* | `06` §9 | **CLOSED 2026-08-20.** Rendered in place under *Change folder…*, with *Choose another…* and *Keep the current folder*. 06's placement table files error 9 under Dialogs; §9's own text says "appears in Settings, in place", which is the more specific instruction and is what shipped. Changing the folder to somewhere holding files but no snapshot now raises it instead of silently pointing the store at a Recordings folder |

@@ -320,53 +320,91 @@ public sealed class MainWindowTemplateTests
             $"{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
     }
 
-    // 10b fix: each date group's Rows is now hosted by a real ListBox (Selector), not a
-    // hand-placed ListBoxItem per row in a plain ItemsControl - that is what gives arrow-key
-    // selection movement and Selector.SelectedItem back. ItemContainerStyle is what makes
-    // WlRowTemplate (RowStyles.xaml) generate the actual row containers.
+    /// <summary>
+    /// ONE ListBox over the grouped view, not one per date.
+    ///
+    /// The per-group shape is what gave native row selection at all, and it made the list several
+    /// Selectors — so a selection could not span them and arrow keys stopped at every date
+    /// boundary (technical-debt.md §4.14). A single Selector is single-select and continuous by
+    /// construction.
+    /// </summary>
     [Fact]
-    public void The_row_list_is_a_real_ListBox_using_the_row_template_as_its_container_style()
+    public void The_row_list_is_one_ListBox_over_the_grouped_view()
     {
         var xaml = MainWindowXaml();
 
-        Assert.Contains("<ListBox ItemsSource=\"{Binding Rows}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("ItemsSource=\"{Binding List.View}\"", xaml, StringComparison.Ordinal);
         Assert.Contains("ItemContainerStyle=\"{StaticResource WlRowTemplate}\"", xaml, StringComparison.Ordinal);
+
+        // Exactly one, or the restructure did not happen.
+        Assert.Single(Regex.Matches(xaml, "<ListBox "));
     }
 
     /// <summary>
-    /// The inverse of what this once asserted, and deliberately so.
+    /// The date header comes from a GroupStyle, not from inside the item template.
     ///
-    /// It used to pin <c>SelectedItem="{Binding DataContext.List.Selected, ... Mode=TwoWay}"</c> on
-    /// every group's ListBox, as the mechanism that made selection single across the date groups.
-    /// That mechanism does not work: a Selector handed an item its own Items collection does not
-    /// contain declines the write and keeps its existing container selected, so a user clicking
-    /// through three groups was left with three highlighted rows - and, with two of them bound that
-    /// way, each writing the other's row back through the shared property.
-    ///
-    /// The binding is gone; GroupSelection owns it. Re-adding one would reintroduce both faults, so
-    /// its ABSENCE is now the thing worth pinning.
+    /// A group container is NOT a ListBoxItem, which is what keeps ↓ from stopping on a date on
+    /// its way between two backups. A header rendered inside the item template would be selectable
+    /// and would put the boundary back.
     /// </summary>
     [Fact]
-    public void No_group_binds_its_SelectedItem_to_the_shared_selection()
+    public void The_date_header_is_a_group_header_and_not_a_selectable_row()
+    {
+        var xaml = MainWindowXaml();
+
+        Assert.Contains("<ListBox.GroupStyle>", xaml, StringComparison.Ordinal);
+        Assert.Contains("<GroupStyle.HeaderTemplate>", xaml, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// SelectedItem is an ordinary TwoWay binding again — the inverse of what this file asserted
+    /// while the list was several Selectors.
+    ///
+    /// It used to pin the binding's ABSENCE, because a shared TwoWay SelectedItem across several
+    /// Selectors is actively harmful: one handed an item its own Items collection does not contain
+    /// declines the write and writes its own row back, and two of them ping-pong. With one Selector
+    /// the binding is simply correct, and its presence is what carries a click to the view model.
+    /// </summary>
+    [Fact]
+    public void The_list_binds_its_selection_two_way()
     {
         var withoutComments = Regex.Replace(
             MainWindowXaml(), "<!--.*?-->", string.Empty, RegexOptions.Singleline);
 
-        Assert.DoesNotContain("SelectedItem=", withoutComments, StringComparison.Ordinal);
+        Assert.Contains(
+            "SelectedItem=\"{Binding List.Selected, Mode=TwoWay}\"",
+            withoutComments,
+            StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// ...and the replacement is actually wired. GroupSelection is only reachable through this one
-    /// handler, attached to GroupsHost rather than to each ListBox so it survives the virtualizing
-    /// panel creating and recycling them.
+    /// GroupSelection is GONE, not merely unused. It existed only to carry a rule the structure
+    /// now enforces, and a lingering copy would be a second answer to a question with one.
     /// </summary>
     [Fact]
-    public void The_window_routes_group_selection_through_GroupSelection()
+    public void The_group_selection_workaround_is_gone()
     {
         var code = MainWindowCodeBehind();
 
-        Assert.Contains("Selector.SelectionChangedEvent", code, StringComparison.Ordinal);
-        Assert.Contains("GroupSelection.Apply(", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("GroupSelection", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("Selector.SelectionChangedEvent", code, StringComparison.Ordinal);
+        Assert.False(
+            File.Exists(Path.Combine(SourceRoot, "Views", "GroupSelection.cs")),
+            "GroupSelection.cs is still there. The structure it worked around is gone.");
+    }
+
+    /// <summary>
+    /// Home and End have no code-behind any more either. They were hand-handled because neither
+    /// could reach past its own group's Selector; one Selector gives both for free, and a
+    /// hand-rolled version would now be a second implementation racing WPF's.
+    /// </summary>
+    [Fact]
+    public void Home_and_End_are_left_to_the_selector()
+    {
+        var code = MainWindowCodeBehind();
+
+        Assert.DoesNotContain("Key.Home", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("Key.End", code, StringComparison.Ordinal);
     }
 
     // "No border, no background, no focus rectangle of its own - the row template owns the whole
@@ -376,23 +414,21 @@ public sealed class MainWindowTemplateTests
     public void The_row_list_carries_none_of_its_own_default_chrome()
     {
         var listBoxTag = Regex.Match(
-            MainWindowXaml(), "<ListBox ItemsSource=\"\\{Binding Rows\\}\".*?>", RegexOptions.Singleline).Value;
+            MainWindowXaml(), "<ListBox x:Name=\"GroupsHost\".*?>", RegexOptions.Singleline).Value;
 
         Assert.Contains("BorderThickness=\"0\"", listBoxTag, StringComparison.Ordinal);
         Assert.Contains("Background=\"Transparent\"", listBoxTag, StringComparison.Ordinal);
         Assert.Contains("FocusVisualStyle=\"{x:Null}\"", listBoxTag, StringComparison.Ordinal);
     }
 
-    // Per-row virtualization, restored: a VirtualizingStackPanel inside the ListBox itself (one
-    // per group, alongside GroupsHost's own group-level VirtualizingStackPanel), with
-    // CanContentScroll left True so the panel keeps hooking up as a real IScrollInfo provider
-    // rather than measuring every row unconditionally.
+    // Per-row virtualization. One VirtualizingStackPanel now, not two: there is one ListBox rather
+    // than a group-level ItemsControl wrapping a ListBox per date.
     [Fact]
     public void The_row_list_virtualizes_with_content_scrolling_enabled()
     {
         var xaml = MainWindowXaml();
 
-        Assert.Equal(2, Regex.Matches(xaml, "<VirtualizingStackPanel />").Count);
+        Assert.Single(Regex.Matches(xaml, "<VirtualizingStackPanel />"));
         Assert.Contains("ScrollViewer.CanContentScroll=\"True\"", xaml, StringComparison.Ordinal);
     }
 
@@ -449,17 +485,17 @@ public sealed class MainWindowTemplateTests
             MainWindowCodeBehind(), StringComparison.Ordinal);
     }
 
-    // Fix 5: GroupsHost's own VirtualizingStackPanel defaulted to ScrollUnit="Item" - each item is
-    // an entire date group (header plus every row under it), so one wheel notch jumped a whole
-    // day's worth of rows at once on a store with many backups on one day. Pixel scrolling is what
-    // a user expects from a list like this.
+    // Fix 5, still true and now for a smaller reason: the panel defaults to ScrollUnit="Item",
+    // and an item used to be an entire date group - one wheel notch jumped a whole day's worth of
+    // rows. An item is one ROW now, so the default would merely be coarse rather than wild, but
+    // pixel scrolling is what a user expects from a list like this either way.
     [Fact]
-    public void The_groups_host_scrolls_by_pixel_not_by_whole_date_group()
+    public void The_row_list_scrolls_by_pixel()
     {
-        var groupsHostTag = Regex.Match(
-            MainWindowXaml(), "<ItemsControl x:Name=\"GroupsHost\".*?>", RegexOptions.Singleline).Value;
+        var listTag = Regex.Match(
+            MainWindowXaml(), "<ListBox x:Name=\"GroupsHost\".*?>", RegexOptions.Singleline).Value;
 
-        Assert.Contains("VirtualizingPanel.ScrollUnit=\"Pixel\"", groupsHostTag, StringComparison.Ordinal);
+        Assert.Contains("VirtualizingPanel.ScrollUnit=\"Pixel\"", listTag, StringComparison.Ordinal);
     }
 
     // The four ListState-driven regions the brief's Step 4 asks for. A source-text check rather

@@ -288,7 +288,7 @@
                         Padding="26,18">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <!-- Cancel: secondary. Focus starts here; Escape is equivalent to it. -->
-                        <Button x:Name="CancelButton" Content="Cancel" IsDefault="False"
+                        <Button x:Name="CancelButton" Content="_Cancel" IsDefault="False"
                                 Style="{StaticResource WlSecondaryButton}"
                                 AutomationProperties.Name="Cancel restore" />
 
@@ -301,9 +301,13 @@
                                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                       StrokeThickness="1.75" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                                       Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" />
-                                <TextBlock Text="Restore this backup" Margin="8,0,0,0" VerticalAlignment="Center"
-                                           FontFamily="{DynamicResource WlDisplayFont}" FontWeight="Medium"
-                                           FontSize="13.5" />
+                                <!-- AccessText, not TextBlock: Alt+R reaches the destructive
+                                     button without the user having to Tab onto it, and the focus
+                                     rule is unaffected - focus still starts on Cancel, and Enter
+                                     still only fires this once the user has moved here. -->
+                                <AccessText Text="_Restore this backup" Margin="8,0,0,0" VerticalAlignment="Center"
+                                            FontFamily="{DynamicResource WlDisplayFont}" FontWeight="Medium"
+                                            FontSize="13.5" />
                             </StackPanel>
                         </Button>
                     </StackPanel>

@@ -71,7 +71,7 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <!-- Cancel: secondary. Focus starts here - the safe choice for an irreversible
                              action; Escape is equivalent to it. -->
-                        <Button x:Name="CancelButton" Content="Cancel" IsDefault="False"
+                        <Button x:Name="CancelButton" Content="_Cancel" IsDefault="False"
                                 Style="{StaticResource WlSecondaryButton}"
                                 AutomationProperties.Name="Cancel emptying trash" />
 
@@ -80,6 +80,9 @@
                         <Button x:Name="ConfirmButton" IsDefault="False" Margin="9,0,0,0"
                                 Style="{StaticResource WlDangerButton}"
                                 AutomationProperties.Name="Empty the trash">
+                            <!-- The label carries the count ("Delete 4 backups"), so its
+                                 accelerator cannot be baked into the string; AccessKey on the
+                                 button itself gives Alt+D without touching the copy. -->
                             <TextBlock Text="{Binding ConfirmLabel}" VerticalAlignment="Center"
                                        FontFamily="{DynamicResource WlDisplayFont}" FontWeight="Medium"
                                        FontSize="13.5" />

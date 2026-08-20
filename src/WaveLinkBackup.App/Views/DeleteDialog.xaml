@@ -117,7 +117,7 @@
                           Cancel + Delete pair (05 §2). Collapses to zero width when null - the other
                           two variants have no such button and the right-aligned pair is unaffected.
                         -->
-                        <Button x:Name="BackUpNowButton" Content="Back up now instead"
+                        <Button x:Name="BackUpNowButton" Content="_Back up now instead"
                                 HorizontalAlignment="Left"
                                 AutomationProperties.Name="Back up now instead">
                             <Button.Style>
@@ -138,7 +138,7 @@
                         <!-- Cancel + Delete, right-aligned. -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <!-- Cancel: secondary. Focus starts here; Escape is equivalent to it. -->
-                            <Button x:Name="CancelButton" Content="Cancel" IsDefault="False"
+                            <Button x:Name="CancelButton" Content="_Cancel" IsDefault="False"
                                     Style="{StaticResource WlSecondaryButton}"
                                     AutomationProperties.Name="Cancel delete" />
 
@@ -146,9 +146,9 @@
                             <Button x:Name="DeleteButton" IsDefault="False" Margin="9,0,0,0"
                                     Style="{StaticResource WlDangerButton}"
                                     AutomationProperties.Name="Delete this backup">
-                                <TextBlock Text="Delete" VerticalAlignment="Center"
-                                           FontFamily="{DynamicResource WlDisplayFont}" FontWeight="Medium"
-                                           FontSize="13.5" />
+                                <AccessText Text="_Delete" VerticalAlignment="Center"
+                                            FontFamily="{DynamicResource WlDisplayFont}" FontWeight="Medium"
+                                            FontSize="13.5" />
                             </Button>
                         </StackPanel>
                     </Grid>
