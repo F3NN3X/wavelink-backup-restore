@@ -6,6 +6,21 @@ using WaveLinkBackup.Core.Results;
 namespace WaveLinkBackup.Core.Snapshots;
 
 /// <summary>A snapshot in the store: its manifest, and where it lives.</summary>
+/// <summary>
+/// How far a <see cref="SnapshotStore.Write"/> has got, in bytes it has actually written.
+///
+/// **Measured, not staged.** 04-in-progress.md asks the backing-up strip for a DETERMINATE bar,
+/// and a determinate bar over invented stages is a worse lie than a spinner — which the design
+/// bans for exactly that reason. <see cref="TotalBytes"/> is known before the first write because
+/// the payload names its sources and their sizes.
+/// </summary>
+/// <param name="Done">True on the final report: everything is on disk, manifest included.</param>
+public readonly record struct SnapshotWriteProgress(long WrittenBytes, long TotalBytes, bool Done)
+{
+    /// <summary>0 to 1. Zero total reads as complete rather than as a divide by zero.</summary>
+    public double Fraction => TotalBytes <= 0 ? 1 : Math.Clamp((double)WrittenBytes / TotalBytes, 0, 1);
+}
+
 public sealed record Snapshot(string Id, string Directory, SnapshotManifest Manifest)
 {
     public string SettingsPath => Path.Combine(Directory, SnapshotManifest.SettingsFileName);
@@ -73,7 +88,8 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
         SnapshotTrigger trigger,
         string displayName,
         string notes = "",
-        SnapshotPayload? payload = null)
+        SnapshotPayload? payload = null,
+        IProgress<SnapshotWriteProgress>? progress = null)
     {
         try
         {
@@ -104,6 +120,15 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
 
         SnapshotManifest manifest;
 
+        // Known before anything is written, because a payload names its sources and their sizes.
+        var totalBytes = settingsBytes.LongLength
+            + (pluginBytes?.LongLength ?? 0)
+            + (payload?.Files.Sum(f => f.SizeBytes) ?? 0);
+        var writtenBytes = 0L;
+
+        void Report(bool done) =>
+            progress?.Report(new SnapshotWriteProgress(writtenBytes, totalBytes, done));
+
         try
         {
             fileSystem.CreateDirectory(directory);
@@ -112,10 +137,14 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
             // snapshot, so writing it last means an interrupted write leaves a directory
             // the guard rejects rather than one it half-accepts.
             fileSystem.WriteBytes(Path.Combine(directory, SnapshotManifest.SettingsFileName), settingsBytes);
+            writtenBytes += settingsBytes.LongLength;
+            Report(done: false);
 
             if (pluginBytes is not null)
             {
                 fileSystem.WriteBytes(Path.Combine(directory, SnapshotManifest.PluginsFileName), pluginBytes);
+                writtenBytes += pluginBytes.LongLength;
+                Report(done: false);
             }
 
             // The payload is copied BEFORE the manifest is built, because the copy is what
@@ -145,6 +174,9 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
 
                 var copied = fileSystem.CopyFile(file.Path, path);
                 files[file.RelativePath] = new(copied.Sha256, copied.SizeBytes);
+
+                writtenBytes += copied.SizeBytes;
+                Report(done: false);
             }
 
             manifest = new SnapshotManifest(
@@ -166,6 +198,8 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
             fileSystem.WriteBytes(
                 Path.Combine(directory, SnapshotManifest.ManifestFileName),
                 ManifestSerializer.Write(manifest));
+
+            Report(done: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

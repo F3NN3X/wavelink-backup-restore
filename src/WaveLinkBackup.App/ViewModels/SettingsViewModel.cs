@@ -94,7 +94,22 @@ public sealed class WhatGoesInRow(
 /// against one hard-coded English string, which silently painted every other segment ok and would
 /// have broken on any copy edit.
 /// </param>
-public sealed record ProportionSegment(string Name, long Bytes, double Fraction, int Tier);
+/// <param name="Tier">
+/// Which of the four the segment is, so the view can colour it by ROW ORDER rather than by
+/// matching its name against an English string.
+/// </param>
+public sealed record ProportionSegment(string Name, long Bytes, double Fraction, int Tier)
+{
+    /// <summary>
+    /// The segment named and sized, for Windows high contrast: <c>YOUR SETUP · 470 KB</c>.
+    ///
+    /// 11-high-contrast.md: "The proportion bar in Settings loses its colour segments; label the
+    /// segments instead." In high contrast every fill in the app is transparent, so the bar's four
+    /// bands become one undifferentiated track — the encoding is gone and nothing replaced it
+    /// (audit §2.9b).
+    /// </summary>
+    public string Label => $"{Name.ToUpperInvariant()} · {Readable.Bytes(Bytes)}";
+}
 
 /// <summary>
 /// The WHAT GOES IN A BACKUP section as a pure projection: the four rows, the computed

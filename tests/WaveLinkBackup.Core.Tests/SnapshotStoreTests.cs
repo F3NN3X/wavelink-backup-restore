@@ -474,4 +474,88 @@ public sealed class SnapshotStoreTests
         Assert.Equal(30, snapshot.Manifest.Files["presets/appdata/grew.ffp"].SizeBytes);
         Assert.True(new SnapshotGuard(fs).Verify(snapshot.Directory).IsSuccess);
     }
+
+    // ------------------------------ write progress (04-in-progress.md, technical-debt.md §4.21)
+
+    /// <summary>
+    /// Collects reports on the calling thread. NOT <see cref="Progress{T}"/>: that posts to the
+    /// captured synchronization context, and a test has none, so every report would land on the
+    /// thread pool after the assertions had already run.
+    /// </summary>
+    private sealed class Reports : IProgress<SnapshotWriteProgress>, IEnumerable<SnapshotWriteProgress>
+    {
+        private readonly List<SnapshotWriteProgress> reports = [];
+
+        public SnapshotWriteProgress this[Index index] => reports[index];
+
+        public void Report(SnapshotWriteProgress value) => reports.Add(value);
+
+        public IEnumerator<SnapshotWriteProgress> GetEnumerator() => reports.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            GetEnumerator();
+    }
+
+    /// <summary>
+    /// The bar the design asks for is determinate, so the numbers behind it have to be real ones.
+    /// This pins that the total is known from the first report and that the written figure only
+    /// ever counts bytes already on disk.
+    /// </summary>
+    [Fact]
+    public void A_write_reports_real_bytes_against_a_total_it_knew_up_front()
+    {
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var payload = PluginPayload with
+        {
+            Files = [Source(fs, @"C:\src\preset.ffp", "presets/appdata/preset.ffp", "a preset file")],
+            Tiers = ["presets"],
+        };
+
+        var reports = new Reports();
+        var snapshot = store.Write(
+            bytes, analysis, SnapshotTrigger.Manual, "x", payload: payload,
+            progress: reports).Value;
+
+        Assert.NotEmpty(reports);
+
+        // One total, stated from the first report and never revised.
+        Assert.Single(reports.Select(r => r.TotalBytes).Distinct());
+
+        // Monotonic, and finishing on exactly what the manifest says the snapshot holds.
+        Assert.Equal(reports.Select(r => r.WrittenBytes).Order(), reports.Select(r => r.WrittenBytes));
+        Assert.Equal(snapshot.Manifest.TotalSizeBytes, reports[^1].WrittenBytes);
+        Assert.True(reports[^1].Done);
+        Assert.Equal(1, reports[^1].Fraction);
+    }
+
+    [Fact]
+    public void Only_the_last_report_says_done()
+    {
+        var (store, fs, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        var payload = PluginPayload with
+        {
+            Files = [Source(fs, @"C:\src.ffp", "presets/appdata/a.ffp", "aaa")],
+            Tiers = ["presets"],
+        };
+
+        var reports = new Reports();
+        store.Write(
+            bytes, analysis, SnapshotTrigger.Manual, "x", payload: payload, progress: reports);
+
+        Assert.Single(reports, r => r.Done);
+    }
+
+    /// <summary>A write with nowhere to report to is the ordinary case and must not change.</summary>
+    [Fact]
+    public void A_write_with_no_progress_listener_behaves_exactly_as_before()
+    {
+        var (store, _, _) = Subject();
+        var (bytes, analysis) = Content();
+
+        Assert.True(store.Write(bytes, analysis, SnapshotTrigger.Manual, "x").IsSuccess);
+    }
 }

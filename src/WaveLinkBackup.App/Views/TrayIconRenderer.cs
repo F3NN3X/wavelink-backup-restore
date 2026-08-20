@@ -40,6 +40,29 @@ public static class TrayIconRenderer
     /// generated glyph has no URI, and no amount of wrapping gives it one. Both failures are
     /// runtime-only — the compiler is happy either way — so this was found by launching the app.
     /// </summary>
+    /// <summary>
+    /// The pixel size to render at for a given DPI, from the 16px logical size Windows asks the
+    /// notification area for.
+    ///
+    /// **Snapped to the sizes an .ico is normally cut at** — 16, 20, 24, 32, 48, 64 — rather than
+    /// scaled continuously. The shell rescales whatever it is given, and a bitmap at 38px scaled
+    /// to 40 is blurrier than one at 48 scaled down. The fixed 32 this replaced was right at 100%
+    /// and 150% and soft above (technical-debt.md §4.8 minor 1).
+    /// </summary>
+    public static int PixelSizeFor(double dpiScale)
+    {
+        if (double.IsNaN(dpiScale) || dpiScale <= 0) return 32;
+
+        var wanted = 16 * dpiScale;
+
+        foreach (var size in (int[])[16, 20, 24, 32, 48, 64])
+        {
+            if (wanted <= size) return size;
+        }
+
+        return 64;
+    }
+
     public static System.Drawing.Icon Render(TrayStatus status, Color colour, int pixelSize = 32)
     {
         var pen = new Pen(new SolidColorBrush(colour), 1.75)

@@ -176,6 +176,11 @@ public partial class App : Application
 
         tray = BuildTray();
 
+        // A monitor being plugged in, unplugged, or rescaled can move the taskbar to a screen with
+        // a different DPI, and the tray icon is a BITMAP - it does not reflow, it just gets soft.
+        // Re-rendering on the change is the whole of technical-debt.md §4.8 minor 1's second half.
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+
         // Now that there is an icon to repaint, follow the OS. screens/11 requires high contrast
         // to be reacted to at runtime rather than needing a restart, and the same is true of
         // dark/light and the accent. This first call is also what builds the menu.
@@ -263,6 +268,16 @@ public partial class App : Application
         };
 
         icon.TrayLeftMouseUp += (_, _) => ShowMainWindow();
+
+        // The notification's action. Both designed notices carry one, and neither can be a button
+        // on a classic balloon - see Notify. Consumed on click so a stale action cannot fire from
+        // a later, unrelated notification.
+        icon.TrayBalloonTipClicked += (_, _) =>
+        {
+            var action = pendingNotificationAction;
+            pendingNotificationAction = null;
+            action?.Invoke();
+        };
 
         // Built in code rather than declared in a window's XAML, so nothing loads it into a
         // visual tree and the icon would never appear without this.
@@ -363,9 +378,13 @@ public partial class App : Application
     /// the row the capture just wrote (README: "Back up now inserts a row at the top of TODAY
     /// and selects it") - the tray menu's own entry point keeps discarding it, same as before.
     /// </summary>
-    internal Result<Snapshot> BackUpNow()
+    /// <param name="progress">
+    /// Byte-level progress for the window's backing-up strip. Null from the tray menu, which has
+    /// no strip to drive.
+    /// </param>
+    internal Result<Snapshot> BackUpNow(IProgress<SnapshotWriteProgress>? progress = null)
     {
-        var result = service!.BackUpNow("Manual");
+        var result = service!.BackUpNow("Manual", progress: progress);
 
         // No message box here: MainWindow.BackUpNowAsync renders the failure as one of the twelve
         // designed errors (06-errors.md) - inline strip for 3/5, message box otherwise. The tray
@@ -655,7 +674,7 @@ public partial class App : Application
             || candidates.Count <= 1)
             return;
 
-        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error))
+        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error, DescribeInstall(candidates)))
         {
             Owner = owner,
         };
@@ -776,6 +795,51 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// What each error-2 candidate turns out to be, so its row can say more than a path
+    /// (06 §2, technical-debt.md §4.21 item 7).
+    ///
+    /// Each candidate is inspected on its own — the whole point of the dialog is that discovery
+    /// could not choose between them, so nothing here may lean on the "current" one. A candidate
+    /// that cannot be read yields null, and its row falls back to a path and a radio.
+    ///
+    /// The RUNNING chip is an approximation the model documents: Windows gives no mapping from a
+    /// running MSIX process back to its package, so it goes to whichever candidate's settings file
+    /// was written most recently, and only while Wave Link is actually up.
+    /// </summary>
+    private Func<string, ErrorInstallDetail?> DescribeInstall(IReadOnlyList<string> candidates)
+    {
+        var running = waveLinkProcess?.IsRunning ?? false;
+
+        var newest = running
+            ? candidates
+                .Where(c => fileSystem!.FileExists(c))
+                .OrderByDescending(c => fileSystem!.GetLastWriteTimeUtc(c))
+                .FirstOrDefault()
+            : null;
+
+        return path =>
+        {
+            if (fileSystem is null) return null;
+
+            var inspection = SettingsInspector.For(fileSystem, SettingsLocator.SystemLocalAppData)
+                .Inspect(path);
+
+            if (!inspection.IsSuccess) return null;
+
+            var saved = fileSystem.FileExists(path)
+                ? new DateTimeOffset(fileSystem.GetLastWriteTimeUtc(path), TimeSpan.Zero).ToLocalTime()
+                : (DateTimeOffset?)null;
+
+            return new ErrorInstallDetail(
+                inspection.Value.Analysis.WaveLinkVersion,
+                inspection.Value.Analysis.Fingerprint.InputCount,
+                inspection.Value.Bytes.LongLength,
+                saved,
+                IsRunning: string.Equals(path, newest, StringComparison.OrdinalIgnoreCase));
+        };
+    }
+
+    /// <summary>
     /// How many files a folder holds when it holds files but no backups, or null when it is a
     /// usable store — empty, or already holding snapshots.
     ///
@@ -862,6 +926,91 @@ public partial class App : Application
         RefreshShellFacts();
     }
 
+    /// <summary>
+    /// The two designed tray notifications, and their rules. Held rather than constructed per call
+    /// because the nine-day notice fires ONCE per episode, which is state.
+    /// </summary>
+    private readonly TrayNotifications notifications = new();
+
+    /// <summary>
+    /// Show one, with its action wired.
+    ///
+    /// **Its action is the whole notification, not a button.** The design draws each notice with a
+    /// labelled action; a classic tray balloon has no buttons, and Windows renders one as a toast
+    /// that drops them. Real toast buttons need an AppUserModelID and a Start-menu shortcut - an
+    /// installer concern this app does not have yet. So the label is stated in the body and
+    /// clicking anywhere on the notice does the thing, which keeps the action reachable and says
+    /// what it is. Recorded in technical-debt.md §4.21 item 6 rather than left as a silent
+    /// difference from the design.
+    /// </summary>
+    private void Notify(TrayNotification? notification)
+    {
+        if (notification is null || tray is null) return;
+
+        pendingNotificationAction = notification.Kind switch
+        {
+            TrayNotificationKind.NothingBackedUp => () =>
+            {
+                ShowMainWindow();
+                OpenSettings();
+            },
+            TrayNotificationKind.WaveLinkReset => ShowMainWindow,
+            _ => null,
+        };
+
+        tray.ShowNotification(
+            notification.Title,
+            $"{notification.Body}\n\n{notification.ActionLabel}");
+    }
+
+    /// <summary>What clicking the most recent notification does. Null when there is nothing to do.</summary>
+    private Action? pendingNotificationAction;
+
+    /// <summary>
+    /// The second designed notification: Wave Link rejected a restored backup and reset the live
+    /// configuration. Raised by the window when a restore comes back Rejected, because the window
+    /// may well be hidden at that point — a headless restore is a supported path, and the strip it
+    /// draws is no use to somebody who is not looking at it.
+    /// </summary>
+    internal void NotifyWaveLinkReset() =>
+        Notify(TrayNotifications.WaveLinkReset(Core.Restore.RestoreOrchestrator.PreRestoreName));
+
+    /// <summary>
+    /// The DPI scale of the screen holding the taskbar, which is the screen the tray icon is drawn
+    /// on — and not necessarily the one holding the window, or the primary one.
+    ///
+    /// Asked of <c>Shell_TrayWnd</c> directly, because that IS the taskbar: any indirection through
+    /// a screen rectangle would have to guess which screen it sits on. Falls back to 1.0 when the
+    /// window cannot be found or the API is unavailable, which reproduces the fixed 32px this
+    /// replaced (technical-debt.md §4.8 minor 1).
+    /// </summary>
+    private static double TaskbarDpiScale()
+    {
+        try
+        {
+            var taskbar = FindWindowW("Shell_TrayWnd", null);
+            if (taskbar == IntPtr.Zero) return 1.0;
+
+            var dpi = GetDpiForWindow(taskbar);
+            return dpi <= 0 ? 1.0 : dpi / 96.0;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return 1.0;
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern IntPtr FindWindowW(string lpClassName, string? lpWindowName);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    /// <summary>Re-render the tray icon at the new taskbar DPI. Marshalled: SystemEvents can
+    /// raise on a non-UI thread, and the renderer builds WPF visuals.</summary>
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(RefreshTray);
+
     private void RefreshTray()
     {
         if (tray is null || host is null) return;
@@ -873,7 +1022,7 @@ public partial class App : Application
         // The new icon is installed before the old one is disposed: the shell has taken a copy
         // by then, and freeing it first would flash an empty slot.
         var previous = trayIcon;
-        trayIcon = TrayIconRenderer.Render(status, colour);
+        trayIcon = TrayIconRenderer.Render(status, colour, TrayIconRenderer.PixelSizeFor(TaskbarDpiScale()));
         tray.Icon = trayIcon;
         previous?.Dispose();
 
@@ -885,6 +1034,11 @@ public partial class App : Application
         }
 
         tray.ToolTipText = TrayState.Tooltip(host.Conditions, newest.TakenAt);
+
+        // The nine-day notice (screens/12, "Notifications - exactly two"). Checked on every tray
+        // refresh, which is every host tick, and fired at most once per episode - the decision and
+        // the once-ness both live in TrayNotifications so they can be asserted from a table.
+        Notify(notifications.NothingBackedUp(newest.TakenAt, DateTimeOffset.Now));
 
         Item("LastBackupHeader").Header = Readout();
         Item("AutoBackup").IsChecked = host.AutoBackupEnabled;
@@ -996,7 +1150,7 @@ public partial class App : Application
 
         error2Prompted = true;
 
-        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error))
+        var dialog = new ErrorDialog(ErrorDialogModel.Build(inspection.Error, DescribeInstall(candidates)))
         {
             Owner = MainWindow,
         };
@@ -1063,6 +1217,7 @@ public partial class App : Application
 
         // SystemEvents holds a static subscription; leaving it attached keeps the process alive
         // past Shutdown, which on a tray app is indistinguishable from a leak.
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         systemTheme?.Dispose();
         instance?.Dispose();
 

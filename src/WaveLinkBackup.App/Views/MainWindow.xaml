@@ -63,6 +63,9 @@
 
     <Window.Resources>
         <views:SentenceCaseConverter x:Key="WlSentenceCase" />
+        <!-- The backing-up strip's 2px determinate bar. Same converter the Settings proportion
+             bar uses: a 0..1 fraction and a track width in, that fraction of it out. -->
+        <views:FractionToWidthConverter x:Key="WlFractionWidthConverter" />
     </Window.Resources>
 
     <!--
@@ -577,6 +580,85 @@
                         </Style>
                     </Button.Style>
                 </Button>
+            </Grid>
+        </Border>
+
+        <!--
+          ================================================================================
+          Row 2 - the BACKING-UP strip (04-in-progress.md, first half). The same slot as the two
+          strips below and above it, and mutually exclusive with both: a capture and a restore
+          never run at once, and the outcome strip only fills once one of them has finished.
+
+          Its half of 04 had no implementation at all - the restore half shipped complete and this
+          was a BackupHost.IsCapturing flag that only the tray icon read (technical-debt.md §4.21
+          item 2).
+
+          The 2px bar is DETERMINATE, and its numbers are real: SnapshotWriteProgress reports bytes
+          on disk against a total the payload knew before the first write. 04 bans a spinner
+          because "a spinner implies uncertainty that does not exist here", which makes a
+          determinate bar over invented stages the worse version of the same claim.
+          ================================================================================
+        -->
+        <Border x:Name="BackingUpStrip" Grid.Row="2" Background="{DynamicResource WlChrome}"
+                BorderBrush="{DynamicResource WlLine}" BorderThickness="0,0,0,1"
+                Padding="20,10,20,0">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding BackupProgress.IsCapturing}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- glyph + sentence + meta -->
+                    <RowDefinition Height="Auto" /> <!-- the 2px determinate bar -->
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" /> <!-- hollow circle -->
+                        <ColumnDefinition Width="*" />    <!-- sentence -->
+                        <ColumnDefinition Width="Auto" /> <!-- mono meta, right -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 04: an 11px HOLLOW circle in WlLine2. Neutral by construction - a backup
+                         in flight is not a state anything has gone wrong in. -->
+                    <Ellipse Grid.Column="0" Width="11" Height="11" Fill="Transparent"
+                             Stroke="{DynamicResource WlLine2}" StrokeThickness="1"
+                             VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                    <TextBlock Grid.Column="1" Text="{Binding BackupProgress.Sentence}"
+                               Foreground="{DynamicResource WlStrong}" VerticalAlignment="Center"
+                               Style="{StaticResource WlBodyText}" FontSize="13.5"
+                               AutomationProperties.Name="Backup in progress" />
+
+                    <TextBlock Grid.Column="2" Text="{Binding BackupProgress.Meta}"
+                               Style="{StaticResource WlMonoMetaText}"
+                               Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center"
+                               HorizontalAlignment="Right"
+                               AutomationProperties.Name="How much has been written" />
+                </Grid>
+
+                <!-- The bar sits ON the strip's bottom edge, full width, which is why the Border
+                     above has no bottom padding. FractionToWidthConverter is the same one the
+                     Settings proportion bar uses; the track's ActualWidth is its parameter. -->
+                <Border Grid.Row="1" x:Name="BackupProgressTrack" Height="2"
+                        Background="{DynamicResource WlLine}" HorizontalAlignment="Stretch">
+                    <Border x:Name="BackupProgressFill" Height="2"
+                            Background="{DynamicResource WlAccent}" HorizontalAlignment="Left">
+                        <Border.Width>
+                            <MultiBinding Converter="{StaticResource WlFractionWidthConverter}">
+                                <Binding Path="BackupProgress.Fraction" />
+                                <Binding ElementName="BackupProgressTrack" Path="ActualWidth" />
+                            </MultiBinding>
+                        </Border.Width>
+                    </Border>
+                </Border>
             </Grid>
         </Border>
 

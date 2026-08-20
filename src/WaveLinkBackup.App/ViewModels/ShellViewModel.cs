@@ -89,6 +89,14 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
+    /// The backing-up strip's state (04-in-progress.md's first half). One instance for the
+    /// window's life, like <see cref="RestoreProgress"/> — and for the same reason: 04 says the
+    /// strip is "replaced in place by the result line" and never reappear-flashes, which a model
+    /// swapped out per capture would make hard to hold to.
+    /// </summary>
+    public BackupProgressModel BackupProgress { get; } = new();
+
+    /// <summary>
     /// True while a restore runs. The window uses it to (a) show the in-progress strip instead of
     /// the outcome strip, and (b) hold the list actions and Back up now at 40% so the window cannot
     /// be driven mid-restore (Task 5 Step 2).

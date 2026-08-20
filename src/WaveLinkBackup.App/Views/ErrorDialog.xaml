@@ -29,6 +29,12 @@
       its owner on SourceInitialized, and CenterOwner would re-centre a full-owner-sized overlay
       afterwards, pushing it off by half the owner.
     -->
+    <Window.Resources>
+        <!-- The RUNNING chip and the meta line each hide themselves on a false. One converter,
+             two uses: both answer the same question about the same row. -->
+        <views:BoolToVisibilityConverter x:Key="RunningChipVisible" />
+    </Window.Resources>
+
     <Grid>
         <!-- The scrim: what dims the app behind. Fills the overlay edge to edge, and the overlay
              spans the owner (DialogOverlay.Cover), so this reaches the app's own edges. -->
@@ -75,19 +81,87 @@
                         </ItemsControl.Style>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <!-- A bordered row: radio + the install path. WlSunken fill, hairline, 8px. -->
-                                <Border Margin="0,0,0,9" CornerRadius="8" Padding="13,12"
-                                        Background="{DynamicResource WlSunken}"
-                                        BorderBrush="{DynamicResource WlLine}" BorderThickness="1">
-                                    <StackPanel Orientation="Horizontal">
+                                <!--
+                                  06 §2's full row: version (Rubik 500 14px), a RUNNING chip where
+                                  applicable, the ellipsised path, and the SETTINGS SAVED … meta
+                                  line - with the selected row taking a WlBg fill and a 3px accent
+                                  left edge.
+
+                                  It was a bare radio and a path until 0.6.1, which makes "pick the
+                                  one you actually use" a decision by file path alone - the exact
+                                  thing this dialog exists to make easier (technical-debt.md §4.21
+                                  item 7).
+                                -->
+                                <Border Margin="0,0,0,9" CornerRadius="8" Padding="13,12">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{DynamicResource WlSunken}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource WlLine}" />
+                                            <Setter Property="BorderThickness" Value="1" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource WlBg}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource WlAccent}" />
+                                                    <Setter Property="BorderThickness" Value="3,1,1,1" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" /> <!-- radio -->
+                                            <ColumnDefinition Width="*" />    <!-- the three lines -->
+                                        </Grid.ColumnDefinitions>
+
                                         <!-- The radio: the user picks exactly one. -->
-                                        <RadioButton VerticalAlignment="Center" Margin="0,0,12,0"
-                                                     AutomationProperties.Name="Choose this installation" />
-                                        <!-- The path: mono, muted - machine-specific, never hard-coded. -->
-                                        <TextBlock Text="{Binding Path}" Style="{StaticResource WlMonoMetaText}"
-                                                   Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center"
-                                                   AutomationProperties.Name="Installation path" />
-                                    </StackPanel>
+                                        <RadioButton x:Name="InstallRadio" Grid.Column="0"
+                                                     VerticalAlignment="Center" Margin="0,0,12,0"
+                                                     IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                     GroupName="WhichInstall"
+                                                     AutomationProperties.Name="{Binding Title}" />
+
+                                        <StackPanel Grid.Column="1">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Title}"
+                                                           Style="{StaticResource WlBodyText}"
+                                                           FontSize="14" FontWeight="Medium"
+                                                           Foreground="{DynamicResource WlStrong}"
+                                                           VerticalAlignment="Center"
+                                                           AutomationProperties.Name="Installation version" />
+
+                                                <!-- The RUNNING chip. An approximation, and the
+                                                     model says so: Windows offers no mapping from
+                                                     a running MSIX process back to its package. -->
+                                                <Border Margin="9,0,0,0" CornerRadius="4"
+                                                        Padding="6,2" VerticalAlignment="Center"
+                                                        Background="{DynamicResource WlOkSoft}"
+                                                        Visibility="{Binding IsRunning, Converter={StaticResource RunningChipVisible}}">
+                                                    <TextBlock Text="RUNNING"
+                                                               FontFamily="{DynamicResource WlMonoFont}"
+                                                               FontSize="10" FontWeight="Medium"
+                                                               Foreground="{DynamicResource WlOk}"
+                                                               AutomationProperties.Name="Wave Link is running from this installation" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- The path: mono, ellipsised - it is long, and it
+                                                 must not push the row wider than the card. -->
+                                            <TextBlock Text="{Binding Path}"
+                                                       Style="{StaticResource WlMonoMetaText}"
+                                                       Foreground="{DynamicResource WlText}"
+                                                       Margin="0,5,0,0" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Path}"
+                                                       AutomationProperties.Name="Installation path" />
+
+                                            <TextBlock Text="{Binding Meta}"
+                                                       Style="{StaticResource WlMonoMetaText}"
+                                                       Foreground="{DynamicResource WlMuted}"
+                                                       Margin="0,3,0,0"
+                                                       Visibility="{Binding HasMeta, Converter={StaticResource RunningChipVisible}}"
+                                                       AutomationProperties.Name="What this installation holds" />
+                                        </StackPanel>
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

@@ -233,6 +233,9 @@ public sealed class MainWindowTemplateTests
                         && !name.EndsWith("Shadow", StringComparison.Ordinal)
                         // WlStandardEase is an easing function (Motion.xaml).
                         && !name.EndsWith("Ease", StringComparison.Ordinal)
+                        // Value converters are keys too - WlFractionWidthConverter drives the
+                        // backing-up strip's determinate bar.
+                        && !name.EndsWith("Converter", StringComparison.Ordinal)
                         && name != "WlCaptionButton" && name != "WlCaptionCloseButton"
                         && name != "WlShieldCheckGeometry" && name != "WlFocusVisual")
             .ToArray();

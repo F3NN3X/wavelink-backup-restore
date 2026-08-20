@@ -467,9 +467,8 @@ System"*.
 
 > **The heading is about items 1–6 only.** Everything from 4.7 down arrived later, as the build
 > found its own gaps, and several are open — check each item's own status line rather than this
-> one. Open as of 0.6.1: **4.7** (no icon set), **4.8** (tray minors), **4.10** (the first-run
-> not-found variant), **4.14** (arrow keys stop at a date group), **4.15** (0.5.1's frosting
-> unseen), **4.21** (eight undrawn surfaces).
+> one. Open as of 0.6.2: **4.7** (no icon set), **4.14** (arrow keys stop at a date group),
+> **4.15** (0.5.1's frosting unseen), **4.21 item 5** (the Settings UPDATES section).
 
 All six were undesigned. Five are now specified in
 [operations/design/screens/](operations/design/screens/00-index.md), which also designed
@@ -524,17 +523,20 @@ stand-in that works is exactly the kind of thing that quietly becomes permanent.
 24px grid and renders them at runtime. The four glyph constants in that file are the
 substitution point.
 
-### 4.8 Deferred minors from the tray shell — **open, 2026-08-17**
+### 4.8 ~~Deferred minors from the tray shell~~ — **CLOSED 2026-08-20**
+
+> All five are resolved: 2 and 4 in phase 5, 1 and 5 in this session, and 3 by settling the
+> question rather than flipping the control — see its row.
 
 Plans 2 and 3 shipped. Five things were deliberately left, none blocking.
 
 | # | Minor | Why it was left, and what fixing it costs |
 |---|---|---|
-| 1 | **The tray icon renders at a fixed 32px.** Correct at 100% and 150% scaling, soft at 200%+ | The right size comes from the DPI of the screen holding the taskbar, and it should re-render on a DPI change. The renderer already takes `pixelSize`, so this is a caller change plus a `WM_DPICHANGED` hook |
+| 1 | ~~**The tray icon renders at a fixed 32px.**~~ **Closed 2026-08-20.** `TrayIconRenderer.PixelSizeFor` derives the size from 16px × the DPI of the screen holding the taskbar, snapped to the sizes an `.ico` is normally cut at (16/20/24/32/48/64) — the shell rescales whatever it is given, and 38px scaled to 40 is blurrier than 48 scaled down. The DPI is asked of `Shell_TrayWnd` directly rather than inferred from a screen rectangle, because that window IS the taskbar. `SystemEvents.DisplaySettingsChanged` re-renders it, which covers the taskbar moving to a differently-scaled monitor. An unreadable DPI falls back to 32 — the size it always drew | — |
 | 2 | ~~**Mono letter-spacing is not implemented.**~~ **Closed, phase 5 plan 4, Task 2.** `Views/TrackedText.cs` is a custom `FrameworkElement` with its own `Tracking` dependency property (em-based, matching the type scale's `.18em`/`.06em` figures) and does its own glyph-run layout — `TextBlock`'s missing `CharacterSpacing` is no longer a blocker. Used throughout plan 4: the tray readout, the column headers, the status strip, and every slot label | — |
-| 3 | **`Back up automatically` shows a trailing check, not a switch.** `screens/12`'s ASCII sketch writes `[toggle]` | A switch inside a menu is not something Windows draws, so the sketch was read as shorthand. One template change in `TrayMenuStyles.xaml` if the literal reading was meant |
+| 3 | **`Back up automatically` shows a trailing check, not a switch.** `screens/12`'s ASCII sketch writes `[toggle]` | **Settled 2026-08-20: the check stays, and this is now a decision rather than an open question.** Windows draws no switch in a native context menu; a hand-drawn one would be the only control in the app that ignores the platform it sits in, in the one surface the user reaches most often. `screens/12`'s own sentence — "Nothing here opens a submenu" — reads as a menu that behaves like a menu, and the sketch's `[toggle]` is shorthand for "this is the on/off control", which a trailing check already is. Reopen only if the design says the literal reading was meant |
 | 4 | ~~**`Settings…` opens a placeholder `MessageBox`, from the tray and — since phase 5 plan 4, Task 10b — the main window's own gear button too.**~~ **Closed, phase 5 plan 8.** The real 680px settings dialog ships: in-place commit (no Save button), atomic persistence to `%LOCALAPPDATA%\WaveLinkBackup\settings.json`, and the two new sections. Both the tray menu item and the main window's gear button call `App.OpenSettings()`, which now builds a `SettingsViewModel` and shows the dialog instead of a `MessageBox`. | — |
-| 5 | **A failed manual backup shows a raw `MessageBox`** carrying `CoreError.Message` | The twelve designed error screens (`06-errors.md`) are a later phase-5 session. Reporting it plainly beats swallowing it, but the wording is Core's log phrasing, not the design's |
+| 5 | ~~**A failed manual backup shows a raw `MessageBox`** carrying `CoreError.Message`~~ **Closed 2026-08-20.** The designed errors landed in phase 5, and this call site kept the box for everything they did not cover. It now goes to the danger strip via `Strip.ShowFailure`, exactly as a failed restore does — inline, where 06 places a consequence of a press, instead of a modal in Core's log phrasing | — |
 
 Two related items are **not** debt and are recorded elsewhere because they are traps rather than
 shortfalls: [the tray menu keeping its startup
@@ -563,7 +565,21 @@ Transparent in HighContrast per `11-high-contrast.md`, and nobody has watched th
 "failed" in a real high-contrast theme. The rule is applied; the pixels are not yet checked. That
 is now part of plan 10's high-contrast verification pass, not an open debt of its own.
 
-### 4.10 First-run "Wave Link not found" variant — **open, carried forward from plan 7**
+### 4.10 ~~First-run "Wave Link not found" variant~~ — **CLOSED 2026-08-20**
+
+> The amendment below was right that only the markup was missing. It is drawn now: the amber dot,
+> the `WAVE LINK NOT FOUND · NO SETTINGS FILE IN THE USUAL PLACE` line, the mono `LOOKED IN …`
+> second line at 80%, and the secondary *Choose the settings file…* 10px below it — bound to
+> `FirstRunError1Label` and `FirstRunLookedInLabel`, which had been correct and referenced by
+> nothing since plan 7.
+>
+> **The button is the point.** `App.ChooseSettingsFile` persists an explicit path and re-points the
+> capture path at it, which is the only route a **non-MSIX install** has into this app at all
+> (§2.2). Before it, such a user saw an empty gap where the found-line goes and had no way in.
+>
+> Original entry below.
+
+#### Original entry
 
 Phase 5 plan 7 shipped the first-run / empty state (Screen 4) with its **found** variant: the
 green dot, *"Found Wave Link's settings — 5 inputs · C:\Users\…\LocalState\Settings.json"*, and
@@ -593,6 +609,27 @@ the neutral note. **Phase:** 5, after plan 7. **See:** §2.2 (non-MSIX installs)
 > tests. What is missing is only the markup that binds them: nothing in the app references either
 > property. This is smaller than the entry above describes, and it is no longer blocked on design.
 > See [audits/2026-08-19-design-conformance.md](audits/2026-08-19-design-conformance.md) §2.3.
+
+### 4.22 ~~The audit's three small ones~~ — **CLOSED 2026-08-20**
+
+> [audits/2026-08-19-design-conformance.md](audits/2026-08-19-design-conformance.md) §2.9 a, b
+> and c. Recorded here because the audit is a snapshot and this list is the ledger.
+>
+> **a · The stats line printed free space only.** The design's line is
+> `N BACKUPS · X MB USED · Y GB FREE ON THIS DRIVE`; the count and the used bytes live on the
+> shell and were never plumbed through, which the code's own comment said. All three now come from
+> the same store read that fills the trash row, and each omits itself when it is not known.
+>
+> **b · The proportion bar kept its colours in high contrast and gained no labels.**
+> `11-high-contrast.md`: "the proportion bar loses its colour segments; label the segments
+> instead." In high contrast every fill is transparent, so the four bands were one
+> undifferentiated track with nothing carrying the encoding. `ProportionSegment.Label` and a
+> legend below the bar, shown only in high contrast.
+>
+> **c · The row grid was clipped below ~1124px.** The window minimum goes 980 → 1124. The design's
+> own six columns need 1084 in a window it allows to be 980 wide, so it does this to itself;
+> raising the floor is the answer that invents no visuals and adds no interaction the design never
+> specified. Decided with the user, 2026-08-20.
 
 ### 4.11 ~~Total-size arithmetic is copy-pasted, not shared~~ — **FIXED 2026-08-19**
 
@@ -915,7 +952,7 @@ seam, which also lets §4.16's hash-skip reuse it.
 > **The lesson worth keeping:** a view-model property with a commit path is not evidence that a
 > control reaches it. These two suites now overlap on purpose.
 
-### 4.21 Eight designed surfaces are specified and undrawn — **open, found in the design-conformance audit, 2026-08-19**
+### 4.21 ~~Eight designed surfaces are specified and undrawn~~ — **SEVEN CLOSED 2026-08-20, item 5 open**
 
 Full detail, with what exists behind each one:
 [audits/2026-08-19-design-conformance.md](audits/2026-08-19-design-conformance.md) §2. Summarised
@@ -924,20 +961,18 @@ every line of it — a view model with a tested property is not evidence that an
 
 | | Surface | Design | State |
 |---|---|---|---|
-| 1 | **The rejected restore has no action and cannot be dismissed** | `03` §3 | Strip renders; two designed actions absent; `AcknowledgeReject` is implemented and **called by nothing**, so the bar is permanent once shown |
-| 2 | Backing-up in-progress state | `04` | Restore's half fully built, backup's half absent; `BackupHost.IsCapturing` read only by the tray |
-| 3 | First run, Wave Link not found | `06` | View model done — see §4.10's amendment |
-| 4 | Settings `WHEN WINDOWS STARTS` | `12` | `IAutostart`, `AutostartState`, `ToggleAutostart`, `ClosingHidesToTray` all built and tested; nothing binds them |
-| 5 | Settings `UPDATES` | `12` | Not started. Error 8's *"Get the update"* deep-links to a section that does not exist |
-| 6 | The two tray notifications | `12` | No notification code of any kind |
-| 7 | Error 2's chooser rows | `06` §2 | Radio + path only; version, `RUNNING` chip, meta line, selected-row treatment and *"Remember this one"* absent |
-| 8 | Error 9, in Settings after *Change folder…* | `06` §9 | In the catalog with the right placement and weight; no surface |
+| 1 | The rejected restore has no action and cannot be dismissed | `03` §3 | **CLOSED 2026-08-20.** Headline, body, mono meta, ghost *Show the log*, primary *Restore "Before restore"*, and that row rendered selected below. `AcknowledgeReject` is called by the primary action — the only exit the design allows. A rejection with no pre-restore copy says so and lets itself be cleared, rather than being permanent for a second reason |
+| 2 | Backing-up in-progress state | `04` | **CLOSED 2026-08-20.** `BackupProgressModel` + the strip: hollow circle, *Backing up your setup…*, `470 KB · WRITING`, and a 2px determinate bar. Determinate on **real** bytes — `SnapshotWriteProgress` reports what is on disk against a total the payload knew before the first write. 04 bans a spinner because it "implies uncertainty that does not exist here", which makes an invented percentage the worse version of the same claim |
+| 3 | First run, Wave Link not found | `06` | **CLOSED 2026-08-20** — see §4.10 |
+| 4 | Settings `WHEN WINDOWS STARTS` | `12` | **CLOSED 2026-08-20.** Both toggles, the Task-Manager-veto note, and the Run-key line. `StartupSeam` carries the two seams in; the section hides itself entirely when nothing is behind it, rather than drawing controls that write nowhere |
+| 5 | Settings `UPDATES` | `12` | **OPEN** — the auto-updater is this session's largest remaining piece |
+| 6 | The two tray notifications | `12` | **CLOSED 2026-08-20.** `TrayNotifications` decides both, as a pure function. The nine-day notice fires once per EPISODE — it re-arms when a backup happens, so a machine that recovers and falls behind again is told twice, which is two real problems rather than a nag. Nothing here can produce a success notice, because nothing here takes a success as an input. **One documented difference from the design:** each notice's action is the whole notification rather than a labelled button. A classic balloon has no buttons and Windows renders one as a toast that drops them; real toast buttons need an AppUserModelID and a Start-menu shortcut, which is an installer concern this app does not have yet. The label is stated in the body and clicking anywhere does the thing |
+| 7 | Error 2's chooser rows | `06` §2 | **CLOSED 2026-08-20.** Version, `RUNNING` chip, ellipsised path, `SETTINGS SAVED … · N INPUTS · N KB`, the selected-row fill and 3px accent edge, and *Remember this one*. Each candidate is inspected on its own — the dialog exists because discovery could NOT choose between them, so nothing may lean on a "current" one. **The `RUNNING` chip is an approximation and the model says so**: Windows offers no mapping from a running MSIX process back to its package, so it goes to whichever candidate's settings file was written most recently, and only while Wave Link is up |
+| 8 | Error 9, in Settings after *Change folder…* | `06` §9 | **CLOSED 2026-08-20.** Rendered in place under *Change folder…*, with *Choose another…* and *Keep the current folder*. 06's placement table files error 9 under Dialogs; §9's own text says "appears in Settings, in place", which is the more specific instruction and is what shipped. Changing the folder to somewhere holding files but no snapshot now raises it instead of silently pointing the store at a Recordings folder |
 
-**Item 1 is the one that matters most.** It is the recovery path for the only failure that costs
-someone their mixer, and today it states the problem and offers nothing.
-
-Items 3 and 4 are markup over finished, tested view models — the cheapest two on the list by a
-wide margin.
+**Every one of these was the §4.20 lesson repeating**: a view model with a tested property is not
+evidence that anything renders it. Each now has a view test that walks the real tree or reads the
+real markup, not just a model test.
 
 ---
 

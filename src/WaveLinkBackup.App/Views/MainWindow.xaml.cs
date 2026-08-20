@@ -541,6 +541,10 @@ public partial class MainWindow : Window
 
         shell.Strip.ShowResult(view.Result, recovery, RejectionMeta(view));
 
+        // screens/12's second notification. The strip below is the full account; this is what
+        // reaches somebody whose window is behind Wave Link's, which after a restore it usually is.
+        (Application.Current as App)?.NotifyWaveLinkReset();
+
         // The "Before restore" row, selected, immediately below the strip.
         if (recovery is not null) shell.List.Select(recovery);
     }
@@ -641,19 +645,39 @@ public partial class MainWindow : Window
         // branch never runs there.
         if (Application.Current is not App app) return;
 
-        var result = app.BackUpNow();
+        // 04-in-progress.md's backing-up strip. Up before the first byte is measured and down
+        // only once the outcome takes its place, so the strip is "replaced in place by the result
+        // line" rather than flashing out and back (technical-debt.md §4.21 item 2).
+        shell.BackupProgress.Begin();
+
+        var progress = new Progress<SnapshotWriteProgress>(shell.BackupProgress.Report);
+
+        Result<Snapshot> result;
+        try
+        {
+            // Off the UI thread so the bar can actually move. A capture is usually well under a
+            // second, but "usually" is doing the work there: tier 4 copies plug-in binaries, and
+            // the one rig where that is slow is the one where a frozen window would be noticed.
+            result = await Task.Run(() => app.BackUpNow(progress));
+        }
+        finally
+        {
+            shell.BackupProgress.Complete();
+        }
 
         await shell.List.RefreshAsync();
 
         if (!result.IsSuccess)
         {
             // 06-errors.md: a failed "Back up now" is the consequence of the press, so its
-            // live-settings errors (3 unreadable, 5 still running) render as inline strips - not
-            // the old message box. AppErrorMapper decides placement; only inline forwards here.
+            // live-settings errors (3 unreadable, 5 still running) render as inline strips.
+            // AppErrorMapper decides placement; only inline forwards here.
             if (TryShowInlineError(result.Error)) return;
 
-            MessageBox.Show(result.Error!.Message, "Wave Link Backup",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            // Everything else goes to the danger strip, exactly as a failed restore does. It used
+            // to be a raw MessageBox carrying CoreError.Message - a modal in Core's log phrasing,
+            // for a failure the design places inline (technical-debt.md §4.8 minor 5).
+            shell.Strip.ShowFailure(result.Error!.Message);
         }
         else
         {

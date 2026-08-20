@@ -588,6 +588,29 @@
                         </Grid>
                     </Border>
 
+                    <!--
+                      11-high-contrast.md: "The proportion bar in Settings loses its colour
+                      segments; label the segments instead."
+
+                      In high contrast every fill in this app is transparent, so the bar above
+                      becomes one undifferentiated track and its encoding is simply gone. This is
+                      what replaces it: the same four segments, named and sized, in the order they
+                      sit in the bar (audit §2.9b). Hidden entirely otherwise - in the three colour
+                      themes the bands carry the meaning and this would be a duplicate readout.
+                    -->
+                    <ItemsControl x:Name="ProportionLegend" Margin="0,8,0,0"
+                                  ItemsSource="{Binding WhatGoesIn.Segments}"
+                                  Visibility="{Binding IsHighContrast, Converter={StaticResource StartupSectionVisible}}"
+                                  AutomationProperties.Name="What each part of the bar is">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Label}"
+                                           Style="{StaticResource WlMonoMetaText}"
+                                           Margin="0,0,0,2" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
                     <!-- The two mono labels under the bar: EACH BACKUP left, + IF YOU ADD right. -->
                     <Grid Margin="0,8,0,0">
                         <TextBlock Text="{Binding WhatGoesIn.EachBackupLabel}" Style="{StaticResource WlMonoMetaText}"

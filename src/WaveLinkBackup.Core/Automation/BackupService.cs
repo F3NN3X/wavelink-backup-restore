@@ -49,14 +49,19 @@ public sealed class BackupService(
     /// explicit that success is quiet - the new row appearing IS the confirmation - which
     /// only works if a row actually appears.
     /// </summary>
-    public Result<Snapshot> BackUpNow(string displayName, string notes = "")
+    /// <param name="progress">
+    /// Byte-level progress, for the shell's backing-up strip (04-in-progress.md). Only the manual
+    /// path takes one: an automatic capture has no surface to report to.
+    /// </param>
+    public Result<Snapshot> BackUpNow(
+        string displayName, string notes = "", IProgress<SnapshotWriteProgress>? progress = null)
     {
         var live = inspector.Inspect(explicitSettingsPath);
         if (!live.IsSuccess) return live.Propagate<Snapshot>();
 
         var written = store.Write(
             live.Value.Bytes, live.Value.Analysis, SnapshotTrigger.Manual, displayName, notes,
-            gatherPayload?.Invoke(live.Value));
+            gatherPayload?.Invoke(live.Value), progress);
 
         if (written.IsSuccess) Prune();
         return written;
