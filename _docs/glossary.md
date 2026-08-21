@@ -237,8 +237,9 @@ of a file is still a copy of a file. Nothing is ever uploaded.
 
 **Daily backup** — an optional capture at a wall-clock time each day, distinct from the
 **interval cap**. The cap is a ceiling on change-driven captures ("at most one an hour"); the
-daily backup is an instruction with a time on it and the cap does not suppress it. It runs the
-other way: an ordinary automatic capture after today's set time means the day is covered.
+daily backup is an instruction with a time on it and the cap does not suppress it. Only today's
+own copy of this one covers the day — an ordinary automatic capture, before or after the set
+time, never cancels it (dedup keeps it free when nothing has changed).
 
 **Bundle** — a `.vst3` that is a *directory*
 (`Plugin.vst3\Contents\x86_64-win\Plugin.vst3`) rather than a file. Permitted by the VST3

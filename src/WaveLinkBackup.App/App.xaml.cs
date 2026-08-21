@@ -224,7 +224,17 @@ public partial class App : Application
         {
             Interval = TimeSpan.FromSeconds(15),
         };
-        timer.Tick += (_, _) => { host.Tick(); RefreshTray(); RefreshShellFacts(); shell.RefreshAutostart(); };
+        // The tick captures to disk when due; the list must re-read so a new automatic snapshot
+        // appears without a restart or an F5. Only a REAL capture re-reads - a deduped or skipped
+        // tick changed nothing, and RefreshAsync would cancel-and-rerun the health probe for no reason.
+        timer.Tick += (_, _) =>
+        {
+            var tick = host.Tick();
+            if (tick.Captured) _ = shell.List.RefreshAsync();
+            RefreshTray();
+            RefreshShellFacts();
+            shell.RefreshAutostart();
+        };
         timer.Start();
 
         // Windows shutting down is a shutdown path too — and the ORIGINAL INCIDENT happened

@@ -70,12 +70,14 @@ public sealed class DailyBackupTests
     }
 
     [Fact]
-    public void A_backup_taken_after_the_set_time_covers_the_day()
+    public void A_backup_taken_after_the_set_time_does_not_suppress_the_daily_copy()
     {
-        // The rule that stops the daily copy being redundant. Someone who edits their mixer every
-        // evening already has an automatic backup after 03:00, so no second copy is taken; someone
-        // who does not gets one every day. Both fall out of the same comparison.
-        Assert.NotEqual(
+        // The daily backup is a GUARANTEED copy at its set time, independent of change-driven
+        // captures. The old rule suppressed it when any automatic capture had landed after the set
+        // time - which made it silently do nothing on any machine where Wave Link writes settings
+        // during the day. A change-driven capture no longer vetoes the schedule; only today's own
+        // daily copy (lastDailyAt) does.
+        Assert.Equal(
             CaptureDecision.Scheduled,
             Daily(new TimeOnly(3, 0)).Decide(null, At(19, 3, 30), At(19, 9, 0)));
     }

@@ -80,7 +80,7 @@ public sealed class AutoBackupPolicy(TimeSpan debounce, TimeSpan minimumInterval
         // The daily copy is checked FIRST and is not subject to the rate limit. It is an
         // instruction with a time on it; the interval is a cap on change-driven captures, and
         // letting a cap veto an explicit schedule would mean a setting that silently does nothing.
-        if (DailyDue(lastAutoCaptureAt, lastDailyAt, now)) return CaptureDecision.Scheduled;
+        if (DailyDue(lastDailyAt, now)) return CaptureDecision.Scheduled;
 
         if (lastWriteAt is null) return CaptureDecision.NothingPending;
 
@@ -100,18 +100,20 @@ public sealed class AutoBackupPolicy(TimeSpan debounce, TimeSpan minimumInterval
     }
 
     /// <summary>
-    /// Whether today has reached the set time with nothing captured since.
+    /// Whether today has reached the set time and today's daily copy has not yet been taken.
     ///
-    /// The "nothing captured since" half is what stops the daily copy being redundant: a user who
-    /// edits their mixer every evening has an automatic backup after 03:00 already, the day is
-    /// covered, and no second copy is taken. A user who does not gets one every day. Both fall out
-    /// of the same comparison.
+    /// The daily backup is a GUARANTEED copy at its set time, independent of change-driven
+    /// captures: a user who edits their mixer all day still gets the 03:00 copy, because that is
+    /// what "every day at 03:00" means. Suppression by <c>lastAutoCaptureAt</c> was the old rule -
+    /// it made a change-driven capture during the day veto the schedule for the rest of the day,
+    /// so the daily backup silently did nothing on any machine where Wave Link writes settings
+    /// after the set time. Dedup still makes a quiet day cost nothing; it just no longer suppresses.
     ///
     /// A machine that was asleep at 03:00 and wakes at 09:00 captures at 09:00 rather than skipping
     /// the day. Late is the useful direction to be wrong; the alternative is a schedule that
     /// silently does nothing for anyone who does not leave their computer on overnight.
     /// </summary>
-    private bool DailyDue(DateTimeOffset? lastAutoCaptureAt, DateTimeOffset? lastDailyAt, DateTimeOffset now)
+    private bool DailyDue(DateTimeOffset? lastDailyAt, DateTimeOffset now)
     {
         if (DailyAt is not { } at) return false;
 
@@ -122,15 +124,9 @@ public sealed class AutoBackupPolicy(TimeSpan debounce, TimeSpan minimumInterval
         // for is a day with no backup, and inventing one now would date it wrongly.
         if (due > now) return false;
 
-        var covered = Later(lastAutoCaptureAt, lastDailyAt);
-        return covered is null || covered < due;
+        // Only today's own daily copy counts as covering the day. A change-driven capture - however
+        // recent - does not, because the schedule is an instruction with a time on it, not a
+        // "have we backed up lately" question.
+        return lastDailyAt is null || lastDailyAt < due;
     }
-
-    private static DateTimeOffset? Later(DateTimeOffset? a, DateTimeOffset? b) => (a, b) switch
-    {
-        (null, null) => null,
-        ({ } one, null) => one,
-        (null, { } two) => two,
-        var (one, two) => one > two ? one : two,
-    };
 }

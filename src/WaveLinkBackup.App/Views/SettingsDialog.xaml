@@ -360,7 +360,7 @@
                                            Style="{StaticResource WlRowNameText}"
                                            Foreground="{DynamicResource WlStrong}"
                                            AutomationProperties.Name="Daily backup label" />
-                                <TextBlock Text="Whether or not anything changed. If a backup already happened after that time, the day is covered and this one is skipped."
+                                <TextBlock Text="Whether or not anything changed. A backup you took yourself earlier does not cancel it - only today's own copy of this one does."
                                            Style="{StaticResource WlSecondaryText}"
                                            Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
                                            TextWrapping="Wrap"

@@ -23,7 +23,17 @@ heading here.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- **The daily backup now actually fires.** The 0.7.0 wording — "if an ordinary automatic backup
+  already happened after today's set time, the day is covered and the daily one is skipped" — was a
+  bug: on any machine where Wave Link writes settings during the day (which is most of them), the
+  schedule silently never ran, because the change-driven capture that morning had already "covered"
+  the day. Only today's own copy of this one now covers the day; a change-driven backup before or
+  after the set time no longer cancels it. Dedup keeps it free when nothing has changed since the
+  last copy. The Settings row says so plainly now too.
+- **The snapshot list updates after an automatic capture.** A new automatic backup used to appear
+  only after a restart; the list now refreshes in place when the tick that took it reports success.
 
 ---
 
