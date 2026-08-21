@@ -94,7 +94,7 @@ lands scope the original four screens did not carry.
 
 ## Decisions
 
-The shape of the project in eleven records. Read `ADR-001` and `ADR-002` first — the rest
+The shape of the project in fifteen records. Read `ADR-001` and `ADR-002` first — the rest
 follow from them.
 
 | ADR | Decision |
@@ -111,12 +111,15 @@ follow from them.
 | [ADR-010](decisions/ADR-010-two-preset-roots-and-a-rooted-snapshot-layout.md) | Two preset roots, and a snapshot layout that names them — corrects ADR-006's tier 3 |
 | [ADR-011](decisions/ADR-011-elevate-by-relaunching-the-shell.md) | Elevate by relaunching the shell, for one restore, and never otherwise |
 | [ADR-012](decisions/ADR-012-check-only-updates-with-a-staged-swap.md) | Update by staging beside the install and swapping, never elevated |
+| [ADR-013](decisions/ADR-013-a-theme-preference-behind-the-system-theme-seam.md) | A theme preference — Auto, Dark, Light, High contrast — behind the existing system-theme seam |
+| [ADR-014](decisions/ADR-014-the-health-strip-is-as-wide-as-the-rig.md) | The health strip is as wide as the rig, and collapse is a drop against the previous snapshot |
+| [ADR-015](decisions/ADR-015-the-details-view-reads-the-backup-itself.md) | The details view reads the backup's own settings file, on demand |
 
 ---
 
 ## Gotchas
 
-Twenty-two ways this goes wrong. Titled by symptom, because that is what you will be searching
+Twenty-six ways this goes wrong. Titled by symptom, because that is what you will be searching
 for at the time — you do not know the cause yet, which is why you are searching.
 
 Grouped by where they bite. **The whole table is here on purpose**: it listed ten of sixteen
@@ -157,6 +160,10 @@ phases later, by the same gap.
 | The tray icon refuses every image you draw | [the-tray-icon-refuses-every-image-you-draw.md](knowledge-base/gotchas/the-tray-icon-refuses-every-image-you-draw.md) |
 | The tray menu keeps the theme it started with | [tray-menu-keeps-the-theme-it-started-with.md](knowledge-base/gotchas/tray-menu-keeps-the-theme-it-started-with.md) |
 | An accelerator shows as a literal underscore | [an-accelerator-shows-as-a-literal-underscore.md](knowledge-base/gotchas/an-accelerator-shows-as-a-literal-underscore.md) |
+| Pressing Back up now closes the whole app | [pressing-back-up-now-closes-the-whole-app.md](knowledge-base/gotchas/pressing-back-up-now-closes-the-whole-app.md) |
+| A chip draws its box and not its label | [a-chip-draws-its-box-and-not-its-label.md](knowledge-base/gotchas/a-chip-draws-its-box-and-not-its-label.md) |
+| Every older backup turns amber after adding a channel | [every-older-backup-turns-amber-after-adding-a-channel.md](knowledge-base/gotchas/every-older-backup-turns-amber-after-adding-a-channel.md) |
+| The list will not scroll with the wheel | [the-list-will-not-scroll-with-the-wheel.md](knowledge-base/gotchas/the-list-will-not-scroll-with-the-wheel.md) |
 
 ### The suite, and the seams under it
 
@@ -223,6 +230,7 @@ Extracted from shipped code, each naming its real callers.
 
 | Date | Session |
 |---|---|
+| 2026-08-20 | [A theme choice, a crash, and what's in a backup](sessions/2026-08-20-theme-choice-a-crash-and-the-details-view.md) |
 | 2026-08-20 | [Asking for administrator rights only when the write needs them](sessions/2026-08-20-elevation-only-when-needed.md) |
 | 2026-08-20 | [Clearing the technical-debt list](sessions/2026-08-20-clearing-the-technical-debt.md) |
 | 2026-08-19 | [The two things phase 6 deferred, and a settable backup schedule](sessions/2026-08-19-preset-roots-elevation-and-timing.md) |

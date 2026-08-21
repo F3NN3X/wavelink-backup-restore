@@ -2,6 +2,7 @@
 using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using WaveLinkBackup.Core.Snapshots;
 
 namespace WaveLinkBackup.App.Tests;
 
@@ -559,7 +560,8 @@ public sealed class RowTemplateTests
 
             var items = new System.Windows.Controls.ItemsControl();
             items.BeginInit();
-            items.ItemsSource = ViewModels.InputSlots.Build(["Elgato Wave:3", "System"], peakInputCount: 5);
+            items.ItemsSource = ViewModels.InputSlots.Build(
+                ["Elgato Wave:3", "System"], new ViewModels.SlotLayout(5, PreviousInputCount: 5));
             items.ItemTemplate = (System.Windows.DataTemplate)dictionary["WlSlotTemplate"];
             items.EndInit();
 
@@ -585,6 +587,199 @@ public sealed class RowTemplateTests
             return slotContentControls;
         });
 
-        Assert.Equal(ViewModels.InputSlots.SlotCount, rendered);
+        Assert.Equal(ViewModels.InputSlots.MinimumSlots, rendered);
+    }
+
+    // The CONTENTS column's three badges are the one cell whose whole content is a bound label,
+    // and a null Content renders the chip WITHOUT it - a row of empty pills that every
+    // source-text guard in this file reads as correct, because the markup it asserts on is all
+    // still there. This drives a real row through the real WlRowTemplate and reads the labels
+    // back out of the visual tree, which is the only thing that distinguishes "the template ran"
+    // from "the template ran over something".
+    [Fact]
+    public void The_contents_column_renders_all_three_tier_labels()
+    {
+        var labels = Wpf.Run(() =>
+        {
+            var dictionaries = System.Windows.Application.Current.Resources.MergedDictionaries;
+            dictionaries.Clear();
+            Theming.ThemeManager.Apply(Theming.AppTheme.Dark);
+            dictionaries.Add(new System.Windows.ResourceDictionary
+            {
+                Source = new Uri(
+                    "pack://application:,,,/WaveLinkBackup;component/Views/RowStyles.xaml",
+                    UriKind.Absolute),
+            });
+
+            var box = new System.Windows.Controls.ListBox
+            {
+                ItemsSource = new[] { Row() },
+                ItemContainerStyle =
+                    (System.Windows.Style)System.Windows.Application.Current.Resources["WlRowTemplate"],
+            };
+
+            // Named elements inside a row are not reachable until the window is really shown -
+            // same lazy-materialisation rule DeleteDialogViewTests records. Off-screen, no taskbar.
+            var window = new System.Windows.Window
+            {
+                Content = box,
+                Width = 1200,
+                Height = 400,
+                Left = -3000,
+                Top = -3000,
+                ShowInTaskbar = false,
+            };
+
+            window.Show();
+            window.UpdateLayout();
+
+            var texts = new List<string>();
+            void Collect(System.Windows.DependencyObject node)
+            {
+                for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); i++)
+                {
+                    var child = System.Windows.Media.VisualTreeHelper.GetChild(node, i);
+                    if (child is Views.TrackedText tracked) texts.Add(tracked.Text ?? string.Empty);
+                    Collect(child);
+                }
+            }
+            Collect(window);
+
+            window.Close();
+            return texts;
+        });
+
+        // Present and absent alike: the slot stays in place with its label, per README's
+        // "three tier badges ... the slot stays in place".
+        Assert.Contains("SETTINGS", labels, StringComparer.Ordinal);
+        Assert.Contains("PRESETS", labels, StringComparer.Ordinal);
+        Assert.Contains("PLUGINS", labels, StringComparer.Ordinal);
+    }
+
+    /// <summary>One whole row, settings + presets captured and no plug-in files.</summary>
+    private static ViewModels.SnapshotRowViewModel Row()
+    {
+        var manifest = new SnapshotManifest(
+            SchemaVersion: SnapshotManifest.CurrentSchemaVersion,
+            DisplayName: "Full rig",
+            Notes: string.Empty,
+            CreatedUtc: new DateTimeOffset(2026, 8, 11, 19, 36, 0, TimeSpan.Zero),
+            Trigger: SnapshotTrigger.Manual,
+            SettingsSha256: new string('0', 64),
+            WaveLinkVersion: null,
+            InputCount: 5,
+            InputNames: ["Wave Mic 1", "Voice", "Browser", "Game", "System"],
+            EffectCount: 0,
+            EffectChannelCount: 0,
+            HasDuplicateKeys: false,
+            Tiers: ["settings", "presets"],
+            Files: new Dictionary<string, SnapshotFile>
+            {
+                [SnapshotManifest.SettingsFileName] = new(new string('0', 64), 12_582_912),
+            });
+
+        return new ViewModels.SnapshotRowViewModel(
+            new Snapshot("2026-08-11T2136-a3f81c", @"C:\store\2026-08-11T2136-a3f81c", manifest),
+            new ViewModels.SlotLayout(5, PreviousInputCount: 0),
+            now: new DateTimeOffset(2026, 8, 15, 23, 7, 0, TimeSpan.Zero));
+    }
+
+    /// <summary>
+    /// The badges have to FIT. Nothing in the app clips a label loudly - a too-narrow column just
+    /// cuts the last one off mid-word, which is what 200 + 20 did the moment the labels started
+    /// rendering at all: every row read SETTINGS PRESETS PLUGIN.
+    ///
+    /// Measured rather than asserted by arithmetic, because the number depends on the mono face,
+    /// the 10px type role, the .12em tracking and the 8px padding - five things that can each move
+    /// independently, and a hand-computed width would go stale the first time one of them did.
+    /// </summary>
+    [Fact]
+    public void The_three_tier_badges_fit_inside_the_contents_column()
+    {
+        // The cell's own right Margin carries the design's 20px gap (MainWindowTemplateTests),
+        // so the badges get the column minus that.
+        const double Column = 248;
+        const double Gap = 20;
+
+        var width = Wpf.Run(() =>
+        {
+            AppResources.Load(Theming.AppTheme.Dark);
+
+            var items = new System.Windows.Controls.ItemsControl();
+            items.BeginInit();
+            items.ItemsSource = new[]
+            {
+                new ViewModels.TierBadge("SETTINGS", true),
+                new ViewModels.TierBadge("PRESETS", true),
+                new ViewModels.TierBadge("PLUGINS", true),
+            };
+            items.ItemsPanel = (System.Windows.Controls.ItemsPanelTemplate)
+                System.Windows.Markup.XamlReader.Parse(
+                    "<ItemsPanelTemplate xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\">"
+                    + "<StackPanel Orientation=\"Horizontal\" /></ItemsPanelTemplate>");
+            items.ItemTemplate = (System.Windows.DataTemplate)
+                System.Windows.Application.Current.Resources["WlTierPresent"];
+            items.EndInit();
+
+            items.Measure(new System.Windows.Size(double.PositiveInfinity, 60));
+
+            return items.DesiredSize.Width;
+        });
+
+        Assert.True(
+            width <= Column - Gap,
+            $"Three tier badges want {width:0.#}px and the CONTENTS column offers {Column - Gap}px.");
+    }
+
+    /// <summary>
+    /// The label budget is arithmetic over a measured character width, and this is the measurement.
+    /// A budget one character too wide is not a caught error - it is a label that quietly overflows
+    /// its cell, which is exactly what the old flat cap of ten characters did: ten characters of
+    /// the slot-label role measure 62.4px in a 56.8px cell.
+    ///
+    /// Rendered through the real style rather than computed from font metrics, so a change to the
+    /// mono face, the 9.5px size or the .06em tracking fails here rather than on someone's screen.
+    /// </summary>
+    [Theory]
+    [InlineData(5)]
+    [InlineData(9)]
+    [InlineData(12)]
+    public void The_label_budget_is_what_actually_fits_a_cell(int slotCount)
+    {
+        var budget = ViewModels.InputSlots.LabelBudget(slotCount);
+        Assert.True(budget > 0, $"{slotCount} slots should still carry a label.");
+
+        // The strip's own geometry: N cells sharing 300px with 4px between them.
+        var cell = (ViewModels.InputSlots.StripWidth - (4.0 * (slotCount - 1))) / slotCount;
+
+        var (fits, overflows) = Wpf.Run(() =>
+        {
+            AppResources.Load(Theming.AppTheme.Dark);
+
+            double Width(int characters)
+            {
+                var label = new Views.TrackedText
+                {
+                    // W is the widest glyph in a proportional face and identical to every other in
+                    // a mono one, which is the point: the budget must hold for the worst label.
+                    Text = new string('W', characters),
+                    Tracking = .06,
+                    Style = (System.Windows.Style)System.Windows.Application.Current
+                        .Resources["WlSlotLabelTrackedText"],
+                };
+
+                label.Measure(new System.Windows.Size(double.PositiveInfinity, 40));
+                return label.DesiredSize.Width;
+            }
+
+            return (Width(budget), Width(budget + 1));
+        });
+
+        Assert.True(fits <= cell, $"{budget} characters want {fits:0.#}px in a {cell:0.#}px cell.");
+
+        // And it is not needlessly mean: one more character genuinely would not fit.
+        Assert.True(
+            overflows > cell,
+            $"{budget + 1} characters fit in {cell:0.#}px too - the budget is a character short.");
     }
 }

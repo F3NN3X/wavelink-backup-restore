@@ -91,10 +91,20 @@ public sealed class ReadableTests
         Assert.Equal("ELGATO", Readable.SlotLabel("Elgato"));
     }
 
+    /// <summary>
+    /// "Elgato Wave Mic 1" keeps its WAVE - one brand word goes, never two, or two different
+    /// inputs read identically.
+    ///
+    /// It reads WAVE MIC… rather than WAVE MIC 1 because the default budget is now what a cell of
+    /// the five-wide strip actually holds: nine characters. Ten never fitted - ten characters of
+    /// the slot-label role measure 62.4px in a 56.8px cell - so the old flat cap of 10 was
+    /// letting this exact label overflow its cell.
+    /// </summary>
     [Fact]
     public void Only_one_leading_brand_word_is_dropped()
     {
-        Assert.Equal("WAVE MIC 1", Readable.SlotLabel("Elgato Wave Mic 1"));
+        Assert.StartsWith("WAVE MIC", Readable.SlotLabel("Elgato Wave Mic 1"), StringComparison.Ordinal);
+        Assert.DoesNotContain("ELGATO", Readable.SlotLabel("Elgato Wave Mic 1"), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -102,8 +112,30 @@ public sealed class ReadableTests
     {
         var label = Readable.SlotLabel("Podcast Guest Return Feed");
 
-        Assert.True(label.Length <= 10, label);
+        Assert.True(label.Length <= 9, label);
         Assert.EndsWith("…", label, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A nine-channel rig gets four characters a cell, and at that width an ellipsis is a quarter
+    /// of the label. Spaces go before letters do, because AUX1 and AUX2 are distinguishable and
+    /// AUX and AUX are not - telling two channels apart is the whole job of the label.
+    /// </summary>
+    [Fact]
+    public void A_tight_budget_loses_its_spaces_before_its_letters()
+    {
+        Assert.Equal("AUX1", Readable.SlotLabel("Aux 1", maxChars: 4));
+        Assert.Equal("AUX2", Readable.SlotLabel("Aux 2", maxChars: 4));
+        Assert.Equal("MIC1", Readable.SlotLabel("Wave Mic 1", maxChars: 4));
+        Assert.Equal("MELD", Readable.SlotLabel("Meld Studio", maxChars: 4));
+    }
+
+    /// <summary>No cell to write in: the strip falls back to its rules alone.</summary>
+    [Fact]
+    public void A_budget_of_nothing_produces_no_label()
+    {
+        Assert.Equal(string.Empty, Readable.SlotLabel("Wave Mic 1", maxChars: 0));
+        Assert.Equal(string.Empty, Readable.SlotLabel("", maxChars: 0));
     }
 
     [Fact]

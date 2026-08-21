@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.Core.Automation;
 
@@ -238,6 +239,22 @@ public sealed record StartupSeam(
     Func<bool> ReadClosingHidesToTray,
     Action<bool> WriteClosingHidesToTray);
 
+/// <summary>
+/// The HOW IT LOOKS section's seams, or null to hide the section — the same shape and the same
+/// argument as <see cref="StartupSeam"/>.
+/// </summary>
+/// <param name="ReadIsHighContrast">
+/// The EFFECTIVE answer after the write, which is not something this model can work out: picking
+/// High contrast here turns it on, but so does Windows, and picking Dark while Windows is in a
+/// high-contrast scheme changes nothing. The dialog's own controls key their high-contrast
+/// treatment off <see cref="SettingsViewModel.IsHighContrast"/>, and the dialog is open and
+/// on screen at the moment this changes.
+/// </param>
+public sealed record AppearanceSeam(
+    Func<ThemePreference> Read,
+    Action<ThemePreference> Write,
+    Func<bool> ReadIsHighContrast);
+
 public sealed class SettingsViewModel : ObservableObject
 {
     private const int MinKeepCount = 1;
@@ -265,6 +282,8 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly StartupSeam? startup;
     private AutostartState autostartState;
     private bool closingHidesToTray;
+    private readonly AppearanceSeam? appearance;
+    private ThemePreference theme;
 
     /// <param name="startup">
     /// The WHEN WINDOWS STARTS section's seams, or null to hide the section entirely. Null is what
@@ -275,7 +294,8 @@ public sealed class SettingsViewModel : ObservableObject
         Func<BackupSettings, bool> save,
         WhereSettingsLiveModel whereSettingsLive,
         WhichWaveLinkModel? whichWaveLink = null,
-        StartupSeam? startup = null)
+        StartupSeam? startup = null,
+        AppearanceSeam? appearance = null)
     {
         this.save = save;
         persisted = settings;
@@ -293,6 +313,77 @@ public sealed class SettingsViewModel : ObservableObject
         this.startup = startup;
         autostartState = startup?.Autostart.Read() ?? AutostartState.Off;
         closingHidesToTray = startup?.ReadClosingHidesToTray() ?? true;
+
+        this.appearance = appearance;
+        theme = appearance?.Read() ?? ThemePreference.Auto;
+    }
+
+    // ----------------------------------------------- how it looks
+
+    /// <summary>
+    /// Whether to draw the section at all. False when nothing was injected to drive it — four
+    /// buttons that repaint nothing are worse than no section, the same rule
+    /// <see cref="HasStartupSection"/> follows.
+    /// </summary>
+    public bool HasAppearanceSection => appearance is not null;
+
+    /// <summary>
+    /// Which palette the user asked for. Commits on change like every other control on this
+    /// screen — there is no Save button — and then re-reads whether the app is now in high
+    /// contrast, because the dialog is looking at the answer while it changes.
+    /// </summary>
+    public ThemePreference Theme
+    {
+        get => theme;
+        set
+        {
+            if (!Set(ref theme, value)) return;
+
+            Raise(nameof(ThemeIsAuto));
+            Raise(nameof(ThemeIsDark));
+            Raise(nameof(ThemeIsLight));
+            Raise(nameof(ThemeIsHighContrast));
+
+            if (appearance is null) return;
+
+            appearance.Write(value);
+            IsHighContrast = appearance.ReadIsHighContrast();
+        }
+    }
+
+    /// <summary>
+    /// One bool per segment, because that is what a RadioButton binds to. Setting one to true
+    /// moves <see cref="Theme"/>, which raises all four — so the other three clear themselves
+    /// through the binding rather than through the group name alone.
+    ///
+    /// The false case is deliberately ignored: WPF unchecks the outgoing segment as part of the
+    /// same click, and honouring that would set the preference twice, the second time back.
+    /// </summary>
+    public bool ThemeIsAuto
+    {
+        get => theme == ThemePreference.Auto;
+        set { if (value) Theme = ThemePreference.Auto; }
+    }
+
+    /// <inheritdoc cref="ThemeIsAuto" />
+    public bool ThemeIsDark
+    {
+        get => theme == ThemePreference.Dark;
+        set { if (value) Theme = ThemePreference.Dark; }
+    }
+
+    /// <inheritdoc cref="ThemeIsAuto" />
+    public bool ThemeIsLight
+    {
+        get => theme == ThemePreference.Light;
+        set { if (value) Theme = ThemePreference.Light; }
+    }
+
+    /// <inheritdoc cref="ThemeIsAuto" />
+    public bool ThemeIsHighContrast
+    {
+        get => theme == ThemePreference.HighContrast;
+        set { if (value) Theme = ThemePreference.HighContrast; }
     }
 
     // ----------------------------------------------- when Windows starts (screens/12)
@@ -743,7 +834,8 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Whether the OS is in high-contrast mode. The dialog's controls (the toggle, the stepper)
+    /// Whether the app is DRAWING the high-contrast palette - Windows' own scheme, or the one the
+    /// user picked in HOW IT LOOKS. The dialog's controls (the toggle, the stepper)
     /// carry high-contrast triggers that bind to this through the window's DataContext - the same
     /// convention MainWindow uses via ShellViewModel.IsHighContrast. Set by the app at construction;
     /// a false default is safe because on a non-HC OS every trigger stays inert.
@@ -774,6 +866,7 @@ public sealed class SettingsViewModel : ObservableObject
         Func<BackupSettings, bool> save,
         WhereSettingsLiveModel whereSettingsLive,
         WhichWaveLinkModel? whichWaveLink = null,
-        StartupSeam? startup = null) =>
-        new(settings, save, whereSettingsLive, whichWaveLink, startup);
+        StartupSeam? startup = null,
+        AppearanceSeam? appearance = null) =>
+        new(settings, save, whereSettingsLive, whichWaveLink, startup, appearance);
 }

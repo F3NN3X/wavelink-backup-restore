@@ -40,13 +40,13 @@ public sealed class MainWindowGeometryTests
     // monitor on any real or CI machine; a rectangle five million units out does not overlap
     // anything real ever built.
     private static readonly ShellState OnScreen =
-        new(50, 50, 400, 300, IsMaximized: false, ClosingHidesToTray: true);
+        new(50, 50, 400, 300, IsMaximized: false, ClosingHidesToTray: true, Theme: ThemePreference.Auto);
 
     private static readonly ShellState OnScreenMaximized =
-        new(50, 50, 400, 300, IsMaximized: true, ClosingHidesToTray: true);
+        new(50, 50, 400, 300, IsMaximized: true, ClosingHidesToTray: true, Theme: ThemePreference.Auto);
 
     private static readonly ShellState OffScreen =
-        new(5_000_000, 5_000_000, 400, 300, IsMaximized: false, ClosingHidesToTray: true);
+        new(5_000_000, 5_000_000, 400, 300, IsMaximized: false, ClosingHidesToTray: true, Theme: ThemePreference.Auto);
 
     /// <summary>
     /// A minimal, otherwise-default ShellViewModel - Task 10b added a fourth constructor
@@ -169,10 +169,34 @@ public sealed class MainWindowGeometryTests
         var carried = Wpf.Run(() =>
         {
             EnsureCaptionResourcesLoaded();
-            return Build(OnScreen).CurrentGeometry(closingHidesToTray).ClosingHidesToTray;
+            var current = OnScreen with { ClosingHidesToTray = closingHidesToTray };
+
+            return Build(OnScreen).CurrentGeometry(current).ClosingHidesToTray;
         });
 
         Assert.Equal(closingHidesToTray, carried);
+    }
+
+    /// <summary>
+    /// Everything that is NOT geometry has to survive the save on the shutdown path. The theme
+    /// preference is the field that made this concrete: CurrentGeometry used to build a whole
+    /// ShellState from a rectangle plus one argument per remembered setting, so a new setting was
+    /// dropped every time the window closed - visible to the user as a theme that reverts to Auto
+    /// on the next launch.
+    /// </summary>
+    [Fact]
+    public void CurrentGeometry_carries_every_non_geometry_field_through()
+    {
+        var carried = Wpf.Run(() =>
+        {
+            EnsureCaptionResourcesLoaded();
+            var current = OnScreen with { Theme = ThemePreference.Light, ClosingHidesToTray = false };
+
+            return Build(OnScreen).CurrentGeometry(current);
+        });
+
+        Assert.Equal(ThemePreference.Light, carried.Theme);
+        Assert.False(carried.ClosingHidesToTray);
     }
 
     [Fact]
@@ -181,7 +205,7 @@ public sealed class MainWindowGeometryTests
         var isMaximized = Wpf.Run(() =>
         {
             EnsureCaptionResourcesLoaded();
-            return Build(OnScreenMaximized).CurrentGeometry(closingHidesToTray: true).IsMaximized;
+            return Build(OnScreenMaximized).CurrentGeometry(OnScreenMaximized).IsMaximized;
         });
 
         Assert.True(isMaximized);
@@ -193,7 +217,7 @@ public sealed class MainWindowGeometryTests
         var isMaximized = Wpf.Run(() =>
         {
             EnsureCaptionResourcesLoaded();
-            return Build(OnScreen).CurrentGeometry(closingHidesToTray: true).IsMaximized;
+            return Build(OnScreen).CurrentGeometry(OnScreen).IsMaximized;
         });
 
         Assert.False(isMaximized);

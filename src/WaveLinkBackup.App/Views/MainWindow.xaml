@@ -5,15 +5,15 @@
         xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
         xmlns:vm="clr-namespace:WaveLinkBackup.App.ViewModels"
          Title="Wave Link Backup"
-         Height="760" Width="1180" MinHeight="560" MinWidth="1124"
+         Height="760" Width="1180" MinHeight="560" MinWidth="1152"
          WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Background="Transparent">
 
     <!--
-      MinWidth is 1124, not the 980 it was.
+      MinWidth is 1152, not the 980 it was.
 
-      The row's own six columns need 1084px, plus the list's 40px of padding - so at 980 the
+      The row's own six columns need 1112px, plus the list's 40px of padding - so at 980 the
       overflow cell was simply clipped, with no horizontal scroll and none designed (audit §2.9c).
       The design's own numbers do this to themselves: its six columns need 1084 in a window it
       allows to be 980 wide. Raising the floor is the answer that invents no visuals - the layout
@@ -59,6 +59,12 @@
                         Executed="Delete_Executed" CanExecute="Delete_CanExecute" />
         <CommandBinding Command="{x:Static vm:ShellCommands.Restore}"
                         Executed="Restore_Executed" CanExecute="Restore_CanExecute" />
+        <!-- Reads a backup and changes nothing, so its CanExecute asks only whether there is a
+             row to read - a DAMAGED backup included. "What was in it" is exactly what someone
+             asks when a backup has gone wrong, and the dialog answers with the reason it cannot
+             be read rather than refusing to open. -->
+        <CommandBinding Command="{x:Static vm:ShellCommands.Details}"
+                        Executed="Details_Executed" CanExecute="Details_CanExecute" />
     </Window.CommandBindings>
 
     <Window.Resources>
@@ -868,7 +874,18 @@
                                     Executed="ClearSearch_Executed" />
                 </ScrollViewer.CommandBindings>
 
-                <ListBox x:Name="GroupsHost" ItemsSource="{Binding List.View}"
+                <!--
+                  A double-click opens the details, which is what a double-click on a row means
+                  everywhere else in Windows. Restore keeps Enter and nothing else.
+
+                  PreviewMouseWheel is what makes the wheel work at all: this ListBox has its own
+                  ScrollViewer, disabled, and a ScrollViewer marks EVERY wheel event handled -
+                  scrolled or not. So the notch died here and ListScrollViewer never saw it, while
+                  the scroll bar and every key still worked. See WheelForwarding.
+                -->
+                <ListBox x:Name="GroupsHost" MouseDoubleClick="Rows_MouseDoubleClick"
+                         PreviewMouseWheel="Rows_PreviewMouseWheel"
+                         ItemsSource="{Binding List.View}"
                          SelectedItem="{Binding List.Selected, Mode=TwoWay}"
                          ItemContainerStyle="{StaticResource WlRowTemplate}"
                          BorderThickness="0" Background="Transparent" Padding="0"

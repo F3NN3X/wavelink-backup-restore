@@ -21,7 +21,7 @@ will look obvious in hindsight.
 `Core`, `Cli` and a WPF shell, and a debt-clearing pass closed everything in §1, §4, §5, §6 and §7
 that a commit can close.
 
-**What is left — four things, none of which a commit can close:**
+**What is left — seven things, and only one of them is a commit somebody has not written:**
 
 | | Why it cannot be closed here |
 |---|---|
@@ -29,6 +29,9 @@ that a commit can close.
 | **§2.2** — whether non-MSIX Wave Link installs exist | A fact about the world, not about this code. The *mitigation* is complete — an explicit settings path bypasses discovery, and error 1's first-run variant now offers one (§4.10) — so a non-MSIX user has a route in whether or not such installs turn out to exist. |
 | **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link, written up in the entry. Not a defect — an unanswered question, and §7.5 already removed the prompt in the common case, so the answer may well be "leave it". |
 | **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run this when endpoint inspection lands; the AOT publish itself already works. |
+| **§8.1** — an unhandled exception still ends the process silently | Needs a design answer before code: `06-errors.md` specifies twelve errors and none of them is "something unexpected happened", and inventing a thirteenth surface in XAML is what [[ADR-004]] exists to prevent. |
+| **§8.2** — three surfaces built past the design package have never been looked at | Same shape as §4.15. Nothing in the suite can assert that a layout looks right; they belong on the by-eye checklist. |
+| **§8.4** — the list does not virtualise, and its markup says it does | A commit *could* close it, and it would be the wrong commit: the fix is structural (delete the outer ScrollViewer), it moves the header's gutter binding, and it wants the by-eye pass §8.2 already owes. |
 
 §3 is untouched on purpose: those are choices made with eyes open, not debt.
 
@@ -1167,6 +1170,18 @@ real markup, not just a model test.
 > by `HealthFingerprint` comparing against that user's own previous snapshot, which is structural
 > rather than checkable by grep.
 >
+> **That last paragraph was not true of the shell, and this section said it was — corrected
+> 2026-08-20.** `HealthFingerprint` did compare against the previous snapshot. The ROW did not: it
+> sized its strip at a hard five and decided genericness against the store's peak, so a rig that
+> grew to nine channels lost four of them off the end of every row and repainted its own history
+> amber ([[every-older-backup-turns-amber-after-adding-a-channel]]). Both are fixed in [[ADR-014]],
+> and the fifth row is now held by tests rather than by a claim: `InputSlotsTests` asserts a
+> nine-channel rig draws nine cells, and that a rig that grew leaves its older backups alone.
+>
+> Worth recording rather than quietly editing. A debt list that says a rule is "structural" is
+> making a claim about code, and this one had drifted from it — which is the failure mode of every
+> entry in here that is guarded by a paragraph instead of a test.
+>
 > The audit that prompted this found **no violations in shipped code**: every hit was a comment, or
 > one of the two places that print `%LOCALAPPDATA%` as designed display copy (06's `LOOKED IN` glob
 > line, and the bottom bar shortening a resolved path back for display).
@@ -1229,3 +1244,100 @@ think about it, and by then it is in a public issue tracker.
 **Owed:** a "copy diagnostics" action that redacts both. Nothing is ever auto-uploaded.
 **Phase:** 7, and it gates going public rather than following it. The `.gitignore` already
 refuses real settings files; that protects the repo, not the issue tracker.
+
+---
+
+## 8 · Incurred 2026-08-20, building past the design package
+
+Three surfaces now exist that the design package does not specify, and one hole the whole session
+walked through. Recorded here rather than in the audit, because the audit is a point-in-time
+reading of the app against the package and this is a standing cost.
+
+### 8.1 An unhandled exception still ends the process silently — **open**
+
+This app installs no `Application.DispatcherUnhandledException` handler and no
+`AppDomain.UnhandledException` handler. When [[pressing-back-up-now-closes-the-whole-app]]
+happened, the app vanished — window, tray, everything — and left nothing behind except an entry in
+the Windows Application event log. The user's report was *"creating backups crash the app"*,
+which is all the information the app itself gave them.
+
+**Why it is not just a `try`/`catch`:** the design package specifies twelve errors and a placement
+rule for each ([`06-errors.md`](operations/design/screens/06-errors.md)), and none of them is
+"something unexpected happened". Inventing a thirteenth surface in XAML is what [[ADR-004]] and the
+package's own authority exist to prevent. What is owed is a design answer first — probably the
+danger strip's shape, with the exception type and a *copy diagnostics* action, and a decision about
+whether the app tries to keep running or exits deliberately after saying so.
+
+**What is cheap and not yet done:** writing the exception to a file beside `shell.json` on the way
+down. That needs no design, and it is the difference between a bug report that says "it crashed"
+and one that names the line.
+
+**Cost of leaving it:** every future crash costs a round-trip through the event log, and only on a
+machine where someone knows to look.
+
+### 8.2 Three surfaces have no design, and no by-eye check — **open, needs a human**
+
+| Surface | Built to | Package says |
+|---|---|---|
+| Settings → `HOW IT LOOKS`, the four theme segments ([[ADR-013]]) | The package's rules — section label, `WlBg` block, hairlines, the stepper's segment geometry, `WlToggle`'s own checked treatment | Nothing. The prototype draws a caption-bar sun icon; the README specifies a gear that opens Settings, and that is what ships |
+| The N-cell INPUTS strip ([[ADR-014]]) | The design's own five-cell strip, widened by arithmetic over a measured character width | *"Five equal flex cells"* — a rig of exactly five |
+| `What's in "…"`, the details dialog ([[ADR-015]]) | The settings dialog's shape and vocabulary, reused wholesale | Nothing. Four screens are designed and this is not one of them |
+
+**None of them is a new visual idea** — that was the constraint each was built under, and it is why
+they read as part of the app. But three surfaces now exist that no design pass has looked at, and
+the same is true of them as of §4.15: nothing in the suite can assert that a layout looks right.
+They belong on [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md), which is
+still owed a human.
+
+**Specifically unchecked by eye:** the four-segment control at 100% and 150% scaling; the strip at
+nine and at twelve cells, where the labels are four characters and three; the details dialog in
+light and in a real high-contrast scheme; and the dialog's height on a rig with several long effect
+chains, where it hits its 720px cap and scrolls.
+
+### 8.3 The strip's label budget is arithmetic over a measured constant — **known-wrong-ish, guarded**
+
+`InputSlots.CharacterWidth` is `6.25` — one character of the slot-label role, measured at 6.24px
+and rounded up. It is a *number that is not a constant* in exactly the sense §5 means, and it
+cannot be derived at run time without measuring per row, which
+[[ADR-014]] rules out for good reasons.
+
+**What holds it:** `RowTemplateTests.The_label_budget_is_what_actually_fits_a_cell` renders the
+label at the real style and asserts both directions — the budget fits, and one character more does
+not. A change to the mono face, the 9.5px size or the .06em tracking fails there.
+
+**What it does not hold:** a *different* font falling back on a machine without the bundled one. The
+guard measures whatever WPF resolves in the test environment, which is the same environment the app
+runs in, so this is a small risk rather than a theoretical one — but it is the reason the constant
+is rounded up rather than exact.
+
+### 8.4 The list does not virtualise, and its markup says it does — **open, measured 2026-08-21**
+
+`GroupsHost` carries `VirtualizingPanel.IsVirtualizing="True"`, `VirtualizationMode="Recycling"`
+and `ScrollUnit="Pixel"`, and **none of them does anything.** The ListBox's own ScrollViewer is
+disabled so `ListScrollViewer` can carry one scroll position for the header and the rows, which
+leaves the ListBox measured with unbounded height — so its `VirtualizingStackPanel` realises every
+row.
+
+**Measured, not inferred:** the same arrangement in a test fixture realised **500 containers out of
+500 items**. Turning the inner ScrollViewer back on is what makes the panel virtualise.
+
+**Why it is not urgent:** a rig produces a few dozen backups a year, and the retention default
+keeps 30 automatic ones. At that size the cost is invisible. It becomes real for anyone pointing
+the store at a folder with hundreds of snapshots in it, and it is already true that every row
+builds its full visual tree — nine slot cells, three tier badges, two pills — on load.
+
+**The structural fix, which also fixes the wheel** ([[the-list-will-not-scroll-with-the-wheel]]):
+let the ListBox scroll itself and delete the outer ScrollViewer. It costs two things, which is why
+it was not done under a scroll fix:
+
+1. **The header's scroll-bar gutter.** `MainWindow.xaml` reserves 10px on the column header when
+   `ListScrollViewer` shows a scroll bar, by `ElementName` binding — and the ListBox's own
+   ScrollViewer lives inside its template, where `ElementName` cannot reach. It needs either a
+   ListBox `ControlTemplate` copy that names it, or a code-behind lookup after load (the window
+   already has `FindDescendants<T>` for exactly this kind of reach).
+2. **The guard test that pins the current arrangement.**
+   `MainWindowTemplateTests.The_column_header_reserves_the_lists_scroll_bar_gutter` asserts the
+   `ElementName="ListScrollViewer"` binding by name, so it changes with the structure.
+
+Neither is hard. Both want a by-eye pass afterwards (§8.2), because the thing being changed is how
+the header lines up with the rows — the exact defect the audit's §1.1 was about.

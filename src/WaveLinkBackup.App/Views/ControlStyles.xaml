@@ -215,7 +215,7 @@
                 <ColumnDefinition Width="140" SharedSizeGroup="WlColTaken" />
                 <ColumnDefinition Width="144" SharedSizeGroup="WlColWhy" />
                 <ColumnDefinition Width="320" SharedSizeGroup="WlColInputs" />
-                <ColumnDefinition Width="220" SharedSizeGroup="WlColContents" />
+                <ColumnDefinition Width="248" SharedSizeGroup="WlColContents" />
                 <ColumnDefinition Width="40" SharedSizeGroup="WlColOverflow" />
             </Grid.ColumnDefinitions>
 
@@ -779,6 +779,125 @@
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.14"
+                                                         EasingFunction="{StaticResource WlStandardEase}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+
+                        <!-- See WlGhostButton's own comment on this trigger pair. -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="IsMouseOver" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource WlHotTrack}" />
+                        </MultiDataTrigger>
+
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Value="False">
+                                    <Condition.Binding>
+                                        <Binding Path="IsEnabled" RelativeSource="{RelativeSource Self}" />
+                                    </Condition.Binding>
+                                </Condition>
+                                <Condition Value="True">
+                                    <Condition.Binding>
+                                        <Binding Path="DataContext.IsHighContrast" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                    </Condition.Binding>
+                                </Condition>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Foreground" Value="{DynamicResource WlMuted}" />
+                        </MultiDataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      HOW IT LOOKS' four theme segments. A RadioButton, not a Button: one of four is always on,
+      which is what a radio group IS - and it brings the keyboard behaviour (arrows move and
+      select within the group) and the screen-reader semantics with it, neither of which four
+      toggle-styled Buttons would have had.
+
+      Visually it borrows WlStepperButton verbatim - 34px tall, hairline-24% border, 8px radius,
+      segments overlapped by a -1 margin in the dialog so they read as one control. The design
+      draws no segmented control anywhere, so this is derived from the rules rather than copied
+      from a mock, and borrowing the one multi-part control the app already has is what keeps it
+      from becoming a fifth button vocabulary.
+
+      Checked is WlAccent fill + WlAccentInk ink, which is WlToggle's own "on" treatment. That
+      choice is what makes high contrast free: those two keys resolve to Highlight and
+      HighlightText there, which is exactly what screens/11 asks a selected thing to be. A WlCard
+      fill would have been invisible - WlCard is Transparent in high contrast.
+    -->
+    <Style x:Key="WlSegmentButton" TargetType="RadioButton">
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Padding" Value="11,0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource WlText}" />
+        <Setter Property="FontFamily" Value="{DynamicResource WlMonoFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource WlFocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid>
+                        <!-- See WlGhostButton's own comment on why the hover is a layer. -->
+                        <Border x:Name="HoverLayer" Background="{DynamicResource WlHover}"
+                                CornerRadius="8" Opacity="0" />
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1"
+                                CornerRadius="8" SnapsToDevicePixels="True">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{DynamicResource WlAccent}" />
+                            <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource WlAccent}" />
+                            <!-- Set on the CONTROL, not on the presenter: Foreground inherits down
+                                 to the TrackedText content, which is a FrameworkElement of its own
+                                 with no TextBlock to inherit from otherwise. -->
+                            <Setter Property="Foreground" Value="{DynamicResource WlAccentInk}" />
+                            <!-- The checked segment sits above its neighbours, so its own accent
+                                 edge is never half-covered by the next segment's -1 overlap. -->
+                            <Setter Property="Panel.ZIndex" Value="1" />
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Trigger.EnterActions>
                                 <BeginStoryboard>

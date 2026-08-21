@@ -418,13 +418,25 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void OnListPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(SnapshotListViewModel.Selected)) return;
+        if (e.PropertyName == nameof(SnapshotListViewModel.Selected))
+        {
+            if (watchedRow is not null) watchedRow.PropertyChanged -= OnSelectedRowPropertyChanged;
+            watchedRow = List.Selected;
+            if (watchedRow is not null) watchedRow.PropertyChanged += OnSelectedRowPropertyChanged;
 
-        if (watchedRow is not null) watchedRow.PropertyChanged -= OnSelectedRowPropertyChanged;
-        watchedRow = List.Selected;
-        if (watchedRow is not null) watchedRow.PropertyChanged += OnSelectedRowPropertyChanged;
+            RaiseAll();
+            return;
+        }
 
-        RaiseAll();
+        // The bottom bar's first two figures are the LIST's, and nothing re-read them when the
+        // list finished loading - only a selection or the 15-second tick did. So every launch
+        // showed "0 BACKUPS · 0 B IN %LOCALAPPDATA%\WaveLinkBackup" under a window full of
+        // backups, for as long as it took the user to click something.
+        if (e.PropertyName is nameof(SnapshotListViewModel.TotalCount)
+            or nameof(SnapshotListViewModel.TotalBytes))
+        {
+            Raise(nameof(SummaryLine));
+        }
     }
 
     private void OnSelectedRowPropertyChanged(object? sender, PropertyChangedEventArgs e) => RaiseAll();

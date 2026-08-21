@@ -330,8 +330,16 @@ public sealed class SnapshotListViewModel(
         var now = clock.UtcNow.ToLocalTime();
 
         // The high-water mark is the STORE's, not the filtered view's - hiding the full rig
-        // behind a search must not make a collapsed row look whole.
+        // behind a search must not make a collapsed row look whole. It sizes the strip: every row
+        // draws a cell for every channel the biggest configuration in the store has.
         var peak = all.Count == 0 ? 0 : all.Max(s => s.Manifest.InputCount);
+        var slotCount = InputSlots.SlotsFor(peak);
+
+        // What each snapshot is JUDGED against: the one immediately older than it. A rig that
+        // grows never looks collapsed; a rig that loses channels between two backups does, which
+        // is the case the amber strip exists for. Built from the whole store rather than the
+        // filtered view, for the same reason as the peak - a search must not change a verdict.
+        var previousInputCounts = PreviousInputCounts(all);
 
         var matched = SnapshotSearch.Filter(all, query);
         MatchCount = matched.Count;
@@ -349,7 +357,11 @@ public sealed class SnapshotListViewModel(
             // what a CollectionView can group on - and it keeps one row's date and one row's
             // header from ever disagreeing.
             var rows = group
-                .Select(s => new SnapshotRowViewModel(s, peak, now, NullIfEmpty(query)) { GroupHeader = header })
+                .Select(s => new SnapshotRowViewModel(
+                    s,
+                    new SlotLayout(slotCount, previousInputCounts.GetValueOrDefault(s.Id)),
+                    now,
+                    NullIfEmpty(query)) { GroupHeader = header })
                 .ToList();
 
             Groups.Add(new DateGroup(header, rows));
@@ -376,6 +388,29 @@ public sealed class SnapshotListViewModel(
         {
             Raise(property);
         }
+    }
+
+    /// <summary>
+    /// Snapshot id to the input count of the snapshot immediately OLDER than it; the oldest
+    /// snapshot has no entry and reads as 0, which <see cref="InputSlots.IsCollapsed"/> treats as
+    /// "nothing to compare against" rather than as a loss of everything.
+    ///
+    /// Ordered by the time each backup was TAKEN, not by the order the store listed them: two
+    /// backups a second apart is the pre-restore pair, and comparing them the wrong way round
+    /// would report the collapse on the snapshot that recorded the rescue rather than on the one
+    /// that recorded the damage.
+    /// </summary>
+    private static Dictionary<string, int> PreviousInputCounts(IReadOnlyList<Snapshot> all)
+    {
+        var oldestFirst = all.OrderBy(s => s.Manifest.CreatedUtc).ToList();
+        var previous = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        for (var i = 1; i < oldestFirst.Count; i++)
+        {
+            previous[oldestFirst[i].Id] = oldestFirst[i - 1].Manifest.InputCount;
+        }
+
+        return previous;
     }
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;

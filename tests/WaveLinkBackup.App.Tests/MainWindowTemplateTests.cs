@@ -109,6 +109,12 @@ public sealed class MainWindowTemplateTests
     // right Margin on each cell's content rather than a seventh column. Dropping back to the bare
     // 120/124/300/200 would leave every cell 20px narrower than the design draws it - most
     // visibly the five-slot INPUTS strip, which is the row's whole information design.
+    //
+    // CONTENTS is the one exception, at 248 rather than 200 + 20. Three tier badges at the
+    // design's own type role and padding measure 224.2px, so 200 clipped the third one mid-word;
+    // the design's own render draws them at about 224 as well. The measurement behind that number
+    // is RowTemplateTests.The_three_tier_badges_fit_inside_the_contents_column, which reads the
+    // rendered width rather than trusting this arithmetic.
     [Theory]
     [InlineData("ControlStyles.xaml")]
     [InlineData("RowStyles.xaml")]
@@ -119,7 +125,7 @@ public sealed class MainWindowTemplateTests
         foreach (var (width, group) in new[]
                  {
                      (140, "WlColTaken"), (144, "WlColWhy"),
-                     (320, "WlColInputs"), (220, "WlColContents"),
+                     (320, "WlColInputs"), (248, "WlColContents"),
                  })
         {
             Assert.Contains(

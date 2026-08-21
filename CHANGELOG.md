@@ -67,6 +67,36 @@ release loop once for real.
   *Backing up your setup…*, the size, and a progress bar whose numbers are real — bytes on disk
   against a total known before the first write.
 
+- **Every channel shows in the row, not just the first five.** The INPUTS strip was five cells
+  wide because that is the rig the design was drawn for; a nine-channel setup lost its last four
+  channels off the end of every row with nothing to say they were missing. The strip is now as wide
+  as the biggest configuration in your store — never narrower than five, so a collapse still reads
+  as a gap — and the labels are what give way as it widens: nine characters at five channels, four
+  at nine, and past about a dozen the cells keep their solid and dashed rules and drop their words.
+  Hovering names them all, and so does the new details view.
+
+- **What's in this backup.** A new view off any row — `Ctrl+I`, the row's `···` menu, or a
+  double-click — listing **every channel, the effects on it in the order they run**, and what each
+  mix plays out of. Effects show their vendor, their category, whether they are switched off, and
+  whether they ship with Wave Link or are a VST3 that would have to be installed on a new machine.
+  Channels say which mixes they are heard in — **and say so when they are heard in none**, which
+  nothing else in the app would tell you.
+
+  It reads the backup's own settings file rather than anything recorded at capture time, so it
+  works on **every backup you already have**, including ones taken before this existed. A damaged
+  backup opens too, and says why it cannot be described — which is exactly when someone wants to
+  know what was in it. See [ADR-015](_docs/decisions/ADR-015-the-details-view-reads-the-backup-itself.md).
+
+- **You can pick the theme.** A `HOW IT LOOKS` section in Settings: *Auto*, *Dark*, *Light* or
+  *High contrast*. Auto follows Windows, which is what the app did before there was a choice, and
+  it stays the default. The choice applies the moment you press it — window, dialogs, tray menu and
+  tray icon — and is remembered in `shell.json` beside the window position, not in `settings.json`,
+  which describes itself on that same screen as the folder, the automatic-backup switch, how many
+  to keep and which Wave Link you picked.
+
+  **Turning on a high-contrast theme in Windows still overrides it**, because that is Windows
+  saying the palette is no longer ours.
+
 - **When Windows starts.** Two switches in Settings: start with Windows and sit in the tray, and
   whether closing the window hides it there. If Task Manager has disabled the startup entry, the
   switch reads off and says why rather than fighting it.
@@ -125,7 +155,7 @@ release loop once for real.
   names: `Alt` shortcuts on dialog buttons, `Shift+F10` and the Menu key opening a row's actions,
   `Delete` on a selected row, and labels that read as sentences.
 
-- **The main window's minimum width is 1124px**, up from 980. Below that the last column was being
+- **The main window's minimum width is 1152px**, up from 980. Below that the last column was being
   clipped with no way to scroll to it.
 
 - **A failed manual backup reports inline** rather than in a message box.
@@ -146,6 +176,37 @@ release loop once for real.
 ---
 
 ### Fixed
+
+- **The backup list scrolls with the mouse wheel.** It never had: the scroll bar, Page Up/Down and
+  the arrow keys all worked, and the wheel did nothing. The list's own scrolling is switched off so
+  the column header and the rows share one scroll position — and a switched-off scroll view still
+  swallows the wheel rather than passing it on.
+
+- **A backup taken before you added a channel is not marked suspect any more.** Adding channels in
+  Wave Link turned the input strip amber on every backup you already had: "fewer inputs than the
+  most any backup has" was being read as "Wave Link reset your settings", so a rig that grew
+  repainted its own history. A backup is now judged against the one taken before it — which is what
+  the amber is for, and what it now means again.
+
+- **The bottom bar counts your backups as soon as the list loads.** It read `0 BACKUPS · 0 B` for
+  the first fifteen seconds of every launch, under a window full of backups: the figures come from
+  the list and nothing re-read them until a selection or the next tick.
+
+- **"Back up now" in the window no longer kills the app.** The capture moved off the UI thread so
+  the new backing-up bar could animate, and the refresh that follows a capture - the tray icon, its
+  tooltip, its menu - ran on that thread too. Writing a window's own objects from another thread
+  throws, and there is nothing above a button handler to catch it, so the process ended: window,
+  tray and all. The backup itself was always written first; what was lost was the app, not the
+  backup. Both refreshes now marshal themselves.
+
+- **The CONTENTS column no longer clips `PLUGINS` mid-word.** Three tier badges measure 224px at
+  the design's own type role and padding, in a column the design gives 200. Its own reference
+  render draws them at about 224 too, so the column is 248 now and the window's minimum width goes
+  from 1124 to 1152 with it.
+
+- **The CONTENTS column shows what each backup holds again.** Every row drew three blank pills
+  where `SETTINGS`, `PRESETS` and `PLUGINS` belong: the badges picked the right treatment - filled
+  for present, a dashed ghost for absent - and then rendered their label against nothing.
 
 - **Restoring plug-in files no longer asks for administrator rights unless it needs them.** The
   app assumed it always would, because plug-ins usually live in a folder every account shares. On

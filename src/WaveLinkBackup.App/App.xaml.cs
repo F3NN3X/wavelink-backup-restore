@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -16,6 +17,7 @@ using WaveLinkBackup.App.ViewModels;
 using WaveLinkBackup.App.Views;
 using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.Core.Abstractions;
+using WaveLinkBackup.Core.Analysis;
 using WaveLinkBackup.Core.Automation;
 using WaveLinkBackup.Core.Capture;
 using WaveLinkBackup.Core.Discovery;
@@ -46,7 +48,14 @@ public partial class App : Application
     private static readonly Guid TrayIconId = new("2f8b6f4e-9d3a-4c17-9b52-6a1d4f0e7c38");
 
     private SingleInstance? instance;
-    private ISystemTheme? systemTheme;
+
+    /// <summary>
+    /// The OS palette WITH the user's preference applied - a <see cref="PreferredTheme"/> wrapped
+    /// around the real <see cref="UiSettingsTheme"/>. Everything downstream (ThemeManager.Follow,
+    /// the window's chrome, the tray icon and menu, every IsHighContrast) reads this one, so the
+    /// preference reaches all of them without any of them knowing it exists.
+    /// </summary>
+    private PreferredTheme? systemTheme;
     private IWindowChrome? chrome;
     private BackupHost? host;
     private BackupService? service;
@@ -171,15 +180,18 @@ public partial class App : Application
 
         // Applied before anything is drawn; Follow (below, once the tray exists) starts the
         // listening and re-applies on every OS change.
-        systemTheme = new UiSettingsTheme();
         chrome = new DwmWindowChrome();
-        ThemeManager.Apply(systemTheme.Theme, systemTheme.Accent);
 
         fileSystem = new FileSystem();
         settingsRepository = new SettingsRepository(fileSystem, SettingsRepository.DefaultDirectory);
 
+        // Read BEFORE the first Apply: the theme preference lives in here, and applying the OS
+        // theme first would paint the window once in the palette the user did not ask for.
         shellStateRepository = new ShellStateRepository(fileSystem, SettingsRepository.DefaultDirectory);
         ShellState = shellStateRepository.Read();
+
+        systemTheme = new PreferredTheme(new UiSettingsTheme(), () => ShellState.Theme);
+        ThemeManager.Apply(systemTheme.Theme, systemTheme.Accent);
 
         settings = arguments.ApplyTo(settingsRepository.Read());
 
@@ -474,6 +486,51 @@ public partial class App : Application
 
     internal void OpenSettings() => OpenSettings(scrollToUpdates: false);
 
+    /// <summary>
+    /// "What's in this backup": read the snapshot's own settings file, describe it, show it.
+    ///
+    /// The READ lives here rather than in the window because the window has neither the store nor
+    /// the file system. It is a single read of a file that is typically 47 KB and always local, on
+    /// a press - so it is synchronous, and a store on a sleeping network drive is the only case
+    /// where that is felt, which is the same trade every other row action already makes.
+    ///
+    /// Every failure - a snapshot that has gone, a file that cannot be read, one that is not
+    /// settings at all - becomes a sentence INSIDE the dialog rather than a refusal to open it.
+    /// A damaged backup is precisely when someone wants to know what was in it.
+    /// </summary>
+    internal void OpenSnapshotDetails(Window owner, string snapshotId)
+    {
+        if (store is null || fileSystem is null) return;
+
+        var found = store.Get(snapshotId);
+        if (!found.IsSuccess) return;
+
+        var snapshot = found.Value;
+
+        Result<ConfigurationDetail> read;
+        try
+        {
+            read = ConfigurationDetail.Read(fileSystem.ReadSharedBytes(snapshot.SettingsPath));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            read = Result<ConfigurationDetail>.Fail(
+                new SettingsUnreadable(snapshot.SettingsPath, ex.Message));
+        }
+
+        var dialog = new Views.SnapshotDetailsDialog(SnapshotDetailsModel.For(snapshot, read));
+
+        if (owner.IsLoaded)
+        {
+            dialog.Owner = owner;
+            dialog.ShowDialog();
+        }
+        else
+        {
+            dialog.Show();
+        }
+    }
+
     private void OpenSettings(bool scrollToUpdates)
     {
         var vm = BuildSettingsViewModel();
@@ -513,6 +570,25 @@ public partial class App : Application
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Remember the theme the user picked, and repaint.
+    ///
+    /// <see cref="PreferredTheme.Refresh"/> rather than a call to ThemeManager.Apply: the wrapper
+    /// raises the same Changed event an OS switch raises, and every subscriber - ThemeManager's own
+    /// Follow, the main window's chrome and IsHighContrast, the tray menu and icon - is already
+    /// wired to that. One route, so a preference change cannot repaint less than a Windows change
+    /// does.
+    /// </summary>
+    internal void SetThemePreference(ThemePreference preference)
+    {
+        if (ShellState.Theme == preference) return;
+
+        ShellState = ShellState with { Theme = preference };
+        shellStateRepository?.Save(ShellState);
+
+        systemTheme?.Refresh();
     }
 
     /// <summary>
@@ -558,12 +634,22 @@ public partial class App : Application
                 shellStateRepository?.Save(ShellState);
             });
 
+        // HOW IT LOOKS: the theme preference. Shell state, not settings.json - and applied through
+        // the same PreferredTheme the OS's own changes come through, so a pick here re-themes the
+        // window, the dialogs, the tray menu and the tray icon by exactly the route a Windows
+        // dark/light switch already did.
+        var appearance = new AppearanceSeam(
+            () => ShellState.Theme,
+            SetThemePreference,
+            () => systemTheme?.IsHighContrast ?? SystemParameters.HighContrast);
+
         var vm = SettingsViewModel.Build(
             settings,
             ApplySettings,
             whereLive,
             whichLive,
-            startup);
+            startup,
+            appearance);
 
         // WHAT GOES IN A BACKUP: every figure MEASURED from what a capture would take on this
         // machine right now (phase 6 §7) - never the design mock's 470 KB / 4 KB / 10 MB / 40 MB.
@@ -1156,6 +1242,12 @@ public partial class App : Application
 
     private void RefreshTray()
     {
+        // Every line below this touches an object the UI thread owns - the tray icon, its tooltip,
+        // three menu items. BackUpNow reaches here from a thread-pool thread (the capture runs off
+        // the UI thread so the backing-up bar can move), and setting TaskbarIcon.Icon from there
+        // threw and took the whole process with it. See UiThread.
+        if (UiThread.Marshal(Dispatcher, RefreshTray)) return;
+
         if (tray is null || host is null) return;
 
         var status = TrayState.From(host.Conditions);
@@ -1239,6 +1331,11 @@ public partial class App : Application
     /// </summary>
     private void RefreshShellFacts()
     {
+        // Same rule as RefreshTray, and the same caller: this one raises PropertyChanged on a
+        // bound view model and can open the error-2 chooser, neither of which belongs on a
+        // thread-pool thread.
+        if (UiThread.Marshal(Dispatcher, RefreshShellFacts)) return;
+
         if (shell is null || fileSystem is null) return;
 
         // Error 2 (06-errors.md): more than one Wave Link installation and none chosen yet is a
@@ -1325,9 +1422,19 @@ public partial class App : Application
         MainWindow.Activate();
     }
 
-    /// <summary>Called from the window's Closing, so geometry survives a hide as well as an exit.</summary>
-    internal void SaveGeometry(Views.MainWindow window) =>
-        shellStateRepository?.Save(window.CurrentGeometry(ShellState.ClosingHidesToTray));
+    /// <summary>
+    /// Called from the window's Closing, so geometry survives a hide as well as an exit.
+    ///
+    /// Writes the field as well as the file. The other two writers (the close-behaviour toggle and
+    /// the theme preference) save <see cref="ShellState"/> as they find it - so a field left
+    /// holding the geometry this app STARTED with would have them write that stale rectangle back
+    /// over the one this method had just saved.
+    /// </summary>
+    internal void SaveGeometry(Views.MainWindow window)
+    {
+        ShellState = window.CurrentGeometry(ShellState);
+        shellStateRepository?.Save(ShellState);
+    }
 
     /// <summary>
     /// The single exit. Three entrances reach it: the tray's Quit, closing the window when

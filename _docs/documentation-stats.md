@@ -20,20 +20,20 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of 2026-08-20 (unreleased, after 0.6.0).*
+*As of 2026-08-20 (unreleased, after 0.6.0). Two sessions on this date; this is after the second.*
 
 | Artifact | Count |
 |---|---|
-| ADRs | 12 |
-| Gotchas | 22 |
+| ADRs | 15 |
+| Gotchas | 26 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
 | Audits | 3 (6 + 15 + 4 findings, one open question) |
-| Sessions | 21 |
+| Sessions | 22 |
 | Plans | 13 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,432 passing** — Core 471 · CLI 100 · App 861 |
+| **Tests** | **1,549 passing** — Core 493 · CLI 100 · App 956 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,47 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### A theme choice, a crash, and what's in a backup (2026-08-20)
+
+**Three ADRs, three gotchas and a new debt section**, from a session that started as a screenshot
+comparison and turned into four pieces of work. The through-line is worth naming: **three of the
+four defects were invisible to tests that read source and visible to tests that render it.**
+
+- **Three ADRs.** [[ADR-013]] puts the theme preference behind the existing `ISystemTheme` seam —
+  a decorator, so none of the six consumers changed and none of them can disagree. [[ADR-014]]
+  widens the health strip to the rig and moves collapse from a high-water mark to a comparison with
+  the previous snapshot. [[ADR-015]] reads a backup's own settings file on demand rather than
+  extending `manifest.json`, which is what makes the details view work on every backup already on
+  disk.
+
+- **Three gotchas, and they share a shape.**
+  [[a-chip-draws-its-box-and-not-its-label]] — a `ContentTemplate` renders against `Content` and
+  the triggers around it read `DataContext`; every source-text guard passed while the column drew
+  three empty pills. [[pressing-back-up-now-closes-the-whole-app]] — a `DependencyProperty` written
+  from a `Task.Run`, diagnosed from the Windows event log after the source reading went the wrong
+  way. [[every-older-backup-turns-amber-after-adding-a-channel]] — a verdict computed against the
+  store's peak, which rewrites itself on every older row the moment the peak moves.
+
+- **A correction, not a silent edit.** `technical-debt.md` §5 claimed the "5 inputs is one user's
+  rig" rule was *"held by `HealthFingerprint` comparing against that user's own previous
+  snapshot"*. That was true of `HealthFingerprint` and false of the shell, which sized its strip at
+  a hard five and judged against the peak. §5 now says so, and points at the tests that hold it
+  instead of the paragraph that claimed it.
+
+- **A new debt section, §8**, for what building past the design package costs: no surface for an
+  unexpected exception (§8.1), three surfaces no design pass has seen (§8.2), and a measured
+  character-width constant that only a rendering test can keep honest (§8.3).
+
+- **And one more the next day.** [[the-list-will-not-scroll-with-the-wheel]] — the main list never
+  scrolled by wheel, because a disabled `ScrollViewer` still marks the event handled. Its *how to
+  avoid it* is mostly about the TEST: raising the event on the ListBox proves nothing (the
+  swallowing ScrollViewer is inside its template), and `RaiseEvent` raises one event where real
+  input raises two. Both mistakes were made before the test failed correctly.
+
+- **Five new glossary entries** — *mix*, *channel*, *effect chain*, *bypassed*, *collapsed*. Four
+  of them are words the settings file and the UI both use and mean slightly differently, which is
+  the [[glossary]]'s own criterion.
 
 ### Elevation, measured rather than assumed (2026-08-20)
 
@@ -838,6 +879,21 @@ see that. Read together before writing the next window.
 | [[three-backups-look-selected-at-once]] | Selection across several Selectors, and the test that passed while the bug shipped |
 | [operations/design/README.md](operations/design/README.md) | The values every one of these was audited against |
 | [2026-08-19-design-audit-and-ui-fixes.md](sessions/2026-08-19-design-audit-and-ui-fixes.md) | The narrative, including three wrong diagnoses |
+
+### A rig bigger than the design drew
+
+Spans two ADRs, a gotcha and a Core type. The design specifies a five-channel rig throughout, in
+the piece it calls the core information design; a nine-channel rig breaks the row and the details
+view is where the rest of the answer went. Read all four before changing either surface — the strip
+and the dialog are two halves of one question.
+
+| Artifact | Contribution |
+|---|---|
+| [[ADR-014]] | Why the strip widens, why the labels are what yield, and why collapse is a drop rather than a threshold |
+| [[ADR-015]] | Why the details view reads the backup rather than the manifest, and what that rules out |
+| [[every-older-backup-turns-amber-after-adding-a-channel]] | The reported symptom, and the two wrong fixes |
+| [operations/design/README.md](operations/design/README.md) §Screen 1 | The five-slot strip as drawn, which is what both decisions depart from |
+| `technical-debt.md` §5, §8.2 | The note that predicted this, and the by-eye pass now owed |
 
 ### Shipping a release, and the app finding it
 

@@ -747,6 +747,60 @@ public partial class MainWindow : Window
         e.CanExecute = shell.CanRestore;
 
     /// <summary>
+    /// "What's in this backup" - Ctrl+I, the row's overflow menu, and a double-click.
+    ///
+    /// Reaches App rather than reading the file here for the same reason every other row action
+    /// does: the window has no file system and no store, and this needs both (MainWindow.xaml.cs
+    /// stays a renderer).
+    /// </summary>
+    private void Details_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (shell.List.Selected is not { } row) return;
+
+        (Application.Current as App)?.OpenSnapshotDetails(this, row.Id);
+    }
+
+    /// <summary>
+    /// A row, and that is all it asks. Damaged included - see the binding's own note in the XAML.
+    /// </summary>
+    private void Details_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = shell.List.Selected is not null;
+
+    /// <summary>
+    /// A double-click on a row opens its details, which is what a double-click on a row means
+    /// everywhere else in Windows.
+    ///
+    /// Guarded on the ORIGINAL SOURCE being inside a row: the ListBox fills the whole list area,
+    /// so without this a double-click on the empty space below the last row would open the details
+    /// of whatever happened to be selected.
+    /// </summary>
+    private void Rows_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is not DependencyObject source) return;
+        if (FindAncestor<ListBoxItem>(source) is null) return;
+
+        ShellCommands.Details.Execute(null, this);
+    }
+
+    /// <summary>
+    /// The list scrolls with the wheel. Without this it did not: the ListBox's own ScrollViewer is
+    /// disabled so that ListScrollViewer carries one scroll position for the header and the rows,
+    /// and a disabled ScrollViewer still marks the wheel handled.
+    /// </summary>
+    private void Rows_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
+        WheelForwarding.Redirect(ListScrollViewer, sender, e);
+
+    private static T? FindAncestor<T>(DependencyObject from) where T : DependencyObject
+    {
+        for (var node = from; node is not null; node = VisualTreeHelper.GetParent(node))
+        {
+            if (node is T match) return match;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Each date group is its own ListBox (Task 10b), so native Home/End only reach that GROUP's
     /// own first/last row - WPF has no concept of "the next Selector down" to fall through to.
     /// The map (README/7.4) asks for Home/End to reach the list's first/last row overall, so this
@@ -959,13 +1013,22 @@ public partial class MainWindow : Window
     /// The RESTORE bounds, never the maximised ones - a window remembered as 3840 wide because
     /// it happened to be maximised opens absurd on the next machine.
     /// </summary>
-    internal ShellState CurrentGeometry(bool closingHidesToTray) => new(
-        Left: RestoreBounds.Left,
-        Top: RestoreBounds.Top,
-        Width: RestoreBounds.Width,
-        Height: RestoreBounds.Height,
-        IsMaximized: WindowState == WindowState.Maximized,
-        ClosingHidesToTray: closingHidesToTray);
+    /// <remarks>
+    /// Takes the CURRENT state and overwrites only the geometry, rather than constructing a whole
+    /// ShellState from a geometry plus one argument per remembered setting. Every field this
+    /// window knows nothing about - the close behaviour, the theme preference - then survives the
+    /// save on the shutdown path by default. The constructor form silently dropped whichever
+    /// field was added last, which is the kind of loss nobody notices until a preference stops
+    /// sticking.
+    /// </remarks>
+    internal ShellState CurrentGeometry(ShellState current) => current with
+    {
+        Left = RestoreBounds.Left,
+        Top = RestoreBounds.Top,
+        Width = RestoreBounds.Width,
+        Height = RestoreBounds.Height,
+        IsMaximized = WindowState == WindowState.Maximized,
+    };
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {

@@ -55,9 +55,17 @@ public sealed class SnapshotRowViewModelTests
                 }));
     }
 
+    /// <param name="peak">
+    /// The store's widest configuration, which is what sizes the strip. Named as it was before the
+    /// strip became variable-width - the row still asks for "as many cells as the biggest rig".
+    /// </param>
+    /// <param name="previousInputCount">
+    /// What this row is judged against: the input count of the snapshot immediately older than it.
+    /// Zero, the default, means there is none - so a bare Row() is never collapsed.
+    /// </param>
     private static SnapshotRowViewModel Row(
-        Snapshot? snapshot = null, int peak = 5, string? query = null) =>
-        new(snapshot ?? Snapshot(), peak, Now, query);
+        Snapshot? snapshot = null, int peak = 5, string? query = null, int previousInputCount = 0) =>
+        new(snapshot ?? Snapshot(), new SlotLayout(InputSlots.SlotsFor(peak), previousInputCount), Now, query);
 
     // -- the five slots -------------------------------------------------------------------
 

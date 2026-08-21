@@ -420,4 +420,95 @@ public sealed class SettingsDialogViewTests
 
         return (model, registry);
     }
+
+    // ------------- HOW IT LOOKS
+
+    /// <summary>
+    /// The §4.20 lesson once more: a section that exists only in the model passes every model test
+    /// and paints nothing. This walks the real visual tree for the four segments.
+    /// </summary>
+    [Fact]
+    public void The_how_it_looks_section_draws_all_four_theme_segments()
+    {
+        var segments = new List<string>();
+
+        ShowModel(AppearanceModel().Model, e =>
+        {
+            if (e is System.Windows.Controls.RadioButton { Name.Length: > 0 } button)
+            {
+                segments.Add(button.Name);
+            }
+        });
+
+        Assert.Contains("ThemeAutoSegment", segments);
+        Assert.Contains("ThemeDarkSegment", segments);
+        Assert.Contains("ThemeLightSegment", segments);
+        Assert.Contains("ThemeHighContrastSegment", segments);
+    }
+
+    /// <summary>
+    /// Pressing the real control has to move the real model - the half a rendered-but-unbound
+    /// segment would still pass.
+    /// </summary>
+    [Fact]
+    public void Pressing_a_theme_segment_writes_through_to_the_model()
+    {
+        var (model, written) = AppearanceModel();
+
+        Assert.True(model.ThemeIsAuto);
+
+        ShowModel(model, e =>
+        {
+            if (e.Name == "ThemeLightSegment" && e is System.Windows.Controls.RadioButton button)
+            {
+                button.IsChecked = true;
+            }
+        });
+
+        Assert.Equal(ThemePreference.Light, model.Theme);
+        Assert.Equal([ThemePreference.Light], written);
+    }
+
+    /// <summary>
+    /// The stored preference has to be ON the segment when the dialog opens, not merely readable
+    /// from the model - an IsChecked binding that only travels one way leaves every segment
+    /// looking unpicked.
+    /// </summary>
+    [Fact]
+    public void The_stored_preference_opens_already_selected()
+    {
+        var (model, _) = AppearanceModel(ThemePreference.HighContrast);
+        var checkedNames = new List<string>();
+
+        ShowModel(model, e =>
+        {
+            if (e is System.Windows.Controls.RadioButton { IsChecked: true } button)
+            {
+                checkedNames.Add(button.Name);
+            }
+        });
+
+        Assert.Equal(["ThemeHighContrastSegment"], checkedNames);
+    }
+
+    /// <summary>A model carrying a real appearance seam over a plain variable.</summary>
+    private static (SettingsViewModel Model, List<ThemePreference> Written) AppearanceModel(
+        ThemePreference stored = ThemePreference.Auto)
+    {
+        var written = new List<ThemePreference>();
+        var current = stored;
+
+        var model = SettingsViewModel.Build(
+            new BackupSettings(Store, AutoBackupEnabled: true),
+            _ => true,
+            new WhereSettingsLiveModel(@"C:\s\settings.json", "1 KB"),
+            null,
+            null,
+            new AppearanceSeam(
+                () => current,
+                value => { current = value; written.Add(value); },
+                () => current == ThemePreference.HighContrast));
+
+        return (model, written);
+    }
 }

@@ -40,7 +40,7 @@ public sealed class SnapshotRowViewModel : ObservableObject
     private string? renameError;
 
     public SnapshotRowViewModel(
-        Snapshot snapshot, int peakInputCount, DateTimeOffset now, string? query = null)
+        Snapshot snapshot, SlotLayout slots, DateTimeOffset now, string? query = null)
     {
         manifest = snapshot.Manifest;
         this.now = now;
@@ -57,7 +57,7 @@ public sealed class SnapshotRowViewModel : ObservableObject
         SizeBytes = manifest.TotalSizeBytes;
         TakenAt = manifest.CreatedUtc.ToLocalTime();
 
-        Slots = InputSlots.Build(manifest.InputNames, peakInputCount);
+        Slots = InputSlots.Build(manifest.InputNames, slots);
         Tiers = [.. TierOrder.Select(t => new TierBadge(
             t.ToUpper(CultureInfo.InvariantCulture),
             manifest.Tiers.Contains(t, StringComparer.OrdinalIgnoreCase)))];
@@ -311,14 +311,18 @@ public sealed class SnapshotRowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 7.4 is explicit that this is part of the work rather than a follow-up: the five-slot
-    /// strip reads as five unlabelled cells without it, and which cells are filled is the entire
-    /// meaning of the column.
+    /// 7.4 is explicit that this is part of the work rather than a follow-up: the strip reads as
+    /// a row of unlabelled cells without it, and which cells are filled is the entire meaning of
+    /// the column.
+    ///
+    /// It doubles as the strip's TOOLTIP, which stopped being a nicety when the cells started
+    /// dropping their labels on a big rig: hovering is then the only way to read a channel name
+    /// without opening the details.
     /// </summary>
     public string SlotsAutomationName =>
         manifest.InputNames.Count == 0
-            ? $"No inputs, {InputSlots.SlotCount} slots empty."
-            : $"{manifest.InputNames.Count} of {InputSlots.SlotCount} inputs: "
+            ? $"No inputs, {Slots.Count} slots empty."
+            : $"{manifest.InputNames.Count} of {Slots.Count} inputs: "
             + $"{string.Join(", ", manifest.InputNames)}.";
 
     /// <summary>
