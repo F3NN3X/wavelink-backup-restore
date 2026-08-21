@@ -55,11 +55,14 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           --output publish/app
 
-      # Into the SAME directory, so one archive is one install. Both projects are self-contained,
-      # so both carry the runtime; the shared assemblies are identical files and the per-app
-      # .deps.json / .runtimeconfig.json are named after their own assembly, so they do not
-      # collide. UNVERIFIED - this has never run. If the first release produces a warning or a
-      # clobbered file here, publish them to separate folders and merge deliberately.
+      # Into the SAME directory, so one archive is one install.
+      #
+      # MEASURED 2026-08-21 while packaging v0.7.0 locally, which this step's comment used to ask
+      # for: nothing collides and nothing warns. The CLI is PublishSingleFile, so it contributes
+      # exactly wlbackup.exe and its .pdb - there is no loose CLI assembly, and so no
+      # wlbackup.deps.json to sit beside the app's. It also means the runtime ships twice, once
+      # loose and once inside that exe; see technical-debt.md 8.5, which is a size question rather
+      # than a correctness one.
       - name: Publish the CLI beside it
         run: >
           dotnet publish src/WaveLinkBackup.Cli/WaveLinkBackup.Cli.csproj

@@ -31,6 +31,7 @@ that a commit can close.
 | **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run this when endpoint inspection lands; the AOT publish itself already works. |
 | **§8.1** — an unhandled exception still ends the process silently | Needs a design answer before code: `06-errors.md` specifies twelve errors and none of them is "something unexpected happened", and inventing a thirteenth surface in XAML is what [[ADR-004]] exists to prevent. |
 | **§8.2** — three surfaces built past the design package have never been looked at | Same shape as §4.15. Nothing in the suite can assert that a layout looks right; they belong on the by-eye checklist. |
+| **§8.5** — the download carries the .NET runtime twice (101 MB) | Measured on the first real package. Not a defect: every way of fixing it trades away something the csproj or the updater contract chose on purpose. §8.5 has the table. |
 | **§8.4** — the list does not virtualise, and its markup says it does | A commit *could* close it, and it would be the wrong commit: the fix is structural (delete the outer ScrollViewer), it moves the header's gutter binding, and it wants the by-eye pass §8.2 already owes. |
 
 §3 is untouched on purpose: those are choices made with eyes open, not debt.
@@ -1341,3 +1342,29 @@ it was not done under a scroll fix:
 
 Neither is hard. Both want a by-eye pass afterwards (§8.2), because the thing being changed is how
 the header lines up with the rows — the exact defect the audit's §1.1 was about.
+
+### 8.5 The download carries the .NET runtime twice — **measured 2026-08-21, not yet decided**
+
+`WaveLinkBackup-0.7.0-win-x64.zip` is **101.2 MB**. `wlbackup.exe` inside it is **70.4 MB**,
+because the CLI publishes `PublishSingleFile` + self-contained: it bundles its own copy of the
+runtime, next to the loose copy the app already ships.
+
+Both halves of that were chosen deliberately and neither is wrong on its own. Self-contained is
+[the csproj's own point](../../src/WaveLinkBackup.Cli/WaveLinkBackup.Cli.csproj) — upstream's
+pipeline disagreed with its project file and ours must not. Single-file is what makes `wlbackup`
+something a person can drop on a PATH.
+
+**What it costs:** roughly half the download, on every update, for a CLI most users of the GUI will
+never run.
+
+**The options, none of them free:**
+
+| | Effect |
+|---|---|
+| Drop `PublishSingleFile` for the release build only | The CLI shares the app's loose runtime; the archive roughly halves. But a local publish stops matching CI's artifact, which is the property §1.5 exists to protect |
+| Drop `PublishSingleFile` everywhere | Same saving, and `wlbackup.exe` stops being one portable file — it needs its directory |
+| Ship the CLI as a separate asset | The updater's contract is one `*win-x64.zip`; a second asset means a second contract |
+| Leave it | 101 MB is not much for a desktop app, and the updater streams and verifies it. This is the current answer |
+
+**Do not change this quietly on release day.** It is a shape decision with a runbook and a debt
+entry pointing at it, and the size is the only symptom.

@@ -23,10 +23,21 @@ heading here.
 
 ## [Unreleased]
 
-**Phase 7's work landed early, as a debt-clearing pass**: the privacy gate, the two notifications
-and the update mechanism are all here. What remains of
-[phase-7-release.md](_docs/dev-phases/phase-7-release.md) is packaging, signing, and running the
-release loop once for real.
+Nothing yet.
+
+---
+
+## [0.7.0] — 2026-08-21
+
+**The release phase, and a rig bigger than the design drew.** Phase 7's work — the privacy gate,
+the two tray notifications, the in-app updater and the release pipeline — landed early as a
+debt-clearing pass. This version packages it, and adds what a nine-channel setup turned out to
+need: every channel visible in the row, a view of what a backup actually holds, and a theme you
+can choose.
+
+**It is not signed.** Windows will warn on first run, and
+[phase-7-release.md](_docs/dev-phases/phase-7-release.md) still owns that. Everything else in the
+exit criterion holds: one self-contained archive, no SDK, no installer.
 
 ### Added
 
@@ -667,6 +678,10 @@ A gate, not a version. Before any public `1.0.0`:
       unit-tested; the download, the swap and the relaunch have met fixtures and temp directories
       only. Record the result in
       [the runbook](_docs/operations/runbooks/releasing-and-updating.md).
+      **Half of it is done:** v0.7.0 was packaged locally on 2026-08-21 with the workflow's own
+      steps, and the archive, the checksum and both published binaries were verified — the runbook
+      records what that settled. The half that remains needs a remote: a tag push, the release CI
+      creates, and the app reading it back.
 - [ ] **Set `WLBACKUP_UPDATE_OWNER` / `_REPO`** in the published build, once the repository has a
       remote. Until then the UPDATES section correctly hides itself, which also means nobody has
       exercised it.

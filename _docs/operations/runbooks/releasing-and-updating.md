@@ -2,7 +2,7 @@
 title: "Releasing a version, and how the app updates itself"
 status: published
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-08-21
 related_adrs: [ADR-012, ADR-011, ADR-004]
 tags: [runbook, release, updates, ci]
 ---
@@ -18,6 +18,9 @@ So they are one document.
 > end to end**, because this repository has no remote and has published no release. Everything
 > below marked *measured* was verified locally against fixtures; everything marked *unverified* is
 > the part that needs a first real release to confirm. Say which when you edit this.
+>
+> **v0.7.0 was packaged locally on 2026-08-21** and settled the build half — see §2's own table.
+> The loop half is untouched: no tag has been pushed and no release exists to read back.
 
 **Why this folder exists now.** [`_docs/README.md`](../../README.md) set `operations/runbooks/`'s
 trigger as *"there is a running system to operate — realistically, the first release."* Preparing
@@ -74,6 +77,29 @@ That is the whole procedure. The workflow triggers on `push: tags: v*` and:
 - [ ] `documentation-stats.md`'s **Recent additions** has a block for it.
 - [ ] The tag is on the commit you mean. A tag is cheap to delete and expensive to have wrong,
       because the updater trusts the newest release absolutely.
+
+### What the first real package verified — 2026-08-21, v0.7.0
+
+**Built locally, not by CI**, because this repository still has no remote. The runbook's own claim
+that *"a local `dotnet publish` produces the same artifact CI does"* is what made that a reasonable
+substitute, and the steps below were run exactly as `release.yml` runs them, with
+`-p:Version=0.7.0` in place of the tag.
+
+| | Was | Now |
+|---|---|---|
+| Publishing the CLI into the app's directory | **Unverified** — the workflow's own comment warned of a warning or a clobbered file | **Measured: neither.** The CLI is `PublishSingleFile`, so it contributes exactly `wlbackup.exe` and its `.pdb`. There is no `wlbackup.deps.json` to collide with the app's, because there is no loose CLI assembly at all |
+| The archive's shape | Unverified | **Measured.** 409 entries, `WaveLinkBackup.exe` and `wlbackup.exe` at the root, the satellite resource folders (`cs`, `de`, …) beside them, and the checksum written `<hash>  <name>` |
+| The published binaries | Unverified | **Measured.** Both report `0.7.0`; extracted to a directory that had never held the app, `wlbackup.exe version` printed and the GUI started and drew its list |
+
+**Still unverified, and only a real release can settle it:** the tag-triggered workflow, the GitHub
+release it creates, and the whole updater loop reading it back. Nothing here exercised
+`releases/latest`.
+
+**One measurement worth carrying into the next release:** the archive is **101.2 MB**, and 70.4 MB
+of that is `wlbackup.exe` — a single-file self-contained CLI carries its own copy of the .NET
+runtime, beside the app's loose copy of the same runtime. **The runtime ships twice.** See
+[technical-debt.md](../../technical-debt.md) §8.5; it is not a defect and it is roughly half the
+download.
 
 ---
 

@@ -20,7 +20,7 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of 2026-08-20 (unreleased, after 0.6.0). Two sessions on this date; this is after the second.*
+*As of v0.7.0 (2026-08-21).*
 
 | Artifact | Count |
 |---|---|
@@ -56,6 +56,26 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Recent additions (v0.7.0 — the release phase, and a bigger rig)
+
+**Cut 2026-08-21.** The version that packages phase 7 and answers what a nine-channel rig needed.
+The documentation delta for it is the two blocks below — the elevation audit and the debt
+clearance landed in the same version — plus:
+
+- **A new debt section, §8**, which is the honest cost of this version: three surfaces built past
+  the design package with no design pass behind them, no surface for an unexpected exception, a
+  measured constant, and a list whose virtualisation markup is inert. **Four entries, all opened by
+  the work in this release rather than inherited** — the first time §1–§7's pattern of "found, then
+  closed" has been joined by a section that only grows.
+
+- **A correction to §5**, which had claimed a rule was structural when it was true of Core and
+  false of the shell. Recorded rather than edited away.
+
+- **`releasing-and-updating.md` is still marked *the loop has never run end to end*.** This
+  release does not change that: it was built locally, exactly as the runbook says a local publish
+  reproduces CI, and the repository still has no remote to publish to. The first real tag push is
+  what flips that provenance line.
 
 ### A theme choice, a crash, and what's in a backup (2026-08-20)
 
