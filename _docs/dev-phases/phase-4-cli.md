@@ -2,7 +2,7 @@
 title: "Phase 4 — CLI shell"
 status: published
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-22
 related_adrs: [ADR-004, ADR-008]
 tags: [dev-phase]
 ---
@@ -41,7 +41,8 @@ The CLI comes before the GUI for two reasons ([[ADR-004]]):
 - The first production caller of `AutoBackupCoordinator.Tick()`, which means **choosing the
   tick interval**.
 - Exit codes that mean something to a script.
-- Publish: single file, self-contained.
+- Publish: single file. (Was self-contained when written; **framework-dependent since v0.7.2** —
+  [technical-debt.md](../technical-debt.md) §8.5.)
 
 ### Out — and where it went instead
 
@@ -99,9 +100,10 @@ what a person recognises anyway.
 
 ### 6 · Publish
 
-`SelfContained=true` and `PublishSingleFile=true` are already set. This phase verifies the
-result actually runs on a machine without the SDK, and **tries NativeAOT** — the answer feeds
-§2.4 and the phase 7 packaging decision.
+`PublishSingleFile=true` is set in the csproj (it also had `SelfContained=true` when this was
+written; **framework-dependent since v0.7.2** — [technical-debt.md](../technical-debt.md) §8.5).
+This phase verifies the result actually runs on a machine without the SDK, and **tries NativeAOT**
+— the answer feeds §2.4 and the phase 7 packaging decision.
 
 ## Testing
 

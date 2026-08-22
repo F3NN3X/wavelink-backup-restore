@@ -6,16 +6,17 @@
     <AssemblyName>wlbackup</AssemblyName>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <!--
-      Deliberately self-contained AT PUBLISH TIME. Upstream sets SelfContained=false in its
-      csproj and then overrides it to true in its release workflow, so a local publish produces
-      a different artifact from CI's (audit finding 5). Stating it here means the csproj and
-      the pipeline cannot disagree.
+      Framework-dependent at publish time: the .NET 10 runtime is a prerequisite, not a payload.
+      The CLI ships as its own release artifact (see release.yml), so it no longer rides inside
+      the app's zip — and a single-file framework-dependent exe is a few MB instead of ~70 MB
+      because the runtime is resolved from the machine at startup rather than embedded.
 
-      PublishSelfContained rather than SelfContained: the latter applies to ordinary builds
-      too, and a non-self-contained test project cannot reference a self-contained executable
-      (NETSDK1151). This gets the same shipped artifact without making the CLI untestable.
+      Stated here, not in the workflow, so a local `dotnet publish` and CI cannot disagree
+      (the upstream failure mode, technical-debt.md §1.5). PublishSelfContained=false rather
+      than SelfContained: the latter would apply to ordinary builds too, and a non-self-contained
+      test project cannot reference a self-contained executable (NETSDK1151).
     -->
-    <PublishSelfContained>true</PublishSelfContained>
+    <PublishSelfContained>false</PublishSelfContained>
     <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 

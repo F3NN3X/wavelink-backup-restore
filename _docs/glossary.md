@@ -152,6 +152,32 @@ Link's own `SettingsJsonNormalizer.HasCaseInsensitiveDuplicateProperties` reject
 resets to defaults. Invisible to `ConvertFrom-Json`, which silently collapses them. See
 [[file-parses-but-wave-link-resets]].
 
+**Mix** — one of Wave Link's output busses, in `MixerConfiguration.MixSettings`. Keyed by a mix
+id (`PCM_IN_01_V_04_SD3`) and named by the user — *Headphones*, *Stream Mix*, *Record Mix*. A
+channel's `MixerIds` name the mixes it feeds; a mix's `OutputDevices` name what it plays out of,
+and **an empty list is normal** — on a stock rig only the monitor mix carries a hardware output
+and the rest are read by the stream software over the virtual device. Shown in the details
+dialog ([[ADR-015]]).
+
+**Channel** — one entry of `InputSettings`, and what the UI calls an INPUT. The two words are the
+same thing seen from two sides: *input* is how the mixer takes it in and is what the list's column
+is headed; *channel* is what an effect chain sits on and is what the details dialog lists. Wave
+Link uses both, so this project does too, and neither is a synonym for a physical device — a
+channel may be an application, a virtual bus, or nothing at all.
+
+**Effect chain** — the ordered contents of one channel's `AudioPluginConfigurations`. **The order
+is part of the configuration**, not a display detail: an EQ before a compressor is a different
+sound from the same two the other way round, which is why the details dialog numbers them and
+never sorts them.
+
+**Bypassed** — `BypassState` on one entry of a chain. The effect is in the chain and switched off;
+it is restored that way, so it is shown rather than hidden.
+
+**Collapsed** — a configuration with fewer inputs than the snapshot before it: Wave Link fell back
+to device-derived names, which is what a reset looks like. **Judged against the previous snapshot,
+never against a threshold or a high-water mark** — a rig that grows has not collapsed
+([[ADR-014]], [[every-older-backup-turns-amber-after-adding-a-channel]]).
+
 **Machine-local** — the property that every snapshot has and that users will assume it does
 not: endpoint IDs embed device serials and plugin paths are absolute, so a snapshot restored
 on another machine produces dead channels rather than a shared preset. Labelled as such in
@@ -211,8 +237,9 @@ of a file is still a copy of a file. Nothing is ever uploaded.
 
 **Daily backup** — an optional capture at a wall-clock time each day, distinct from the
 **interval cap**. The cap is a ceiling on change-driven captures ("at most one an hour"); the
-daily backup is an instruction with a time on it and the cap does not suppress it. It runs the
-other way: an ordinary automatic capture after today's set time means the day is covered.
+daily backup is an instruction with a time on it and the cap does not suppress it. Only today's
+own copy of this one covers the day — an ordinary automatic capture, before or after the set
+time, never cancels it (dedup keeps it free when nothing has changed).
 
 **Bundle** — a `.vst3` that is a *directory*
 (`Plugin.vst3\Contents\x86_64-win\Plugin.vst3`) rather than a file. Permitted by the VST3

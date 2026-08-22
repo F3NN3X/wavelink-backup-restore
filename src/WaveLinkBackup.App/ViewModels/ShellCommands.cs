@@ -32,8 +32,15 @@ public static class ShellCommands
     public static RoutedUICommand Restore { get; } =
         New("Restore this backup", nameof(Restore), Key.Enter, ModifierKeys.None);
 
+    /// <summary>
+    /// Ctrl+I, and a double-click on the row. Not Enter, which restores - the two are one keystroke
+    /// apart on the same row and only one of them is reversible.
+    /// </summary>
+    public static RoutedUICommand Details { get; } =
+        New("Show what's in this backup", nameof(Details), Key.I, ModifierKeys.Control);
+
     public static IReadOnlyList<RoutedUICommand> All { get; } =
-        [Refresh, Search, ClearSearch, BackUpNow, Rename, Delete, Restore];
+        [Refresh, Search, ClearSearch, BackUpNow, Rename, Delete, Restore, Details];
 
     private static RoutedUICommand New(string text, string name, Key key, ModifierKeys modifiers) =>
         new(text, name, typeof(ShellCommands), [new KeyGesture(key, modifiers)]);

@@ -182,10 +182,18 @@
     -->
     <DataTemplate x:Key="WlSlotStrip">
         <ItemsControl ItemsSource="{Binding Slots}" ItemTemplate="{StaticResource WlSlotTemplate}"
-                      Focusable="False" AutomationProperties.Name="{Binding SlotsAutomationName}">
+                      Focusable="False" AutomationProperties.Name="{Binding SlotsAutomationName}"
+                      ToolTip="{Binding SlotsAutomationName}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <UniformGrid Columns="5" />
+                    <!--
+                      Rows="1" rather than Columns="5": UniformGrid derives the column count from
+                      the child count when only Rows is set, so the strip is as wide in cells as
+                      the row has slots. It was a hard 5, which is what silently dropped a
+                      nine-channel rig's last four channels off the end of every row - the view
+                      model had built nine slots and this panel drew the first five.
+                    -->
+                    <UniformGrid Rows="1" />
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemContainerStyle>
@@ -357,6 +365,10 @@
         <Setter Property="ContextMenu">
             <Setter.Value>
                 <ContextMenu>
+                    <!-- First, and separated: it is the one item here that only LOOKS at the
+                         backup. The three below all change something. -->
+                    <MenuItem Command="{x:Static vm:ShellCommands.Details}" />
+                    <Separator />
                     <MenuItem Command="{x:Static vm:ShellCommands.Restore}" />
                     <MenuItem Command="{x:Static vm:ShellCommands.Rename}" />
                     <Separator />
@@ -428,7 +440,13 @@
                                 <ColumnDefinition Width="140" SharedSizeGroup="WlColTaken" />
                                 <ColumnDefinition Width="144" SharedSizeGroup="WlColWhy" />
                                 <ColumnDefinition Width="320" SharedSizeGroup="WlColInputs" />
-                                <ColumnDefinition Width="220" SharedSizeGroup="WlColContents" />
+                                <!-- 248, not the design's 200 + 20 gap: three tier badges at the
+                                     design's own type role and padding measure 224.2px, which its
+                                     200px column cannot hold. Its own reference render draws them
+                                     at ~224 too, so the picture is right and the arithmetic beside
+                                     it is not - and with 220 here the third badge read PLUGIN,
+                                     clipped mid-word, on every row. -->
+                                <ColumnDefinition Width="248" SharedSizeGroup="WlColContents" />
                                 <ColumnDefinition Width="40" SharedSizeGroup="WlColOverflow" />
                             </Grid.ColumnDefinitions>
 
@@ -603,7 +621,16 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <ContentControl Focusable="False">
+                                        <!--
+                                          Content="{Binding}" is load-bearing, not decoration: a
+                                          ContentTemplate renders against Content, not against the
+                                          DataContext the triggers read. Without it the chosen
+                                          template ran over a null Content, so every badge drew its
+                                          chip and dropped its {Binding Label} - three empty pills
+                                          in the CONTENTS column of every row. Same idiom as
+                                          WlSlotTemplate and the WHY/INPUTS cells above.
+                                        -->
+                                        <ContentControl Content="{Binding}" Focusable="False">
                                             <ContentControl.Style>
                                                 <Style TargetType="ContentControl">
                                                     <Setter Property="ContentTemplate" Value="{StaticResource ResourceKey=WlTierAbsent}" />

@@ -41,6 +41,10 @@ public sealed class KeyboardConventionTests
     [InlineData(nameof(ShellCommands.Rename), Key.F2, ModifierKeys.None)]
     [InlineData(nameof(ShellCommands.Delete), Key.Delete, ModifierKeys.None)]
     [InlineData(nameof(ShellCommands.Restore), Key.Enter, ModifierKeys.None)]
+    // Not in the design's key map - the details view is not one of its four screens. Ctrl+I is
+    // chosen for the same reason the rest of this table exists: an inspection shortcut people
+    // already know, and one keystroke away from nothing destructive.
+    [InlineData(nameof(ShellCommands.Details), Key.I, ModifierKeys.Control)]
     public void Every_named_convention_has_the_gesture_the_design_gives_it(
         string name, Key key, ModifierKeys modifiers)
     {
@@ -49,6 +53,22 @@ public sealed class KeyboardConventionTests
 
         Assert.Equal(key, gesture.Key);
         Assert.Equal(modifiers, gesture.Modifiers);
+    }
+
+    /// <summary>
+    /// Two commands on one gesture is a race nobody wins: WPF routes to whichever binding it finds
+    /// first, and the loser looks broken on a keyboard and fine everywhere else. Cheap to assert,
+    /// and the exact risk each new command adds - Details arrived after this table was written.
+    /// </summary>
+    [Fact]
+    public void No_two_commands_claim_the_same_gesture()
+    {
+        var gestures = ShellCommands.All
+            .SelectMany(c => c.InputGestures.OfType<KeyGesture>())
+            .Select(g => (g.Key, g.Modifiers))
+            .ToList();
+
+        Assert.Equal(gestures.Count, gestures.Distinct().Count());
     }
 
     /// <summary>

@@ -9,6 +9,11 @@ x86/
 [Aa][Rr][Mm]64/
 publish/
 artifacts/
+
+# Release archives. CI writes these to the repository root (release.yml, "Package") and uploads
+# them from there; a local reproduction of that build drops a ~100 MB zip here too.
+WaveLinkBackup-*-win-x64.zip
+WaveLinkBackup-*-win-x64.zip.sha256
 *.dll
 *.exe
 *.pdb
@@ -75,6 +80,3 @@ WaveLinkBackup/
 **/TestData/real/
 local.runsettings
 *.local.json
-
-# Agent tooling session state, not project content.
-.omo/

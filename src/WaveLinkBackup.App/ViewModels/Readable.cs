@@ -118,14 +118,39 @@ public static class Readable
     }
 
     /// <summary>
-    /// An input name shortened to fit a 57px slot: MIC 1 · VOICE · BROWSER · GAME · SYSTEM, and
-    /// WAVE:3 for "Elgato Wave:3".
+    /// The widest a slot label ever gets: what one cell of a FIVE-cell strip holds - the design's
+    /// own rig, and the strip's floor.
+    ///
+    /// It was a flat 10 characters, which never fitted: ten characters of the slot-label role
+    /// measure 62.4px in a 56.8px cell, so "WAVE MIC 1" was overflowing its cell before any of
+    /// this. The number is derived now, so it cannot drift from the geometry again.
+    /// </summary>
+    private static readonly int WidestSlotLabel = InputSlots.LabelBudget(InputSlots.MinimumSlots);
+
+    /// <summary>
+    /// Below this, an ellipsis costs more than the character it replaces - it is a quarter of a
+    /// four-character label, and at that size the label is obviously an abbreviation already.
+    /// </summary>
+    private const int EllipsisWorthIt = 6;
+
+    /// <summary>
+    /// An input name shortened to fit one cell of the health strip: MIC 1 · VOICE · BROWSER ·
+    /// GAME · SYSTEM, and WAVE:3 for "Elgato Wave:3".
     ///
     /// ONE leading brand word is dropped, never two - "Elgato Wave Mic 1" is still a Wave device
     /// and losing that would make two different inputs read identically.
     /// </summary>
-    public static string SlotLabel(string inputName)
+    /// <param name="maxChars">
+    /// What fits, which depends on how many channels the rig has - see
+    /// <see cref="InputSlots.LabelBudget"/>. Zero means the cell is too narrow to label at all and
+    /// the strip falls back to its rules alone. The default is the five-cell width, so a caller
+    /// that does not care about the strip's geometry gets the design's own label.
+    /// </param>
+    public static string SlotLabel(string inputName, int? maxChars = null)
     {
+        var budget = maxChars ?? WidestSlotLabel;
+
+        if (budget <= 0) return string.Empty;
         if (string.IsNullOrWhiteSpace(inputName)) return "—";
 
         var name = inputName.Trim();
@@ -142,7 +167,19 @@ public static class Readable
 
         name = Upper(name);
 
-        return name.Length <= 10 ? name : name[..9] + "…";
+        if (name.Length <= budget) return name;
+
+        // Tight budgets lose their spaces before they lose their letters: AUX 1 and AUX 2 are
+        // distinct as AUX1/AUX2 and identical as AUX, and telling two channels apart is the
+        // entire job of the label.
+        if (budget < EllipsisWorthIt)
+        {
+            var tight = name.Replace(" ", string.Empty, StringComparison.Ordinal);
+
+            return tight.Length <= budget ? tight : tight[..budget];
+        }
+
+        return name[..(budget - 1)] + "…";
     }
 
     private static string Upper(string value) => value.ToUpper(CultureInfo.InvariantCulture);

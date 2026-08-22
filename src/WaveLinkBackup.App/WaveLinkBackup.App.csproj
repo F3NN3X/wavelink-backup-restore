@@ -16,6 +16,13 @@
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <!--
+      No satellite locale folders in the publish. WPF ships localized strings for 13 cultures
+      (~9 MB of cs/de/es/... resource assemblies); this app's UI is English-only, so invariant
+      globalization drops them all. Culture-sensitive formatting (dates, numbers) falls back to
+      invariant culture — acceptable for a tray utility whose only user-facing text is ours.
+    -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
       The app icon: the shield-check mark, rendered from the SAME geometry TrayIconRenderer draws
       for WATCHING (see app.ico's generator). One asset serves the exe's file properties, the
       taskbar and Alt-Tab. It is embedded by the linker, not the WPF resource pipeline, so no

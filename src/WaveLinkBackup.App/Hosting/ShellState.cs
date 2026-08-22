@@ -1,4 +1,5 @@
 using System.Windows;
+using WaveLinkBackup.App.Theming;
 
 namespace WaveLinkBackup.App.Hosting;
 
@@ -10,6 +11,12 @@ namespace WaveLinkBackup.App.Hosting;
 /// you picked" (screens/08-settings-persistence.md) - a window rectangle in there would make
 /// that sentence false. And Core has no window to hide and no tray to hide it in (ADR-004).
 /// </summary>
+/// <param name="Theme">
+/// Which of the three palettes to draw, or Auto to follow Windows. Here rather than in
+/// settings.json for the same reason the window rectangle is: it is what the SHELL remembers, and
+/// settings.json describes itself in the dialog as "the folder, the automatic-backup switch, how
+/// many to keep and which Wave Link you picked".
+/// </param>
 /// <param name="ClosingHidesToTray">
 /// On by default. Off routes a window close through the full shutdown path, INCLUDING the
 /// shutdown capture - coherent rather than dangerous, because the user turned it off in
@@ -21,11 +28,12 @@ public sealed record ShellState(
     double? Width,
     double? Height,
     bool IsMaximized,
-    bool ClosingHidesToTray)
+    bool ClosingHidesToTray,
+    ThemePreference Theme)
 {
     public static ShellState Default { get; } = new(
         Left: null, Top: null, Width: null, Height: null,
-        IsMaximized: false, ClosingHidesToTray: true);
+        IsMaximized: false, ClosingHidesToTray: true, Theme: ThemePreference.Auto);
 
     /// <summary>
     /// Whether a remembered rectangle still overlaps a screen that exists.

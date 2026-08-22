@@ -117,6 +117,10 @@ public partial class MainWindow : Window
         // static placeholder. Application.Current is always set by the time a button can be clicked.
         SettingsButton.Click += (_, _) => (Application.Current as App)?.OpenSettings();
 
+        // The "?" beside it opens the help dialog the same way: one two-line seam on App, no
+        // command object (the same reason the gear above is code-behind rather than a command).
+        HelpButton.Click += (_, _) => (Application.Current as App)?.OpenHelp();
+
         // Screen 4 (first-run / empty state): its own "Back up now" and "Choose where to keep
         // them" live in the stand-in region, so they are wired here rather than on the bottom bar.
         // Both reuse the exact same actions as the bottom bar - BackUpNowAsync and the folder
@@ -707,7 +711,7 @@ public partial class MainWindow : Window
 
     // ================================================================================
     // ShellCommands.All, bound in MainWindow.xaml's Window.CommandBindings (all but
-    // ClearSearch, which is bound narrowly on SearchBox and ListScrollViewer instead - see the
+    // ClearSearch, which is bound narrowly on SearchBox and GroupsHost instead - see the
     // comment on Window.CommandBindings in the XAML for why).
     // ================================================================================
 
@@ -745,6 +749,52 @@ public partial class MainWindow : Window
 
     private void Restore_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
         e.CanExecute = shell.CanRestore;
+
+    /// <summary>
+    /// "What's in this backup" - Ctrl+I, the row's overflow menu, and a double-click.
+    ///
+    /// Reaches App rather than reading the file here for the same reason every other row action
+    /// does: the window has no file system and no store, and this needs both (MainWindow.xaml.cs
+    /// stays a renderer).
+    /// </summary>
+    private void Details_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (shell.List.Selected is not { } row) return;
+
+        (Application.Current as App)?.OpenSnapshotDetails(this, row.Id);
+    }
+
+    /// <summary>
+    /// A row, and that is all it asks. Damaged included - see the binding's own note in the XAML.
+    /// </summary>
+    private void Details_CanExecute(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = shell.List.Selected is not null;
+
+    /// <summary>
+    /// A double-click on a row opens its details, which is what a double-click on a row means
+    /// everywhere else in Windows.
+    ///
+    /// Guarded on the ORIGINAL SOURCE being inside a row: the ListBox fills the whole list area,
+    /// so without this a double-click on the empty space below the last row would open the details
+    /// of whatever happened to be selected.
+    /// </summary>
+    private void Rows_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is not DependencyObject source) return;
+        if (FindAncestor<ListBoxItem>(source) is null) return;
+
+        ShellCommands.Details.Execute(null, this);
+    }
+
+    private static T? FindAncestor<T>(DependencyObject from) where T : DependencyObject
+    {
+        for (var node = from; node is not null; node = VisualTreeHelper.GetParent(node))
+        {
+            if (node is T match) return match;
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Each date group is its own ListBox (Task 10b), so native Home/End only reach that GROUP's
@@ -959,13 +1009,22 @@ public partial class MainWindow : Window
     /// The RESTORE bounds, never the maximised ones - a window remembered as 3840 wide because
     /// it happened to be maximised opens absurd on the next machine.
     /// </summary>
-    internal ShellState CurrentGeometry(bool closingHidesToTray) => new(
-        Left: RestoreBounds.Left,
-        Top: RestoreBounds.Top,
-        Width: RestoreBounds.Width,
-        Height: RestoreBounds.Height,
-        IsMaximized: WindowState == WindowState.Maximized,
-        ClosingHidesToTray: closingHidesToTray);
+    /// <remarks>
+    /// Takes the CURRENT state and overwrites only the geometry, rather than constructing a whole
+    /// ShellState from a geometry plus one argument per remembered setting. Every field this
+    /// window knows nothing about - the close behaviour, the theme preference - then survives the
+    /// save on the shutdown path by default. The constructor form silently dropped whichever
+    /// field was added last, which is the kind of loss nobody notices until a preference stops
+    /// sticking.
+    /// </remarks>
+    internal ShellState CurrentGeometry(ShellState current) => current with
+    {
+        Left = RestoreBounds.Left,
+        Top = RestoreBounds.Top,
+        Width = RestoreBounds.Width,
+        Height = RestoreBounds.Height,
+        IsMaximized = WindowState == WindowState.Maximized,
+    };
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {

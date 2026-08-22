@@ -2,7 +2,7 @@
 title: "Publish the NativeAOT binary"
 status: published
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-22
 tags: [recipe, build, aot, toolchain]
 ---
 
@@ -15,15 +15,17 @@ and why the check fails in a way that looks like your fault when it is not.
 
 ## AOT is not what a plain publish produces
 
-`WaveLinkBackup.Cli.csproj` sets `PublishSelfContained` and `PublishSingleFile`, **not**
-`PublishAot`. So:
+`WaveLinkBackup.Cli.csproj` sets `PublishSingleFile`, **not** `PublishAot`. Since v0.7.2 the CLI
+publishes **framework-dependent** (no `PublishSelfContained`), so:
 
 ```
-dotnet publish src/WaveLinkBackup.Cli -c Release      →  ~70 MB   self-contained single-file
+dotnet publish src/WaveLinkBackup.Cli -c Release      →  ~0.2 MB   framework-dependent single file
 ```
 
-That is the shipped artifact. The 3.2 MB figure quoted in session records is a *different*
-publish, run deliberately with the flag. Do not read 70 MB as a regression.
+That is the shipped artifact — it resolves the .NET 10 Desktop Runtime from the machine at
+startup. The 3.2 MB figure quoted in session records is a *different* publish, run deliberately
+with `-p:PublishAot=true`. Do not read either number as a regression of the other; they are two
+answers to "how small can the CLI be" under different runtime assumptions.
 
 ## The recipe
 

@@ -1,5 +1,6 @@
 using System.Windows;
 using WaveLinkBackup.App.Hosting;
+using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.Core.Tests.Fakes;
 
 namespace WaveLinkBackup.App.Tests;
@@ -41,7 +42,8 @@ public sealed class ShellStateTests
     public void Saves_then_reads_the_same_state()
     {
         var repository = Repository(new FakeFileSystem());
-        var state = new ShellState(120, 80, 1240, 800, IsMaximized: true, ClosingHidesToTray: false);
+        var state = new ShellState(120, 80, 1240, 800, IsMaximized: true, ClosingHidesToTray: false,
+            Theme: ThemePreference.Light);
 
         repository.Save(state);
 
@@ -78,6 +80,41 @@ public sealed class ShellStateTests
         Assert.False(state.ClosingHidesToTray);
     }
 
+    /// <summary>
+    /// The theme is written as a WORD. A number would be unreadable in a file whose whole reason
+    /// for being hand-editable is that losing it costs nothing.
+    /// </summary>
+    [Fact]
+    public void The_theme_preference_is_saved_by_name()
+    {
+        var fileSystem = new FakeFileSystem();
+        Repository(fileSystem).Save(ShellState.Default with { Theme = ThemePreference.HighContrast });
+
+        Assert.Contains("\"theme\": \"highContrast\"", fileSystem.ReadSharedText(File), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_theme_nobody_can_honour_falls_back_to_following_windows()
+    {
+        var fileSystem = new FakeFileSystem().AddFile(File, """
+            {"schemaVersion":1,"closingHidesToTray":true,"theme":"sepia"}
+            """);
+
+        Assert.Equal(ThemePreference.Auto, Repository(fileSystem).Read().Theme);
+    }
+
+    // A shell.json written before there was a choice. Auto is what the app did then, so this is
+    // the value that changes nothing for anyone upgrading.
+    [Fact]
+    public void A_file_from_before_the_theme_existed_reads_as_auto()
+    {
+        var fileSystem = new FakeFileSystem().AddFile(File, """
+            {"schemaVersion":1,"left":120,"top":80,"closingHidesToTray":false}
+            """);
+
+        Assert.Equal(ThemePreference.Auto, Repository(fileSystem).Read().Theme);
+    }
+
     [Fact]
     public void Saving_never_throws_when_the_directory_cannot_be_created()
     {
@@ -94,7 +131,7 @@ public sealed class ShellStateTests
     {
         var screens = new[] { new Rect(0, 0, 1920, 1080) };
 
-        Assert.False(ShellState.IsOnScreen(new ShellState(3200, 200, 1180, 760, false, true), screens));
+        Assert.False(ShellState.IsOnScreen(new ShellState(3200, 200, 1180, 760, false, true, ThemePreference.Auto), screens));
     }
 
     [Fact]
@@ -102,7 +139,7 @@ public sealed class ShellStateTests
     {
         var screens = new[] { new Rect(0, 0, 1920, 1080) };
 
-        Assert.True(ShellState.IsOnScreen(new ShellState(1800, 900, 1180, 760, false, true), screens));
+        Assert.True(ShellState.IsOnScreen(new ShellState(1800, 900, 1180, 760, false, true, ThemePreference.Auto), screens));
     }
 
     [Fact]
@@ -110,7 +147,7 @@ public sealed class ShellStateTests
     {
         var screens = new[] { new Rect(0, 0, 1920, 1080), new Rect(1920, 0, 2560, 1440) };
 
-        Assert.True(ShellState.IsOnScreen(new ShellState(2400, 100, 1180, 760, false, true), screens));
+        Assert.True(ShellState.IsOnScreen(new ShellState(2400, 100, 1180, 760, false, true, ThemePreference.Auto), screens));
     }
 
     [Fact]

@@ -101,7 +101,9 @@ public sealed class AutoBackupCoordinatorTests
         using var h = new Harness(policy: DailyAtThree);
         h.Coordinator.Start();
 
-        // 03:30: an ordinary change-driven capture.
+        // 03:30 is already past the 03:00 daily time, so the first tick is the DAILY copy itself -
+        // it runs regardless of the pending write (the schedule is checked before the change-driven
+        // path). lastDailyAt records that the day is covered.
         h.Clock.UtcNow = new DateTimeOffset(2026, 8, 19, 3, 30, 0, TimeSpan.Zero);
         h.EditSettings("Wave Mic 2");
         h.Watcher.RaiseChange();
@@ -114,6 +116,37 @@ public sealed class AutoBackupCoordinatorTests
 
         Assert.Equal(CaptureDecision.NothingPending, h.Coordinator.Tick().Decision);
         Assert.Single(h.Store.List());
+    }
+
+    [Fact]
+    public void An_edit_before_the_daily_time_does_not_suppress_the_daily_copy()
+    {
+        // The case the old rule got wrong: a change-driven capture BEFORE the daily time used to set
+        // lastAutoCaptureAt, which DailyDue read as "the day is covered" and suppressed the 03:00 copy.
+        // Now only lastDailyAt covers the day, so the daily copy still fires at its set time.
+        using var h = new Harness(policy: DailyAtThree);
+        h.Coordinator.Start();
+
+        // 02:00: an ordinary change-driven capture, before the 03:00 daily time.
+        h.Clock.UtcNow = new DateTimeOffset(2026, 8, 19, 2, 0, 0, TimeSpan.Zero);
+        h.EditSettings("Wave Mic 2");
+        h.Watcher.RaiseChange();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+
+        Assert.True(h.Coordinator.Tick().Captured);
+        Assert.Single(h.Store.List());
+
+        // 03:30: the daily time has passed. The old rule would have returned NothingPending here
+        // (lastAutoCaptureAt at 02:00 read as "covered"); the new rule returns Scheduled. It dedups
+        // to the existing snapshot, so nothing new is stored - but lastDailyAt is recorded.
+        h.Clock.UtcNow = new DateTimeOffset(2026, 8, 19, 3, 30, 0, TimeSpan.Zero);
+
+        Assert.Equal(CaptureDecision.Scheduled, h.Coordinator.Tick().Decision);
+        Assert.Single(h.Store.List());
+
+        // Having run at 03:30, it is done until tomorrow.
+        h.Clock.UtcNow = new DateTimeOffset(2026, 8, 19, 21, 0, 0, TimeSpan.Zero);
+        Assert.Equal(CaptureDecision.NothingPending, h.Coordinator.Tick().Decision);
     }
 
     [Fact]

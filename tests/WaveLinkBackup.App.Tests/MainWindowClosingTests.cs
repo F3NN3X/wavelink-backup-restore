@@ -24,7 +24,7 @@ namespace WaveLinkBackup.App.Tests;
 public sealed class MainWindowClosingTests
 {
     private static readonly ShellState OnScreen =
-        new(50, 50, 400, 300, IsMaximized: false, ClosingHidesToTray: true);
+        new(50, 50, 400, 300, IsMaximized: false, ClosingHidesToTray: true, Theme: ThemePreference.Auto);
 
     private static ShellViewModel Shell() => ShellViewModelHarness.Build(
         waveLinkRunning: true, waveLinkFound: true, folderMissing: false, autoBackupEnabled: true,

@@ -2,7 +2,7 @@
 title: "Technical Debt"
 status: published
 created: 2026-08-16
-updated: 2026-08-20
+updated: 2026-08-22
 tags: [meta, technical-debt]
 ---
 
@@ -21,7 +21,7 @@ will look obvious in hindsight.
 `Core`, `Cli` and a WPF shell, and a debt-clearing pass closed everything in §1, §4, §5, §6 and §7
 that a commit can close.
 
-**What is left — four things, none of which a commit can close:**
+**What is left — six things, and only one of them is a commit somebody has not written:**
 
 | | Why it cannot be closed here |
 |---|---|
@@ -29,6 +29,13 @@ that a commit can close.
 | **§2.2** — whether non-MSIX Wave Link installs exist | A fact about the world, not about this code. The *mitigation* is complete — an explicit settings path bypasses discovery, and error 1's first-run variant now offers one (§4.10) — so a non-MSIX user has a route in whether or not such installs turn out to exist. |
 | **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link, written up in the entry. Not a defect — an unanswered question, and §7.5 already removed the prompt in the common case, so the answer may well be "leave it". |
 | **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run this when endpoint inspection lands; the AOT publish itself already works. |
+| **§8.1** — an unhandled exception still ends the process silently | Needs a design answer before code: `06-errors.md` specifies twelve errors and none of them is "something unexpected happened", and inventing a thirteenth surface in XAML is what [[ADR-004]] exists to prevent. |
+| **§8.2** — three surfaces built past the design package have never been looked at | Same shape as §4.15. Nothing in the suite can assert that a layout looks right; they belong on the by-eye checklist. |
+| **§8.5** — the download carries the .NET runtime twice (101 MB) | Measured on the first real package. Not a defect: every way of fixing it trades away something the csproj or the updater contract chose on purpose. §8.5 has the table. |
+
+§8.4 closed on 2026-08-22 with the scroll fix: the outer `ListScrollViewer` is gone and `GroupsHost`
+owns its scrolling, which is what makes the panel virtualise at all. Its by-eye pass still rides on
+§8.2's checklist — the header-to-row alignment is the surface that changed.
 
 §3 is untouched on purpose: those are choices made with eyes open, not debt.
 
@@ -157,9 +164,16 @@ at publish time. The audit had simply never read the release workflow.
 `dotnet publish` produces a *different artifact* from CI's — framework-dependent rather than
 self-contained. A hidden dependency on a CI flag.
 
-**Our position:** `WaveLinkBackup.Cli` sets `SelfContained=true` in the csproj, so the two
+**Our position:** `WaveLinkBackup.Cli` sets its publish shape in the csproj, so the two
 cannot disagree. The NativeAOT option remains open and unforeclosed ([[ADR-004]]); §2.4 still
 gates it. **No debt carried forward.**
+
+> **Superseded 2026-08-22 (v0.7.2).** When this was written the csproj set `SelfContained=true`
+> and CI agreed with it. Since v0.7.2 the CLI publishes **framework-dependent** (`PublishSingleFile`,
+> no `PublishSelfContained`) — the app and CLI both resolve the .NET 10 Desktop Runtime from the
+> machine, and the release carries two archives instead of one. The disagreement this section
+> guards against is gone in a stronger form: there is now no self-contained publish anywhere to
+> disagree with. See [technical-debt.md](technical-debt.md) §8.5 for the before/after measurement.
 
 ---
 
@@ -1167,6 +1181,18 @@ real markup, not just a model test.
 > by `HealthFingerprint` comparing against that user's own previous snapshot, which is structural
 > rather than checkable by grep.
 >
+> **That last paragraph was not true of the shell, and this section said it was — corrected
+> 2026-08-20.** `HealthFingerprint` did compare against the previous snapshot. The ROW did not: it
+> sized its strip at a hard five and decided genericness against the store's peak, so a rig that
+> grew to nine channels lost four of them off the end of every row and repainted its own history
+> amber ([[every-older-backup-turns-amber-after-adding-a-channel]]). Both are fixed in [[ADR-014]],
+> and the fifth row is now held by tests rather than by a claim: `InputSlotsTests` asserts a
+> nine-channel rig draws nine cells, and that a rig that grew leaves its older backups alone.
+>
+> Worth recording rather than quietly editing. A debt list that says a rule is "structural" is
+> making a claim about code, and this one had drifted from it — which is the failure mode of every
+> entry in here that is guarded by a paragraph instead of a test.
+>
 > The audit that prompted this found **no violations in shipped code**: every hit was a comment, or
 > one of the two places that print `%LOCALAPPDATA%` as designed display copy (06's `LOOKED IN` glob
 > line, and the bottom bar shortening a resolved path back for display).
@@ -1229,3 +1255,193 @@ think about it, and by then it is in a public issue tracker.
 **Owed:** a "copy diagnostics" action that redacts both. Nothing is ever auto-uploaded.
 **Phase:** 7, and it gates going public rather than following it. The `.gitignore` already
 refuses real settings files; that protects the repo, not the issue tracker.
+
+---
+
+## 8 · Incurred 2026-08-20, building past the design package
+
+Three surfaces now exist that the design package does not specify, and one hole the whole session
+walked through. Recorded here rather than in the audit, because the audit is a point-in-time
+reading of the app against the package and this is a standing cost.
+
+### 8.1 An unhandled exception still ends the process silently — **open**
+
+This app installs no `Application.DispatcherUnhandledException` handler and no
+`AppDomain.UnhandledException` handler. When [[pressing-back-up-now-closes-the-whole-app]]
+happened, the app vanished — window, tray, everything — and left nothing behind except an entry in
+the Windows Application event log. The user's report was *"creating backups crash the app"*,
+which is all the information the app itself gave them.
+
+**Why it is not just a `try`/`catch`:** the design package specifies twelve errors and a placement
+rule for each ([`06-errors.md`](operations/design/screens/06-errors.md)), and none of them is
+"something unexpected happened". Inventing a thirteenth surface in XAML is what [[ADR-004]] and the
+package's own authority exist to prevent. What is owed is a design answer first — probably the
+danger strip's shape, with the exception type and a *copy diagnostics* action, and a decision about
+whether the app tries to keep running or exits deliberately after saying so.
+
+**What is cheap and not yet done:** writing the exception to a file beside `shell.json` on the way
+down. That needs no design, and it is the difference between a bug report that says "it crashed"
+and one that names the line.
+
+**Cost of leaving it:** every future crash costs a round-trip through the event log, and only on a
+machine where someone knows to look.
+
+### 8.2 Three surfaces have no design, and no by-eye check — **open, needs a human**
+
+| Surface | Built to | Package says |
+|---|---|---|
+| Settings → `HOW IT LOOKS`, the four theme segments ([[ADR-013]]) | The package's rules — section label, `WlBg` block, hairlines, the stepper's segment geometry, `WlToggle`'s own checked treatment | Nothing. The prototype draws a caption-bar sun icon; the README specifies a gear that opens Settings, and that is what ships |
+| The N-cell INPUTS strip ([[ADR-014]]) | The design's own five-cell strip, widened by arithmetic over a measured character width | *"Five equal flex cells"* — a rig of exactly five |
+| `What's in "…"`, the details dialog ([[ADR-015]]) | The settings dialog's shape and vocabulary, reused wholesale | Nothing. Four screens are designed and this is not one of them |
+
+**None of them is a new visual idea** — that was the constraint each was built under, and it is why
+they read as part of the app. But three surfaces now exist that no design pass has looked at, and
+the same is true of them as of §4.15: nothing in the suite can assert that a layout looks right.
+They belong on [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md), which is
+still owed a human.
+
+**Specifically unchecked by eye:** the four-segment control at 100% and 150% scaling; the strip at
+nine and at twelve cells, where the labels are four characters and three; the details dialog in
+light and in a real high-contrast scheme; and the dialog's height on a rig with several long effect
+chains, where it hits its 720px cap and scrolls.
+
+### 8.3 The strip's label budget is arithmetic over a measured constant — **known-wrong-ish, guarded**
+
+`InputSlots.CharacterWidth` is `6.25` — one character of the slot-label role, measured at 6.24px
+and rounded up. It is a *number that is not a constant* in exactly the sense §5 means, and it
+cannot be derived at run time without measuring per row, which
+[[ADR-014]] rules out for good reasons.
+
+**What holds it:** `RowTemplateTests.The_label_budget_is_what_actually_fits_a_cell` renders the
+label at the real style and asserts both directions — the budget fits, and one character more does
+not. A change to the mono face, the 9.5px size or the .06em tracking fails there.
+
+**What it does not hold:** a *different* font falling back on a machine without the bundled one. The
+guard measures whatever WPF resolves in the test environment, which is the same environment the app
+runs in, so this is a small risk rather than a theoretical one — but it is the reason the constant
+is rounded up rather than exact.
+
+### 8.4 ~~The list does not virtualise, and its markup says it does~~ — **CLOSED 2026-08-22**
+
+> The structural fix this entry specified is what shipped: the outer `ListScrollViewer` and its
+> wheel-forwarding shim are deleted, and `GroupsHost` owns its scrolling — one scroll owner, with a
+> live inner ScrollViewer (`VerticalScrollBarVisibility="Auto"`). That bounded height is what makes
+> the `VirtualizingStackPanel` virtualise at all; the old 500/500 realisation was a symptom of the
+> unbounded measure, not of the mode. Two things came with it, both done:
+>
+> - **The header's gutter** now binds `ComputedVerticalScrollBarVisibility` on `GroupsHost` itself
+>   (the ListBox exposes it through its template), so the 10px reservation follows the list's own
+>   scroll bar rather than a deleted outer viewer.
+> - **A grouped list needs `CanContentScroll="False"`.** Item scrolling treats each date group as
+>   one unit and collapses the inner extent to ~1px, so pixel scrolling is what measures the real
+>   height. The panel still virtualises — it gets its viewport through `IViewportProvider` even in
+>   pixel mode.
+>
+> One caveat, stated rather than hidden: **the realisation count was not re-measured after the
+> change.** The old 500/500 figure is retained as the *before*; nothing in the suite asserts a
+> container budget now. The list is short by design (a few dozen rows), so that is acceptable — but
+> if it ever grows, measure it before assuming virtualisation is doing its job.
+>
+> This also closed the selection jump: with two scroll owners the panel tracked the frozen inner
+> one and a click hit-tested to a stale container ([[scrolling-the-list-selects-a-row]]). One owner
+> fixes that at the root, and `MainWindowScrollSelectionTests` pins it — five tests, including the
+> invariant that after scrolling every realized container holds its own data item.
+>
+> **By-eye pass still owed (§8.2):** the header-to-row alignment is what changed, which is the exact
+> surface §1.1 audited. It belongs on the checklist with the rest of 0.5.1's visual work.
+>
+> Original entry retained below.
+
+#### Original entry
+
+`GroupsHost` carried `VirtualizingPanel.IsVirtualizing="True"`, `VirtualizationMode="Recycling"`
+and `ScrollUnit="Pixel"`, and **none of them did anything.** The ListBox's own ScrollViewer was
+disabled so `ListScrollViewer` could carry one scroll position for the header and the rows, which
+left the ListBox measured with unbounded height — so its `VirtualizingStackPanel` realised every
+row.
+
+**Measured, not inferred:** the same arrangement in a test fixture realised **500 containers out of
+500 items**. Turning the inner ScrollViewer back on is what makes the panel virtualise.
+
+**Why it was not urgent:** a rig produces a few dozen backups a year, and the retention default
+keeps 30 automatic ones. At that size the cost is invisible. It becomes real for anyone pointing
+the store at a folder with hundreds of snapshots in it, and it is already true that every row
+builds its full visual tree — nine slot cells, three tier badges, two pills — on load.
+
+**The structural fix, which also fixes the wheel** ([[the-list-will-not-scroll-with-the-wheel]]):
+let the ListBox scroll itself and delete the outer ScrollViewer. It cost two things, which is why
+it was not done under a scroll fix:
+
+1. **The header's scroll-bar gutter.** `MainWindow.xaml` reserved 10px on the column header when
+   `ListScrollViewer` showed a scroll bar, by `ElementName` binding — and the ListBox's own
+   ScrollViewer lived inside its template, where `ElementName` could not reach. It needed either a
+   ListBox `ControlTemplate` copy that names it, or a code-behind lookup after load (the window
+   already has `FindDescendants<T>` for exactly this kind of reach).
+2. **The guard test that pinned the current arrangement.**
+   `MainWindowTemplateTests.The_column_header_reserves_the_lists_scroll_bar_gutter` asserted the
+   `ElementName="ListScrollViewer"` binding by name, so it changed with the structure.
+
+Neither was hard. Both wanted a by-eye pass afterwards (§8.2), because the thing being changed was
+how the header lined up with the rows — the exact defect the audit's §1.1 was about.
+
+### 8.5 ~~The download carries the .NET runtime twice~~ — **CLOSED 2026-08-22**
+
+> The change this entry was waiting for shipped in v0.7.2, and it is larger than any row in its
+> options table: **the app publishes framework-dependent, so the runtime ships nowhere at all.**
+> Measured locally, exactly as `release.yml` runs it:
+>
+> | | v0.7.0 (self-contained, one archive) | v0.7.2 (framework-dependent, two archives) |
+> |---|---|---|
+> | App archive | `WaveLinkBackup-0.7.0-win-x64.zip` — **101.2 MB** | `WaveLinkBackup-0.7.2-app-win-x64.zip` — **7.62 MB** (12 files, 26.8 MB raw) |
+> | CLI archive | Inside the app's archive (`wlbackup.exe`, 70.4 MB of it) | `WaveLinkBackup-CLI-0.7.2-win-x64.zip` — **0.22 MB** (3 files, 0.48 MB raw) |
+> | .NET runtime in the download | Twice (the app's loose copy + the CLI's bundled copy) | **Nowhere** — both resolve it from the machine's installed .NET 10 Desktop Runtime |
+>
+> Three changes together: the app's csproj gained `InvariantGlobalization=true` (drops the 13
+> satellite locale folders); the CLI's `PublishSelfContained` flipped to `false` while keeping
+> `PublishSingleFile`; and `release.yml` now publishes two artifacts into separate directories
+> instead of one. The updater's contract changed with it — `UpdateSource.AssetSuffix` defaults to
+> `app-win-x64.zip`, so a release carrying both assets resolves to the app, pinned by
+> `A_release_with_both_app_and_cli_assets_picks_the_app`. The CLI archive's checksum is published
+> for manual downloaders; the updater never reads it.
+>
+> **The trade, stated rather than hidden.** A machine without the .NET 10 Desktop Runtime cannot
+> start the app, and because a framework-dependent WPF app fails at native load before managed code
+> runs, there is no in-app surface to say so — the user gets the stock .NET error dialog with a
+> link. The README names the prerequisite; that is the whole mitigation. This was the deliberate
+> exchange: ~94 MB of download per update for a first-run dependency on a runtime most Windows 10/11
+> machines that run modern software already have, or can get from one page in Microsoft's own
+> installer.
+>
+> **What remains in the archive is not removable.** The app's 7.6 MB is mostly
+> `Microsoft.Windows.SDK.NET.dll` (~23.7 MB raw, ~6.5 MB zipped) — the WinRT projection the TFM
+> `net10.0-windows10.0.19041.0` requires for `UISettings`. Trimming stays off: WPF and that
+> projection are trimming-incompatible, which is also why NativeAOT was never an option here.
+>
+> The options table below is retained as the reasoning that led to the decision — its last row,
+> "leave it", was the answer until 2026-08-22.
+
+#### Original entry
+
+`WaveLinkBackup-0.7.0-win-x64.zip` is **101.2 MB**. `wlbackup.exe` inside it is **70.4 MB**,
+because the CLI publishes `PublishSingleFile` + self-contained: it bundles its own copy of the
+runtime, next to the loose copy the app already ships.
+
+Both halves of that were chosen deliberately and neither is wrong on its own. Self-contained was
+[the csproj's own point](../../src/WaveLinkBackup.Cli/WaveLinkBackup.Cli.csproj) — upstream's
+pipeline disagreed with its project file and ours must not. Single-file is what makes `wlbackup`
+something a person can drop on a PATH.
+
+**What it costs:** roughly half the download, on every update, for a CLI most users of the GUI will
+never run.
+
+**The options, none of them free:**
+
+| | Effect |
+|---|---|
+| Drop `PublishSingleFile` for the release build only | The CLI shares the app's loose runtime; the archive roughly halves. But a local publish stops matching CI's artifact, which is the property §1.5 exists to protect |
+| Drop `PublishSingleFile` everywhere | Same saving, and `wlbackup.exe` stops being one portable file — it needs its directory |
+| Ship the CLI as a separate asset | The updater's contract is one `*win-x64.zip`; a second asset means a second contract. **This is what shipped**, with the contract widened to `app-win-x64.zip` rather than duplicated |
+| Leave it | 101 MB is not much for a desktop app, and the updater streams and verifies it. This was the answer until 2026-08-22 |
+
+**Do not change this quietly on release day.** It is a shape decision with a runbook and a debt
+entry pointing at it, and the size is the only symptom.

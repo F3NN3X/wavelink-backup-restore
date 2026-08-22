@@ -67,9 +67,12 @@ public sealed record UpdateCheck(
 /// </summary>
 /// <param name="AssetSuffix">
 /// Which asset in a release is the one to download — matched on the end of the file name, so a
-/// versioned name like <c>WaveLinkBackup-1.4.0-win-x64.zip</c> still resolves.
+/// versioned name like <c>WaveLinkBackup-1.4.0-app-win-x64.zip</c> still resolves. The suffix
+/// must be specific enough to pick out the APP archive when the release also carries the CLI's
+/// <c>WaveLinkBackup-CLI-X.Y.Z-win-x64.zip</c>: both end in <c>win-x64.zip</c>, so matching on
+/// that alone would make the updater install the wrong bytes.
 /// </param>
-public sealed record UpdateSource(string Owner, string Repository, string AssetSuffix = "win-x64.zip")
+public sealed record UpdateSource(string Owner, string Repository, string AssetSuffix = "app-win-x64.zip")
 {
     /// <summary>
     /// Whether a feed can be built from this at all. False disables the whole UPDATES section —

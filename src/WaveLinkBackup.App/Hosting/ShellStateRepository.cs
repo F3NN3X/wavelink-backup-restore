@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.IO;
 using System.Text.Json;
+using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.Core.Abstractions;
 
 namespace WaveLinkBackup.App.Hosting;
@@ -47,7 +48,8 @@ public sealed class ShellStateRepository(IFileSystem fileSystem, string director
                 Width: Number(root, "width"),
                 Height: Number(root, "height"),
                 IsMaximized: Bool(root, "isMaximized") ?? ShellState.Default.IsMaximized,
-                ClosingHidesToTray: Bool(root, "closingHidesToTray") ?? ShellState.Default.ClosingHidesToTray);
+                ClosingHidesToTray: Bool(root, "closingHidesToTray") ?? ShellState.Default.ClosingHidesToTray,
+                Theme: ThemeChoice.FromStorageName(Text(root, "theme")));
         }
     }
 
@@ -67,6 +69,7 @@ public sealed class ShellStateRepository(IFileSystem fileSystem, string director
 
             writer.WriteBoolean("isMaximized", state.IsMaximized);
             writer.WriteBoolean("closingHidesToTray", state.ClosingHidesToTray);
+            writer.WriteString("theme", ThemeChoice.ToStorageName(state.Theme));
 
             writer.WriteEndObject();
         }
@@ -103,6 +106,13 @@ public sealed class ShellStateRepository(IFileSystem fileSystem, string director
         && value.ValueKind == JsonValueKind.Number
         && value.TryGetDouble(out var number)
             ? number
+            : null;
+
+    // A name rather than the enum's number: shell.json is a file a person can open, and a
+    // preference stored as "2" is one nobody can check by eye or fix by hand.
+    private static string? Text(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
             : null;
 
     private static bool? Bool(JsonElement root, string name) =>

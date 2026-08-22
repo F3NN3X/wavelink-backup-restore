@@ -360,7 +360,7 @@
                                            Style="{StaticResource WlRowNameText}"
                                            Foreground="{DynamicResource WlStrong}"
                                            AutomationProperties.Name="Daily backup label" />
-                                <TextBlock Text="Whether or not anything changed. If a backup already happened after that time, the day is covered and this one is skipped."
+                                <TextBlock Text="Whether or not anything changed. A backup you took yourself earlier does not cancel it - only today's own copy of this one does."
                                            Style="{StaticResource WlSecondaryText}"
                                            Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
                                            TextWrapping="Wrap"
@@ -808,6 +808,91 @@
                                    Foreground="{DynamicResource WlMuted}" Margin="0,8,0,0"
                                    Opacity="0.8" TextTrimming="CharacterEllipsis"
                                    AutomationProperties.Name="Where the startup entry is kept" />
+                    </StackPanel>
+
+                    <!--
+                      ============ HOW IT LOOKS ============
+                      Not in the design package: it specifies one palette per OS state and no way
+                      to choose, because WlAccent following the Windows accent and the theme
+                      following the Windows mode was the whole of "how it looks" until now. This
+                      section is an addition, built to the package's rules rather than from one of
+                      its screens - section label, WlBg row, hairline, radius 8, title in
+                      WlRowNameText over a WlSecondaryText description, control on the right, and
+                      it commits on change like everything else on this screen.
+
+                      Auto is the app's own history: following Windows is what it did before there
+                      was a choice, and it stays the default for anyone who never opens this.
+
+                      Hidden when nothing was injected to drive it, the same rule WHEN WINDOWS
+                      STARTS follows.
+                    -->
+                    <StackPanel Visibility="{Binding HasAppearanceSection, Converter={StaticResource StartupSectionVisible}}">
+                        <views:TrackedText Text="HOW IT LOOKS" Tracking=".18"
+                                   Style="{StaticResource WlColumnHeaderTrackedText}"
+                                   Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"
+                                   AutomationProperties.Name="How it looks section" />
+
+                        <Border Background="{DynamicResource WlBg}"
+                                BorderBrush="{DynamicResource WlLine}" BorderThickness="1" CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="16,14">
+                                    <TextBlock Text="Theme"
+                                               Style="{StaticResource WlRowNameText}"
+                                               Foreground="{DynamicResource WlStrong}"
+                                               AutomationProperties.Name="Theme label" />
+                                    <!-- Honest about the one case a person would otherwise read as
+                                         a bug: Windows' own high-contrast scheme outranks whatever
+                                         is picked here, because it is Windows saying the palette
+                                         is no longer ours (screens/11). -->
+                                    <TextBlock Text="Auto follows the light or dark setting in Windows. Turning on a high-contrast theme in Windows takes over from any choice made here."
+                                               Style="{StaticResource WlSecondaryText}"
+                                               Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               AutomationProperties.Name="Theme description" />
+                                </StackPanel>
+
+                                <!-- The four segments overlap by 1px so the shared edges are one
+                                     hairline rather than two, exactly as the keep-count stepper's
+                                     two do a few sections up. GroupName ties them together for the
+                                     keyboard even though the bindings would already agree. -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                            VerticalAlignment="Center" Margin="16,0"
+                                            AutomationProperties.Name="Theme">
+                                    <RadioButton x:Name="ThemeAutoSegment" GroupName="ThemeChoice"
+                                                 Style="{StaticResource WlSegmentButton}"
+                                                 IsChecked="{Binding ThemeIsAuto, Mode=TwoWay}"
+                                                 AutomationProperties.Name="Follow Windows">
+                                        <views:TrackedText Text="AUTO" Tracking=".12" />
+                                    </RadioButton>
+                                    <RadioButton x:Name="ThemeDarkSegment" GroupName="ThemeChoice"
+                                                 Margin="-1,0,0,0"
+                                                 Style="{StaticResource WlSegmentButton}"
+                                                 IsChecked="{Binding ThemeIsDark, Mode=TwoWay}"
+                                                 AutomationProperties.Name="Dark">
+                                        <views:TrackedText Text="DARK" Tracking=".12" />
+                                    </RadioButton>
+                                    <RadioButton x:Name="ThemeLightSegment" GroupName="ThemeChoice"
+                                                 Margin="-1,0,0,0"
+                                                 Style="{StaticResource WlSegmentButton}"
+                                                 IsChecked="{Binding ThemeIsLight, Mode=TwoWay}"
+                                                 AutomationProperties.Name="Light">
+                                        <views:TrackedText Text="LIGHT" Tracking=".12" />
+                                    </RadioButton>
+                                    <RadioButton x:Name="ThemeHighContrastSegment" GroupName="ThemeChoice"
+                                                 Margin="-1,0,0,0"
+                                                 Style="{StaticResource WlSegmentButton}"
+                                                 IsChecked="{Binding ThemeIsHighContrast, Mode=TwoWay}"
+                                                 AutomationProperties.Name="High contrast">
+                                        <views:TrackedText Text="HIGH CONTRAST" Tracking=".12" />
+                                    </RadioButton>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
                     </StackPanel>
 
                     <!--

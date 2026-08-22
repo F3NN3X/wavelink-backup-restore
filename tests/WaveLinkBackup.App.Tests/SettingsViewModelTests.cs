@@ -1,4 +1,5 @@
 using WaveLinkBackup.App.Startup;
+using WaveLinkBackup.App.Theming;
 using WaveLinkBackup.App.Tests.Fakes;
 using WaveLinkBackup.App.Windows;
 using WaveLinkBackup.App.ViewModels;
@@ -712,6 +713,137 @@ public sealed class SettingsViewModelTests
 
         Assert.False(vm.ClosingHidesToTray);
         Assert.Equal([false], hides);
+    }
+
+    // ---------------- HOW IT LOOKS
+
+    /// <summary>
+    /// The seam over a plain variable, exactly as the App wires it over ShellState: read the
+    /// preference, write it, and read back whether the app ended up in high contrast.
+    /// </summary>
+    private static (SettingsViewModel Vm, List<ThemePreference> Written) Appearance(
+        ThemePreference stored = ThemePreference.Auto, bool windowsIsHighContrast = false)
+    {
+        var written = new List<ThemePreference>();
+        var current = stored;
+
+        var vm = SettingsViewModel.Build(
+            BackupSettings.Default,
+            _ => true,
+            new WhereSettingsLiveModel(@"C:\s\settings.json", "1 KB"),
+            null,
+            null,
+            new AppearanceSeam(
+                () => current,
+                value => { current = value; written.Add(value); },
+                () => ThemeChoice.Resolve(current, AppTheme.Dark, windowsIsHighContrast)
+                    == AppTheme.HighContrast));
+
+        return (vm, written);
+    }
+
+    [Fact]
+    public void Without_an_appearance_seam_the_section_hides_itself()
+    {
+        var vm = Bare();
+
+        Assert.False(vm.HasAppearanceSection);
+        Assert.True(vm.ThemeIsAuto);
+    }
+
+    [Fact]
+    public void The_stored_preference_is_what_the_section_opens_on()
+    {
+        var (vm, _) = Appearance(ThemePreference.Light);
+
+        Assert.True(vm.HasAppearanceSection);
+        Assert.True(vm.ThemeIsLight);
+        Assert.False(vm.ThemeIsAuto);
+    }
+
+    /// <summary>
+    /// "Changes apply as you make them" - there is no Save button on this screen, so choosing a
+    /// segment has to commit on the spot.
+    /// </summary>
+    [Fact]
+    public void Choosing_a_theme_commits_through_the_seam_it_was_given()
+    {
+        var (vm, written) = Appearance();
+
+        vm.ThemeIsDark = true;
+
+        Assert.Equal(ThemePreference.Dark, vm.Theme);
+        Assert.Equal([ThemePreference.Dark], written);
+    }
+
+    /// <summary>
+    /// The other three segments clear through their own bindings, so all four have to be raised
+    /// by whichever one moved. Without this the outgoing segment stays filled until something
+    /// else happens to re-read it.
+    /// </summary>
+    [Fact]
+    public void Moving_the_choice_raises_all_four_segments()
+    {
+        var (vm, _) = Appearance();
+        var raised = new List<string>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName ?? string.Empty);
+
+        vm.ThemeIsLight = true;
+
+        Assert.Contains(nameof(SettingsViewModel.ThemeIsAuto), raised);
+        Assert.Contains(nameof(SettingsViewModel.ThemeIsDark), raised);
+        Assert.Contains(nameof(SettingsViewModel.ThemeIsLight), raised);
+        Assert.Contains(nameof(SettingsViewModel.ThemeIsHighContrast), raised);
+    }
+
+    /// <summary>
+    /// WPF unchecks the outgoing RadioButton as part of the same click. Honouring that false would
+    /// set the preference twice - the second time back to whatever it just left.
+    /// </summary>
+    [Fact]
+    public void Unchecking_a_segment_changes_nothing()
+    {
+        var (vm, written) = Appearance(ThemePreference.Dark);
+
+        vm.ThemeIsDark = false;
+
+        Assert.Equal(ThemePreference.Dark, vm.Theme);
+        Assert.Empty(written);
+    }
+
+    /// <summary>
+    /// The dialog is open and on screen while this changes, and its own controls key their
+    /// high-contrast treatment off IsHighContrast - so the model has to re-read it rather than
+    /// wait for the next time something builds it.
+    /// </summary>
+    [Fact]
+    public void Picking_high_contrast_turns_the_dialogs_own_high_contrast_rules_on()
+    {
+        var (vm, _) = Appearance();
+
+        Assert.False(vm.IsHighContrast);
+
+        vm.ThemeIsHighContrast = true;
+
+        Assert.True(vm.IsHighContrast);
+
+        vm.ThemeIsDark = true;
+
+        Assert.False(vm.IsHighContrast);
+    }
+
+    /// <summary>
+    /// Windows' own scheme outranks the choice (screens/11), so picking Dark while a high-contrast
+    /// theme is on must not tell the dialog it left high contrast.
+    /// </summary>
+    [Fact]
+    public void Windows_high_contrast_keeps_the_rules_on_whatever_is_picked()
+    {
+        var (vm, _) = Appearance(windowsIsHighContrast: true);
+
+        vm.ThemeIsDark = true;
+
+        Assert.True(vm.IsHighContrast);
     }
 
     // ---------------- the stats line (audit §2.9a) and error 9 (§4.21 item 8)

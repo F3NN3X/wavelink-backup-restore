@@ -109,6 +109,12 @@ public sealed class MainWindowTemplateTests
     // right Margin on each cell's content rather than a seventh column. Dropping back to the bare
     // 120/124/300/200 would leave every cell 20px narrower than the design draws it - most
     // visibly the five-slot INPUTS strip, which is the row's whole information design.
+    //
+    // CONTENTS is the one exception, at 248 rather than 200 + 20. Three tier badges at the
+    // design's own type role and padding measure 224.2px, so 200 clipped the third one mid-word;
+    // the design's own render draws them at about 224 as well. The measurement behind that number
+    // is RowTemplateTests.The_three_tier_badges_fit_inside_the_contents_column, which reads the
+    // rendered width rather than trusting this arithmetic.
     [Theory]
     [InlineData("ControlStyles.xaml")]
     [InlineData("RowStyles.xaml")]
@@ -119,7 +125,7 @@ public sealed class MainWindowTemplateTests
         foreach (var (width, group) in new[]
                  {
                      (140, "WlColTaken"), (144, "WlColWhy"),
-                     (320, "WlColInputs"), (220, "WlColContents"),
+                     (320, "WlColInputs"), (248, "WlColContents"),
                  })
         {
             Assert.Contains(
@@ -127,16 +133,17 @@ public sealed class MainWindowTemplateTests
         }
     }
 
-    // The header sits outside ListScrollViewer and the rows sit inside it, so the scroll bar's
-    // 10px comes off the rows' available width and not the header's. Both resolve NAME's star
-    // independently, so without this gutter the header drifts 10px right of the cells it heads
-    // the moment the list is long enough to scroll.
+    // The header sits outside GroupsHost and the rows sit inside it, so the scroll bar's 10px comes
+    // off the rows' available width and not the header's. Both resolve NAME's star independently, so
+    // without this gutter the header drifts 10px right of the cells it heads the moment the list is
+    // long enough to scroll. GroupsHost owns its scrolling (Option A), so the gutter binds to its own
+    // ScrollViewer's ComputedVerticalScrollBarVisibility.
     [Fact]
     public void The_column_header_reserves_the_lists_scroll_bar_gutter()
     {
         var xaml = MainWindowXaml();
 
-        Assert.Contains("ElementName=\"ListScrollViewer\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("ElementName=\"GroupsHost\"", xaml, StringComparison.Ordinal);
         Assert.Contains("Padding\" Value=\"20,11,30,9\"", xaml, StringComparison.Ordinal);
     }
 
@@ -423,13 +430,20 @@ public sealed class MainWindowTemplateTests
 
     // Per-row virtualization. One VirtualizingStackPanel now, not two: there is one ListBox rather
     // than a group-level ItemsControl wrapping a ListBox per date.
+    //
+    // CanContentScroll must be False (pixel scrolling), not True. The rows are grouped by date, and
+    // with content scrolling (True) WPF treats each group as one scroll unit - the inner
+    // ScrollViewer's extent collapses to ~1px and nothing scrolls (dotnet/wpf#8687,
+    // MaterialDesignInXAML#1220). Pixel scrolling measures the real pixel height and scrolls
+    // correctly with or without grouping; the VirtualizingStackPanel still virtualizes because it
+    // gets its viewport through IViewportProvider even in pixel mode.
     [Fact]
-    public void The_row_list_virtualizes_with_content_scrolling_enabled()
+    public void The_row_list_virtualizes_with_pixel_scrolling_for_grouped_rows()
     {
         var xaml = MainWindowXaml();
 
         Assert.Single(Regex.Matches(xaml, "<VirtualizingStackPanel />"));
-        Assert.Contains("ScrollViewer.CanContentScroll=\"True\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("ScrollViewer.CanContentScroll=\"False\"", xaml, StringComparison.Ordinal);
     }
 
     // The old hand-placed structure (task-10b-report.md's own documented deviation) is gone, not

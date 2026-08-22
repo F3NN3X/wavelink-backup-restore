@@ -5,15 +5,15 @@
         xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
         xmlns:vm="clr-namespace:WaveLinkBackup.App.ViewModels"
          Title="Wave Link Backup"
-         Height="760" Width="1180" MinHeight="560" MinWidth="1124"
+         Height="760" Width="1180" MinHeight="560" MinWidth="1152"
          WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Background="Transparent">
 
     <!--
-      MinWidth is 1124, not the 980 it was.
+      MinWidth is 1152, not the 980 it was.
 
-      The row's own six columns need 1084px, plus the list's 40px of padding - so at 980 the
+      The row's own six columns need 1112px, plus the list's 40px of padding - so at 980 the
       overflow cell was simply clipped, with no horizontal scroll and none designed (audit §2.9c).
       The design's own numbers do this to themselves: its six columns need 1084 in a window it
       allows to be 980 wide. Raising the floor is the answer that invents no visuals - the layout
@@ -41,7 +41,7 @@
       The key map (ShellCommands, ViewModels/ShellCommands.cs), five of the seven bound at the
       window: Refresh, Search, BackUpNow, Rename, Delete, Restore. ClearSearch is deliberately NOT
       here - 10-decisions section 6 binds Escape only on the list and the search field (see
-      SearchBox and the row ListScrollViewer below), or a window-wide binding would swallow Escape
+      SearchBox and the row list (GroupsHost) below), or a window-wide binding would swallow Escape
       in the dialogs a later session adds.
 
       Restore's CanExecute is what keeps Enter from firing on an unselected or disallowed row - a
@@ -59,6 +59,12 @@
                         Executed="Delete_Executed" CanExecute="Delete_CanExecute" />
         <CommandBinding Command="{x:Static vm:ShellCommands.Restore}"
                         Executed="Restore_Executed" CanExecute="Restore_CanExecute" />
+        <!-- Reads a backup and changes nothing, so its CanExecute asks only whether there is a
+             row to read - a DAMAGED backup included. "What was in it" is exactly what someone
+             asks when a backup has gone wrong, and the dialog answers with the reason it cannot
+             be read rather than refusing to open. -->
+        <CommandBinding Command="{x:Static vm:ShellCommands.Details}"
+                        Executed="Details_Executed" CanExecute="Details_CanExecute" />
     </Window.CommandBindings>
 
     <Window.Resources>
@@ -271,8 +277,18 @@
                         </Grid>
                     </Border>
 
+                    <!-- The "?" opens the help dialog: the same two-line seam as the gear beside it -
+                         a code-behind click into App.OpenHelp, no command object. Its glyph is a
+                         question mark drawn in mono so it reads as text, not an icon - the design has
+                         no help icon of its own, and inventing one would be decoration. -->
+                    <Button x:Name="HelpButton" Style="{StaticResource WlIconGhostButton}" Margin="0,0,8,0"
+                            AutomationProperties.Name="Open help">
+                        <TextBlock Text="?" FontFamily="{DynamicResource WlMonoFont}" FontSize="15"
+                                   FontWeight="Medium" Foreground="{DynamicResource WlText}" />
+                    </Button>
+
                     <Button x:Name="SettingsButton" Style="{StaticResource WlIconGhostButton}"
-                            Margin="10,0,0,0" AutomationProperties.Name="Settings">
+                            Margin="0,0,0,0" AutomationProperties.Name="Open settings">
                         <Path Data="{StaticResource WlGearGeometry}" Stroke="{DynamicResource WlText}"
                               StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                               Width="16" Height="16" Stretch="Uniform" />
@@ -793,17 +809,17 @@
                     <Style.Triggers>
                         <!--
                           The NAME column is starred in both this header and every row, and each
-                          resolves that star against its OWN available width. The rows sit inside
-                          ListScrollViewer and lose 10px to the scroll bar the moment it appears;
-                          this header does not. Without matching that gutter, NAME would be 10px
-                          wider up here than down there and every column after it would sit 10px
-                          right of the cells it heads. 30 = the 20px inset plus the 10px the
-                          ScrollBar style pins its width to.
+                          resolves that star against its OWN available width. GroupsHost owns its
+                          scrolling now, so its own scroll bar eats 10px off the rows' available
+                          width the moment it appears; this header does not. Without matching that
+                          gutter, NAME would be 10px wider up here than down there and every column
+                          after it would sit 10px right of the cells it heads. 30 = the 20px inset
+                          plus the 10px the ScrollBar style pins its width to.
                         -->
                         <DataTrigger Value="Visible">
                             <DataTrigger.Binding>
                                 <Binding Path="ComputedVerticalScrollBarVisibility"
-                                         ElementName="ListScrollViewer" />
+                                         ElementName="GroupsHost" />
                             </DataTrigger.Binding>
                             <Setter Property="Padding" Value="20,11,30,9" />
                         </DataTrigger>
@@ -858,28 +874,50 @@
                     </Style>
                 </Grid.Style>
 
-            <ScrollViewer x:Name="ListScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
-                          CanContentScroll="True"
->
-                <!-- Escape clears the search from anywhere in the list, same reasoning as
-                     SearchBox's own CommandBindings above. -->
-                <ScrollViewer.CommandBindings>
-                    <CommandBinding Command="{x:Static vm:ShellCommands.ClearSearch}"
-                                    Executed="ClearSearch_Executed" />
-                </ScrollViewer.CommandBindings>
+                <!--
+                  A double-click opens the details, which is what a double-click on a row means
+                  everywhere else in Windows. Restore keeps Enter and nothing else.
 
-                <ListBox x:Name="GroupsHost" ItemsSource="{Binding List.View}"
-                         SelectedItem="{Binding List.Selected, Mode=TwoWay}"
-                         ItemContainerStyle="{StaticResource WlRowTemplate}"
+                  This ListBox OWNS its scrolling: its own ScrollViewer is live (VerticalScrollBar
+                  Visibility=Auto) and receives the wheel directly. There used to be an OUTER
+                  ListScrollViewer that did the real scrolling while this one's was disabled - and
+                  a VirtualizingStackPanel only tracks the scroll offset of the ScrollViewer that
+                  owns it, so with two owners the panel never learned the content had moved and its
+                  container-to-item mapping drifted from what was painted. A click then hit-tested
+                  to a stale container and selected the wrong row (the bottom-most visible one).
+                  One owner fixes that at the root: the wheel reaches the ListBox's own ScrollViewer,
+                  the panel stays in sync, and a realized container always matches its data item.
+
+                  CanContentScroll MUST be False (pixel scrolling), not True. With these rows grouped
+                  by date, item-scrolling (True) treats each group as one scroll unit and the inner
+                  ScrollViewer's extent collapses to ~1px - it cannot see through the group container
+                  to the real content height, so nothing scrolls. That is a known WPF breakage for
+                  grouped lists with content scrolling (see dotnet/wpf issue 8687 and the
+                  MaterialDesignInXAML issue on grouped ListView scrolling). Pixel scrolling measures
+                  the content's actual pixel height directly, so it scrolls correctly with or without
+                  grouping, and the VirtualizingStackPanel still virtualizes: it receives its viewport
+                  through IViewportProvider even in pixel mode.
+                -->
+                <ListBox x:Name="GroupsHost" Grid.Row="0" MouseDoubleClick="Rows_MouseDoubleClick"
+                          ItemsSource="{Binding List.View}"
+                          SelectedItem="{Binding List.Selected, Mode=TwoWay}"
+                          IsSynchronizedWithCurrentItem="False"
+                          ItemContainerStyle="{StaticResource WlRowTemplate}"
                          BorderThickness="0" Background="Transparent" Padding="0"
                          FocusVisualStyle="{x:Null}"
                          AutomationProperties.Name="Backups"
                          VirtualizingPanel.IsVirtualizing="True"
-                         VirtualizingPanel.VirtualizationMode="Recycling"
-                         VirtualizingPanel.ScrollUnit="Pixel"
-                         ScrollViewer.CanContentScroll="True"
-                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.VirtualizationMode="Standard"
+                          VirtualizingPanel.ScrollUnit="Pixel"
+                          ScrollViewer.CanContentScroll="False"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <!-- Escape clears the search from anywhere in the list, same reasoning as
+                         SearchBox's own CommandBindings above. -->
+                    <ListBox.CommandBindings>
+                        <CommandBinding Command="{x:Static vm:ShellCommands.ClearSearch}"
+                                        Executed="ClearSearch_Executed" />
+                    </ListBox.CommandBindings>
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <VirtualizingStackPanel />
@@ -908,7 +946,6 @@
                         </GroupStyle>
                     </ListBox.GroupStyle>
                 </ListBox>
-            </ScrollViewer>
 
                 <!--
                   07: "footer strip mono 11px wl-muted: SHOWING 3 OF 14 . 11 HIDDEN BY THE

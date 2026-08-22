@@ -2,7 +2,7 @@
 title: "Documentation Stats"
 status: published
 created: 2026-08-16
-updated: 2026-08-20
+updated: 2026-08-22
 tags: [meta, stats]
 ---
 
@@ -20,20 +20,20 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of 2026-08-20 (unreleased, after 0.6.0).*
+*As of v0.7.2 (2026-08-22).*
 
 | Artifact | Count |
 |---|---|
-| ADRs | 12 |
-| Gotchas | 22 |
+| ADRs | 15 |
+| Gotchas | 27 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
 | Audits | 3 (6 + 15 + 4 findings, one open question) |
-| Sessions | 21 |
-| Plans | 13 |
+| Sessions | 25 |
+| Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,432 passing** — Core 471 · CLI 100 · App 861 |
+| **Tests** | **1,569 passing** — Core 494 · CLI 100 · App 975 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,196 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### The release shrank to 7.6 MB: framework-dependent, two artifacts (2026-08-22)
+
+**A shape decision that closed [technical-debt.md](technical-debt.md) §8.5 with a before/after,
+and rewrote the runbook's contract around it.** The app publishes **framework-dependent** — it
+requires the .NET 10 Desktop Runtime rather than carrying it — and the CLI is its own release
+artifact instead of riding inside the app's archive. Measured locally, exactly as CI runs it:
+
+| | v0.7.0 (self-contained, one archive) | v0.7.2 (framework-dependent, two archives) |
+|---|---|---|
+| App archive | `WaveLinkBackup-0.7.0-win-x64.zip` — **101.2 MB** | `WaveLinkBackup-0.7.2-app-win-x64.zip` — **7.62 MB** (12 files, 26.8 MB raw) |
+| CLI archive | Inside the app's archive (`wlbackup.exe`, 70.4 MB of it) | `WaveLinkBackup-CLI-0.7.2-win-x64.zip` — **0.22 MB** (3 files, 0.48 MB raw) |
+| .NET runtime in the download | Twice (the app's loose copy + the CLI's bundled copy) | **Nowhere** — both resolve it from the machine's installed .NET 10 Desktop Runtime |
+
+Three changes together: `InvariantGlobalization=true` in the app's csproj (drops the 13 satellite
+locale folders); the CLI's `PublishSelfContained` flipped to `false`, keeping `PublishSingleFile`;
+and `release.yml` publishing two artifacts into separate directories. The updater's contract
+widened with it — `UpdateSource.AssetSuffix` defaults to `app-win-x64.zip`, so a release carrying
+both assets resolves to the app, pinned by `A_release_with_both_app_and_cli_assets_picks_the_app`.
+
+**The trade, stated rather than hidden.** A machine without the .NET 10 Desktop Runtime cannot
+start the app, and because a framework-dependent WPF app fails at native load before managed code
+runs, there is no in-app surface to say so — the user gets the stock .NET error dialog. The README
+names the prerequisite; that is the whole mitigation.
+
+**Documentation touched:** [releasing-and-updating.md](operations/runbooks/releasing-and-updating.md)
+rewritten for the two-artifact shape, with the measurement carried into a dated block and the
+symptom table's asset error corrected to `...HAS NO APP-WIN-X64.ZIP`; technical-debt.md §8.5 closed
+with the before/after and its original options table retained as the reasoning that led here;
+[[ADR-012]]'s Context corrected from "self-contained publish" to what it is now, with the swap
+mechanism noted as indifferent to which; phase-7-release.md's self-contained recommendation marked
+**superseded** rather than edited away; the README's Building section names the runtime
+prerequisite and drops `--self-contained true`.
+
+**Counts moved:** tests 1,568 → 1,569 (App 974 → 975, the dual-asset regression test). No new
+documents, no new gotcha — nothing here is a mistake that happened; it is a decision made and
+measured.
+
+### Recent additions (v0.7.2 — Help and About: the shell's two information surfaces)
+
+**Cut 2026-08-22.** The tray menu gained Help and About…, and the caption bar a "?" beside the
+Settings gear. Both dialogs are static content behind a model record — `HelpDialogModel` is pure
+constant copy, `AboutDialogModel` adds only the version (read from `ReleaseVersion.Current`, so
+it cannot drift from the UPDATES section) and two environment-sourced links that hide themselves
+when absent. No ADR: the shape follows [[ADR-004]]'s existing rule rather than choosing between
+alternatives, so this block plus the plan carry it.
+
+- **Plan:** [2026-08-22-phase-5-plan-11-help-and-about.md](plans/2026-08-22-phase-5-plan-11-help-and-about.md)
+  — goal, architecture and the executed block, including the one deviation (the "?" is text in the
+  mono font because the design package has no help icon).
+- **Session:** [2026-08-22-help-and-about-dialogs.md](sessions/2026-08-22-help-and-about-dialogs.md)
+  — what happened, including the five view-test failures from the first draft (all in the 0.5.1
+  design-audit family: a view no test had ever constructed) and the Settings gear that was altered
+  and then restored to its committed markup.
+
+**Counts moved:** sessions 24 → 25 · plans 13 → 14 · tests 1,551 → 1,568 (App 957 → 974, the five
+new dialog view tests). No gotcha: nothing here is a mistake that happened in production — the
+test failures were caught by the suite before anything shipped.
+
+### Recent additions (v0.7.1 — the three fixes to 0.7.0's phase)
+
+**Cut 2026-08-22.** A patch release: three fixes to the phase 0.7.0 already shipped, none of them
+new surface. The documentation delta for two of the three lives in the dated blocks below — this
+block exists so a reader scanning by version finds all three under one heading, and because the
+daily-backup fix never got its own block (it updated [glossary.md](glossary.md) and
+[screens/14-backup-timing.md](operations/design/screens/14-backup-timing.md) in place, with no
+counts moving).
+
+- **The daily backup now actually fires.** The 0.7.0 wording — an ordinary automatic capture after
+  today's set time "covers" the day and suppresses the daily copy — was a bug on any machine where
+  Wave Link writes settings during the day, which is most of them. Only today's own copy of this
+  one now covers the day. The glossary entry and the design screen were corrected in place; no new
+  document, no count moved.
+
+- **The snapshot list updates after an automatic capture.** No documentation delta: a behaviour
+  fix inside the existing tick, with its tests in `AutoBackupCoordinatorTests`.
+
+- **Clicking a row selects the row you clicked** — the structural fix for
+  [[scrolling-the-list-selects-a-row]], written up in full in the block below. It also closed
+  [technical-debt.md](technical-debt.md) §8.4 (the list that did not virtualise), which is why the
+  debt list's header moved from seven open items to six.
+
+**Counts moved:** none. The session note and the gotcha correction landed in the block below,
+under their own date; this release adds no new documents.
+
+### The scroll-click jump was two scroll owners, not recycling (2026-08-22)
+
+**A correction to [[scrolling-the-list-selects-a-row]], made because neither of the first two fixes
+held.** The 2026-08-21 session attributed the symptom — scrolling to the end, then clicking a row
+selects the *bottom-most visible* row instead of the one clicked — to `IsSynchronizedWithCurrentItem`
+left at its default `True`, and removed it. That was a real latent defect (the view's currency
+driving `SelectedItem`) but not what the user saw. A second pass blamed
+`VirtualizingPanel.VirtualizationMode="Recycling"` and set it to `Standard`; that did not hold
+either — the jump persisted in the debug build, unchanged.
+
+The true cause was structural, and neither fix touched it: **the list had two scroll owners.** An
+outer `ScrollViewer` (`ListScrollViewer`) did the real scrolling (wheel events forwarded into it),
+while the ListBox's own inner ScrollViewer was disabled but still carried the
+`VirtualizingStackPanel`. A `VirtualizingStackPanel` tracks only the offset of the ScrollViewer
+that *owns* it — the frozen inner one — so when the outer viewer moved the content, the panel never
+learned. Realized containers stayed anchored to the top while the pixels showed the last rows, and
+a click hit-tested to a stale container holding a *different* `SnapshotRowViewModel`, writing that
+row into the TwoWay `SelectedItem` binding.
+
+The fix removes the second owner: the outer `ScrollViewer` and its wheel-forwarding shim are gone,
+and the ListBox's inner ScrollViewer is now the only one that scrolls (`VerticalScrollBarVisibility="Auto"`).
+A second, independent defect had to be fixed for that to work: with a **grouped** list and
+`CanContentScroll="True"` (item scrolling), WPF treats each group as one scroll unit and the inner
+viewer's extent collapses to ~1px — it cannot see through the group container to the real content
+height. Setting `CanContentScroll="False"` (pixel scrolling) measures the actual pixel height;
+the `VirtualizingStackPanel` still virtualizes via its viewport provider.
+
+The gotcha now names both causes, with the two-scroll-owner mismatch first and the grouped extent
+collapse second, and records that recycling was a wrong hypothesis held in the tree by one commit.
+A fifth test guards the single-scroll-owner invariant — after scrolling, every realized container
+holds its own data item — so the App suite stands at **957** (total **1,551**; the count is down
+from 962 because the wheel-forwarding shim and its two tests were deleted with the outer viewer).
+
+Session note: [scroll-selection-jump](sessions/2026-08-22-scroll-selection-jump.md).
+
+**Counts moved:** sessions 23 → 24 · tests 1,554 → 1,551 (App 962 → 957; the wheel-forwarding shim
+and its two tests were deleted).
+
+### Recent additions (v0.7.0 — the release phase, and a bigger rig)
+
+**Cut 2026-08-21.** The version that packages phase 7 and answers what a nine-channel rig needed.
+The documentation delta for it is the two blocks below — the elevation audit and the debt
+clearance landed in the same version — plus:
+
+- **A new debt section, §8**, which is the honest cost of this version: three surfaces built past
+  the design package with no design pass behind them, no surface for an unexpected exception, a
+  measured constant, and a list whose virtualisation markup is inert. **Four entries, all opened by
+  the work in this release rather than inherited** — the first time §1–§7's pattern of "found, then
+  closed" has been joined by a section that only grows.
+
+- **A correction to §5**, which had claimed a rule was structural when it was true of Core and
+  false of the shell. Recorded rather than edited away.
+
+- **`releasing-and-updating.md` is still marked *the loop has never run end to end*.** This
+  release does not change that: it was built locally, exactly as the runbook says a local publish
+  reproduces CI, and the repository still has no remote to publish to. The first real tag push is
+  what flips that provenance line.
+
+### A theme choice, a crash, and what's in a backup (2026-08-20)
+
+**Three ADRs, three gotchas and a new debt section**, from a session that started as a screenshot
+comparison and turned into four pieces of work. The through-line is worth naming: **three of the
+four defects were invisible to tests that read source and visible to tests that render it.**
+
+- **Three ADRs.** [[ADR-013]] puts the theme preference behind the existing `ISystemTheme` seam —
+  a decorator, so none of the six consumers changed and none of them can disagree. [[ADR-014]]
+  widens the health strip to the rig and moves collapse from a high-water mark to a comparison with
+  the previous snapshot. [[ADR-015]] reads a backup's own settings file on demand rather than
+  extending `manifest.json`, which is what makes the details view work on every backup already on
+  disk.
+
+- **Three gotchas, and they share a shape.**
+  [[a-chip-draws-its-box-and-not-its-label]] — a `ContentTemplate` renders against `Content` and
+  the triggers around it read `DataContext`; every source-text guard passed while the column drew
+  three empty pills. [[pressing-back-up-now-closes-the-whole-app]] — a `DependencyProperty` written
+  from a `Task.Run`, diagnosed from the Windows event log after the source reading went the wrong
+  way. [[every-older-backup-turns-amber-after-adding-a-channel]] — a verdict computed against the
+  store's peak, which rewrites itself on every older row the moment the peak moves.
+
+- **A correction, not a silent edit.** `technical-debt.md` §5 claimed the "5 inputs is one user's
+  rig" rule was *"held by `HealthFingerprint` comparing against that user's own previous
+  snapshot"*. That was true of `HealthFingerprint` and false of the shell, which sized its strip at
+  a hard five and judged against the peak. §5 now says so, and points at the tests that hold it
+  instead of the paragraph that claimed it.
+
+- **A new debt section, §8**, for what building past the design package costs: no surface for an
+  unexpected exception (§8.1), three surfaces no design pass has seen (§8.2), and a measured
+  character-width constant that only a rendering test can keep honest (§8.3).
+
+- **And one more the next day.** [[the-list-will-not-scroll-with-the-wheel]] — the main list never
+  scrolled by wheel, because a disabled `ScrollViewer` still marks the event handled. Its *how to
+  avoid it* is mostly about the TEST: raising the event on the ListBox proves nothing (the
+  swallowing ScrollViewer is inside its template), and `RaiseEvent` raises one event where real
+   input raises two. Both mistakes were made before the test failed correctly.
+
+- **And one more on the same list, the next day.** [[scrolling-the-list-selects-a-row]] — scrolling
+  the backup list to the end auto-selected a row with no click, because `GroupsHost` left
+  `IsSynchronizedWithCurrentItem` at its default `True`, so the view's *currency* drove the
+  `SelectedItem` binding. The wheel was exonerated by measurement (it moves neither focus nor
+  currency); the fix is one attribute off, held down by four tests against the real window — the
+  defect itself plus End/Home still selecting their extremes.
+
+- **Five new glossary entries** — *mix*, *channel*, *effect chain*, *bypassed*, *collapsed*. Four
+  of them are words the settings file and the UI both use and mean slightly differently, which is
+  the [[glossary]]'s own criterion.
 
 ### Elevation, measured rather than assumed (2026-08-20)
 
@@ -838,6 +1028,21 @@ see that. Read together before writing the next window.
 | [[three-backups-look-selected-at-once]] | Selection across several Selectors, and the test that passed while the bug shipped |
 | [operations/design/README.md](operations/design/README.md) | The values every one of these was audited against |
 | [2026-08-19-design-audit-and-ui-fixes.md](sessions/2026-08-19-design-audit-and-ui-fixes.md) | The narrative, including three wrong diagnoses |
+
+### A rig bigger than the design drew
+
+Spans two ADRs, a gotcha and a Core type. The design specifies a five-channel rig throughout, in
+the piece it calls the core information design; a nine-channel rig breaks the row and the details
+view is where the rest of the answer went. Read all four before changing either surface — the strip
+and the dialog are two halves of one question.
+
+| Artifact | Contribution |
+|---|---|
+| [[ADR-014]] | Why the strip widens, why the labels are what yield, and why collapse is a drop rather than a threshold |
+| [[ADR-015]] | Why the details view reads the backup rather than the manifest, and what that rules out |
+| [[every-older-backup-turns-amber-after-adding-a-channel]] | The reported symptom, and the two wrong fixes |
+| [operations/design/README.md](operations/design/README.md) §Screen 1 | The five-slot strip as drawn, which is what both decisions depart from |
+| `technical-debt.md` §5, §8.2 | The note that predicted this, and the by-eye pass now owed |
 
 ### Shipping a release, and the app finding it
 

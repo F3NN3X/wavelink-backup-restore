@@ -21,12 +21,75 @@ heading here.
 
 ---
 
-## [Unreleased]
+## [0.7.2] - 2026-08-22
 
-**Phase 7's work landed early, as a debt-clearing pass**: the privacy gate, the two notifications
-and the update mechanism are all here. What remains of
-[phase-7-release.md](_docs/dev-phases/phase-7-release.md) is packaging, signing, and running the
-release loop once for real.
+### Added
+
+- **Help and About dialogs.** The tray menu gains two entries, and the window's caption bar
+  gains a "?" beside the Settings gear. *Help* says what the app does in the user's words -
+  what gets backed up, how snapshots are kept, how restoring works, what the tray icon is for -
+  with a link to the documentation when the build was given one. *About* states the facts about
+  this build: name, version (read from the same source the updater compares against, so it can
+  never drift), licence, and the not-affiliated line. Both are static content behind a view
+  model - no logic in either - and both open modally over the window when one is open,
+  standalone otherwise.
+
+### Changed
+
+- **The release is now two small archives instead of one large one.** The app publishes
+  **framework-dependent** (it requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0),
+  which a fresh machine will not have - the README names the prerequisite) and the CLI is its own
+  release artifact rather than riding inside the app's archive. Measured, exactly as CI runs it:
+  the app archive drops from **101 MB to 7.6 MB**, the CLI is **0.22 MB** on its own, and the .NET
+  runtime ships nowhere at all - both resolve it from the machine. The satellite locale folders are
+  gone too (`InvariantGlobalization`). The updater's asset match widened with it: it now looks for
+  `*app-win-x64.zip`, so a release carrying both assets resolves to the app, and a checksum is
+  still published beside each archive. A machine without the runtime fails at native load before
+  managed code runs, so there is no in-app prompt - that is the accepted trade for ~94 MB off every
+  download. See [technical-debt.md](_docs/technical-debt.md) §8.5 (closed) and
+  [the runbook](_docs/operations/runbooks/releasing-and-updating.md).
+
+---
+
+## [0.7.1] - 2026-08-22
+
+**Three fixes to the phase already shipped.** The daily backup that silently never ran, the list
+that did not refresh after a capture, and the click that selected the wrong row after scrolling.
+
+### Fixed
+
+- **The daily backup now actually fires.** The 0.7.0 wording — "if an ordinary automatic backup
+  already happened after today's set time, the day is covered and the daily one is skipped" — was a
+  bug: on any machine where Wave Link writes settings during the day (which is most of them), the
+  schedule silently never ran, because the change-driven capture that morning had already "covered"
+  the day. Only today's own copy of this one now covers the day; a change-driven backup before or
+  after the set time no longer cancels it. Dedup keeps it free when nothing has changed since the
+  last copy. The Settings row says so plainly now too.
+- **The snapshot list updates after an automatic capture.** A new automatic backup used to appear
+  only after a restart; the list now refreshes in place when the tick that took it reports success.
+
+- **Clicking a row selects the row you clicked, not one at the bottom of the screen.** After
+  scrolling the list to the end, a click highlighted a *different* (lower) row. The list had two
+  scroll owners: an outer scroll view did the real scrolling while the list's own was switched off
+  but still held the virtualising panel, which tracks only the offset of the scroll view that owns
+  it — so the realized rows stayed anchored to the top while the pixels showed the last ones, and a
+  click landed on a stale row. The outer scroll view is gone; the list now scrolls itself. With the
+  rows grouped, its scrolling also has to be by pixel rather than by item, or the list's own extent
+  collapses to nothing and it cannot see how tall the content really is.
+
+---
+
+## [0.7.0] — 2026-08-21
+
+**The release phase, and a rig bigger than the design drew.** Phase 7's work — the privacy gate,
+the two tray notifications, the in-app updater and the release pipeline — landed early as a
+debt-clearing pass. This version packages it, and adds what a nine-channel setup turned out to
+need: every channel visible in the row, a view of what a backup actually holds, and a theme you
+can choose.
+
+**It is not signed.** Windows will warn on first run, and
+[phase-7-release.md](_docs/dev-phases/phase-7-release.md) still owns that. Everything else in the
+exit criterion holds: one self-contained archive, no SDK, no installer.
 
 ### Added
 
@@ -66,6 +129,36 @@ release loop once for real.
 - **A "backing up" state.** The strip that shows a restore's four stages now has its other half:
   *Backing up your setup…*, the size, and a progress bar whose numbers are real — bytes on disk
   against a total known before the first write.
+
+- **Every channel shows in the row, not just the first five.** The INPUTS strip was five cells
+  wide because that is the rig the design was drawn for; a nine-channel setup lost its last four
+  channels off the end of every row with nothing to say they were missing. The strip is now as wide
+  as the biggest configuration in your store — never narrower than five, so a collapse still reads
+  as a gap — and the labels are what give way as it widens: nine characters at five channels, four
+  at nine, and past about a dozen the cells keep their solid and dashed rules and drop their words.
+  Hovering names them all, and so does the new details view.
+
+- **What's in this backup.** A new view off any row — `Ctrl+I`, the row's `···` menu, or a
+  double-click — listing **every channel, the effects on it in the order they run**, and what each
+  mix plays out of. Effects show their vendor, their category, whether they are switched off, and
+  whether they ship with Wave Link or are a VST3 that would have to be installed on a new machine.
+  Channels say which mixes they are heard in — **and say so when they are heard in none**, which
+  nothing else in the app would tell you.
+
+  It reads the backup's own settings file rather than anything recorded at capture time, so it
+  works on **every backup you already have**, including ones taken before this existed. A damaged
+  backup opens too, and says why it cannot be described — which is exactly when someone wants to
+  know what was in it. See [ADR-015](_docs/decisions/ADR-015-the-details-view-reads-the-backup-itself.md).
+
+- **You can pick the theme.** A `HOW IT LOOKS` section in Settings: *Auto*, *Dark*, *Light* or
+  *High contrast*. Auto follows Windows, which is what the app did before there was a choice, and
+  it stays the default. The choice applies the moment you press it — window, dialogs, tray menu and
+  tray icon — and is remembered in `shell.json` beside the window position, not in `settings.json`,
+  which describes itself on that same screen as the folder, the automatic-backup switch, how many
+  to keep and which Wave Link you picked.
+
+  **Turning on a high-contrast theme in Windows still overrides it**, because that is Windows
+  saying the palette is no longer ours.
 
 - **When Windows starts.** Two switches in Settings: start with Windows and sit in the tray, and
   whether closing the window hides it there. If Task Manager has disabled the startup entry, the
@@ -125,7 +218,7 @@ release loop once for real.
   names: `Alt` shortcuts on dialog buttons, `Shift+F10` and the Menu key opening a row's actions,
   `Delete` on a selected row, and labels that read as sentences.
 
-- **The main window's minimum width is 1124px**, up from 980. Below that the last column was being
+- **The main window's minimum width is 1152px**, up from 980. Below that the last column was being
   clipped with no way to scroll to it.
 
 - **A failed manual backup reports inline** rather than in a message box.
@@ -146,6 +239,37 @@ release loop once for real.
 ---
 
 ### Fixed
+
+- **The backup list scrolls with the mouse wheel.** It never had: the scroll bar, Page Up/Down and
+  the arrow keys all worked, and the wheel did nothing. The list's own scrolling is switched off so
+  the column header and the rows share one scroll position — and a switched-off scroll view still
+  swallows the wheel rather than passing it on.
+
+- **A backup taken before you added a channel is not marked suspect any more.** Adding channels in
+  Wave Link turned the input strip amber on every backup you already had: "fewer inputs than the
+  most any backup has" was being read as "Wave Link reset your settings", so a rig that grew
+  repainted its own history. A backup is now judged against the one taken before it — which is what
+  the amber is for, and what it now means again.
+
+- **The bottom bar counts your backups as soon as the list loads.** It read `0 BACKUPS · 0 B` for
+  the first fifteen seconds of every launch, under a window full of backups: the figures come from
+  the list and nothing re-read them until a selection or the next tick.
+
+- **"Back up now" in the window no longer kills the app.** The capture moved off the UI thread so
+  the new backing-up bar could animate, and the refresh that follows a capture - the tray icon, its
+  tooltip, its menu - ran on that thread too. Writing a window's own objects from another thread
+  throws, and there is nothing above a button handler to catch it, so the process ended: window,
+  tray and all. The backup itself was always written first; what was lost was the app, not the
+  backup. Both refreshes now marshal themselves.
+
+- **The CONTENTS column no longer clips `PLUGINS` mid-word.** Three tier badges measure 224px at
+  the design's own type role and padding, in a column the design gives 200. Its own reference
+  render draws them at about 224 too, so the column is 248 now and the window's minimum width goes
+  from 1124 to 1152 with it.
+
+- **The CONTENTS column shows what each backup holds again.** Every row drew three blank pills
+  where `SETTINGS`, `PRESETS` and `PLUGINS` belong: the badges picked the right treatment - filled
+  for present, a dashed ghost for absent - and then rendered their label against nothing.
 
 - **Restoring plug-in files no longer asks for administrator rights unless it needs them.** The
   app assumed it always would, because plug-ins usually live in a folder every account shares. On
@@ -592,8 +716,9 @@ A gate, not a version. Before any public `1.0.0`:
 - [x] **Redacting "copy diagnostics" action.** Shipped 2026-08-20, in Settings and as
       `wlbackup diagnostics`. Serial numbers, the Windows user name and snapshot display names are
       removed; the settings file is never included at all; nothing is uploaded. §6, paid.
-- [x] **Packaging decided deliberately.** `WaveLinkBackup.Cli` sets `SelfContained=true` in the
-      csproj, so a local publish and CI cannot produce different artifacts.
+- [x] **Packaging decided deliberately.** The app and CLI both publish framework-dependent from
+      their csprojs (no self-contained flag anywhere), so a local publish and CI cannot produce
+      different artifacts; the .NET 10 Desktop Runtime is a documented prerequisite, not a payload.
 - [x] **MIT attribution** preserved for upstream, in `LICENSE` and `README.md`.
 - [x] **Windows-only stated above the fold** in `README.md`.
 - [x] **The VST3 bundle path covered by a fixture test.** Both directions, `TierCaptureTests`
@@ -606,6 +731,10 @@ A gate, not a version. Before any public `1.0.0`:
       unit-tested; the download, the swap and the relaunch have met fixtures and temp directories
       only. Record the result in
       [the runbook](_docs/operations/runbooks/releasing-and-updating.md).
+      **Half of it is done:** v0.7.0 was packaged locally on 2026-08-21 with the workflow's own
+      steps, and the archive, the checksum and both published binaries were verified — the runbook
+      records what that settled. The half that remains needs a remote: a tag push, the release CI
+      creates, and the app reading it back.
 - [ ] **Set `WLBACKUP_UPDATE_OWNER` / `_REPO`** in the published build, once the repository has a
       remote. Until then the UPDATES section correctly hides itself, which also means nobody has
       exercised it.

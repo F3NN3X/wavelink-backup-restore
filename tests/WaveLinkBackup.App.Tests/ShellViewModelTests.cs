@@ -168,6 +168,27 @@ public sealed class ShellViewModelTests
             shell.SummaryLine);
     }
 
+    /// <summary>
+    /// The bottom bar's first two figures belong to the LIST, and until this was wired nothing
+    /// re-read them when the list finished loading - only a selection or the 15-second tick did.
+    /// Every launch therefore showed "0 BACKUPS · 0 B" under a window full of backups until the
+    /// user clicked something.
+    ///
+    /// Asserts the NOTIFICATION rather than the value: the value was always right, and reading it
+    /// directly is what let this hide. A binding only re-reads what it is told has changed.
+    /// </summary>
+    [Fact]
+    public void Loading_the_list_re_raises_the_summary_line()
+    {
+        var shell = Shell();
+        var raised = new List<string?>();
+        shell.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        shell.List.Refresh();
+
+        Assert.Contains(nameof(ShellViewModel.SummaryLine), raised);
+    }
+
     // "Null rather than 0 or a throw ... omitting the figure is honest where printing 0 would
     // quietly claim a full disk." - IFileSystem.GetAvailableFreeBytes.
     [Fact]
