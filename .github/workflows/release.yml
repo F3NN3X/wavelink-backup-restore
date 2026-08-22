@@ -94,9 +94,49 @@ jobs:
           "app=$app" >> $env:GITHUB_OUTPUT
           "cli=$cli" >> $env:GITHUB_OUTPUT
 
+      # The release body carries the asset links and checksums so a human who lands on the
+      # GitHub Release page can verify by hand what the updater verifies automatically. The
+      # updater only reads the .sha256 beside *app-win-x64.zip; this is for people, not code.
+      # Written to a file because a markdown body with backticks and pipes does not survive
+      # being passed through a workflow `with:` input cleanly.
+      - name: Build release body
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          $app = "${{ steps.package.outputs.app }}"
+          $cli = "${{ steps.package.outputs.cli }}"
+          $appHash = (Get-Content "$app.sha256" -Raw).Trim()
+          $cliHash = (Get-Content "$cli.sha256" -Raw).Trim()
+          $base = "${{ github.server_url }}/${{ github.repository }}/releases/download/v$v"
+          $lines = @(
+            "Wave Link Backup v$v for Windows x64.",
+            "",
+            "## Downloads",
+            "",
+            "| File | SHA-256 |",
+            "|---|---|",
+            "| [$app]($base/$app) | `$ $appHash` |",
+            "| [$cli]($base/$cli) | `$ $cliHash` |",
+            "",
+            "## Prerequisite",
+            "",
+            "Both archives are framework-dependent: the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)",
+            "must be installed before either will run. A machine without it gets the standard .NET",
+            '"framework not found" dialog pointing at that page.',
+            "",
+            "## Verifying a download",
+            "",
+            "```powershell",
+            "(Get-FileHash $app -Algorithm SHA256).Hash.ToLower()",
+            "# should equal: $appHash",
+            "```"
+          )
+          $lines | Out-File -FilePath release_body.md -Encoding utf8
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release_body.md
           files: |
             ${{ steps.package.outputs.app }}
             ${{ steps.package.outputs.app }}.sha256
