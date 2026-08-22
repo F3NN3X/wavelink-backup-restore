@@ -76,6 +76,16 @@ public sealed class SettingsDialogViewTests
         // reads it cannot have produced a width during the first measure.
         dialog.UpdateLayout();
 
+        // Pump the dispatcher so any binding operations still queued on this thread run to
+        // completion before the assertion enumerates the tree. On a loaded CI runner the two
+        // synchronous UpdateLayout passes can finish before a Run's OneWay binding has resolved,
+        // leaving TextBlock.Text empty for one frame - the exact flake this test hit on run 2 of
+        // the v0.7.2 CI pair (passed run 1, failed run 2, identical code). A local box resolves
+        // the binding inside UpdateLayout and never sees it; a runner under load does not.
+        System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+            () => { },
+            System.Windows.Threading.DispatcherPriority.Background);
+
         try
         {
             foreach (var element in AppResources.Descendants(dialog)) assert(element);
