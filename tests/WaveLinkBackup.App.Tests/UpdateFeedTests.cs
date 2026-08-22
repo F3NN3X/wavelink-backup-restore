@@ -19,15 +19,15 @@ public sealed class UpdateFeedTests
 
     private static string Release(
         string tag = "v1.4.0",
-        string asset = "WaveLinkBackup-1.4.0-win-x64.zip",
+        string asset = "WaveLinkBackup-1.4.0-app-win-x64.zip",
         long size = 4_300_000,
         bool checksum = true)
     {
         var checksumAsset = checksum
-            ? """
+            ? $$"""
               ,
               {
-                "name": "WaveLinkBackup-1.4.0-win-x64.zip.sha256",
+                "name": "{{asset}}.sha256",
                 "size": 96,
                 "browser_download_url": "https://example.invalid/checksum.sha256"
               }
@@ -101,6 +101,55 @@ public sealed class UpdateFeedTests
             Release(asset: "WaveLinkBackup-1.4.0-linux-x64.tar.gz"), new Version(1, 2, 3, 0));
 
         Assert.Equal(UpdateCheckResult.CheckFailed, check.Result);
+    }
+
+    /// <summary>
+    /// The release carries BOTH the app and the CLI archives; the updater must pick the app's.
+    /// A bare <c>win-x64.zip</c> suffix would match both — and the last one in the array wins —
+    /// which is how an update would install the wrong bytes. The <c>app-</c> marker is what keeps
+    /// the two apart, so this test exists to fail if it ever goes away.
+    /// </summary>
+    [Fact]
+    public void A_release_with_both_app_and_cli_assets_picks_the_app()
+    {
+        var json = $$"""
+        {
+          "tag_name": "v1.4.0",
+          "name": "v1.4.0",
+          "html_url": "https://github.com/f3nn3x/wavelink-backup-restore/releases/tag/v1.4.0",
+          "published_at": "2026-08-12T09:14:00Z",
+          "assets": [
+            {
+              "name": "WaveLinkBackup-CLI-1.4.0-win-x64.zip",
+              "size": 1500000,
+              "browser_download_url": "https://example.invalid/cli.zip"
+            },
+            {
+              "name": "WaveLinkBackup-CLI-1.4.0-win-x64.zip.sha256",
+              "size": 96,
+              "browser_download_url": "https://example.invalid/cli.sha256"
+            },
+            {
+              "name": "WaveLinkBackup-1.4.0-app-win-x64.zip",
+              "size": 4300000,
+              "browser_download_url": "https://example.invalid/app.zip"
+            },
+            {
+              "name": "WaveLinkBackup-1.4.0-app-win-x64.zip.sha256",
+              "size": 96,
+              "browser_download_url": "https://example.invalid/app.sha256"
+            }
+          ]
+        }
+        """;
+
+        var check = Feed().Read(json, new Version(1, 2, 3, 0));
+
+        Assert.Equal(UpdateCheckResult.UpdateAvailable, check.Result);
+        Assert.NotNull(check.Release);
+        Assert.EndsWith("app.zip", check.Release.DownloadUrl);
+        Assert.Equal(4_300_000, check.Release.SizeBytes);
+        Assert.EndsWith("app.sha256", check.Release.Sha256);
     }
 
     [Theory]

@@ -2,7 +2,7 @@
 title: "Development Phases"
 status: published
 created: 2026-08-16
-updated: 2026-08-19
+updated: 2026-08-22
 tags: [dev-phase, index]
 ---
 
@@ -214,10 +214,12 @@ and neither is day-one:
   `UPDATES` section, because error 8 deep-links into it.
 
 Also here: the packaging decision left open by upstream finding 5 — self-contained,
-framework-dependent, or NativeAOT for the CLI. **NativeAOT is verified working at 3.2 MB**, but
-`[ComImport]`-under-AOT is still unanswered ([technical-debt.md](../technical-debt.md) §2.4)
-because no COM interop has been ported. MIT attribution. README stating Windows-only above the
-fold ([[ADR-008]]). Icon from the brand mark.
+framework-dependent, or NativeAOT for the CLI. **Resolved 2026-08-22 (v0.7.2): framework-dependent**,
+the app and CLI both resolve the .NET 10 Desktop Runtime from the machine, and the release carries
+two archives instead of one ([technical-debt.md](../technical-debt.md) §8.5, closed). **NativeAOT
+remains an open option for the CLI at 3.2 MB**, but `[ComImport]`-under-AOT is still unanswered
+([technical-debt.md](../technical-debt.md) §2.4) because no COM interop has been ported. MIT
+attribution. README stating Windows-only above the fold ([[ADR-008]]). Icon from the brand mark.
 
 **Three surfaces are modelled in code with no control bound to them**, all found on 2026-08-19:
 the `WHEN WINDOWS STARTS` section (so **autostart cannot be switched on from anywhere in the app**,

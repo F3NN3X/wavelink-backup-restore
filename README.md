@@ -98,18 +98,23 @@ otherwise. Nothing is ever uploaded; the output goes to your clipboard or your t
 
 ## Building
 
-Requires the .NET 10 SDK on Windows.
+Requires the .NET 10 SDK on Windows. The published app is **framework-dependent**: running it
+requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0), which a
+fresh machine will not have. That is a deliberate trade — the archive drops from ~101 MB to ~7.6 MB
+because the runtime ships nowhere at all — and it means a machine without the runtime gets the
+stock .NET "framework not found" error rather than a friendly in-app prompt (a framework-dependent
+WPF app fails before managed code runs, so there is no surface to show one from).
 
 ```powershell
 dotnet build WaveLinkBackup.slnx
-dotnet test  WaveLinkBackup.slnx        # 1,568 tests
+dotnet test  WaveLinkBackup.slnx        # 1,569 tests
 
-# CLI
-dotnet publish src/WaveLinkBackup.Cli -c Release                      # self-contained single file
+# CLI — framework-dependent single file; resolves the runtime from the machine at startup
+dotnet publish src/WaveLinkBackup.Cli -c Release                      # ~0.2 MB archive
 dotnet publish src/WaveLinkBackup.Cli -c Release -p:PublishAot=true   # ~3 MB native (needs MSVC)
 
-# App
-dotnet publish src/WaveLinkBackup.App -c Release --self-contained true
+# App — framework-dependent; the .NET 10 Desktop Runtime is a prerequisite, not a payload
+dotnet publish src/WaveLinkBackup.App -c Release
 ```
 
 The AOT build's link step calls `vswhere.exe` unqualified — if it fails with

@@ -34,6 +34,21 @@ heading here.
   model - no logic in either - and both open modally over the window when one is open,
   standalone otherwise.
 
+### Changed
+
+- **The release is now two small archives instead of one large one.** The app publishes
+  **framework-dependent** (it requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0),
+  which a fresh machine will not have - the README names the prerequisite) and the CLI is its own
+  release artifact rather than riding inside the app's archive. Measured, exactly as CI runs it:
+  the app archive drops from **101 MB to 7.6 MB**, the CLI is **0.22 MB** on its own, and the .NET
+  runtime ships nowhere at all - both resolve it from the machine. The satellite locale folders are
+  gone too (`InvariantGlobalization`). The updater's asset match widened with it: it now looks for
+  `*app-win-x64.zip`, so a release carrying both assets resolves to the app, and a checksum is
+  still published beside each archive. A machine without the runtime fails at native load before
+  managed code runs, so there is no in-app prompt - that is the accepted trade for ~94 MB off every
+  download. See [technical-debt.md](_docs/technical-debt.md) §8.5 (closed) and
+  [the runbook](_docs/operations/runbooks/releasing-and-updating.md).
+
 ---
 
 ## [0.7.1] - 2026-08-22
@@ -701,8 +716,9 @@ A gate, not a version. Before any public `1.0.0`:
 - [x] **Redacting "copy diagnostics" action.** Shipped 2026-08-20, in Settings and as
       `wlbackup diagnostics`. Serial numbers, the Windows user name and snapshot display names are
       removed; the settings file is never included at all; nothing is uploaded. §6, paid.
-- [x] **Packaging decided deliberately.** `WaveLinkBackup.Cli` sets `SelfContained=true` in the
-      csproj, so a local publish and CI cannot produce different artifacts.
+- [x] **Packaging decided deliberately.** The app and CLI both publish framework-dependent from
+      their csprojs (no self-contained flag anywhere), so a local publish and CI cannot produce
+      different artifacts; the .NET 10 Desktop Runtime is a documented prerequisite, not a payload.
 - [x] **MIT attribution** preserved for upstream, in `LICENSE` and `README.md`.
 - [x] **Windows-only stated above the fold** in `README.md`.
 - [x] **The VST3 bundle path covered by a fixture test.** Both directions, `TierCaptureTests`

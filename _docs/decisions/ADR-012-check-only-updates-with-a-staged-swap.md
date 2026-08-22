@@ -2,7 +2,7 @@
 title: "ADR-012: Update by staging beside the install and swapping, never elevated"
 status: accepted
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-08-22
 related_adrs: [ADR-011, ADR-008, ADR-004, ADR-003]
 tags: [decision, updates, security, ci]
 ---
@@ -10,7 +10,7 @@ tags: [decision, updates, security, ci]
 # ADR-012: Update by staging beside the install and swapping, never elevated
 
 **Status:** Accepted
-**Date:** 2026-08-20
+**Date:** 2026-08-20 · updated 2026-08-22 (the publish shape this assumes changed — see Context)
 
 ## Context
 
@@ -34,8 +34,12 @@ Two facts about the environment matter as much:
 file. So *any* self-update is at minimum two processes; the decision is which one does the writing
 and what state the disk passes through.
 
-**This app has no installer and is not code-signed.** It ships as a self-contained publish in a
-folder. There is no MSI, no MSIX identity, no Start-menu shortcut, and no certificate.
+**This app has no installer and is not code-signed.** It ships as a publish in a folder —
+framework-dependent since 2026-08-22 (v0.7.2), self-contained before that; the swap mechanism does
+not care which, it renames directories either way. There is no MSI, no MSIX identity, no Start-menu
+shortcut, and no certificate. The framework-dependent choice means a machine without the .NET 10
+Desktop Runtime fails at native load before managed code runs — there is no in-app surface to offer
+a friendly prompt, which is why the prerequisite lives in the README rather than in a dialog.
 
 [[ADR-011]] had already built an elevation path for tier 4 restore, so "just elevate and write to
 `Program Files`" was available and cost nothing to implement.
@@ -87,9 +91,10 @@ pipeline whose output shape is CI's responsibility rather than a person's memory
   ordering it, deliberately — inventing an ordering would silently decide whether a beta counts as
   newer than the release it precedes. Publishing a pre-release tag today would offer it to
   everyone. That needs its own decision before a `-beta` tag exists.
-- **Differential updates.** Every update is the whole ~70 MB self-contained publish. Acceptable for
-  something that happens a few times a year. It is **not** an argument for MSIX, whose own
-  objection is above and is structural rather than a matter of cost.
+- **Differential updates.** Every update is the whole archive — ~7.6 MB since v0.7.2 made the app
+  framework-dependent (it was ~101 MB self-contained before that). Acceptable for something that
+  happens a few times a year either way. It is **not** an argument for MSIX, whose own objection is
+  above and is structural rather than a matter of cost.
 - **Any release not in the shape §1 of the runbook describes** is invisible to the updater. That is
   why the shape is produced by CI and pinned by the workflow rather than documented and hoped for.
 

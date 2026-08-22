@@ -1,14 +1,20 @@
-# Publishes the artifact the in-app updater downloads.
+# Publishes the artifacts the in-app updater downloads.
 #
-# The updater needs exactly two things in a release, and this exists so that the shape it looks
-# for is produced by CI rather than by hand: a `*win-x64.zip` and a `.sha256` beside it. The
-# checksum is not optional — UpdateDownloader REFUSES an update that has no published checksum
-# rather than installing whatever arrived (see its own comment on what that does and does not
-# prove).
+# One release, two archives:
+#   WaveLinkBackup-X.Y.Z-app-win-x64.zip    the app (framework-dependent)
+#   WaveLinkBackup-CLI-X.Y.Z-win-x64.zip    the CLI, single file
 #
-# `--self-contained true` matches the CLI's csproj rather than overriding it. technical-debt.md
-# §1.5 is about upstream's pipeline disagreeing with its project file; ours agrees on purpose, and
-# a local `dotnet publish` produces the same artifact this does.
+# The updater looks for `*app-win-x64.zip` and a `.sha256` beside it. A checksum is not optional —
+# UpdateDownloader REFUSES an update that has no published checksum rather than installing whatever
+# arrived (see its own comment on what that does and does not prove).
+#
+# Both publishes are framework-dependent: the .NET 10 runtime is a prerequisite, not a payload.
+# A machine without it gets the standard .NET "framework not found" dialog pointing at the install
+# page — there is no in-app probe to add, because managed code does not run before that check.
+#
+# The flags here match each csproj rather than overriding it: technical-debt.md §1.5 is about
+# upstream's pipeline disagreeing with its project file; ours agrees on purpose, and a local
+# `dotnet publish` produces the same artifact this does.
 
 name: release
 
@@ -46,47 +52,53 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --nologo
 
-      - name: Publish
+      # Framework-dependent: no --self-contained flag, so the csproj default (false) applies.
+      # The app's InvariantGlobalization drops the satellite locale folders; what remains is the
+      # app assemblies plus a small apphost — a few MB, not the runtime.
+      - name: Publish the app
         run: >
           dotnet publish src/WaveLinkBackup.App/WaveLinkBackup.App.csproj
           --configuration Release
           --runtime win-x64
-          --self-contained true
           -p:Version=${{ steps.version.outputs.version }}
           --output publish/app
 
-      # Into the SAME directory, so one archive is one install.
-      #
-      # MEASURED 2026-08-21 while packaging v0.7.0 locally, which this step's comment used to ask
-      # for: nothing collides and nothing warns. The CLI is PublishSingleFile, so it contributes
-      # exactly wlbackup.exe and its .pdb - there is no loose CLI assembly, and so no
-      # wlbackup.deps.json to sit beside the app's. It also means the runtime ships twice, once
-      # loose and once inside that exe; see technical-debt.md 8.5, which is a size question rather
-      # than a correctness one.
-      - name: Publish the CLI beside it
+      # The CLI is its own artifact, published beside the app's output directory only to keep the
+      # two publish steps symmetric. It is single-file and framework-dependent: one exe of a few
+      # MB that resolves the .NET 10 runtime from the machine at startup.
+      - name: Publish the CLI
         run: >
           dotnet publish src/WaveLinkBackup.Cli/WaveLinkBackup.Cli.csproj
           --configuration Release
           --runtime win-x64
           -p:Version=${{ steps.version.outputs.version }}
-          --output publish/app
+          --output publish/cli
 
       # The archive's ROOT is the install directory's contents, not a folder containing them:
-      # UpdateInstaller expands it and expects to find WaveLinkBackup.exe at the top level, and
-      # refuses the update if it does not.
+      # UpdateInstaller expands the app archive and expects to find WaveLinkBackup.exe at the top
+      # level, and refuses the update if it does not. The CLI archive has no such contract — it is
+      # downloaded by hand or by a script, not by the updater.
       - name: Package
         id: package
         shell: pwsh
         run: |
-          $name = "WaveLinkBackup-${{ steps.version.outputs.version }}-win-x64.zip"
-          Compress-Archive -Path publish/app/* -DestinationPath $name
-          $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLower()
-          "$hash  $name" | Out-File -FilePath "$name.sha256" -Encoding ascii -NoNewline
-          "archive=$name" >> $env:GITHUB_OUTPUT
+          $v = "${{ steps.version.outputs.version }}"
+          $app = "WaveLinkBackup-$v-app-win-x64.zip"
+          $cli = "WaveLinkBackup-CLI-$v-win-x64.zip"
+          Compress-Archive -Path publish/app/* -DestinationPath $app
+          Compress-Archive -Path publish/cli/* -DestinationPath $cli
+          foreach ($name in @($app, $cli)) {
+            $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLower()
+            "$hash  $name" | Out-File -FilePath "$name.sha256" -Encoding ascii -NoNewline
+          }
+          "app=$app" >> $env:GITHUB_OUTPUT
+          "cli=$cli" >> $env:GITHUB_OUTPUT
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ steps.package.outputs.archive }}
-            ${{ steps.package.outputs.archive }}.sha256
+            ${{ steps.package.outputs.app }}
+            ${{ steps.package.outputs.app }}.sha256
+            ${{ steps.package.outputs.cli }}
+            ${{ steps.package.outputs.cli }}.sha256

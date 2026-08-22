@@ -230,6 +230,17 @@ against a real install. The WPF app is not:
 missing runtime has failed at the only moment it gets one chance. 70 MB is a download, not a
 problem.
 
+> **Superseded 2026-08-22 (v0.7.2): the app now ships framework-dependent**, and the CLI as its
+> own release artifact rather than inside the app's archive. Measured: the app archive dropped from
+> 101 MB to 7.6 MB, the CLI is 0.22 MB, and the .NET runtime ships nowhere at all — both resolve it
+> from the machine's installed .NET 10 Desktop Runtime. The trade accepted in exchange: a machine
+> without that runtime fails at native load before managed code runs, so there is no in-app surface
+> to offer a friendly prompt — the user gets the stock .NET error dialog, and the README names the
+> prerequisite. The self-contained row above was right for what it weighed (download size vs first
+> run); what changed is that the runtime dependency turned out cheaper than 94 MB per update. See
+> [technical-debt.md](../technical-debt.md) §8.5, now closed with the before/after measurement, and
+> the runbook for the new two-artifact shape.
+
 **b · Signing.** There is no certificate. Unsigned means SmartScreen's "Windows protected your PC"
 on first run for every user until reputation accumulates — which for a low-volume tool is
 effectively never. Options: buy an OV certificate (~£200/yr, still needs reputation), buy EV

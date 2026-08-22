@@ -2,7 +2,7 @@
 title: "Releasing a version, and how the app updates itself"
 status: published
 created: 2026-08-20
-updated: 2026-08-21
+updated: 2026-08-22
 related_adrs: [ADR-012, ADR-011, ADR-004]
 tags: [runbook, release, updates, ci]
 ---
@@ -35,12 +35,19 @@ This is the contract. The updater reads it and nothing else.
 | | What | Why the updater needs it |
 |---|---|---|
 | **Tag** | `v1.4.0` on the commit to release | `ReleaseVersion.Parse` reads the tag as the version. `v` optional, `1.4` fine, `1.4.0-beta.2` reads as `1.4.0` — see §6 on why a pre-release suffix is dropped rather than ordered |
-| **Asset 1** | `WaveLinkBackup-1.4.0-win-x64.zip` | Matched on the **suffix** `win-x64.zip`, so the version in the name is free-form |
-| **Asset 2** | `WaveLinkBackup-1.4.0-win-x64.zip.sha256` | Matched on the suffix `.sha256`. **Not optional** — `UpdateDownloader` refuses an update with no published checksum rather than installing whatever arrived |
+| **Asset 1** | `WaveLinkBackup-1.4.0-app-win-x64.zip` | Matched on the **suffix** `app-win-x64.zip` (the updater's default `AssetSuffix`). The `-app-` infix disambiguates it from the CLI asset when both are in the same release — a plain `win-x64.zip` match would accept either, and accepting the CLI would be an update that removes the app |
+| **Asset 2** | `WaveLinkBackup-1.4.0-app-win-x64.zip.sha256` | Matched on the suffix `.sha256`. **Not optional** — `UpdateDownloader` refuses an update with no published checksum rather than installing whatever arrived |
+| **Asset 3 (not read by the updater)** | `WaveLinkBackup-CLI-1.4.0-win-x64.zip` | The CLI as its own artifact, for people who want `wlbackup`. The updater ignores it: its suffix does not end in `app-win-x64.zip`, and a release that carries both assets resolves to the app (pinned by a test). Its checksum is published beside it for manual downloaders. |
 
 **The archive's root is the install directory's contents**, not a folder containing them.
 `UpdateInstaller` expands it and expects `WaveLinkBackup.exe` at the top level; anything else is
 refused *before* the swap, with `THE DOWNLOAD DIDN'T CONTAIN THE APP · NOTHING CHANGED`.
+
+**The app is framework-dependent.** It requires the **.NET 10 Desktop Runtime**, which a fresh
+machine will not have. A framework-dependent WPF app fails at native load before any managed code
+runs, so there is no in-app surface to offer a friendly "install the runtime" prompt — the user gets
+the stock .NET error dialog with a link. That is the accepted trade: the archive drops from ~101 MB
+to ~7.6 MB because the runtime ships nowhere at all, and the README names the prerequisite.
 
 `.github/workflows/release.yml` produces exactly this, which is the point of it existing — the
 shape is CI's responsibility rather than something a person remembers on release day.
@@ -61,13 +68,15 @@ That is the whole procedure. The workflow triggers on `push: tags: v*` and:
    version disagreed with its tag would make the app compare itself against the wrong number.
 2. **Runs the full suite** before publishing anything. A release that fails its own tests should
    not exist to be found.
-3. **Publishes the app self-contained** (`--self-contained true`), matching the csproj rather than
-   overriding it. [technical-debt.md](../../technical-debt.md) §1.5 is about upstream's pipeline
-   disagreeing with its project file; ours agrees on purpose, so a local `dotnet publish` produces
-   the same artifact CI does.
-4. **Publishes the CLI beside it**, into the same directory, so one archive is one install.
-5. **Packages and hashes**, writing `<hash>  <name>` in `sha256sum` format.
-6. **Creates the GitHub release** with both assets.
+3. **Publishes the app framework-dependent** (the csproj's default — no self-contained flag),
+   matching the csproj rather than overriding it. [technical-debt.md](../../technical-debt.md) §1.5
+   is about upstream's pipeline disagreeing with its project file; ours agrees on purpose, so a
+   local `dotnet publish` produces the same artifact CI does.
+4. **Publishes the CLI separately**, into its own directory — also framework-dependent, still
+   single-file — so the release carries two artifacts instead of one archive that shipped the
+   runtime twice. The updater reads only the app's; the CLI is for manual downloaders.
+5. **Packages and hashes each**, writing `<hash>  <name>` in `sha256sum` format.
+6. **Creates the GitHub release** with both archives and both checksums.
 
 `workflow_dispatch` is also wired, for re-running a release whose upload failed.
 
@@ -87,19 +96,42 @@ substitute, and the steps below were run exactly as `release.yml` runs them, wit
 
 | | Was | Now |
 |---|---|---|
-| Publishing the CLI into the app's directory | **Unverified** — the workflow's own comment warned of a warning or a clobbered file | **Measured: neither.** The CLI is `PublishSingleFile`, so it contributes exactly `wlbackup.exe` and its `.pdb`. There is no `wlbackup.deps.json` to collide with the app's, because there is no loose CLI assembly at all |
-| The archive's shape | Unverified | **Measured.** 409 entries, `WaveLinkBackup.exe` and `wlbackup.exe` at the root, the satellite resource folders (`cs`, `de`, …) beside them, and the checksum written `<hash>  <name>` |
+| Publishing the CLI into the app's directory | **Unverified** — the workflow's own comment warned of a warning or a clobbered file | **Superseded.** The CLI no longer publishes into the app's directory at all — it is its own artifact in its own publish directory, so there is nothing to collide. See §8.5 below for the change and its measurement |
+| The archive's shape | Unverified | **Measured (0.7.0, self-contained).** 409 entries, `WaveLinkBackup.exe` and `wlbackup.exe` at the root, the satellite resource folders (`cs`, `de`, …) beside them, and the checksum written `<hash>  <name>` |
 | The published binaries | Unverified | **Measured.** Both report `0.7.0`; extracted to a directory that had never held the app, `wlbackup.exe version` printed and the GUI started and drew its list |
 
 **Still unverified, and only a real release can settle it:** the tag-triggered workflow, the GitHub
 release it creates, and the whole updater loop reading it back. Nothing here exercised
 `releases/latest`.
 
-**One measurement worth carrying into the next release:** the archive is **101.2 MB**, and 70.4 MB
-of that is `wlbackup.exe` — a single-file self-contained CLI carries its own copy of the .NET
-runtime, beside the app's loose copy of the same runtime. **The runtime ships twice.** See
-[technical-debt.md](../../technical-debt.md) §8.5; it is not a defect and it is roughly half the
-download.
+### The archive shrank to 7.6 MB — 2026-08-22, v0.7.2
+
+**Measured locally, exactly as `release.yml` runs it**, with `-p:Version=0.7.2`: the app now
+publishes **framework-dependent** and the CLI publishes **separately**, so the release carries two
+artifacts rather than one archive that shipped the runtime twice.
+
+| | v0.7.0 (self-contained, one archive) | v0.7.2 (framework-dependent, two archives) |
+|---|---|---|
+| App archive | `WaveLinkBackup-0.7.0-win-x64.zip` — **101.2 MB** | `WaveLinkBackup-0.7.2-app-win-x64.zip` — **7.62 MB** (12 files, 26.8 MB raw) |
+| CLI archive | Inside the app's archive (`wlbackup.exe`, 70.4 MB of it) | `WaveLinkBackup-CLI-0.7.2-win-x64.zip` — **0.22 MB** (3 files, 0.48 MB raw) |
+| .NET runtime in the download | Twice (the app's loose copy + the CLI's bundled copy) | **Nowhere** — both resolve it from the machine's installed .NET 10 Desktop Runtime |
+
+The app archive's bulk is `Microsoft.Windows.SDK.NET.dll` (~23.7 MB raw, ~6.5 MB zipped) — the
+WinRT projection the TFM `net10.0-windows10.0.19041.0` requires for `UISettings`. It is not
+removable; trimming remains off because WPF and that projection are trimming-incompatible. The
+satellite locale folders are gone (`InvariantGlobalization=true` in the app's csproj), which was
+the cheap part.
+
+The updater's asset match changed with it: `UpdateSource.AssetSuffix` defaults to
+`app-win-x64.zip`, so a release carrying both assets resolves to the app (pinned by
+`A_release_with_both_app_and_cli_assets_picks_the_app`). The CLI archive's checksum is published
+for manual downloaders; the updater never reads it.
+
+The trade, stated plainly: **a machine without the .NET 10 Desktop Runtime cannot start the app**,
+and because a framework-dependent WPF app fails at native load before managed code runs, there is
+no in-app surface to say so — the user gets the stock .NET error dialog. The README names the
+prerequisite; that is the whole mitigation. See [technical-debt.md](../../technical-debt.md) §8.5,
+now closed with its before/after.
 
 ---
 
@@ -219,7 +251,7 @@ guarantee.
 
 | | What | Why |
 |---|---|---|
-| **1** | **Run the loop once, end to end** | Everything here is built and unit-tested; the download, the swap and the relaunch have only met fixtures and temp directories. Do the first release, install it over a real install, and record the result in this file. **Watch step 4 in particular**: the app and the CLI publish into one directory, and while their runtime assemblies should be identical files and their `.deps.json` are named apart, that has never actually run. |
+| **1** | **Run the loop once, end to end** | Everything here is built and unit-tested; the download, the swap and the relaunch have only met fixtures and temp directories. Do the first release, install it over a real install, and record the result in this file. **Watch the runtime prerequisite in particular**: on a machine without the .NET 10 Desktop Runtime the app fails before managed code runs, so the first *fresh-machine* install is the one that will show what users actually see. |
 | **2** | **Code signing** | The gap §6 names. Signing is what turns "these are the bytes the release named" into "these are our bytes", and it is what would make elevating defensible. |
 | **3** | **Decide the pre-release rule** | Before a `-beta` tag ever exists, not after. |
 | **4** | **Set the feed variables** | §3. Until then the UPDATES section hides itself, which is correct but means nobody has exercised it. |
@@ -234,7 +266,7 @@ guarantee.
 | `NO RELEASE FEED IS CONFIGURED` | Same, but the section is showing — the variables are set to empty strings rather than absent. |
 | `COULDN'T REACH THE RELEASE FEED · HTTP 403` | GitHub rate limit, or a missing `User-Agent`. The client sends one; a proxy may be stripping it. |
 | `THE NEWEST RELEASE HAS NO VERSION WE CAN READ` | The tag is not version-shaped — `nightly`, `release-candidate`. §1. |
-| `RELEASE 1.4.0 HAS NO WIN-X64.ZIP` | The asset name does not end in the expected suffix. §1. |
+| `RELEASE 1.4.0 HAS NO APP-WIN-X64.ZIP` | The app asset's name does not end in the expected suffix (`app-win-x64.zip`). A release that carries only the CLI archive is exactly this. §1. |
 | `THE RELEASE PUBLISHED NO CHECKSUM` | The `.sha256` asset is missing. The workflow always writes one, so this means a partial upload — re-run it with `workflow_dispatch`. |
 | `THE DOWNLOAD DIDN'T CONTAIN THE APP` | The archive has a wrapping folder. §1 — the root must be the install contents. |
 | `COULDN'T WRITE TO … · ACCESS DENIED` | Installed somewhere the user cannot write. Working as designed — §5. |

@@ -33,7 +33,7 @@ Update this file **in the same commit** as the document it counts. See
 | Sessions | 25 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,568 passing** — Core 494 · CLI 100 · App 974 |
+| **Tests** | **1,569 passing** — Core 494 · CLI 100 · App 975 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,43 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### The release shrank to 7.6 MB: framework-dependent, two artifacts (2026-08-22)
+
+**A shape decision that closed [technical-debt.md](technical-debt.md) §8.5 with a before/after,
+and rewrote the runbook's contract around it.** The app publishes **framework-dependent** — it
+requires the .NET 10 Desktop Runtime rather than carrying it — and the CLI is its own release
+artifact instead of riding inside the app's archive. Measured locally, exactly as CI runs it:
+
+| | v0.7.0 (self-contained, one archive) | v0.7.2 (framework-dependent, two archives) |
+|---|---|---|
+| App archive | `WaveLinkBackup-0.7.0-win-x64.zip` — **101.2 MB** | `WaveLinkBackup-0.7.2-app-win-x64.zip` — **7.62 MB** (12 files, 26.8 MB raw) |
+| CLI archive | Inside the app's archive (`wlbackup.exe`, 70.4 MB of it) | `WaveLinkBackup-CLI-0.7.2-win-x64.zip` — **0.22 MB** (3 files, 0.48 MB raw) |
+| .NET runtime in the download | Twice (the app's loose copy + the CLI's bundled copy) | **Nowhere** — both resolve it from the machine's installed .NET 10 Desktop Runtime |
+
+Three changes together: `InvariantGlobalization=true` in the app's csproj (drops the 13 satellite
+locale folders); the CLI's `PublishSelfContained` flipped to `false`, keeping `PublishSingleFile`;
+and `release.yml` publishing two artifacts into separate directories. The updater's contract
+widened with it — `UpdateSource.AssetSuffix` defaults to `app-win-x64.zip`, so a release carrying
+both assets resolves to the app, pinned by `A_release_with_both_app_and_cli_assets_picks_the_app`.
+
+**The trade, stated rather than hidden.** A machine without the .NET 10 Desktop Runtime cannot
+start the app, and because a framework-dependent WPF app fails at native load before managed code
+runs, there is no in-app surface to say so — the user gets the stock .NET error dialog. The README
+names the prerequisite; that is the whole mitigation.
+
+**Documentation touched:** [releasing-and-updating.md](operations/runbooks/releasing-and-updating.md)
+rewritten for the two-artifact shape, with the measurement carried into a dated block and the
+symptom table's asset error corrected to `...HAS NO APP-WIN-X64.ZIP`; technical-debt.md §8.5 closed
+with the before/after and its original options table retained as the reasoning that led here;
+[[ADR-012]]'s Context corrected from "self-contained publish" to what it is now, with the swap
+mechanism noted as indifferent to which; phase-7-release.md's self-contained recommendation marked
+**superseded** rather than edited away; the README's Building section names the runtime
+prerequisite and drops `--self-contained true`.
+
+**Counts moved:** tests 1,568 → 1,569 (App 974 → 975, the dual-asset regression test). No new
+documents, no new gotcha — nothing here is a mistake that happened; it is a decision made and
+measured.
 
 ### Recent additions (v0.7.2 — Help and About: the shell's two information surfaces)
 

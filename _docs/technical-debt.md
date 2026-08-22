@@ -164,9 +164,16 @@ at publish time. The audit had simply never read the release workflow.
 `dotnet publish` produces a *different artifact* from CI's — framework-dependent rather than
 self-contained. A hidden dependency on a CI flag.
 
-**Our position:** `WaveLinkBackup.Cli` sets `SelfContained=true` in the csproj, so the two
+**Our position:** `WaveLinkBackup.Cli` sets its publish shape in the csproj, so the two
 cannot disagree. The NativeAOT option remains open and unforeclosed ([[ADR-004]]); §2.4 still
 gates it. **No debt carried forward.**
+
+> **Superseded 2026-08-22 (v0.7.2).** When this was written the csproj set `SelfContained=true`
+> and CI agreed with it. Since v0.7.2 the CLI publishes **framework-dependent** (`PublishSingleFile`,
+> no `PublishSelfContained`) — the app and CLI both resolve the .NET 10 Desktop Runtime from the
+> machine, and the release carries two archives instead of one. The disagreement this section
+> guards against is gone in a stronger form: there is now no self-contained publish anywhere to
+> disagree with. See [technical-debt.md](technical-debt.md) §8.5 for the before/after measurement.
 
 ---
 
@@ -1377,13 +1384,49 @@ it was not done under a scroll fix:
 Neither was hard. Both wanted a by-eye pass afterwards (§8.2), because the thing being changed was
 how the header lined up with the rows — the exact defect the audit's §1.1 was about.
 
-### 8.5 The download carries the .NET runtime twice — **measured 2026-08-21, not yet decided**
+### 8.5 ~~The download carries the .NET runtime twice~~ — **CLOSED 2026-08-22**
+
+> The change this entry was waiting for shipped in v0.7.2, and it is larger than any row in its
+> options table: **the app publishes framework-dependent, so the runtime ships nowhere at all.**
+> Measured locally, exactly as `release.yml` runs it:
+>
+> | | v0.7.0 (self-contained, one archive) | v0.7.2 (framework-dependent, two archives) |
+> |---|---|---|
+> | App archive | `WaveLinkBackup-0.7.0-win-x64.zip` — **101.2 MB** | `WaveLinkBackup-0.7.2-app-win-x64.zip` — **7.62 MB** (12 files, 26.8 MB raw) |
+> | CLI archive | Inside the app's archive (`wlbackup.exe`, 70.4 MB of it) | `WaveLinkBackup-CLI-0.7.2-win-x64.zip` — **0.22 MB** (3 files, 0.48 MB raw) |
+> | .NET runtime in the download | Twice (the app's loose copy + the CLI's bundled copy) | **Nowhere** — both resolve it from the machine's installed .NET 10 Desktop Runtime |
+>
+> Three changes together: the app's csproj gained `InvariantGlobalization=true` (drops the 13
+> satellite locale folders); the CLI's `PublishSelfContained` flipped to `false` while keeping
+> `PublishSingleFile`; and `release.yml` now publishes two artifacts into separate directories
+> instead of one. The updater's contract changed with it — `UpdateSource.AssetSuffix` defaults to
+> `app-win-x64.zip`, so a release carrying both assets resolves to the app, pinned by
+> `A_release_with_both_app_and_cli_assets_picks_the_app`. The CLI archive's checksum is published
+> for manual downloaders; the updater never reads it.
+>
+> **The trade, stated rather than hidden.** A machine without the .NET 10 Desktop Runtime cannot
+> start the app, and because a framework-dependent WPF app fails at native load before managed code
+> runs, there is no in-app surface to say so — the user gets the stock .NET error dialog with a
+> link. The README names the prerequisite; that is the whole mitigation. This was the deliberate
+> exchange: ~94 MB of download per update for a first-run dependency on a runtime most Windows 10/11
+> machines that run modern software already have, or can get from one page in Microsoft's own
+> installer.
+>
+> **What remains in the archive is not removable.** The app's 7.6 MB is mostly
+> `Microsoft.Windows.SDK.NET.dll` (~23.7 MB raw, ~6.5 MB zipped) — the WinRT projection the TFM
+> `net10.0-windows10.0.19041.0` requires for `UISettings`. Trimming stays off: WPF and that
+> projection are trimming-incompatible, which is also why NativeAOT was never an option here.
+>
+> The options table below is retained as the reasoning that led to the decision — its last row,
+> "leave it", was the answer until 2026-08-22.
+
+#### Original entry
 
 `WaveLinkBackup-0.7.0-win-x64.zip` is **101.2 MB**. `wlbackup.exe` inside it is **70.4 MB**,
 because the CLI publishes `PublishSingleFile` + self-contained: it bundles its own copy of the
 runtime, next to the loose copy the app already ships.
 
-Both halves of that were chosen deliberately and neither is wrong on its own. Self-contained is
+Both halves of that were chosen deliberately and neither is wrong on its own. Self-contained was
 [the csproj's own point](../../src/WaveLinkBackup.Cli/WaveLinkBackup.Cli.csproj) — upstream's
 pipeline disagreed with its project file and ours must not. Single-file is what makes `wlbackup`
 something a person can drop on a PATH.
@@ -1397,8 +1440,8 @@ never run.
 |---|---|
 | Drop `PublishSingleFile` for the release build only | The CLI shares the app's loose runtime; the archive roughly halves. But a local publish stops matching CI's artifact, which is the property §1.5 exists to protect |
 | Drop `PublishSingleFile` everywhere | Same saving, and `wlbackup.exe` stops being one portable file — it needs its directory |
-| Ship the CLI as a separate asset | The updater's contract is one `*win-x64.zip`; a second asset means a second contract |
-| Leave it | 101 MB is not much for a desktop app, and the updater streams and verifies it. This is the current answer |
+| Ship the CLI as a separate asset | The updater's contract is one `*win-x64.zip`; a second asset means a second contract. **This is what shipped**, with the contract widened to `app-win-x64.zip` rather than duplicated |
+| Leave it | 101 MB is not much for a desktop app, and the updater streams and verifies it. This was the answer until 2026-08-22 |
 
 **Do not change this quietly on release day.** It is a shape decision with a runbook and a debt
 entry pointing at it, and the size is the only symptom.
