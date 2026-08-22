@@ -120,7 +120,8 @@ jobs:
           $cliHash = (Get-Content "$cli.sha256" -Raw).Trim()
           $base = "${{ github.server_url }}/${{ github.repository }}/releases/download/v$v"
           $tick = [char]96
-          $fence = $tick + 'powershell'
+          $tripleTick = "$tick$tick$tick"
+          $fence = "$tripleTick powershell"
           $lines = @(
             "Wave Link Backup v$v for Windows x64.",
             "",
@@ -142,7 +143,7 @@ jobs:
             $fence,
             "(Get-FileHash $app -Algorithm SHA256).Hash.ToLower()",
             "# should equal: $appHash",
-            ($tick * 3)
+            $tripleTick
           )
           $lines | Out-File -FilePath release_body.md -Encoding utf8
 
