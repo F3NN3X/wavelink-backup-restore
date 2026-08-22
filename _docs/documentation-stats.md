@@ -57,6 +57,18 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### §4.15 closed: the dialog frosting renders, verified by eye (2026-08-22)
+
+**The last open item in [technical-debt.md](technical-debt.md)'s §4 is closed.** §4.15 — 0.5.1's
+dialog frosting had never been seen, and nothing in the suite can assert that a blur rendered — was
+the one look only a human could do. Opening a dialog shows the window behind it blurred, not merely
+dimmed by `WlScrim`, so the `SetWindowCompositionAttribute` call is doing its job on this build:
+the frost stays and the item closes. Ticked on [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md)
+with a record-of-sitting line; §4 now reads **ALL CLOSED** and the open list drops from six to five.
+
+**Counts moved:** none — no code, no ADR, no new document (the checklist already exists). This is a
+closure by observation, which is exactly what Tier 2 of the closing order is for.
+
 ### Tier 1 of the debt list closed: a crash now leaves a report, and the by-eye checklist exists (2026-08-22)
 
 **The commit-tier of [technical-debt.md](technical-debt.md)'s closing order is done.** Two items

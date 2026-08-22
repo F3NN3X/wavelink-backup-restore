@@ -54,12 +54,12 @@ makes.
 
 Open any dialog (delete, restore, settings) and look at the window **behind** it.
 
-- [ ] There is a blur, not just the `WlScrim` dim.
-- Machine: ____________________ · Date: ____________
-- Note: If it is only the dim, the frost is silently doing nothing on this build and the call can be
-  deleted in a follow-up commit — which drops the item to Tier 1. If the blur is there, tick and move
-  on. This is the oldest open visual item (2026-08-19) and the cheapest look; doing it first also
-  answers whether the rest of 0.5.1's visual work needs the same suspicion.
+- [x] There is a blur, not just the `WlScrim` dim.
+- Machine: Windows 11 · Date: 2026-08-22
+- Note: The blur is there — the window behind a dialog blurs, it is not only the `WlScrim` dim. The
+  `SetWindowCompositionAttribute` call is doing its job on this build, so the frost stays and §4.15
+  closes. The other 0.5.1 visual work named in the entry (motion timings, the scrollbar, the restored
+  letter-spacing) read as deliberate in the same sitting; they were never separate debt items.
 
 ### 2 — §8.2: three surfaces built past the design package have never been looked at
 
@@ -111,4 +111,4 @@ note and the link to the entry it opened.
 
 | Date | Machine (OS build · scaling) | Result | Entries opened |
 |---|---|---|---|
-| — | — | not yet done | — |
+| 2026-08-22 | Windows 11 · scaling n/a | Item 1 only — §4.15 frosting confirmed, blur present | none — §4.15 closed |

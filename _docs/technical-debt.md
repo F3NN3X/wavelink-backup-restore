@@ -21,16 +21,19 @@ will look obvious in hindsight.
 `Core`, `Cli` and a WPF shell, and a debt-clearing pass closed everything in §1, §4, §5, §6 and §7
 that a commit can close.
 
-**What is left — six things, and none of them is a commit somebody has not written:**
+**What is left — five things, and none of them is a commit somebody has not written:**
 
 | | Why it cannot be closed here |
 |---|---|
-| **§4.15** — 0.5.1's dialog frosting has never been seen | Nothing in the suite can assert that a blur rendered. It needs somebody to look at it, alongside the rest of [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md). |
 | **§2.2** — whether non-MSIX Wave Link installs exist | A fact about the world, not about this code. The *mitigation* is complete — an explicit settings path bypasses discovery, and error 1's first-run variant now offers one (§4.10) — so a non-MSIX user has a route in whether or not such installs turn out to exist. |
 | **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link, written up in the entry. Not a defect — an unanswered question, and §7.5 already removed the prompt in the common case, so the answer may well be "leave it". |
 | **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run this when endpoint inspection lands; the AOT publish itself already works. |
 | **§8.1a** — the crash's *surface* is still undesigned | Needs a design answer before code: `06-errors.md` specifies twelve errors and none of them is "something unexpected happened", and inventing a thirteenth surface in XAML is what [[ADR-004]] exists to prevent. The cheap half (the crash report file) is done — §8.1's closure note below. |
 | **§8.2** — three surfaces built past the design package have never been looked at | Same shape as §4.15. Nothing in the suite can assert that a layout looks right; they belong on the by-eye checklist. |
+
+§4.15 closed the same day, by a human with eyes: the dialog frosting renders — the window
+behind a dialog blurs, it is not only the `WlScrim` dim. That was the one look the suite could
+not assert, and it is now ticked on [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md).
 
 §8.1 closed its cheap half on 2026-08-22: `App` now writes an unhandled exception to
 `crash-report.txt` beside `shell.json` on the way down, so a crash names the line instead of leaving
@@ -72,7 +75,7 @@ sitting multiplies the cost of getting to that state.
 
 | Order | Item | What closing looks like | Why this order |
 |---|---|---|---|
-| 1 | **§4.15** — 0.5.1's dialog frosting has never been seen | Open any dialog (delete, restore, settings) and look at the window *behind* it: is there a blur, or just the `WlScrim` dim? If it is only the dim, the frost is silently doing nothing on this build and the call can be deleted in a follow-up commit — which drops this item to Tier 1. If the blur is there, tick it and move on | It is the oldest open visual item (2026-08-19) and the cheapest look: one dialog, one glance. Doing it first also answers whether the rest of 0.5.1's visual work needs the same suspicion, which frames items 2–4 |
+| 1 | **§4.15** — 0.5.1's dialog frosting has never been seen | Open any dialog (delete, restore, settings) and look at the window *behind* it: is there a blur, or just the `WlScrim` dim? If it is only the dim, the frost is silently doing nothing on this build and the call can be deleted in a follow-up commit — which drops this item to Tier 1. If the blur is there, tick it and move on | It is the oldest open visual item (2026-08-19) and the cheapest look: one dialog, one glance. Doing it first also answers whether the rest of 0.5.1's visual work needs the same suspicion, which frames items 2–4 — **CLOSED 2026-08-22**: the blur is there |
 | 2 | **§8.2** — three surfaces built past the design package have never been looked at | The checklist this entry names: the four-segment theme control at 100% and 150% scaling; the INPUTS strip at nine and twelve cells (four-character and three-character labels); the details dialog in light and in a real high-contrast scheme; and that dialog's height on a rig with several long effect chains, where it hits its 720px cap and scrolls. Tick each, note any that read wrong | It is the largest batch of unchecked pixels and the one most likely to contain an actual defect (a layout that reads wrong), so it gets the middle of the sitting — after §4.15 has calibrated what "looks deliberate" means on this machine, before the two items below that are about *behaviour* rather than *appearance* |
 | 3 | **§8.2's §8.4 tail** — the header-to-row alignment after the scroll fix | The list's column header and the rows beneath it: do they line up with the inner ScrollViewer owning the scroll, now that the outer `ListScrollViewer` is gone? This was audited as §1.1 of the design conformance pass, so a miss here is a regression against a known-good state, not an unknown | It is one surface and one glance, but it must be done *after* the list has been scrolled (the alignment is what changed with scrolling), so it rides on item 2's sitting rather than preceding it |
 | 4 | **§4.9's high-contrast tail** — the `WlDangerSoft` failed state in a real high-contrast theme | Switch to a real high-contrast scheme (not the simulated one), trigger a failed restore, and read the strip: does the transparent fill still read as *failed*, or has it become an empty gap? If it reads as a gap, that is a design amendment for `11-high-contrast.md`, not a code fix | It is the smallest look on this list and the one most likely to be fine (the rule was applied deliberately), so it goes last — but it is in the sitting because it needs the same high-contrast switch as item 2 and costs nothing to fold in |
@@ -671,11 +674,12 @@ of the two reasons [post-1.0.md](dev-phases/post-1.0.md) refuses portable backup
 
 ---
 
-## 4 · ~~Design gaps carried into the build~~ — **ALL CLOSED except §4.15, which needs a human**
+## 4 · ~~Design gaps carried into the build~~ — **ALL CLOSED**
 
 > **The heading is about items 1–6 only.** Everything from 4.7 down arrived later, as the build
 > found its own gaps, and several are open — check each item's own status line rather than this
-> one. Open as of 0.6.4: **4.15** only — and it needs a human, not a commit.
+> one. §4.15 closed on 2026-08-22 when a human confirmed the dialog frosting renders; every item
+> in §4 is now closed.
 
 All six were undesigned. Five are now specified in
 [operations/design/screens/](operations/design/screens/00-index.md), which also designed
@@ -987,7 +991,7 @@ pre-groups into `DateGroup`s, so the grouping would have to be re-derived throug
 list's structure to close it would have been a refactor wearing a bug fix's clothes. **Phase:** its
 own task, whenever cross-group keyboard movement is wanted.
 
-### 4.15 0.5.1's dialog frosting has never been seen — **open, needs a human, 2026-08-19**
+### 4.15 0.5.1's dialog frosting has never been seen — **CLOSED 2026-08-22, verified by eye**
 
 `AcrylicDialogBackdrop` calls `SetWindowCompositionAttribute`, which is undocumented and the only
 route that blurs the *window behind* rather than the desktop material (`DwmSetWindowAttribute`'s
@@ -998,9 +1002,9 @@ tried newest-first, and the dialog's own `WlScrim` fill guarantees a dimmed owne
 the risk is not a crash — it is that the frost silently does nothing on some builds and nobody
 notices, because the fallback looks deliberate.
 
-**Check by eye**, alongside the rest of 0.5.1's visual work — the motion timings, the scrollbar,
-and the restored letter-spacing are all in the same category. **Fix if absent:** the fallback is
-already correct; the question is only whether to keep the call.
+**Closed by a human with eyes, 2026-08-22.** Opening a dialog shows the window behind it blurred,
+not merely dimmed by `WlScrim` — the `SetWindowCompositionAttribute` call is doing its job on this
+build, so the frost stays and the item closes. Ticked on [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md). The other 0.5.1 visual work named here (motion timings, the scrollbar, the restored letter-spacing) was checked in the same sitting and read as deliberate; they were never separate debt items.
 
 ### 4.16 ~~Tier 2 rehashes every plugin binary on every capture~~ — **FIXED 2026-08-19**
 
