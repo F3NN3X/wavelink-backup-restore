@@ -11,7 +11,7 @@ tags: [audit, restore, plugins, security]
 
 **Audited:** 2026-08-20 · **Subject:** the elevation decision in tier 4 restore, and the question it
 raised about plug-in resolution
-**Machine:** the reference rig (`WINWORK\joransrb`), Wave Link 3.3.0.4108, 154 VST3 plug-ins
+**Machine:** the reference rig (a personal Windows workstation; name and account redacted), Wave Link 3.3.0.4108, 154 VST3 plug-ins
 
 **Verdict: the app was asking for administrator rights it already had. One question it raised is
 still open, and this audit is the record a later session should start from.**
@@ -92,7 +92,7 @@ subfolder, the user-level VST3 folder, `C:\Windows\System32` (the control) and `
 
 ```
 Elevated: False
-User    : WINWORK\joransrb
+User    : <redacted>
 
 C:\Program Files\Common Files\VST3 Everyone:(OI)(CI)(F)
                                    NT SERVICE\TrustedInstaller:(I)(F)
@@ -110,9 +110,9 @@ The app's probe agrees:
 ```
 WRITABLE      C:\Program Files\Common Files\VST3
 WRITABLE      C:\Program Files\Common Files\VST3\FabFilter
-WRITABLE      C:\Users\joransrb\AppData\Local\Programs\Common\VST3
+WRITABLE      C:\Users\<user>\AppData\Local\Programs\Common\VST3
 NOT writable  C:\Windows\System32
-WRITABLE      C:\Users\joransrb\AppData\Local\Temp\
+WRITABLE      C:\Users\<user>\AppData\Local\Temp\
 ```
 
 `System32` is the control, and it discriminates — a probe that answered "writable" to everything

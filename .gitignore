@@ -80,6 +80,3 @@ WaveLinkBackup/
 **/TestData/real/
 local.runsettings
 *.local.json
-
-# Agent tooling session state, not project content.
-.omo/
