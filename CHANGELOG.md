@@ -35,6 +35,15 @@ heading here.
 - **The snapshot list updates after an automatic capture.** A new automatic backup used to appear
   only after a restart; the list now refreshes in place when the tick that took it reports success.
 
+- **Clicking a row selects the row you clicked, not one at the bottom of the screen.** After
+  scrolling the list to the end, a click highlighted a *different* (lower) row. The list had two
+  scroll owners: an outer scroll view did the real scrolling while the list's own was switched off
+  but still held the virtualising panel, which tracks only the offset of the scroll view that owns
+  it — so the realized rows stayed anchored to the top while the pixels showed the last ones, and a
+  click landed on a stale row. The outer scroll view is gone; the list now scrolls itself. With the
+  rows grouped, its scrolling also has to be by pixel rather than by item, or the list's own extent
+  collapses to nothing and it cannot see how tall the content really is.
+
 ---
 
 ## [0.7.0] — 2026-08-21

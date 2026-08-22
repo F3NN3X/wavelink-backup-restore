@@ -2,7 +2,7 @@
 title: "Wave Link Backup — Documentation Index"
 status: published
 created: 2026-08-16
-updated: 2026-08-19
+updated: 2026-08-22
 tags: [meta, index]
 ---
 
@@ -119,7 +119,7 @@ follow from them.
 
 ## Gotchas
 
-Twenty-six ways this goes wrong. Titled by symptom, because that is what you will be searching
+Twenty-seven ways this goes wrong. Titled by symptom, because that is what you will be searching
 for at the time — you do not know the cause yet, which is why you are searching.
 
 Grouped by where they bite. **The whole table is here on purpose**: it listed ten of sixteen
@@ -164,6 +164,7 @@ phases later, by the same gap.
 | A chip draws its box and not its label | [a-chip-draws-its-box-and-not-its-label.md](knowledge-base/gotchas/a-chip-draws-its-box-and-not-its-label.md) |
 | Every older backup turns amber after adding a channel | [every-older-backup-turns-amber-after-adding-a-channel.md](knowledge-base/gotchas/every-older-backup-turns-amber-after-adding-a-channel.md) |
 | The list will not scroll with the wheel | [the-list-will-not-scroll-with-the-wheel.md](knowledge-base/gotchas/the-list-will-not-scroll-with-the-wheel.md) |
+| Scrolling the list selects a row | [scrolling-the-list-selects-a-row.md](knowledge-base/gotchas/scrolling-the-list-selects-a-row.md) |
 
 ### The suite, and the seams under it
 

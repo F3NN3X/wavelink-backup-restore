@@ -2,7 +2,7 @@
 title: "Technical Debt"
 status: published
 created: 2026-08-16
-updated: 2026-08-20
+updated: 2026-08-22
 tags: [meta, technical-debt]
 ---
 
@@ -21,7 +21,7 @@ will look obvious in hindsight.
 `Core`, `Cli` and a WPF shell, and a debt-clearing pass closed everything in §1, §4, §5, §6 and §7
 that a commit can close.
 
-**What is left — seven things, and only one of them is a commit somebody has not written:**
+**What is left — six things, and only one of them is a commit somebody has not written:**
 
 | | Why it cannot be closed here |
 |---|---|
@@ -32,7 +32,10 @@ that a commit can close.
 | **§8.1** — an unhandled exception still ends the process silently | Needs a design answer before code: `06-errors.md` specifies twelve errors and none of them is "something unexpected happened", and inventing a thirteenth surface in XAML is what [[ADR-004]] exists to prevent. |
 | **§8.2** — three surfaces built past the design package have never been looked at | Same shape as §4.15. Nothing in the suite can assert that a layout looks right; they belong on the by-eye checklist. |
 | **§8.5** — the download carries the .NET runtime twice (101 MB) | Measured on the first real package. Not a defect: every way of fixing it trades away something the csproj or the updater contract chose on purpose. §8.5 has the table. |
-| **§8.4** — the list does not virtualise, and its markup says it does | A commit *could* close it, and it would be the wrong commit: the fix is structural (delete the outer ScrollViewer), it moves the header's gutter binding, and it wants the by-eye pass §8.2 already owes. |
+
+§8.4 closed on 2026-08-22 with the scroll fix: the outer `ListScrollViewer` is gone and `GroupsHost`
+owns its scrolling, which is what makes the panel virtualise at all. Its by-eye pass still rides on
+§8.2's checklist — the header-to-row alignment is the surface that changed.
 
 §3 is untouched on purpose: those are choices made with eyes open, not debt.
 
@@ -1311,37 +1314,68 @@ guard measures whatever WPF resolves in the test environment, which is the same 
 runs in, so this is a small risk rather than a theoretical one — but it is the reason the constant
 is rounded up rather than exact.
 
-### 8.4 The list does not virtualise, and its markup says it does — **open, measured 2026-08-21**
+### 8.4 ~~The list does not virtualise, and its markup says it does~~ — **CLOSED 2026-08-22**
 
-`GroupsHost` carries `VirtualizingPanel.IsVirtualizing="True"`, `VirtualizationMode="Recycling"`
-and `ScrollUnit="Pixel"`, and **none of them does anything.** The ListBox's own ScrollViewer is
-disabled so `ListScrollViewer` can carry one scroll position for the header and the rows, which
-leaves the ListBox measured with unbounded height — so its `VirtualizingStackPanel` realises every
+> The structural fix this entry specified is what shipped: the outer `ListScrollViewer` and its
+> wheel-forwarding shim are deleted, and `GroupsHost` owns its scrolling — one scroll owner, with a
+> live inner ScrollViewer (`VerticalScrollBarVisibility="Auto"`). That bounded height is what makes
+> the `VirtualizingStackPanel` virtualise at all; the old 500/500 realisation was a symptom of the
+> unbounded measure, not of the mode. Two things came with it, both done:
+>
+> - **The header's gutter** now binds `ComputedVerticalScrollBarVisibility` on `GroupsHost` itself
+>   (the ListBox exposes it through its template), so the 10px reservation follows the list's own
+>   scroll bar rather than a deleted outer viewer.
+> - **A grouped list needs `CanContentScroll="False"`.** Item scrolling treats each date group as
+>   one unit and collapses the inner extent to ~1px, so pixel scrolling is what measures the real
+>   height. The panel still virtualises — it gets its viewport through `IViewportProvider` even in
+>   pixel mode.
+>
+> One caveat, stated rather than hidden: **the realisation count was not re-measured after the
+> change.** The old 500/500 figure is retained as the *before*; nothing in the suite asserts a
+> container budget now. The list is short by design (a few dozen rows), so that is acceptable — but
+> if it ever grows, measure it before assuming virtualisation is doing its job.
+>
+> This also closed the selection jump: with two scroll owners the panel tracked the frozen inner
+> one and a click hit-tested to a stale container ([[scrolling-the-list-selects-a-row]]). One owner
+> fixes that at the root, and `MainWindowScrollSelectionTests` pins it — five tests, including the
+> invariant that after scrolling every realized container holds its own data item.
+>
+> **By-eye pass still owed (§8.2):** the header-to-row alignment is what changed, which is the exact
+> surface §1.1 audited. It belongs on the checklist with the rest of 0.5.1's visual work.
+>
+> Original entry retained below.
+
+#### Original entry
+
+`GroupsHost` carried `VirtualizingPanel.IsVirtualizing="True"`, `VirtualizationMode="Recycling"`
+and `ScrollUnit="Pixel"`, and **none of them did anything.** The ListBox's own ScrollViewer was
+disabled so `ListScrollViewer` could carry one scroll position for the header and the rows, which
+left the ListBox measured with unbounded height — so its `VirtualizingStackPanel` realised every
 row.
 
 **Measured, not inferred:** the same arrangement in a test fixture realised **500 containers out of
 500 items**. Turning the inner ScrollViewer back on is what makes the panel virtualise.
 
-**Why it is not urgent:** a rig produces a few dozen backups a year, and the retention default
+**Why it was not urgent:** a rig produces a few dozen backups a year, and the retention default
 keeps 30 automatic ones. At that size the cost is invisible. It becomes real for anyone pointing
 the store at a folder with hundreds of snapshots in it, and it is already true that every row
 builds its full visual tree — nine slot cells, three tier badges, two pills — on load.
 
 **The structural fix, which also fixes the wheel** ([[the-list-will-not-scroll-with-the-wheel]]):
-let the ListBox scroll itself and delete the outer ScrollViewer. It costs two things, which is why
+let the ListBox scroll itself and delete the outer ScrollViewer. It cost two things, which is why
 it was not done under a scroll fix:
 
-1. **The header's scroll-bar gutter.** `MainWindow.xaml` reserves 10px on the column header when
-   `ListScrollViewer` shows a scroll bar, by `ElementName` binding — and the ListBox's own
-   ScrollViewer lives inside its template, where `ElementName` cannot reach. It needs either a
+1. **The header's scroll-bar gutter.** `MainWindow.xaml` reserved 10px on the column header when
+   `ListScrollViewer` showed a scroll bar, by `ElementName` binding — and the ListBox's own
+   ScrollViewer lived inside its template, where `ElementName` could not reach. It needed either a
    ListBox `ControlTemplate` copy that names it, or a code-behind lookup after load (the window
    already has `FindDescendants<T>` for exactly this kind of reach).
-2. **The guard test that pins the current arrangement.**
-   `MainWindowTemplateTests.The_column_header_reserves_the_lists_scroll_bar_gutter` asserts the
-   `ElementName="ListScrollViewer"` binding by name, so it changes with the structure.
+2. **The guard test that pinned the current arrangement.**
+   `MainWindowTemplateTests.The_column_header_reserves_the_lists_scroll_bar_gutter` asserted the
+   `ElementName="ListScrollViewer"` binding by name, so it changed with the structure.
 
-Neither is hard. Both want a by-eye pass afterwards (§8.2), because the thing being changed is how
-the header lines up with the rows — the exact defect the audit's §1.1 was about.
+Neither was hard. Both wanted a by-eye pass afterwards (§8.2), because the thing being changed was
+how the header lined up with the rows — the exact defect the audit's §1.1 was about.
 
 ### 8.5 The download carries the .NET runtime twice — **measured 2026-08-21, not yet decided**
 
