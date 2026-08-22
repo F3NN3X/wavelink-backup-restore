@@ -2,86 +2,105 @@
 title: "Scrolling the list selects a row"
 status: published
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-08-22
 tags: [gotcha, wpf, xaml]
 ---
 
 # Scrolling the list selects a row
 
-**Provenance:** Observed, 2026-08-21, on the main window. Measured before and after through the
-real `MainWindow` offscreen: with the attribute at its default, `MoveCurrentToLast()` selected the
-last row; with it set to `False`, the same call left the selection untouched, and wheel scrolling
-to the bottom never selects anything either way.
+**Provenance:** Observed, 2026-08-21 and corrected 2026-08-22, on the main window. The first pass
+(2026-08-21) measured a real but *different* mechanism — currency sync — through the real
+`MainWindow` offscreen, and shipped `IsSynchronizedWithCurrentItem="False"`. That did not fix the
+reported symptom. The reported symptom (below) is container **recycling**, found 2026-08-22 by
+re-reading the XAML against the user's exact gesture: scroll to the end, then *click*, and the
+highlighted row is one at the bottom of the view instead of the one clicked.
 
 ## Symptom
 
-The backup list is longer than the window. You scroll down to the end — no click, no key press —
-and a row at the bottom of what you can see becomes selected. The selection has followed the
-scroll. Clicking nothing, it moved on its own.
+The backup list is longer than the window. You scroll down to the end, then **click a row with the
+mouse** — and the row that ends up highlighted is one sitting at the bottom of what you can see,
+not the row under your cursor. The selection has "jumped" to wherever the scroll landed.
 
 ## Cause
 
-**A `ListBox` keeps its `SelectedItem` bound to the collection view's *current item*, and that
-binding is on by default.**
+**The list virtualizes in `Recycling` mode, and a recycled container can hold stale data under the
+cursor.**
 
 ```xml
 <ListBox x:Name="GroupsHost"
          ItemsSource="{Binding List.View}"
          SelectedItem="{Binding List.Selected, Mode=TwoWay}"
+         VirtualizingPanel.VirtualizationMode="Recycling"   <!-- the cause -->
          ...>
 ```
 
-Nothing in this markup mentions `IsSynchronizedWithCurrentItem`, because its default is `True`.
-While it is true, the `SelectedItem` binding is not a free TwoWay binding — it is *driven by* the
-view's currency. Anything that advances the currency (`MoveCurrentToLast`, `MoveCurrentToNext`, a
-refresh that repositions it) writes through the binding and selects the row the cursor landed on.
+`VirtualizingStackPanel` in `Recycling` mode does not create and discard a `ListBoxItem` per row;
+it **reuses** a scrolled-out container for a new data item. The reuse can land before the
+container's content has refreshed to the new item, so for a moment — and, under a fast scroll-to-
+the-end followed immediately by a click, at exactly the moment of the click — the container under
+the pointer is still carrying the *previous* row's data. WPF selects whatever data item the
+container under the click reports, which is the stale one. The highlight lands on a different row
+than the one you clicked.
 
-The list had been refactored from one `ListBox` per date group into a single grouped
-`Selector` over a `ListCollectionView` (see the XAML comment above `GroupsHost`). The currency is
-a property of that view, and with the sync flag at its default the view's cursor and the user's
-selection are the same thing. They were never meant to be.
+This is a known WPF hazard with `Recycling` + grouped items, not something this codebase invented:
+the container/data pairing that a click relies on is only guaranteed by *standard* virtualization,
+where every realized container is created fresh for its item.
 
-## The plausible explanation, and why it is wrong
+## The plausible explanations, and why they are wrong
 
-**"The wheel scroll is selecting the row."** It is not. A wheel notch — and a scrollbar drag —
-moves neither WPF's keyboard focus nor the view's currency; `WheelForwardingTests` and the first
-test in this file's guard both measure that a full wheel scroll to the bottom selects nothing. The
-wheel was never the cause, which is why fixing the wheel does not fix the symptom.
+**"The wheel scroll is selecting the row."** It is not. A wheel notch moves neither WPF's keyboard
+focus nor the view's currency; `WheelForwardingTests` and the first guard test both measure that a
+full wheel scroll to the bottom selects nothing. The wheel was never the cause.
 
-The second wrong turn is to suspect the selection *binding* itself and reach for `UpdateSourceTrigger`
-or a one-way mode. The binding is fine; it is faithfully reporting what the currency did. Turning
-the binding off would make the cursor invisible rather than stop it from driving anything.
+**"The selection binding is driving it off the currency."** That *is* a real defect in this list —
+and it was fixed, on 2026-08-21, with `IsSynchronizedWithCurrentItem="False"`. But it is a
+*different* symptom: that one made a scroll/refresh move the selection with no click at all. The
+reported jump needs a **click**, and no amount of currency decoupling changes what data item a
+recycled container reports under the pointer. This is why the first fix, though correct for its
+own mechanism, did not resolve the reported bug.
+
+**"Reach for `UpdateSourceTrigger` or a one-way binding."** The binding is fine in both cases; it
+faithfully reports what the control tells it. The problem is upstream of the binding — which data
+item the container under the cursor actually holds.
 
 ## Fix
 
-Decouple the two, on the element that owns both:
+Stop recycling, on the element that owns the panel:
 
 ```xml
 <ListBox x:Name="GroupsHost"
          ItemsSource="{Binding List.View}"
          SelectedItem="{Binding List.Selected, Mode=TwoWay}"
          IsSynchronizedWithCurrentItem="False"
+         VirtualizingPanel.VirtualizationMode="Standard"
          ...>
 ```
 
-With the flag off, advancing the currency never touches `SelectedItem`, and a user's click or key
-press still writes the selection through the binding exactly as before. The two are independent:
-the cursor may sit anywhere without selecting anything.
+`Standard` mode creates and discards containers, so a realized container always matches its data
+item — there is no stale container to click into. Virtualization stays on (`IsVirtualizing=True`),
+so memory use is unchanged; for a list of dozens of rows the create/discard cost is not
+measurable. `IsSynchronizedWithCurrentItem="False"` stays: it closes the separate currency-sync
+defect and the two fixes are independent.
 
 ## How to avoid it
 
-**A grouped list that is one `Selector` over a view has two cursors, and only one of them is the
-user's.** When you build or refactor such a list, ask which thing `SelectedItem` is bound *through*
-— the view's currency, or directly — and pin the answer in the markup rather than leaving it to the
-default.
+**When a virtualized list lets you click into the wrong row after scrolling, suspect container
+recycling before you suspect the selection binding.** The binding reports faithfully; the question
+is what data the container under the cursor holds. `Recycling` reuses containers and can hand you
+a stale one; `Standard` cannot. Prefer `Standard` unless a list is large enough that recycling's
+performance win is proven necessary — and even then, keep selection state on the *data* item (as
+this app already does via `SnapshotRowViewModel.IsSelected`) so a recycled container re-reads the
+right state when it is refreshed.
 
-The guard is in `MainWindowScrollSelectionTests`, four tests against the real window:
+The guard is in `MainWindowScrollSelectionTests`, five tests against the real window:
 
 - **Wheel scrolling to the bottom does not select a row** — the claim, measured end to end.
-- **Moving the view currency to the last row does not select it** — the actual defect; this fails
-  if `IsSynchronizedWithCurrentItem` is ever removed or set back to `True`.
+- **After scrolling, every realized container holds its own data item** — the reported defect;
+  fails if `VirtualizationMode` is ever set back to `Recycling`.
+- **Moving the view currency to the last row does not select it** — the separate currency-sync
+  defect; fails if `IsSynchronizedWithCurrentItem` is removed or set back to `True`.
 - **End still selects the last row** and **Home still selects the first row** — keyboard navigation
-  is WPF's own on a single `Selector`, and the sync-off fix must not break it.
+  is WPF's own on a single `Selector`, and neither fix may break it.
 
 One measured limit, so the next person does not re-derive it: under a synthetic `RaiseEvent`, only
 Home and End move WPF's logical focus far enough to select. Down and PageDown do not — they need
@@ -90,7 +109,7 @@ extremes, which are the ones a scroll-to-the-end user would actually hit.
 
 ## References
 
-- `src/WaveLinkBackup.App/Views/MainWindow.xaml` (the `GroupsHost` attribute) ·
+- `src/WaveLinkBackup.App/Views/MainWindow.xaml` (the `GroupsHost` attributes) ·
   `tests/WaveLinkBackup.App.Tests/MainWindowScrollSelectionTests.cs`
 - [[the-list-will-not-scroll-with-the-wheel]] — the other defect this list's nesting caused, and
   why the wheel is exonerated here

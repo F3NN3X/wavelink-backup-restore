@@ -221,6 +221,106 @@ public sealed class MainWindowScrollSelectionTests
     }
 
     /// <summary>
+    /// THE REPORTED DEFECT (symptom A): scroll to the end, then click a row - and the HIGHLIGHTED
+    /// row is one at the bottom of the view instead of the one clicked. The cause is container
+    /// RECYCLING: VirtualizingPanel.VirtualizationMode="Recycling" reuses a scrolled-out
+    /// ListBoxItem for a new data item before its content has refreshed, so the container under the
+    /// cursor can hold a DIFFERENT SnapshotRowViewModel than the one painted there. A click then
+    /// selects whatever stale data the recycled container still carries - the selection "jumps".
+    ///
+    /// The fix is at the cause, not the symptom: Standard virtualization mode creates and discards
+    /// containers, so a realized container ALWAYS matches its data item. This test proves that
+    /// invariant directly - after scrolling to the bottom, every realized container's data item must
+    /// be one of the rows actually in the view (no orphaned/stale recycled data), and the panel must
+    /// be in Standard mode so recycling can never reintroduce the mismatch. It does not need a real
+    /// mouse click: the container/data mismatch IS the bug, measured where it lives.
+    /// </summary>
+    [Fact]
+    public void After_scrolling_every_realized_container_holds_its_own_data_item()
+    {
+        var result = Wpf.Run(() =>
+        {
+            EnsureResourcesLoaded();
+            var shell = BuildShellWithManySnapshots();
+            shell.List.Refresh();
+
+            var window = Build(shell);
+            window.Left = -3000;
+            window.Top = -3000;
+            window.Width = 480;
+            window.Height = 360;
+            window.ShowInTaskbar = false;
+
+            try
+            {
+                window.Show();
+                window.UpdateLayout();
+
+                var scrollViewer = window.ListScrollViewer;
+                Assert.True(scrollViewer.ScrollableHeight > 0,
+                    "Nothing to scroll - the fixture is wrong.");
+
+                // The fix must be in place on the real tree: no recycling.
+                var mode = (VirtualizationMode)window.GroupsHost.GetValue(
+                    VirtualizingPanel.VirtualizationModeProperty);
+                Assert.True(mode == VirtualizationMode.Standard,
+                    "GroupsHost must virtualize in Standard mode - Recycling reuses containers and " +
+                    $"lets a recycled container hold stale data under the cursor. Got {mode}.");
+
+                // Scroll to the bottom the way a user does, realizing containers that were off-screen.
+                var firstRow = (UIElement)window.GroupsHost.ItemContainerGenerator.ContainerFromIndex(0);
+                Assert.NotNull(firstRow);
+
+                for (var i = 0; i < 200 && scrollViewer.VerticalOffset < scrollViewer.ScrollableHeight; i++)
+                {
+                    WheelNotch(firstRow);
+                    window.UpdateLayout();
+                }
+
+                // Collect the data item every REALIZED container currently holds. Walk the view's
+                // count - ContainerFromIndex returns null for anything not yet realized.
+                var generator = window.GroupsHost.ItemContainerGenerator;
+                var realizedItems = new List<object?>();
+                for (var i = 0; i < shell.List.View.Count; i++)
+                {
+                    if (generator.ContainerFromIndex(i) is not ListBoxItem container) continue;
+                    realizedItems.Add(container.Content);
+                }
+
+                // The set of data items that legitimately exist in the view.
+                var validIds = new HashSet<string?>(
+                    shell.List.Rows.Select(r => r.Id), StringComparer.Ordinal);
+
+                // Every realized container must hold a row that is actually in the view - never a
+                // stale/orphaned item left behind by recycling.
+                var orphans = realizedItems
+                    .Where(item => item is not SnapshotRowViewModel)
+                    .Count();
+                var unknownRows = realizedItems
+                    .OfType<SnapshotRowViewModel>()
+                    .Count(r => !validIds.Contains(r.Id));
+
+                return (
+                    Realized: realizedItems.Count,
+                    Orphans: orphans,
+                    UnknownRows: unknownRows);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+
+        Assert.True(result.Realized > 0, "No containers were realized - the fixture is wrong.");
+        Assert.True(result.Orphans == 0,
+            "A realized container holds no row data item - a recycled container was not refreshed. " +
+            "This is the stale-data state that makes a click select the wrong row.");
+        Assert.True(result.UnknownRows == 0,
+            "A realized container holds a row that is not in the view - recycling left stale data " +
+            "under the cursor, so a click would select the wrong backup.");
+    }
+
+    /// <summary>
     /// REGRESSION: keyboard navigation must STILL select rows after the sync-off fix. The list was
     /// deliberately built as a single Selector so that ↑/↓/Home/End are WPF's own (see the XAML
     /// comment above GroupsHost); IsSynchronizedWithCurrentItem=False must not break that. End is the

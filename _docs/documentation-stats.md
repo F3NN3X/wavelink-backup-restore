@@ -2,7 +2,7 @@
 title: "Documentation Stats"
 status: published
 created: 2026-08-16
-updated: 2026-08-20
+updated: 2026-08-22
 tags: [meta, stats]
 ---
 
@@ -20,7 +20,7 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of v0.7.0 (2026-08-21).*
+*As of v0.7.0 (2026-08-21), corrected 2026-08-22.*
 
 | Artifact | Count |
 |---|---|
@@ -30,10 +30,10 @@ Update this file **in the same commit** as the document it counts. See
 | Recipes | 2 |
 | Runbooks | 1 |
 | Audits | 3 (6 + 15 + 4 findings, one open question) |
-| Sessions | 23 |
+| Sessions | 24 |
 | Plans | 13 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,554 passing** — Core 493 · CLI 100 · App 961 |
+| **Tests** | **1,555 passing** — Core 493 · CLI 100 · App 962 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,31 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### The scroll-selection fix was not the whole story (2026-08-22)
+
+**A correction to [[scrolling-the-list-selects-a-row]], made because the first fix did not hold.**
+The 2026-08-21 session attributed the symptom — scrolling to the end, then clicking a row selects
+a *different* row — to `IsSynchronizedWithCurrentItem` left at its default `True`, and removed it.
+That was a real defect (the view's currency driving `SelectedItem`) but it was not *the* cause of
+what the user saw: after that fix, the jump persisted.
+
+The true cause is one attribute away in the same markup: `VirtualizingPanel.VirtualizationMode`
+was left at **`Recycling`**, which reuses a scrolled-out container for a new data item before its
+content refreshes — so the row under the cursor can still hold a *different* (stale)
+`SnapshotRowViewModel`, and the click selects that. The fix is `VirtualizationMode="Standard"`,
+which creates and discards containers so each realized container always matches its data item;
+virtualization itself stays on (`IsVirtualizing=True`).
+
+Both fixes are independent and both stay: the currency-sync attribute off (it was still a latent
+defect), and the virtualization mode to `Standard` (the actual cause of the reported symptom). The
+gotcha now names both, with the recycling one first. A fifth test guards it — after scrolling,
+every realized container holds its own data item — so the App suite stands at **962** (total
+**1,555**).
+
+Session note: [scroll-selection-jump](sessions/2026-08-22-scroll-selection-jump.md).
+
+**Counts moved:** sessions 23 → 24 · tests 1,554 → 1,555 (App 961 → 962).
 
 ### Recent additions (v0.7.0 — the release phase, and a bigger rig)
 
