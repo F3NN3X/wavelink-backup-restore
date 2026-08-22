@@ -40,13 +40,22 @@ jobs:
 
       # The version comes from the tag, so the running build can compare itself against a release
       # tag without anybody remembering to edit Directory.Build.props first. ReleaseVersion.Parse
-      # reads `v1.4.0`; this strips the `v` for the assembly.
+      # reads `v1.4.0`; this strips the `v` for the assembly. A manual run has no tag — ref_name
+      # is the branch name, which is not a version — so fall back to Directory.Build.props and
+      # fail loudly if neither yields a usable version. Publishing with `-p:Version=main` (the
+      # old behaviour) made NuGet restore die with MSB4181 before a single project compiled.
       - name: Version from the tag
         id: version
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          $version = $tag -replace '^v', ''
+          if ($tag -match '^v\d') {
+            $version = $tag -replace '^v', ''
+          } else {
+            $props = (Select-Xml -Path Directory.Build.props -XPath '//Version').Node.InnerText.Trim()
+            if (-not $props) { throw "No version tag and no <Version> in Directory.Build.props" }
+            $version = $props
+          }
           "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Test
