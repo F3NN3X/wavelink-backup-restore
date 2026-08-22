@@ -81,6 +81,15 @@ recorded the damage.
 **Revisit if:** a rig turns up big enough that even the rules are unreadable — roughly twenty
 channels in 300px. The answer then is probably a per-row overflow, not a narrower cell.
 
+**Watch rule (technical-debt.md §8.3):** `InputSlots.CharacterWidth` is a measured constant, not a
+derived one — one character of the slot-label face, measured at 6.24px and rounded up to 6.25. It
+cannot be re-derived at run time without measuring per row, which this ADR rules out. The guard test
+(`RowTemplateTests.The_label_budget_is_what_actually_fits_a_cell`) holds the budget in both
+directions — it fits, one more character does not — so the debt is not a bug but a *risk*: an
+unmeasured font fallback. **Nothing ships that changes the mono face, the 9.5px label size, or the
+.06em tracking without re-running that measurement in the same commit.** If the bundled font is ever
+replaced, the re-measurement is part of the replacement, not a follow-up.
+
 ## References
 
 - `_docs/operations/design/README.md` §Screen 1 — the five-slot strip as drawn

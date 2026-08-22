@@ -33,7 +33,7 @@ Update this file **in the same commit** as the document it counts. See
 | Sessions | 25 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,569 passing** — Core 494 · CLI 100 · App 975 |
+| **Tests** | **1,574 passing** — Core 494 · CLI 100 · App 980 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,34 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Tier 1 of the debt list closed: a crash now leaves a report, and the by-eye checklist exists (2026-08-22)
+
+**The commit-tier of [technical-debt.md](technical-debt.md)'s closing order is done.** Two items
+closed in code and one as a watch:
+
+- **§8.1 (cheap half)** — `App` now installs a `DispatcherUnhandledException` handler and an
+  `AppDomain.UnhandledException` backstop, both writing through one `CrashReportWriter` that appends
+  the exception's full `ToString()` to `crash-report.txt` beside `shell.json` in
+  `%LOCALAPPDATA%\WaveLinkBackup`, on the way down. The writer never throws — a crash handler that
+  threw on a crash path would put us back at the original incident. Guarded by five tests in
+  `CrashReportWriterTests`. The expensive half (the thirteenth error surface in XAML) re-opened as
+  §8.1a, because it is a design question, not a diff — and the file write unblocks that pass by
+  giving it real exception shapes to look at instead of guesses.
+- **§8.3** — closed as a *watch*, not a fix. There was never code to write; the debt was the risk of
+  an unmeasured font fallback in `InputSlots.CharacterWidth`, and the guard test already held both
+  directions. The rule that keeps it closed — nothing ships a change to the mono face, the 9.5px
+  label size or the .06em tracking without re-running the measurement in the same commit — now lives
+  in [[ADR-014]]'s Consequences as an explicit **Watch rule**, where the decision it guards lives.
+- **§8.2's enabler** — `operations/design/screen-1-by-eye-checklist.md` written. Every Tier 2 item
+  pointed at a file that was not in the repo; without it, each look is ad hoc and none of them leave
+  a record that they happened. It lists the four looks with a box, machine and date each, in the
+  order the sitting should go, plus a record-of-sittings table so the checklist's own history stays
+  in the repo.
+
+**Counts moved:** tests 1,569 → 1,574 (App 975 → 980, the five `CrashReportWriterTests`). No new ADR,
+gotcha or pattern — the checklist lives in the vendored `operations/design/` folder, which is exempt
+from the tally, and §8.3 owed a rule, not a document.
 
 ### The release shrank to 7.6 MB: framework-dependent, two artifacts (2026-08-22)
 
