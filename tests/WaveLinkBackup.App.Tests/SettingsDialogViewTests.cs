@@ -82,9 +82,12 @@ public sealed class SettingsDialogViewTests
         // leaving TextBlock.Text empty for one frame - the exact flake this test hit on run 2 of
         // the v0.7.2 CI pair (passed run 1, failed run 2, identical code). A local box resolves
         // the binding inside UpdateLayout and never sees it; a runner under load does not.
+        // Input priority drains everything queued at Input or above - including the pending
+        // binding resolution - whereas Background would only drain work at Background or lower
+        // and let the bindings race ahead of the assertion (the failed first attempt).
         System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
             () => { },
-            System.Windows.Threading.DispatcherPriority.Background);
+            System.Windows.Threading.DispatcherPriority.Input);
 
         try
         {
