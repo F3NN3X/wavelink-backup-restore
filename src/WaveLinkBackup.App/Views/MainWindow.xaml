@@ -884,10 +884,11 @@
                   the scroll bar and every key still worked. See WheelForwarding.
                 -->
                 <ListBox x:Name="GroupsHost" MouseDoubleClick="Rows_MouseDoubleClick"
-                         PreviewMouseWheel="Rows_PreviewMouseWheel"
-                         ItemsSource="{Binding List.View}"
-                         SelectedItem="{Binding List.Selected, Mode=TwoWay}"
-                         ItemContainerStyle="{StaticResource WlRowTemplate}"
+                          PreviewMouseWheel="Rows_PreviewMouseWheel"
+                          ItemsSource="{Binding List.View}"
+                          SelectedItem="{Binding List.Selected, Mode=TwoWay}"
+                          IsSynchronizedWithCurrentItem="False"
+                          ItemContainerStyle="{StaticResource WlRowTemplate}"
                          BorderThickness="0" Background="Transparent" Padding="0"
                          FocusVisualStyle="{x:Null}"
                          AutomationProperties.Name="Backups"

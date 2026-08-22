@@ -25,15 +25,15 @@ Update this file **in the same commit** as the document it counts. See
 | Artifact | Count |
 |---|---|
 | ADRs | 15 |
-| Gotchas | 26 |
+| Gotchas | 27 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
 | Audits | 3 (6 + 15 + 4 findings, one open question) |
-| Sessions | 22 |
+| Sessions | 23 |
 | Plans | 13 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,549 passing** — Core 493 · CLI 100 · App 956 |
+| **Tests** | **1,554 passing** — Core 493 · CLI 100 · App 961 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -112,7 +112,14 @@ four defects were invisible to tests that read source and visible to tests that 
   scrolled by wheel, because a disabled `ScrollViewer` still marks the event handled. Its *how to
   avoid it* is mostly about the TEST: raising the event on the ListBox proves nothing (the
   swallowing ScrollViewer is inside its template), and `RaiseEvent` raises one event where real
-  input raises two. Both mistakes were made before the test failed correctly.
+   input raises two. Both mistakes were made before the test failed correctly.
+
+- **And one more on the same list, the next day.** [[scrolling-the-list-selects-a-row]] — scrolling
+  the backup list to the end auto-selected a row with no click, because `GroupsHost` left
+  `IsSynchronizedWithCurrentItem` at its default `True`, so the view's *currency* drove the
+  `SelectedItem` binding. The wheel was exonerated by measurement (it moves neither focus nor
+  currency); the fix is one attribute off, held down by four tests against the real window — the
+  defect itself plus End/Home still selecting their extremes.
 
 - **Five new glossary entries** — *mix*, *channel*, *effect chain*, *bypassed*, *collapsed*. Four
   of them are words the settings file and the UI both use and mean slightly differently, which is
