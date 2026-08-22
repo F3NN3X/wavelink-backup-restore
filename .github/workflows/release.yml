@@ -106,8 +106,10 @@ jobs:
       # The release body carries the asset links and checksums so a human who lands on the
       # GitHub Release page can verify by hand what the updater verifies automatically. The
       # updater only reads the .sha256 beside *app-win-x64.zip; this is for people, not code.
-      # Written to a file because a markdown body with backticks and pipes does not survive
-      # being passed through a workflow `with:` input cleanly.
+      # Written to a file because a markdown body does not survive being inlined into a
+      # workflow with: input cleanly. No backticks anywhere in this script: the runner wraps
+      # inline run: blocks in a way that mangles them ("string missing the terminator"), so
+      # the code-fence marker is built from [char]96 instead of a literal.
       - name: Build release body
         shell: pwsh
         run: |
@@ -117,6 +119,8 @@ jobs:
           $appHash = (Get-Content "$app.sha256" -Raw).Trim()
           $cliHash = (Get-Content "$cli.sha256" -Raw).Trim()
           $base = "${{ github.server_url }}/${{ github.repository }}/releases/download/v$v"
+          $tick = [char]96
+          $fence = $tick + 'powershell'
           $lines = @(
             "Wave Link Backup v$v for Windows x64.",
             "",
@@ -124,8 +128,8 @@ jobs:
             "",
             "| File | SHA-256 |",
             "|---|---|",
-            "| [$app]($base/$app) | `$ $appHash` |",
-            "| [$cli]($base/$cli) | `$ $cliHash` |",
+            "| [$app]($base/$app) | $($tick + $appHash + $tick) |",
+            "| [$cli]($base/$cli) | $($tick + $cliHash + $tick) |",
             "",
             "## Prerequisite",
             "",
@@ -135,10 +139,10 @@ jobs:
             "",
             "## Verifying a download",
             "",
-            "```powershell",
+            $fence,
             "(Get-FileHash $app -Algorithm SHA256).Hash.ToLower()",
             "# should equal: $appHash",
-            "```"
+            ($tick * 3)
           )
           $lines | Out-File -FilePath release_body.md -Encoding utf8
 
