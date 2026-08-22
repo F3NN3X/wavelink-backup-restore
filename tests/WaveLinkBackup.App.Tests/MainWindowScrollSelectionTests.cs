@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using WaveLinkBackup.App.Hosting;
 using WaveLinkBackup.App.Tests.Fakes;
 using WaveLinkBackup.App.Theming;
@@ -85,6 +86,25 @@ public sealed class MainWindowScrollSelectionTests
             new FakeRestoreService(), () => Result<SettingsInspection>.Fail(new WaveLinkNotInstalled()));
 
     /// <summary>
+    /// The ListBox owns its scrolling now (Option A): there is no outer ListScrollViewer field to
+    /// reach. Its live ScrollViewer sits inside the ListBox's own template, so walk the visual tree
+    /// from GroupsHost down to find it - that is the element whose offset and extent the panel
+    /// tracks, and the one a real wheel notch drives.
+    /// </summary>
+    private static ScrollViewer FindInnerScrollViewer(DependencyObject root)
+    {
+        var children = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < children; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is ScrollViewer viewer) return viewer;
+            if (FindInnerScrollViewer(child) is { } found) return found;
+        }
+
+        throw new InvalidOperationException("GroupsHost has no inner ScrollViewer - the list must own its scrolling.");
+    }
+
+    /// <summary>
     /// THE CLAIM: scrolling the list to its bottom with nothing selected must not select a row.
     /// Pure wheel/scrollbar scrolling is the gesture that cannot move WPF's keyboard focus, so it
     /// must leave the selection untouched. This PASSES today and guards against a regression where a
@@ -115,7 +135,7 @@ public sealed class MainWindowScrollSelectionTests
                 window.Show();
                 window.UpdateLayout();
 
-                var scrollViewer = window.ListScrollViewer;
+                var scrollViewer = FindInnerScrollViewer(window.GroupsHost);
                 Assert.True(scrollViewer.ScrollableHeight > 0,
                     "Nothing to scroll - the fixture is wrong.");
 
@@ -127,10 +147,10 @@ public sealed class MainWindowScrollSelectionTests
                 Keyboard.Focus(window.GroupsHost);
                 window.UpdateLayout();
 
-                // Scroll the way a user actually does: wheel notches over a row. The notch must be
-                // raised on a REALIZED ROW (not the ListBox) so it tunnels through the window's own
-                // PreviewMouseWheel -> WheelForwarding.Redirect -> outer viewer, exactly as in
-                // WheelForwardingTests. Raising it on the ListBox reproduces nothing.
+                // Scroll the way a user actually does: wheel notches over a row. The notch is raised
+                // on a REALIZED ROW so it tunnels down into the ListBox's own ScrollViewer - there is
+                // no forwarding shim anymore; the ListBox owns its scroll and receives the wheel
+                // directly, which is exactly what keeps the panel in sync with what is painted.
                 var firstRow = (UIElement)window.GroupsHost.ItemContainerGenerator.ContainerFromIndex(0);
                 Assert.NotNull(firstRow);
 
@@ -222,18 +242,19 @@ public sealed class MainWindowScrollSelectionTests
 
     /// <summary>
     /// THE REPORTED DEFECT (symptom A): scroll to the end, then click a row - and the HIGHLIGHTED
-    /// row is one at the bottom of the view instead of the one clicked. The cause is container
-    /// RECYCLING: VirtualizingPanel.VirtualizationMode="Recycling" reuses a scrolled-out
-    /// ListBoxItem for a new data item before its content has refreshed, so the container under the
-    /// cursor can hold a DIFFERENT SnapshotRowViewModel than the one painted there. A click then
-    /// selects whatever stale data the recycled container still carries - the selection "jumps".
+    /// row is one at the bottom of the view instead of the one clicked. The cause was TWO scroll
+    /// owners: an outer ListScrollViewer did the real scrolling while GroupsHost's own ScrollViewer
+    /// was disabled. A VirtualizingStackPanel only tracks the offset of the ScrollViewer that OWNS
+    /// it, so with two owners the panel never learned the content had moved and its container-to-item
+    /// mapping drifted from what was painted - a click hit-tested to a stale container and selected
+    /// the wrong row.
     ///
-    /// The fix is at the cause, not the symptom: Standard virtualization mode creates and discards
-    /// containers, so a realized container ALWAYS matches its data item. This test proves that
-    /// invariant directly - after scrolling to the bottom, every realized container's data item must
-    /// be one of the rows actually in the view (no orphaned/stale recycled data), and the panel must
-    /// be in Standard mode so recycling can never reintroduce the mismatch. It does not need a real
-    /// mouse click: the container/data mismatch IS the bug, measured where it lives.
+    /// The fix is at the cause (Option A): GroupsHost owns its scrolling, so there is ONE owner and
+    /// the panel's offset always matches the pixels on screen. This test proves that invariant -
+    /// after scrolling to the bottom, every realized container must hold a data item that is actually
+    /// in the view (no orphaned/stale item left behind by a desynchronized panel), and the ListBox
+    /// must own a live ScrollViewer so the wheel reaches the panel's owner directly. It does not need
+    /// a real mouse click: the container/data mismatch IS the bug, measured where it lives.
     /// </summary>
     [Fact]
     public void After_scrolling_every_realized_container_holds_its_own_data_item()
@@ -256,11 +277,17 @@ public sealed class MainWindowScrollSelectionTests
                 window.Show();
                 window.UpdateLayout();
 
-                var scrollViewer = window.ListScrollViewer;
+                // The fix must be in place on the real tree: ONE scroll owner, and it is live.
+                var scrollViewer = FindInnerScrollViewer(window.GroupsHost);
                 Assert.True(scrollViewer.ScrollableHeight > 0,
                     "Nothing to scroll - the fixture is wrong.");
+                Assert.True(scrollViewer.VerticalScrollBarVisibility != ScrollBarVisibility.Disabled,
+                    "GroupsHost must own a LIVE ScrollViewer (VerticalScrollBarVisibility=Auto) so the " +
+                    "wheel reaches the panel's owner directly. A disabled inner viewer means an outer " +
+                    "owner is scrolling again - the two-owner mismatch that caused the selection jump.");
 
-                // The fix must be in place on the real tree: no recycling.
+                // Standard mode: creates and discards containers, so a realized container always
+                // matches its data item once the panel is in sync with its owner.
                 var mode = (VirtualizationMode)window.GroupsHost.GetValue(
                     VirtualizingPanel.VirtualizationModeProperty);
                 Assert.True(mode == VirtualizationMode.Standard,
@@ -456,7 +483,8 @@ public sealed class MainWindowScrollSelectionTests
 
     /// <summary>
     /// One wheel notch, delivered the way the input system does it: the TUNNELLING preview first,
-    /// then - only if nothing answered it - the bubbling event. Mirrors WheelForwardingTests.Wheel.
+    /// then - only if nothing answered it - the bubbling event. Raised on a realized row so it
+    /// tunnels down into the ListBox's own ScrollViewer, which is now the single scroll owner.
     /// </summary>
     private static void WheelNotch(UIElement from)
     {

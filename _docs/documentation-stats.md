@@ -33,7 +33,7 @@ Update this file **in the same commit** as the document it counts. See
 | Sessions | 24 |
 | Plans | 13 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,555 passing** — Core 493 · CLI 100 · App 962 |
+| **Tests** | **1,551 passing** — Core 494 · CLI 100 · App 957 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -57,30 +57,43 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
-### The scroll-selection fix was not the whole story (2026-08-22)
+### The scroll-click jump was two scroll owners, not recycling (2026-08-22)
 
-**A correction to [[scrolling-the-list-selects-a-row]], made because the first fix did not hold.**
-The 2026-08-21 session attributed the symptom — scrolling to the end, then clicking a row selects
-a *different* row — to `IsSynchronizedWithCurrentItem` left at its default `True`, and removed it.
-That was a real defect (the view's currency driving `SelectedItem`) but it was not *the* cause of
-what the user saw: after that fix, the jump persisted.
+**A correction to [[scrolling-the-list-selects-a-row]], made because neither of the first two fixes
+held.** The 2026-08-21 session attributed the symptom — scrolling to the end, then clicking a row
+selects the *bottom-most visible* row instead of the one clicked — to `IsSynchronizedWithCurrentItem`
+left at its default `True`, and removed it. That was a real latent defect (the view's currency
+driving `SelectedItem`) but not what the user saw. A second pass blamed
+`VirtualizingPanel.VirtualizationMode="Recycling"` and set it to `Standard`; that did not hold
+either — the jump persisted in the debug build, unchanged.
 
-The true cause is one attribute away in the same markup: `VirtualizingPanel.VirtualizationMode`
-was left at **`Recycling`**, which reuses a scrolled-out container for a new data item before its
-content refreshes — so the row under the cursor can still hold a *different* (stale)
-`SnapshotRowViewModel`, and the click selects that. The fix is `VirtualizationMode="Standard"`,
-which creates and discards containers so each realized container always matches its data item;
-virtualization itself stays on (`IsVirtualizing=True`).
+The true cause was structural, and neither fix touched it: **the list had two scroll owners.** An
+outer `ScrollViewer` (`ListScrollViewer`) did the real scrolling (wheel events forwarded into it),
+while the ListBox's own inner ScrollViewer was disabled but still carried the
+`VirtualizingStackPanel`. A `VirtualizingStackPanel` tracks only the offset of the ScrollViewer
+that *owns* it — the frozen inner one — so when the outer viewer moved the content, the panel never
+learned. Realized containers stayed anchored to the top while the pixels showed the last rows, and
+a click hit-tested to a stale container holding a *different* `SnapshotRowViewModel`, writing that
+row into the TwoWay `SelectedItem` binding.
 
-Both fixes are independent and both stay: the currency-sync attribute off (it was still a latent
-defect), and the virtualization mode to `Standard` (the actual cause of the reported symptom). The
-gotcha now names both, with the recycling one first. A fifth test guards it — after scrolling,
-every realized container holds its own data item — so the App suite stands at **962** (total
-**1,555**).
+The fix removes the second owner: the outer `ScrollViewer` and its wheel-forwarding shim are gone,
+and the ListBox's inner ScrollViewer is now the only one that scrolls (`VerticalScrollBarVisibility="Auto"`).
+A second, independent defect had to be fixed for that to work: with a **grouped** list and
+`CanContentScroll="True"` (item scrolling), WPF treats each group as one scroll unit and the inner
+viewer's extent collapses to ~1px — it cannot see through the group container to the real content
+height. Setting `CanContentScroll="False"` (pixel scrolling) measures the actual pixel height;
+the `VirtualizingStackPanel` still virtualizes via its viewport provider.
+
+The gotcha now names both causes, with the two-scroll-owner mismatch first and the grouped extent
+collapse second, and records that recycling was a wrong hypothesis held in the tree by one commit.
+A fifth test guards the single-scroll-owner invariant — after scrolling, every realized container
+holds its own data item — so the App suite stands at **957** (total **1,551**; the count is down
+from 962 because the wheel-forwarding shim and its two tests were deleted with the outer viewer).
 
 Session note: [scroll-selection-jump](sessions/2026-08-22-scroll-selection-jump.md).
 
-**Counts moved:** sessions 23 → 24 · tests 1,554 → 1,555 (App 961 → 962).
+**Counts moved:** sessions 23 → 24 · tests 1,554 → 1,551 (App 962 → 957; the wheel-forwarding shim
+and its two tests were deleted).
 
 ### Recent additions (v0.7.0 — the release phase, and a bigger rig)
 

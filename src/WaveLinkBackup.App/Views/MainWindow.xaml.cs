@@ -707,7 +707,7 @@ public partial class MainWindow : Window
 
     // ================================================================================
     // ShellCommands.All, bound in MainWindow.xaml's Window.CommandBindings (all but
-    // ClearSearch, which is bound narrowly on SearchBox and ListScrollViewer instead - see the
+    // ClearSearch, which is bound narrowly on SearchBox and GroupsHost instead - see the
     // comment on Window.CommandBindings in the XAML for why).
     // ================================================================================
 
@@ -781,14 +781,6 @@ public partial class MainWindow : Window
 
         ShellCommands.Details.Execute(null, this);
     }
-
-    /// <summary>
-    /// The list scrolls with the wheel. Without this it did not: the ListBox's own ScrollViewer is
-    /// disabled so that ListScrollViewer carries one scroll position for the header and the rows,
-    /// and a disabled ScrollViewer still marks the wheel handled.
-    /// </summary>
-    private void Rows_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
-        WheelForwarding.Redirect(ListScrollViewer, sender, e);
 
     private static T? FindAncestor<T>(DependencyObject from) where T : DependencyObject
     {

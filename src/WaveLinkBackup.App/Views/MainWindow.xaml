@@ -41,7 +41,7 @@
       The key map (ShellCommands, ViewModels/ShellCommands.cs), five of the seven bound at the
       window: Refresh, Search, BackUpNow, Rename, Delete, Restore. ClearSearch is deliberately NOT
       here - 10-decisions section 6 binds Escape only on the list and the search field (see
-      SearchBox and the row ListScrollViewer below), or a window-wide binding would swallow Escape
+      SearchBox and the row list (GroupsHost) below), or a window-wide binding would swallow Escape
       in the dialogs a later session adds.
 
       Restore's CanExecute is what keeps Enter from firing on an unselected or disallowed row - a
@@ -799,17 +799,17 @@
                     <Style.Triggers>
                         <!--
                           The NAME column is starred in both this header and every row, and each
-                          resolves that star against its OWN available width. The rows sit inside
-                          ListScrollViewer and lose 10px to the scroll bar the moment it appears;
-                          this header does not. Without matching that gutter, NAME would be 10px
-                          wider up here than down there and every column after it would sit 10px
-                          right of the cells it heads. 30 = the 20px inset plus the 10px the
-                          ScrollBar style pins its width to.
+                          resolves that star against its OWN available width. GroupsHost owns its
+                          scrolling now, so its own scroll bar eats 10px off the rows' available
+                          width the moment it appears; this header does not. Without matching that
+                          gutter, NAME would be 10px wider up here than down there and every column
+                          after it would sit 10px right of the cells it heads. 30 = the 20px inset
+                          plus the 10px the ScrollBar style pins its width to.
                         -->
                         <DataTrigger Value="Visible">
                             <DataTrigger.Binding>
                                 <Binding Path="ComputedVerticalScrollBarVisibility"
-                                         ElementName="ListScrollViewer" />
+                                         ElementName="GroupsHost" />
                             </DataTrigger.Binding>
                             <Setter Property="Padding" Value="20,11,30,9" />
                         </DataTrigger>
@@ -864,27 +864,31 @@
                     </Style>
                 </Grid.Style>
 
-            <ScrollViewer x:Name="ListScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto"
-                          CanContentScroll="True"
->
-                <!-- Escape clears the search from anywhere in the list, same reasoning as
-                     SearchBox's own CommandBindings above. -->
-                <ScrollViewer.CommandBindings>
-                    <CommandBinding Command="{x:Static vm:ShellCommands.ClearSearch}"
-                                    Executed="ClearSearch_Executed" />
-                </ScrollViewer.CommandBindings>
-
                 <!--
                   A double-click opens the details, which is what a double-click on a row means
                   everywhere else in Windows. Restore keeps Enter and nothing else.
 
-                  PreviewMouseWheel is what makes the wheel work at all: this ListBox has its own
-                  ScrollViewer, disabled, and a ScrollViewer marks EVERY wheel event handled -
-                  scrolled or not. So the notch died here and ListScrollViewer never saw it, while
-                  the scroll bar and every key still worked. See WheelForwarding.
+                  This ListBox OWNS its scrolling: its own ScrollViewer is live (VerticalScrollBar
+                  Visibility=Auto) and receives the wheel directly. There used to be an OUTER
+                  ListScrollViewer that did the real scrolling while this one's was disabled - and
+                  a VirtualizingStackPanel only tracks the scroll offset of the ScrollViewer that
+                  owns it, so with two owners the panel never learned the content had moved and its
+                  container-to-item mapping drifted from what was painted. A click then hit-tested
+                  to a stale container and selected the wrong row (the bottom-most visible one).
+                  One owner fixes that at the root: the wheel reaches the ListBox's own ScrollViewer,
+                  the panel stays in sync, and a realized container always matches its data item.
+
+                  CanContentScroll MUST be False (pixel scrolling), not True. With these rows grouped
+                  by date, item-scrolling (True) treats each group as one scroll unit and the inner
+                  ScrollViewer's extent collapses to ~1px - it cannot see through the group container
+                  to the real content height, so nothing scrolls. That is a known WPF breakage for
+                  grouped lists with content scrolling (see dotnet/wpf issue 8687 and the
+                  MaterialDesignInXAML issue on grouped ListView scrolling). Pixel scrolling measures
+                  the content's actual pixel height directly, so it scrolls correctly with or without
+                  grouping, and the VirtualizingStackPanel still virtualizes: it receives its viewport
+                  through IViewportProvider even in pixel mode.
                 -->
-                <ListBox x:Name="GroupsHost" MouseDoubleClick="Rows_MouseDoubleClick"
-                          PreviewMouseWheel="Rows_PreviewMouseWheel"
+                <ListBox x:Name="GroupsHost" Grid.Row="0" MouseDoubleClick="Rows_MouseDoubleClick"
                           ItemsSource="{Binding List.View}"
                           SelectedItem="{Binding List.Selected, Mode=TwoWay}"
                           IsSynchronizedWithCurrentItem="False"
@@ -894,10 +898,16 @@
                          AutomationProperties.Name="Backups"
                          VirtualizingPanel.IsVirtualizing="True"
                          VirtualizingPanel.VirtualizationMode="Standard"
-                         VirtualizingPanel.ScrollUnit="Pixel"
-                         ScrollViewer.CanContentScroll="True"
-                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                          VirtualizingPanel.ScrollUnit="Pixel"
+                          ScrollViewer.CanContentScroll="False"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <!-- Escape clears the search from anywhere in the list, same reasoning as
+                         SearchBox's own CommandBindings above. -->
+                    <ListBox.CommandBindings>
+                        <CommandBinding Command="{x:Static vm:ShellCommands.ClearSearch}"
+                                        Executed="ClearSearch_Executed" />
+                    </ListBox.CommandBindings>
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <VirtualizingStackPanel />
@@ -926,7 +936,6 @@
                         </GroupStyle>
                     </ListBox.GroupStyle>
                 </ListBox>
-            </ScrollViewer>
 
                 <!--
                   07: "footer strip mono 11px wl-muted: SHOWING 3 OF 14 . 11 HIDDEN BY THE

@@ -77,16 +77,15 @@ public sealed class ShellCommandWiringTests
         Assert.Contains("ShellCommands.ClearSearch", searchBox, StringComparison.Ordinal);
         Assert.Contains("ClearSearch_Executed", searchBox, StringComparison.Ordinal);
 
-        // Fix 1 moved the Loaded/Collapsed visibility trigger off ListScrollViewer itself and onto
-        // the wrapping ListLoadedRegion Grid (so the new search-footer strip shows and hides
-        // alongside the scroll region) - the end marker here follows that move, from
-        // <ScrollViewer.Style> to </ScrollViewer.CommandBindings>, which is still unique to this
-        // element and still closes before GroupsHost begins.
-        var listScrollViewer = Regex.Match(
-            xaml, "<ScrollViewer x:Name=\"ListScrollViewer\".*?</ScrollViewer.CommandBindings>",
+        // The row list (GroupsHost) owns its scrolling now (Option A), so the ClearSearch binding
+        // that used to sit on the removed outer ListScrollViewer lives on GroupsHost's own
+        // CommandBindings instead. The end marker follows that move: </ListBox.CommandBindings>,
+        // which is still unique to this element and still closes before the ItemsPanel begins.
+        var groupsHost = Regex.Match(
+            xaml, "<ListBox x:Name=\"GroupsHost\".*?</ListBox.CommandBindings>",
             RegexOptions.Singleline).Value;
-        Assert.Contains("ShellCommands.ClearSearch", listScrollViewer, StringComparison.Ordinal);
-        Assert.Contains("ClearSearch_Executed", listScrollViewer, StringComparison.Ordinal);
+        Assert.Contains("ShellCommands.ClearSearch", groupsHost, StringComparison.Ordinal);
+        Assert.Contains("ClearSearch_Executed", groupsHost, StringComparison.Ordinal);
     }
 
     // The trap the brief names explicitly: a guard INSIDE the Executed handler still leaves the
