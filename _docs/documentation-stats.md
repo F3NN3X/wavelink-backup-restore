@@ -57,6 +57,32 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### Recent additions (v0.7.1 — the three fixes to 0.7.0's phase)
+
+**Cut 2026-08-22.** A patch release: three fixes to the phase 0.7.0 already shipped, none of them
+new surface. The documentation delta for two of the three lives in the dated blocks below — this
+block exists so a reader scanning by version finds all three under one heading, and because the
+daily-backup fix never got its own block (it updated [glossary.md](glossary.md) and
+[screens/14-backup-timing.md](operations/design/screens/14-backup-timing.md) in place, with no
+counts moving).
+
+- **The daily backup now actually fires.** The 0.7.0 wording — an ordinary automatic capture after
+  today's set time "covers" the day and suppresses the daily copy — was a bug on any machine where
+  Wave Link writes settings during the day, which is most of them. Only today's own copy of this
+  one now covers the day. The glossary entry and the design screen were corrected in place; no new
+  document, no count moved.
+
+- **The snapshot list updates after an automatic capture.** No documentation delta: a behaviour
+  fix inside the existing tick, with its tests in `AutoBackupCoordinatorTests`.
+
+- **Clicking a row selects the row you clicked** — the structural fix for
+  [[scrolling-the-list-selects-a-row]], written up in full in the block below. It also closed
+  [technical-debt.md](technical-debt.md) §8.4 (the list that did not virtualise), which is why the
+  debt list's header moved from seven open items to six.
+
+**Counts moved:** none. The session note and the gotcha correction landed in the block below,
+under their own date; this release adds no new documents.
+
 ### The scroll-click jump was two scroll owners, not recycling (2026-08-22)
 
 **A correction to [[scrolling-the-list-selects-a-row]], made because neither of the first two fixes

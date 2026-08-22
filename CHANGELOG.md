@@ -21,7 +21,10 @@ heading here.
 
 ---
 
-## [Unreleased]
+## [0.7.1] - 2026-08-22
+
+**Three fixes to the phase already shipped.** The daily backup that silently never ran, the list
+that did not refresh after a capture, and the click that selected the wrong row after scrolling.
 
 ### Fixed
 
