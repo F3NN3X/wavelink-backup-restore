@@ -3,7 +3,7 @@ title: "Technical Debt"
 status: published
 created: 2026-08-16
 updated: 2026-08-22
-tags: [meta, technical-debt]
+tags: [meta, technical-debt, priority]
 ---
 
 # Technical Debt
@@ -21,7 +21,7 @@ will look obvious in hindsight.
 `Core`, `Cli` and a WPF shell, and a debt-clearing pass closed everything in §1, §4, §5, §6 and §7
 that a commit can close.
 
-**What is left — six things, and only one of them is a commit somebody has not written:**
+**What is left — five things, and only one of them is a commit somebody has not written:**
 
 | | Why it cannot be closed here |
 |---|---|
@@ -31,13 +31,72 @@ that a commit can close.
 | **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run this when endpoint inspection lands; the AOT publish itself already works. |
 | **§8.1** — an unhandled exception still ends the process silently | Needs a design answer before code: `06-errors.md` specifies twelve errors and none of them is "something unexpected happened", and inventing a thirteenth surface in XAML is what [[ADR-004]] exists to prevent. |
 | **§8.2** — three surfaces built past the design package have never been looked at | Same shape as §4.15. Nothing in the suite can assert that a layout looks right; they belong on the by-eye checklist. |
-| **§8.5** — the download carries the .NET runtime twice (101 MB) | Measured on the first real package. Not a defect: every way of fixing it trades away something the csproj or the updater contract chose on purpose. §8.5 has the table. |
 
 §8.4 closed on 2026-08-22 with the scroll fix: the outer `ListScrollViewer` is gone and `GroupsHost`
 owns its scrolling, which is what makes the panel virtualise at all. Its by-eye pass still rides on
-§8.2's checklist — the header-to-row alignment is the surface that changed.
+§8.2's checklist — the header-to-row alignment is the surface that changed. §8.5 closed the same
+day, when the app published framework-dependent in v0.7.2 and the runtime stopped shipping at all —
+the 101 MB download became a 7.6 MB one with a documented prerequisite. Both closures are dated
+entries below, kept for the reasoning that led to them.
 
 §3 is untouched on purpose: those are choices made with eyes open, not debt.
+
+### Closing order — a tier list
+
+The table above says *why* each item cannot be closed here; this says *in what order* to close
+them and *what closing looks like*. The tiers are ordered by how much stands between the item and
+done: a commit, a human with eyes, or a fact that has to come from outside this repo.
+
+**Tier 1 — closeable by a commit, no human in the loop.** Nothing here needs an eye or an
+experiment; each is a code change with a test that can prove it. Do these whenever there is a
+moment of boring work, because they are the only items on this list whose closure is verifiable
+in CI.
+
+| Item | What closing looks like | Why it is Tier 1 |
+|---|---|---|
+| **§8.1** — an unhandled exception ends the process silently | The cheap half first, in a commit: write the exception to a file beside `shell.json` on the way down. That needs no design and turns "it crashed" into a report that names the line. The expensive half (the thirteenth error surface) stays open until [[ADR-004]]'s design question is answered — but the file write unblocks it, because the design pass can then look at real exception shapes instead of guessing them | A `try`/`catch` around the dispatcher loop and a one-line file write. The guard is a test that throws an unhandled exception in a fixture and asserts the file exists with the type name in it. No pixels, no world facts |
+| **§8.3** — the strip's label budget is arithmetic over a measured constant | Not a fix, a *watch*. `CharacterWidth` is rounded up rather than exact, and the guard test already holds both directions (the budget fits, one more character does not). Closing it means nothing ships that changes the mono face, the 9.5px size or the .06em tracking without re-measuring — which is a review rule, not a task. If the bundled font is ever replaced, re-run the measurement in the same commit | There is no code to write today; the debt is the *risk* of an unmeasured font fallback. Tier 1 because the action is a one-line note in the PR that touches the font, and the guard test already exists to catch the miss |
+
+**Tier 2 — closeable by a human with eyes, no code change.** These are all the same shape:
+something rendered that nothing in the suite can assert looks right. The fix is *looking*, and
+the deliverable is a tick on a checklist rather than a commit. They should be done in one sitting,
+on one machine, in the order below — because they share a setup (a real Wave Link install, a
+store with several snapshots, both light and high-contrast themes active) and splitting the
+sitting multiplies the cost of getting to that state.
+
+| Order | Item | What closing looks like | Why this order |
+|---|---|---|---|
+| 1 | **§4.15** — 0.5.1's dialog frosting has never been seen | Open any dialog (delete, restore, settings) and look at the window *behind* it: is there a blur, or just the `WlScrim` dim? If it is only the dim, the frost is silently doing nothing on this build and the call can be deleted in a follow-up commit — which drops this item to Tier 1. If the blur is there, tick it and move on | It is the oldest open visual item (2026-08-19) and the cheapest look: one dialog, one glance. Doing it first also answers whether the rest of 0.5.1's visual work needs the same suspicion, which frames items 2–4 |
+| 2 | **§8.2** — three surfaces built past the design package have never been looked at | The checklist this entry names: the four-segment theme control at 100% and 150% scaling; the INPUTS strip at nine and twelve cells (four-character and three-character labels); the details dialog in light and in a real high-contrast scheme; and that dialog's height on a rig with several long effect chains, where it hits its 720px cap and scrolls. Tick each, note any that read wrong | It is the largest batch of unchecked pixels and the one most likely to contain an actual defect (a layout that reads wrong), so it gets the middle of the sitting — after §4.15 has calibrated what "looks deliberate" means on this machine, before the two items below that are about *behaviour* rather than *appearance* |
+| 3 | **§8.2's §8.4 tail** — the header-to-row alignment after the scroll fix | The list's column header and the rows beneath it: do they line up with the inner ScrollViewer owning the scroll, now that the outer `ListScrollViewer` is gone? This was audited as §1.1 of the design conformance pass, so a miss here is a regression against a known-good state, not an unknown | It is one surface and one glance, but it must be done *after* the list has been scrolled (the alignment is what changed with scrolling), so it rides on item 2's sitting rather than preceding it |
+| 4 | **§4.9's high-contrast tail** — the `WlDangerSoft` failed state in a real high-contrast theme | Switch to a real high-contrast scheme (not the simulated one), trigger a failed restore, and read the strip: does the transparent fill still read as *failed*, or has it become an empty gap? If it reads as a gap, that is a design amendment for `11-high-contrast.md`, not a code fix | It is the smallest look on this list and the one most likely to be fine (the rule was applied deliberately), so it goes last — but it is in the sitting because it needs the same high-contrast switch as item 2 and costs nothing to fold in |
+
+**The checklist they all ride on does not exist yet.** Every Tier 2 item points at
+[operations/design/screen-1-by-eye-checklist.md](operations/design/screen-1-by-eye-checklist.md),
+and that file is not in the repo. Writing it is a Tier 1 task (a commit, no human needed) and it
+is the *enabler* for the whole tier: without it, each look is ad hoc and none of them leave a
+record that they happened. The checklist should list every item above with a box, the machine it
+was checked on, and the date — so that "needs a human" becomes "checked on this rig, 2026-08-XX"
+rather than a permanent state. **Do this before the sitting, not after.**
+
+**Tier 3 — closeable only by a fact from outside this repo.** No commit and no amount of looking
+at this codebase closes these; each waits on something that has to be observed in the world. They
+are listed last not because they are least important but because *nothing can be done about them
+until the external fact arrives*, so the only action available is to keep the cost of the answer
+being wrong at zero — which, for all three, is already done.
+
+| Item | The external fact it waits on | What to do in the meantime | Why the wait is acceptable |
+|---|---|---|---|
+| **§2.2** — whether non-MSIX Wave Link installs exist | A fact about Elgato's distribution: does the release-channel installer, or anything for managed deployment, ever install as conventional Win32? The check is one download and one look at what it puts on disk | Nothing. The mitigation is complete — an explicit settings path bypasses discovery entirely (§4.10 drew the button) — so a non-MSIX user has a route in whether or not such installs exist | The cost of the answer being "yes" is now zero, which is the useful half. The entry stays open only because *nobody has checked*, and that is a fact about the world, not about this code |
+| **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link: copy one on-channel plug-in to the user-level VST3 folder, rename the shared copy, restart, and see whether the channel still loads and whether `FilePath` was rewritten. The full protocol is in [audits/2026-08-20-plugin-resolution-and-elevation.md](audits/2026-08-20-plugin-resolution-and-elevation.md) | Take a backup first (the experiment is reversible but not free), then run it on the reference rig. The answer also settles whether tier 2's drift check could key on `PluginId` rather than path, which is a second debt this one entry closes | §7.5 already removed the prompt in the common case, so the *recommendation* pending the answer is "probably do not build the fallback". The experiment is worth having regardless, but it is an hour of careful work on a live install, not a task to slot into a quiet afternoon |
+| **§2.4** — whether `[ComImport]` interop survives NativeAOT | A fact about a piece of code that does not exist yet: `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run when endpoint inspection lands | Nothing. The AOT publish itself already works (3.2 MB binary, zero trim warnings), so the NativeAOT option stays open at no cost until the inspector arrives | This is a *re-open* trigger, not an open task: the entry says so, and the action is "when X lands, do Y". It is Tier 3 because X is outside this repo's current scope (post-1.0), and pretending it is ready to close would be flattery |
+
+**What this ordering means in practice.** Tier 1 has two items and both are small: the §8.1 file
+write is a morning, and the §8.3 watch is a review rule rather than a task. Tier 2 is one sitting
+of maybe an hour on a machine with a real Wave Link install, and it produces the checklist that
+makes "needs a human" a finite state. Tier 3 has no action until the world supplies a fact; the
+right move for all three is to leave them exactly where they are, with their mitigations in place,
+and not let them drift into looking like work that is being avoided.
 
 The original status note follows.
 
