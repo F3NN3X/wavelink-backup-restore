@@ -29,6 +29,8 @@
         <MenuItem x:Name="AutoBackup" Header="Back up automatically" IsCheckable="True" />
         <MenuItem x:Name="PauseResume" Header="Pause for an hour" />
         <Separator />
+        <MenuItem x:Name="Help" Header="Help" />
+        <MenuItem x:Name="About" Header="About…" />
         <MenuItem x:Name="OpenSettings" Header="Settings…" />
         <!-- Quitting stops the backups, and the item says so rather than a dialog afterwards. -->
         <MenuItem x:Name="Quit" Header="Quit — stops backing up" />

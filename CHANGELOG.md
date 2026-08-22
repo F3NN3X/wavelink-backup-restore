@@ -21,6 +21,21 @@ heading here.
 
 ---
 
+## [0.7.2] - 2026-08-22
+
+### Added
+
+- **Help and About dialogs.** The tray menu gains two entries, and the window's caption bar
+  gains a "?" beside the Settings gear. *Help* says what the app does in the user's words -
+  what gets backed up, how snapshots are kept, how restoring works, what the tray icon is for -
+  with a link to the documentation when the build was given one. *About* states the facts about
+  this build: name, version (read from the same source the updater compares against, so it can
+  never drift), licence, and the not-affiliated line. Both are static content behind a view
+  model - no logic in either - and both open modally over the window when one is open,
+  standalone otherwise.
+
+---
+
 ## [0.7.1] - 2026-08-22
 
 **Three fixes to the phase already shipped.** The daily backup that silently never ran, the list

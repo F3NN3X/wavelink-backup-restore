@@ -410,6 +410,8 @@ public partial class App : Application
                 case "OpenFolder": item.Click += (_, _) => OpenStoreFolder(); break;
                 case "AutoBackup": item.Click += (_, _) => ToggleAutoBackup(); break;
                 case "PauseResume": item.Click += (_, _) => TogglePause(); break;
+                case "Help": item.Click += (_, _) => OpenHelp(); break;
+                case "About": item.Click += (_, _) => OpenAbout(); break;
                 case "OpenSettings": item.Click += (_, _) => OpenSettings(); break;
                 case "Quit": item.Click += (_, _) => ShutdownEverything(); break;
                 default: break;
@@ -545,8 +547,33 @@ public partial class App : Application
     {
         var vm = BuildSettingsViewModel();
         var dialog = new Views.SettingsDialog(vm) { ScrollToUpdates = scrollToUpdates };
-        var owner = MainWindow != null ? (Window)MainWindow : null;
-        if (owner is not null && owner.IsLoaded)
+        ShowOverMainWindow(dialog);
+    }
+
+    /// <summary>
+    /// Internal so MainWindow's own "?" button can open the same dialog. The content is static copy
+    /// (HelpDialogModel.Default), so there is nothing to build fresh each time - but the owner
+    /// handling is the same as Settings': modal over the main window when one is open, standalone
+    /// otherwise (the tray menu's entry point runs with no window at all).
+    /// </summary>
+    internal void OpenHelp() => ShowOverMainWindow(new Views.HelpDialog(ViewModels.HelpDialogModel.Build()));
+
+    /// <summary>
+    /// Internal so MainWindow can open it if a future revision adds an entry point there. The model
+    /// is built fresh each time because its version and links are read from the assembly and
+    /// environment at construction - the same "build a fresh view-model each time" rule as Settings.
+    /// </summary>
+    internal void OpenAbout() => ShowOverMainWindow(new Views.AboutDialog(ViewModels.AboutDialogModel.Build()));
+
+    /// <summary>
+    /// Shows a dialog modally over the main window when one is open, standalone otherwise. The two
+    /// lines every "open a dialog" seam used to repeat - Settings above, Help and About below - in
+    /// one place, so a third dialog does not copy them again.
+    /// </summary>
+    private static void ShowOverMainWindow(Window dialog)
+    {
+        var owner = (Application.Current as App)?.MainWindow is { } main && main.IsLoaded ? main : null;
+        if (owner is not null)
         {
             dialog.Owner = owner;
             dialog.ShowDialog();

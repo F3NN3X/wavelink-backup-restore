@@ -20,7 +20,7 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of v0.7.0 (2026-08-21), corrected 2026-08-22.*
+*As of v0.7.2 (2026-08-22).*
 
 | Artifact | Count |
 |---|---|
@@ -30,10 +30,10 @@ Update this file **in the same commit** as the document it counts. See
 | Recipes | 2 |
 | Runbooks | 1 |
 | Audits | 3 (6 + 15 + 4 findings, one open question) |
-| Sessions | 24 |
-| Plans | 13 |
+| Sessions | 25 |
+| Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,551 passing** — Core 494 · CLI 100 · App 957 |
+| **Tests** | **1,568 passing** — Core 494 · CLI 100 · App 974 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,27 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### Recent additions (v0.7.2 — Help and About: the shell's two information surfaces)
+
+**Cut 2026-08-22.** The tray menu gained Help and About…, and the caption bar a "?" beside the
+Settings gear. Both dialogs are static content behind a model record — `HelpDialogModel` is pure
+constant copy, `AboutDialogModel` adds only the version (read from `ReleaseVersion.Current`, so
+it cannot drift from the UPDATES section) and two environment-sourced links that hide themselves
+when absent. No ADR: the shape follows [[ADR-004]]'s existing rule rather than choosing between
+alternatives, so this block plus the plan carry it.
+
+- **Plan:** [2026-08-22-phase-5-plan-11-help-and-about.md](plans/2026-08-22-phase-5-plan-11-help-and-about.md)
+  — goal, architecture and the executed block, including the one deviation (the "?" is text in the
+  mono font because the design package has no help icon).
+- **Session:** [2026-08-22-help-and-about-dialogs.md](sessions/2026-08-22-help-and-about-dialogs.md)
+  — what happened, including the five view-test failures from the first draft (all in the 0.5.1
+  design-audit family: a view no test had ever constructed) and the Settings gear that was altered
+  and then restored to its committed markup.
+
+**Counts moved:** sessions 24 → 25 · plans 13 → 14 · tests 1,551 → 1,568 (App 957 → 974, the five
+new dialog view tests). No gotcha: nothing here is a mistake that happened in production — the
+test failures were caught by the suite before anything shipped.
 
 ### Recent additions (v0.7.1 — the three fixes to 0.7.0's phase)
 

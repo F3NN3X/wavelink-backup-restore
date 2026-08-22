@@ -1,0 +1,111 @@
+<Window x:Class="WaveLinkBackup.App.Views.HelpDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Help"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        AllowsTransparency="True"
+        WindowStartupLocation="Manual"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Background="Transparent">
+
+    <!--
+      The help dialog: the same borderless-modal shape as DeleteDialog - WlScrim fills this window
+      edge to edge and a 560px WlCard card sits centred on top of it. WindowStyle=None rather than
+      a custom caption bar because a dialog has no caption to host, and AllowsTransparency is TRUE
+      here for the same reason as there: a layered window's transparent regions really are
+      transparent, so the scrim dims the app instead of compositing onto opaque black.
+
+      The DataContext is a HelpDialogModel set by the caller (App.OpenHelp always passes
+      HelpDialogModel.Default - the content is static copy); every element below binds to it and
+      computes nothing. Nothing here touches Core or does I/O - rendering only, plus the one
+      browser launch the footer link performs.
+
+      WindowStartupLocation is Manual, not CenterOwner: DialogOverlay positions this window over
+      its owner on SourceInitialized, and CenterOwner would re-centre a full-owner-sized overlay
+      afterwards, pushing it off by half the owner.
+    -->
+    <Grid>
+        <!-- The scrim: what dims the app behind. Fills the overlay edge to edge, and the overlay
+             spans the owner (DialogOverlay.Cover), so this reaches the app's own edges. -->
+        <Border Background="{DynamicResource WlScrim}" />
+
+        <!-- The card: 560px, WlCard surface, hairline-24% border (WlLine2), 8px radius. Wider than
+             DeleteDialog's 480 because the copy is prose, not a one-sentence consequence. -->
+        <Border x:Name="HelpCard" Width="560" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="{DynamicResource WlCard}"
+                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8"
+                Effect="{StaticResource WlDialogShadow}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- title -->
+                    <RowDefinition Height="*" />    <!-- scrollable sections -->
+                    <RowDefinition Height="Auto" /> <!-- footer -->
+                </Grid.RowDefinitions>
+
+                <!-- Title: dialog title role, Rubik 500 20px/1.3 - the same role DeleteDialog's
+                     title uses, so a help screen reads as a sibling of the other dialogs. -->
+                <TextBlock Grid.Row="0" Text="{Binding Title}" Style="{StaticResource WlDialogTitleText}"
+                           Foreground="{DynamicResource WlStrong}" Margin="26,24,26,0"
+                           AutomationProperties.Name="Help title" />
+
+                <!-- The sections: one heading and one or more sentences each, 18px apart. They sit
+                     in a ScrollViewer because the copy is longer than the card's comfortable height -
+                     scrolling inside the card rather than making the window tall keeps the scrim
+                     covering the same area on every screen. -->
+                <ScrollViewer Grid.Row="1" Margin="26,18,26,0" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Sections}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,0,0,18">
+                                    <!-- Heading: the slot-label role in a bigger size - tracked caps,
+                                         muted, the same treatment the delete dialog's context label uses. -->
+                                    <TextBlock Text="{Binding Heading}" Style="{StaticResource WlSlotLabelText}"
+                                               Foreground="{DynamicResource WlMuted}" />
+                                    <!-- Body: Rubik 400 14px/1.55, 8px below the heading. -->
+                                    <TextBlock Text="{Binding Body}" Style="{StaticResource WlBodyText}"
+                                               Foreground="{DynamicResource WlText}" Margin="0,8,0,0" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Footer: WlBg, hairline top, 18px vertical / 26px horizontal - the same footer
+                     shape as DeleteDialog's. The documentation link sits left; Close sits right and
+                     is the button Escape and Enter both reach. -->
+                <Border Grid.Row="2" Background="{DynamicResource WlBg}"
+                        BorderBrush="{DynamicResource WlLine}" BorderThickness="0,1,0,0"
+                        Padding="26,18">
+                    <Grid>
+                        <!-- The documentation link: a hyperlink-styled TextBlock rather than a Button,
+                             because it is inline text, not an action - the same shape Settings'
+                             "What changed" uses. A null URL (none configured) collapses the whole
+                             block to zero width via the code-behind's Loaded handler; an empty string
+                             would never match a DataTrigger on {x:Null}, which is why the model maps
+                             "absent" to null and this does not use a trigger at all. -->
+                        <TextBlock x:Name="DocumentationLink" HorizontalAlignment="Left"
+                                   Foreground="{DynamicResource WlAccent}"
+                                   FontFamily="{DynamicResource WlDisplayFont}" FontSize="13"
+                                   Cursor="Hand"
+                                   AutomationProperties.Name="Open the documentation">
+                            <Hyperlink x:Name="DocumentationHyperlink"
+                                       AutomationProperties.Name="Open the documentation in a browser">
+                                <Run Text="{Binding DocumentationLabel, Mode=OneWay}" />
+                            </Hyperlink>
+                        </TextBlock>
+
+                        <!-- Close: secondary, with no access key. Settings' own Close button is
+                             caption-only for the same reason (no content to under-line), and this
+                             dialog's footer has one button - so there is nothing an access key would
+                             disambiguate between. Focus starts here and Escape is equivalent to it,
+                             so dismissing needs no handler beyond IsCancel on the button itself. -->
+                        <Button x:Name="CloseButton" Content="Close" HorizontalAlignment="Right"
+                                IsCancel="True" Style="{StaticResource WlSecondaryButton}"
+                                AutomationProperties.Name="Close help" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

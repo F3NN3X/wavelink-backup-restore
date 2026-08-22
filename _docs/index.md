@@ -231,6 +231,7 @@ Extracted from shipped code, each naming its real callers.
 
 | Date | Session |
 |---|---|
+| 2026-08-22 | [Help and About dialogs, and the gear that was not changed](sessions/2026-08-22-help-and-about-dialogs.md) |
 | 2026-08-20 | [A theme choice, a crash, and what's in a backup](sessions/2026-08-20-theme-choice-a-crash-and-the-details-view.md) |
 | 2026-08-20 | [Asking for administrator rights only when the write needs them](sessions/2026-08-20-elevation-only-when-needed.md) |
 | 2026-08-20 | [Clearing the technical-debt list](sessions/2026-08-20-clearing-the-technical-debt.md) |

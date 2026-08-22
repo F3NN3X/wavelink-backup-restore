@@ -117,6 +117,10 @@ public partial class MainWindow : Window
         // static placeholder. Application.Current is always set by the time a button can be clicked.
         SettingsButton.Click += (_, _) => (Application.Current as App)?.OpenSettings();
 
+        // The "?" beside it opens the help dialog the same way: one two-line seam on App, no
+        // command object (the same reason the gear above is code-behind rather than a command).
+        HelpButton.Click += (_, _) => (Application.Current as App)?.OpenHelp();
+
         // Screen 4 (first-run / empty state): its own "Back up now" and "Choose where to keep
         // them" live in the stand-in region, so they are wired here rather than on the bottom bar.
         // Both reuse the exact same actions as the bottom bar - BackUpNowAsync and the folder

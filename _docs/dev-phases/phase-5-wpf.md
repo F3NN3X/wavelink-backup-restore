@@ -2,7 +2,7 @@
 title: "Phase 5 — WPF shell"
 status: published
 created: 2026-08-16
-updated: 2026-08-19
+updated: 2026-08-22
 related_adrs: [ADR-004, ADR-005]
 tags: [dev-phase]
 ---
@@ -18,6 +18,12 @@ HighContrast.xaml", recorded the HC contract as a Definition-of-done line in pla
 every surface in both HC schemes. **964 tests green.** The exit criteria are met: the four screens
 and every state group match the handoff in both themes *and* high contrast, the tray shell works,
 and no Core logic has leaked into the shell. **next: phase 6 (plugin tiers).**
+
+**One surface was added after the phase closed** (2026-08-22): plan 11, the Help and About
+dialogs — the two information surfaces the handoff never specified, reached from the tray menu
+and a "?" in the caption bar. Static content behind a model record, no design screen to match,
+so it is recorded as an addition rather than a phase item:
+[plan 11](../plans/2026-08-22-phase-5-plan-11-help-and-about.md).
 **Entry criteria:** phase 4 complete. ✅ 2026-08-16.
 **Exit criteria:** the four designed screens match the handoff in **both themes**, the six
 undesigned surfaces are designed and built, and no Core logic has leaked into the shell.

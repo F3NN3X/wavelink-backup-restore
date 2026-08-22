@@ -47,7 +47,7 @@ public sealed class TrayMenuStyleTests
             "-",
             "AutoBackup", "PauseResume",
             "-",
-            "OpenSettings", "Quit",
+            "Help", "About", "OpenSettings", "Quit",
         ], names);
     }
 
@@ -163,7 +163,7 @@ public sealed class TrayMenuStyleTests
             return items;
         });
 
-        Assert.Equal(8, applied);
+        Assert.Equal(10, applied);
     }
 
     /// <summary>
