@@ -19,13 +19,15 @@ public sealed class DeleteDialogModelTests
     // Pinned so a formatting change fails here, not in a screenshot.
     private const long SizeBytes = 12_582_912;
 
-    // The design's own sample ("Before 3.3 beta", taken 11 Aug 21:36). The meta line renders in
-    // LOCAL time via ToLocalTime(), so the UTC instant is derived from the machine running the
-    // suite rather than hardcoded — a fixed "19:36Z" only rendered 21:36 on a UTC+2 box, and CI
-    // runners sit at UTC. The offset is pinned to +02:00 so the date stays 11 Aug in every zone
-    // the suite can run in; an instant whose local time crosses midnight would change the day.
-    private static readonly DateTimeOffset Taken =
-        new(2026, 8, 11, 21, 36, 0, TimeSpan.FromHours(2));
+    // The design's own sample ("Before 3.3 beta", taken 11 Aug 21:36). The meta line and the
+    // pre-restore block render in LOCAL time via ToLocalTime(), so an assertion that pins a
+    // literal wall-clock string is only true on one machine — a fixed instant rendered 21:36 on
+    // a UTC+2 box but 19:36 on a UTC runner. Instead the expected strings are derived from the
+    // same ToLocalTime() conversion the model uses, so they hold in any zone the suite runs in.
+    private static readonly DateTimeOffset Taken = new(2026, 8, 11, 21, 36, 0, TimeSpan.Zero);
+
+    /// <summary>What the dialog renders for <see cref="Taken"/> on THIS machine — the test's expected values.</summary>
+    private static DateTimeOffset TakenLocal => Taken.ToLocalTime();
 
     private static Snapshot Snapshot(
         string name,
@@ -60,7 +62,8 @@ public sealed class DeleteDialogModelTests
         var model = DeleteDialogModel.Build(Snapshot("Before 3.3 beta", SnapshotTrigger.Manual), totalBackups: 4);
 
         Assert.Equal(
-            "12 MB · TAKEN 11 Aug 21:36 · MANUAL",
+            $"12 MB · TAKEN {TakenLocal.ToString("d MMM", System.Globalization.CultureInfo.InvariantCulture)} "
+            + $"{TakenLocal.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)} · MANUAL",
             model.MetaLine);
     }
 
@@ -150,7 +153,8 @@ public sealed class DeleteDialogModelTests
         Assert.NotNull(model.Context);
         Assert.Equal("WHAT THIS ONE IS", model.Context.Label);
         Assert.Equal(
-            "Taken automatically at 21:36 on 11 Aug, just before you restored. "
+            $"Taken automatically at {TakenLocal.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)} on "
+            + $"{TakenLocal.ToString("d MMM", System.Globalization.CultureInfo.InvariantCulture)}, just before you restored. "
             + "It is the way back from that restore.",
             model.Context.Body);
         Assert.Null(model.BackUpNowInstead);
