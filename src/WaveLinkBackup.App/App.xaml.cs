@@ -96,6 +96,13 @@ public partial class App : Application
     /// </summary>
     private CrashReportWriter? crashReports;
 
+    /// <summary>
+    /// The path of the crash report, for the one surface that can still speak after an unexpected
+    /// fault: a failed restore with no designed error code points at it (technical-debt.md §8.1a).
+    /// Null until a crash has been written this run — most runs never get here.
+    /// </summary>
+    internal string? LastCrashReportPath { get; private set; }
+
     /// <summary>Read by MainWindow at construction, and updated by every SaveGeometry.</summary>
     internal ShellState ShellState { get; private set; } = ShellState.Default;
 
@@ -274,7 +281,7 @@ public partial class App : Application
     /// </summary>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        crashReports?.Write(e.Exception);
+        WriteCrashReport(e.Exception);
         e.Handled = false;
     }
 
@@ -288,7 +295,22 @@ public partial class App : Application
     {
         if (e.ExceptionObject is Exception exception)
         {
-            crashReports?.Write(exception);
+            WriteCrashReport(exception);
+        }
+    }
+
+    /// <summary>
+    /// Both handlers write through here so the report carries the same context regardless of which
+    /// one fired: the running build's version and the username to strip from the stack. The version
+    /// is read on the way down, not cached at startup — a fault during early startup can hit before
+    /// anything else exists, and the assembly attribute is still there then.
+    /// </summary>
+    private void WriteCrashReport(Exception exception)
+    {
+        var path = crashReports?.Write(exception, ReleaseVersion.Display(ReleaseVersion.Current), Redaction.CurrentUserName);
+        if (path is not null)
+        {
+            LastCrashReportPath = path;
         }
     }
 

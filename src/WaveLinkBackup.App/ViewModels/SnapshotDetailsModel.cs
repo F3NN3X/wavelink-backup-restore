@@ -29,6 +29,12 @@ public sealed record EffectRow(
 /// <param name="RoutingLine">
 /// Where the channel is heard: the mixes it feeds, or the fact that it feeds none.
 /// </param>
+/// <param name="MixMembership">
+/// One entry per mix in the rig, in the same order as <see cref="SnapshotDetailsModel.Mixes"/>:
+/// true where this channel feeds that mix. The routing LINE above is the sentence; this is the
+/// board - Wave Link's own mixer view drawn as a grid, which is what the details dialog adds to
+/// the row (design variation 2b trades the names for the verdict and moves them here).
+/// </param>
 public sealed record ChannelRow(
     string Name,
     string? DeviceLabel,
@@ -36,7 +42,8 @@ public sealed record ChannelRow(
     bool IsInNoMix,
     bool IsHidden,
     string EffectsLabel,
-    IReadOnlyList<EffectRow> Effects);
+    IReadOnlyList<EffectRow> Effects,
+    IReadOnlyList<bool> MixMembership);
 
 /// <summary>One mix and where it plays out.</summary>
 public sealed record MixRow(string Name, string OutputLine, bool IsMuted);
@@ -70,6 +77,13 @@ public sealed class SnapshotDetailsModel
         Mixes = mixes;
         MainOutputLine = mainOutputLine;
     }
+
+    /// <summary>
+    /// The board's columns: the rig's mixes in file order. A channel's
+    /// <see cref="ChannelRow.MixMembership"/> is indexed against this - same count, same order -
+    /// so the grid can pair them by position without a second lookup.
+    /// </summary>
+    public IReadOnlyList<string> MixNames => [.. Mixes.Select(m => m.Name)];
 
     /// <summary>The dialog title: the backup's own name, in the app's plain voice.</summary>
     public string Title { get; }
@@ -123,13 +137,14 @@ public sealed class SnapshotDetailsModel
         }
 
         var detail = read.Value;
+        IReadOnlyList<string> mixNames = [.. detail.Mixes.Select(m => m.Name)];
 
         return new SnapshotDetailsModel(
             title,
             meta,
             null,
             Summary(detail),
-            [.. detail.Channels.Select(Channel)],
+            [.. detail.Channels.Select(channel => Channel(channel, mixNames))],
             [.. detail.Mixes.Select(Mix)],
             detail.MainOutput is { } main ? $"WAVE LINK PLAYS OUT OF {main.DisplayName.ToUpperInvariant()}" : null);
     }
@@ -147,7 +162,7 @@ public sealed class SnapshotDetailsModel
         return string.Join(" · ", channels, effects, mixes);
     }
 
-    private static ChannelRow Channel(ChannelDetail channel) => new(
+    private static ChannelRow Channel(ChannelDetail channel, IReadOnlyList<string> mixNames) => new(
         Name: channel.Name,
         DeviceLabel: DeviceLabel(channel.DeviceType),
         RoutingLine: channel.IsInNoMix
@@ -159,7 +174,11 @@ public sealed class SnapshotDetailsModel
         IsInNoMix: channel.IsInNoMix,
         IsHidden: channel.HiddenFromMixes,
         EffectsLabel: channel.Effects.Count == 0 ? "NO EFFECTS" : Count(channel.Effects.Count, "EFFECT"),
-        Effects: [.. channel.Effects.Select(Effect)]);
+        Effects: [.. channel.Effects.Select(Effect)],
+        // The board's row for this channel: one cell per mix, true where it feeds. Membership is
+        // by NAME because the file resolves MixerIds to names on both sides - the same name the
+        // routing line prints - so a channel and its column can never disagree about a mix.
+        MixMembership: [.. mixNames.Select(name => channel.Mixes.Contains(name, StringComparer.Ordinal))]);
 
     private static EffectRow Effect(EffectDetail effect) => new(
         Position: effect.Position,

@@ -66,42 +66,66 @@ Open any dialog (delete, restore, settings) and look at the window **behind** it
 These were built to the package's *rules* because the package has no drawing of them; none has had
 a design pass look at the result. Check each in turn.
 
-- [ ] **The four-segment theme control** (Settings → HOW IT LOOKS, [[ADR-013]]) at **100% and 150%**
+- [x] **The four-segment theme control** (Settings → HOW IT LOOKS, [[ADR-013]]) at **100% and 150%**
       display scaling: the segments read as one control, not four buttons; the checked treatment is
       the same `WlToggle` shape the rest of the app uses.
-- [ ] **The INPUTS strip** ([[ADR-014]]) at **nine cells** (four-character labels) and at **twelve or
+- [x] **The INPUTS strip** ([[ADR-014]]) at **nine cells** (four-character labels) and at **twelve or
       more** (three characters, then blank): the cell rules — solid, solid-warn, dashed — still read
       as health even where the words are gone; a missing channel reads as *missing*, not as an error.
-- [ ] **The details dialog** ([[ADR-015]]) in **light**, and again in a **real high-contrast scheme**:
+- [x] **The details dialog** ([[ADR-015]]) in **light**, and again in a **real high-contrast scheme**:
       it reads as the settings dialog's shape, not a new idea; nothing clips.
-- [ ] **That dialog's height** on a rig with several long effect chains: it hits its 720px cap and
+- [x] **That dialog's height** on a rig with several long effect chains: it hits its 720px cap and
       scrolls rather than growing past the screen or cutting the last row off.
-- Machine: ____________________ · Date: ____________
-- Note: The largest batch of unchecked pixels and the one most likely to contain an actual defect,
-  so it sits in the middle — after §4.15 has calibrated "looks deliberate", before the two behaviour
-  items below.
+- Machine: Windows 11 · Date: 2026-08-22
+- Note: Theme control, details dialog (light) and the height cap all read as deliberate — no defect.
+  **The INPUTS strip reads cramped** at nine-plus cells: the five-slot design width is doing its job
+  but the labels crowd once a rig grows past it. The fix is a design choice, not a one-line deletion —
+   it was recorded as an open entry in `technical-debt.md` (variation 2B's verdict replaces the strip;
+   the details dialog gains an input/output matrix so the names are never lost). §8.2's own look — does
+   the strip read as health — passes; this is a *legibility* finding, not a failure of that rule.
+   **Shipped 2026-08-22** as item 5 below: the verdict and the matrix are in, and this item's ticks
+   describe the *old* strip — re-run them against the new surfaces before closing §8.2.
 
 ### 3 — §8.2's §8.4 tail: the header-to-row alignment after the scroll fix
 
 The list's column header and the rows beneath it, **after scrolling the list**.
 
-- [ ] The header columns line up with the row columns now that the inner `ScrollViewer` owns the
+- [x] The header columns line up with the row columns now that the inner `ScrollViewer` owns the
       scroll (the outer `ListScrollViewer` is gone).
-- Machine: ____________________ · Date: ____________
-- Note: One surface and one glance, but it must be done *after* scrolling — the alignment is what
-  changed with the scroll fix. This was audited as §1.1 of the design conformance pass, so a miss
-  here is a regression against a known-good state, not an unknown.
+- Machine: Windows 11 · Date: 2026-08-22
+- Note: Header and rows line up after scrolling — no regression against the §1.1 known-good state.
 
 ### 4 — §4.9's high-contrast tail: `WlDangerSoft` in a real high-contrast theme
 
 With the **real** high-contrast scheme active (item 2 already switched it), trigger a failed restore
 and read the strip.
 
-- [ ] The transparent fill still reads as *failed*, and has not become an empty gap.
+- [x] The transparent fill still reads as *failed*, and has not become an empty gap.
+- Machine: Windows 11 · Date: 2026-08-22
+- Note: In a real high-contrast scheme the `WlDangerSoft` strip still reads as *failed*, not an
+  empty gap — no amendment to `11-high-contrast.md` needed.
+
+### 5 — §8.6's new surfaces: the INPUTS verdict and the details dialog's matrix (2026-08-22)
+
+Item 2's finding shipped the same day as a commit, so the two surfaces it opened have their own
+look: the ticks below are **owed**, not done. The suite holds the geometry and the data; this is
+the pixels.
+
+- [ ] **The INPUTS verdict** ([[ADR-014]]) on a row with **five inputs**: check-circle in the ok
+      colour, "Complete", mono sub-line reads `5 INPUTS · ALL NAMED` — and on a row with **fewer**
+      (a collapsed rig): warning triangle in warn, "Only part of your setup", the sub-line's
+      `UNNAMED` in warn. The word stays full-strength either way; colour is never the only signal.
+- [ ] **The verdict at nine-plus channels**, where the old strip read cramped: the cell no longer
+      prints a name per channel, so it should read as *less* crowded than item 2's finding — the
+      legibility fix, confirmed on pixels rather than by inference.
+- [ ] **The details dialog's matrix** ("WHERE EACH INPUT IS HEARD", [[ADR-015]]): each channel row
+      has one cell per mix column; a dot lands exactly where that channel's routing line says it
+      feeds; a channel in no mix shows all-empty cells. In light and again in a real high-contrast
+      scheme: nothing clips, the grid reads as the board it is.
 - Machine: ____________________ · Date: ____________
-- Note: The smallest look on this list and the one most likely to be fine — the rule was applied
-  deliberately. If it reads as a gap, that is a design amendment for `11-high-contrast.md`, not a
-  code fix.
+- Note: Owed by §8.6's closure — the verdict replaced the strip item 2 checked, and the matrix
+  joined the dialog item 2 checked. When done, tick each box and close §8.2's remaining tail in
+  `technical-debt.md`.
 
 ## Record of sittings
 
@@ -112,3 +136,4 @@ note and the link to the entry it opened.
 | Date | Machine (OS build · scaling) | Result | Entries opened |
 |---|---|---|---|
 | 2026-08-22 | Windows 11 · scaling n/a | Item 1 only — §4.15 frosting confirmed, blur present | none — §4.15 closed |
+| 2026-08-22 | Windows 11 · scaling n/a | Items 2–4 — theme control, details dialog (light), height cap, header alignment and `WlDangerSoft` all read as deliberate; INPUTS strip reads cramped past nine cells | one entry in `technical-debt.md` — variation 2B verdict + input/output matrix in the details dialog; **shipped the same day**, re-opened as item 5 (the new surfaces are owed their own look) |

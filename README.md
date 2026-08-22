@@ -107,7 +107,7 @@ WPF app fails before managed code runs, so there is no surface to show one from)
 
 ```powershell
 dotnet build WaveLinkBackup.slnx
-dotnet test  WaveLinkBackup.slnx        # 1,569 tests
+dotnet test  WaveLinkBackup.slnx        # 1,587 tests
 
 # CLI — framework-dependent single file; resolves the runtime from the machine at startup
 dotnet publish src/WaveLinkBackup.Cli -c Release                      # ~0.2 MB archive

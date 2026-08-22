@@ -140,6 +140,26 @@ public sealed class SnapshotRowViewModel : ObservableObject
     };
 
     /// <summary>
+    /// The INPUTS cell's verdict word (design variation 2b: "health as a verdict"). A whole
+    /// Wave Link rig has five inputs; fewer means the configuration collapsed at some point, and
+    /// that is what the row should say before any name is read. Computed from <c>InputCount</c>,
+    /// which the manifest already carries - no schema change.
+    /// </summary>
+    public string InputsVerdict => manifest.InputCount >= 5 ? "Complete" : "Only part of your setup";
+
+    /// <summary>
+    /// The mono sub-line under the verdict word: the input count and whether every one is named.
+    /// A collapsed rig's inputs are Wave Link's generic fallbacks, so a short rig reads UNNAMED -
+    /// the design's own sample data pairs "2 INPUTS" with "UNNAMED".
+    /// </summary>
+    public string InputsDetail => manifest.InputCount >= 5
+        ? $"{manifest.InputCount} INPUTS · ALL NAMED"
+        : $"{manifest.InputCount} INPUTS · UNNAMED";
+
+    /// <summary>True when the verdict reads amber (a collapsed rig) rather than green.</summary>
+    public bool InputsArePartial => manifest.InputCount < 5;
+
+    /// <summary>
     /// Rename and Restore are off for a damaged row; DELETE STAYS ON, because deleting it is
     /// the only useful thing left to do with it (02).
     ///

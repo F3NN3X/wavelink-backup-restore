@@ -1,7 +1,7 @@
 <Window x:Class="WaveLinkBackup.App.Views.SnapshotDetailsDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
+         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+         xmlns:views="clr-namespace:WaveLinkBackup.App.Views"
         Title="What's in this backup"
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
         AllowsTransparency="True"
@@ -29,6 +29,37 @@
         <views:StringNotNullToVisibilityConverter x:Key="LineVisible" />
         <views:BoolToVisibilityConverter x:Key="WhenTrue" />
         <views:InverseBoolToVisibilityConverter x:Key="WhenFalse" />
+
+        <!-- The board's one cell: a filled dot where the channel feeds the mix, an empty ring
+             where it does not. Shape-first (screens/11) - high contrast keeps both shapes and the
+             fill is WlOk, never the only signal because the row and column names sit beside it.
+             Keyed rather than inline: an inline DataTemplate with DataType=bool would match its own
+             bool item and re-enter itself forever (the OOM in XamlObjectWriter). -->
+        <DataTemplate x:Key="WlMatrixCell">
+            <Grid Width="26" Height="20">
+                <Ellipse Stroke="{DynamicResource WlLine2}" StrokeThickness="1" Opacity="0.55" />
+                <Ellipse Fill="{DynamicResource WlOk}" Visibility="Collapsed">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+            </Grid>
+        </DataTemplate>
+
+        <!-- A mix's header cell: the name, mono and tracked like every other machine line here. -->
+        <DataTemplate x:Key="WlMatrixMixHeader">
+            <views:TrackedText Text="{Binding}" Tracking=".08" FontSize="10"
+                               Style="{StaticResource WlSlotLabelTrackedText}"
+                               Foreground="{DynamicResource WlMuted}"
+                               HorizontalAlignment="Center" VerticalAlignment="Bottom" />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>
@@ -233,11 +264,93 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
+                            <!-- ============ WHERE EACH INPUT IS HEARD ============ -->
+                            <!--
+                              The board: channels down the left, mixes across the top, a dot where
+                              an input feeds a mix. This is Wave Link's own mixer view drawn as a
+                              grid - the reference the user pointed at - and it is what variation 2b
+                              trades for the row's verdict: the names leave the list and land here.
+
+                              Two ItemsControls, one per axis, with the cells bound by INDEX into
+                              each channel's MixMembership (same count and order as MixNames, which
+                              the model guarantees). WPF has no nested-ItemsControl cell control, so
+                              this is the honest way to lay a grid: rows are real items, columns are
+                              generated per row. A channel in no mix shows all-empty cells - the
+                              amber routing line above it already says what that means.
+                            -->
+                            <views:TrackedText Text="WHERE EACH INPUT IS HEARD" Tracking=".18"
+                                                Style="{StaticResource WlColumnHeaderTrackedText}"
+                                                Foreground="{DynamicResource WlMuted}" Margin="0,20,0,10"
+                                                AutomationProperties.Name="Routing matrix section" />
+
+                            <Border Background="{DynamicResource WlBg}"
+                                    BorderBrush="{DynamicResource WlLine}" BorderThickness="1"
+                                    CornerRadius="8" Padding="16,13">
+                                <StackPanel>
+                                    <!-- Header: a blank corner cell under the channel column, then one
+                                         mix name per column. -->
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding MixNames}" Focusable="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Rows="1" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                             <ItemsControl.ItemTemplate>
+                                                 <DataTemplate>
+                                                     <ContentControl Content="{Binding}"
+                                                                     ContentTemplate="{StaticResource WlMatrixMixHeader}" />
+                                                 </DataTemplate>
+                                             </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+
+                                    <!-- One row per channel: the name, then its membership cells. -->
+                                    <ItemsControl ItemsSource="{Binding Channels}" Focusable="False">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="150" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                                               Style="{StaticResource WlSecondaryText}"
+                                                               Foreground="{DynamicResource WlStrong}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               VerticalAlignment="Center" />
+
+                                                    <ItemsControl Grid.Column="1" ItemsSource="{Binding MixMembership}" Focusable="False">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <UniformGrid Rows="1" />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                         <ItemsControl.ItemTemplate>
+                                                             <DataTemplate>
+                                                                 <ContentControl Content="{Binding}"
+                                                                                 ContentTemplate="{StaticResource WlMatrixCell}" />
+                                                             </DataTemplate>
+                                                         </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
                             <!-- ============ MIXES AND OUTPUTS ============ -->
                             <views:TrackedText Text="MIXES AND OUTPUTS" Tracking=".18"
-                                               Style="{StaticResource WlColumnHeaderTrackedText}"
-                                               Foreground="{DynamicResource WlMuted}" Margin="0,14,0,10"
-                                               AutomationProperties.Name="Mixes and outputs section" />
+                                                Style="{StaticResource WlColumnHeaderTrackedText}"
+                                                Foreground="{DynamicResource WlMuted}" Margin="0,14,0,10"
+                                                AutomationProperties.Name="Mixes and outputs section" />
 
                             <Border Background="{DynamicResource WlBg}"
                                     BorderBrush="{DynamicResource WlLine}" BorderThickness="1"

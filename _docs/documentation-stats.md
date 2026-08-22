@@ -33,7 +33,7 @@ Update this file **in the same commit** as the document it counts. See
 | Sessions | 25 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,574 passing** — Core 494 · CLI 100 · App 980 |
+| **Tests** | **1,587 passing** — Core 494 · CLI 100 · App 993 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,35 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### The debt list's last two code items closed: a crash report that names its machine, and the INPUTS verdict (2026-08-22)
+
+**§8.1a and §8.6 of [technical-debt.md](technical-debt.md) close in one commit**, with Tier 2's
+original four looks ticked against [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md)
+and a fifth look opened for the surfaces this same commit shipped.
+
+- **§8.1a — what an unexpected fault can still say.** The design answer: no thirteenth error in XAML
+  (that is what [[ADR-004]] exists to prevent). The crash's *surface* is the redacted report itself,
+  plus a pointer to it from the one place the app can still speak after an unexpected fault — the
+  restore-failure strip. `CrashReportWriter` now carries an environment block (app version, OS,
+  culture, runtime) and passes the stack through Core's `Redaction.Text` before writing, so a report
+  that lands in a bug report has already had its serials and username stripped; redaction failing
+  marks the text as unredacted rather than dropping the report. The pointer is a pure helper —
+  `AppErrorMapper.CrashReportPointer` — which appends the path only for failures no designed error
+  surface owns, so a known failure never gets a second explanation. Copy-to-clipboard and
+  post-crash behaviour stay out of scope by the same rule.
+- **§8.6 — the INPUTS strip reads cramped past five cells.** The design answer was already in the
+  package (variation 2B); this is the commit it scoped. The row's INPUTS cell becomes a verdict —
+  one glyph, one word, a mono count line (`5 INPUTS · ALL NAMED`) — and the details dialog gains the
+  "WHERE EACH INPUT IS HEARD" matrix: one column per mix, one row per channel, a dot where that
+  channel feeds that mix. `ChannelRow` carries `MixMembership` (one bool per mix, paired with the
+  headers by position); the routing line stays as the sentence, the board is the picture. No manifest
+  change: both halves read data the view models already carried.
+
+**Counts moved:** tests 1,574 → 1,587 (App 980 → 993 — five `CrashReportWriterTests` grown from
+exception-only to environment-and-redaction, plus five new `CrashReportPointer` cases in
+`ErrorCatalogTests`). No new ADR, gotcha or pattern; the checklist's item 5 is the record of what
+is still owed a human.
 
 ### §4.15 closed: the dialog frosting renders, verified by eye (2026-08-22)
 
