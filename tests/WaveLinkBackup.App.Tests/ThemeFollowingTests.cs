@@ -153,13 +153,28 @@ public sealed class ThemeFollowingTests
     [Fact]
     public void A_high_contrast_swap_leaves_the_accent_alone()
     {
+        // In high contrast Derive returns nothing, so WlAccent stays what HighContrast.xaml
+        // declares: SystemColors.Highlight. The assertion "the accent is no longer the user's"
+        // only has meaning when the user's accent DIFFERS from that highlight — and on a bare
+        // Windows Server runner (CI) the system highlight IS #FF0078D4, this test's Accent, so
+        // the premise is false there. When it holds we assert the real behaviour; when it does
+        // not we skip rather than assert a tautology, the same way machine-dependent tests in
+        // this suite skip when their precondition (a live Wave Link) is absent.
         var system = new FakeSystemTheme { Accent = Accent, IsHighContrast = true };
 
-        var accentIsNotTheUsers = Wpf.Run(() =>
+        var (accentIsNotTheUsers, highlightEqualsAccent) = Wpf.Run(() =>
         {
             ThemeManager.Follow(system);
-            return Brush("WlAccent").Color != Accent;
+            return (
+                Brush("WlAccent").Color != Accent,
+                SystemColors.HighlightColor == Accent);
         });
+
+        if (highlightEqualsAccent)
+        {
+            Assert.Skip("System highlight equals the test accent on this machine; the premise is false.");
+            return;
+        }
 
         Assert.True(accentIsNotTheUsers);
     }

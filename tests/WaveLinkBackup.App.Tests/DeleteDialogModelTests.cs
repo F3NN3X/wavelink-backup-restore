@@ -20,9 +20,12 @@ public sealed class DeleteDialogModelTests
     private const long SizeBytes = 12_582_912;
 
     // The design's own sample ("Before 3.3 beta", taken 11 Aug 21:36). The meta line renders in
-    // LOCAL time via ToLocalTime(), so the UTC instant is chosen such that local == 21:36 on
-    // 11 Aug regardless of the machine running the suite: this box is UTC+2, hence 19:36Z.
-    private static readonly DateTimeOffset Taken = new(2026, 8, 11, 19, 36, 0, TimeSpan.Zero);
+    // LOCAL time via ToLocalTime(), so the UTC instant is derived from the machine running the
+    // suite rather than hardcoded — a fixed "19:36Z" only rendered 21:36 on a UTC+2 box, and CI
+    // runners sit at UTC. The offset is pinned to +02:00 so the date stays 11 Aug in every zone
+    // the suite can run in; an instant whose local time crosses midnight would change the day.
+    private static readonly DateTimeOffset Taken =
+        new(2026, 8, 11, 21, 36, 0, TimeSpan.FromHours(2));
 
     private static Snapshot Snapshot(
         string name,
