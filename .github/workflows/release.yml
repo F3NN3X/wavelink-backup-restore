@@ -122,9 +122,35 @@ jobs:
           $tick = [char]96
           $tripleTick = "$tick$tick$tick"
           $fence = "$tripleTick powershell"
+
+          # The version's notes, pulled from CHANGELOG.md so the release page says what changed
+          # rather than only where to download. The section runs from "## [v] - date" to the next
+          # blank-line-then-"---" separator (or EOF). Keep a Changelog headings and links; drop
+          # the "## [v]" line itself (the page already carries the version) and the leading
+          # summary paragraph's trailing blank. If the file or section is missing, fall back to a
+          # single honest line rather than an empty heading - a release that names its version but
+          # says nothing about it is worse than one that points at the changelog.
+          $notes = @()
+          if (Test-Path CHANGELOG.md) {
+            $text = Get-Content CHANGELOG.md -Raw
+            $pattern = "(?ms)^## \[$v\][^\r\n]*\r?\n(.*?)(?=^---\s*$|\Z)"
+            $match = [regex]::Match($text, $pattern)
+            if ($match.Success) {
+              $body = $match.Groups[1].Value
+              # Trim the trailing separator and surrounding blank lines.
+              $body = $body -replace "(?ms)\s*---\s*$", ""
+              $body = $body.Trim()
+              if (-not [string]::IsNullOrWhiteSpace($body)) { $notes = @("## What's new", "", $body, "") }
+            }
+          }
+          if ($notes.Count -eq 0) {
+            $notes = @("## What's new", "", "See the [changelog](CHANGELOG.md) for this version.", "")
+          }
+
           $lines = @(
             "Wave Link Backup v$v for Windows x64.",
-            "",
+            ""
+          ) + $notes + @(
             "## Downloads",
             "",
             "| File | SHA-256 |",

@@ -20,12 +20,12 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of v0.7.2 (2026-08-22).*
+*As of v0.7.3 (2026-08-23).*
 
 | Artifact | Count |
 |---|---|
 | ADRs | 15 |
-| Gotchas | 27 |
+| Gotchas | 28 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
@@ -33,7 +33,7 @@ Update this file **in the same commit** as the document it counts. See
 | Sessions | 25 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,569 passing** — Core 494 · CLI 100 · App 975 |
+| **Tests** | **1,587 passing** — Core 494 · CLI 100 · App 993 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -57,6 +57,112 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### v0.7.3 — the startup crash is fixed, and releases carry their notes (2026-08-23)
+
+**The version that ships the fix above.** The crash recorded in
+[the-app-dies-before-the-window-with-a-culture-error.md](knowledge-base/gotchas/the-app-dies-before-the-window-with-a-culture-error.md)
+is resolved — `InvariantGlobalization` is gone from the app's csproj, replaced by
+`SatelliteResourceLanguages=en` — and the release pipeline now leads the GitHub release page with a
+*What's new* section pulled from [CHANGELOG.md](../../CHANGELOG.md) for the tagged version, so a
+release says what changed rather than only where to download. The updater is untouched: it still
+reads only the `*app-win-x64.zip` asset and its `.sha256`, never the body.
+
+**Counts moved:** none. No new ADR, pattern or gotcha beyond the one this version fixes; the test
+tally is unchanged at 1,587 (the fix is a build-config change with no new surface to assert
+against — a crash that fires before the window exists has nothing in the suite to hold it down, and
+the crash report in `%LOCALAPPDATA%\WaveLinkBackup\crash-report.txt` is what makes a future
+recurrence legible).
+
+### The startup crash that named its own cause: invariant globalization was not how you trim satellites (2026-08-23)
+
+**A new gotcha, [the-app-dies-before-the-window-with-a-culture-error.md](knowledge-base/gotchas/the-app-dies-before-the-window-with-a-culture-error.md),** records a crash that
+reproduced twice on the dev machine and whose event-log entry pointed at WPF's font cache as if
+it were a font problem. It was not. `<InvariantGlobalization>true</InvariantGlobalization>` in
+`WaveLinkBackup.App.csproj` — added to shed WPF's 13 culture satellite assemblies (~9 MB) from an
+English-only UI — puts the *entire process* in invariant mode, where `CultureInfo("en")` throws.
+WPF's font cache constructs that culture in a static constructor on the first `TextBlock` measure,
+which is the first thing `Window.Show()` does: the app dies inside layout, before any of our code
+after `ShowMainWindow()` runs.
+
+The fix swaps the process-wide switch for the targeted one — `<SatelliteResourceLanguages>en</SatelliteResourceLanguages>`
+trims the *resources* while leaving full globalization (and therefore working text rendering)
+intact. Same apparent goal, one of them breaks the app. Verified end-to-end: republished exe runs
+clean, no `CultureNotFoundException` in the event log, full suite green at 1,587.
+
+**Counts moved:** gotchas 27 → 28. No test change — the guard is the absence of the flag, and a
+crash that fires before the window exists has nothing in the suite to assert against; the crash
+report in `%LOCALAPPDATA%\WaveLinkBackup\crash-report.txt` (the §8.1/§8.1a mechanism this entry
+leans on) is what makes a future recurrence legible instead of a mystery.
+
+### The debt list's last two code items closed: a crash report that names its machine, and the INPUTS verdict (2026-08-22)
+
+**§8.1a and §8.6 of [technical-debt.md](technical-debt.md) close in one commit**, with Tier 2's
+original four looks ticked against [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md)
+and a fifth look opened for the surfaces this same commit shipped.
+
+- **§8.1a — what an unexpected fault can still say.** The design answer: no thirteenth error in XAML
+  (that is what [[ADR-004]] exists to prevent). The crash's *surface* is the redacted report itself,
+  plus a pointer to it from the one place the app can still speak after an unexpected fault — the
+  restore-failure strip. `CrashReportWriter` now carries an environment block (app version, OS,
+  culture, runtime) and passes the stack through Core's `Redaction.Text` before writing, so a report
+  that lands in a bug report has already had its serials and username stripped; redaction failing
+  marks the text as unredacted rather than dropping the report. The pointer is a pure helper —
+  `AppErrorMapper.CrashReportPointer` — which appends the path only for failures no designed error
+  surface owns, so a known failure never gets a second explanation. Copy-to-clipboard and
+  post-crash behaviour stay out of scope by the same rule.
+- **§8.6 — the INPUTS strip reads cramped past five cells.** The design answer was already in the
+  package (variation 2B); this is the commit it scoped. The row's INPUTS cell becomes a verdict —
+  one glyph, one word, a mono count line (`5 INPUTS · ALL NAMED`) — and the details dialog gains the
+  "WHERE EACH INPUT IS HEARD" matrix: one column per mix, one row per channel, a dot where that
+  channel feeds that mix. `ChannelRow` carries `MixMembership` (one bool per mix, paired with the
+  headers by position); the routing line stays as the sentence, the board is the picture. No manifest
+  change: both halves read data the view models already carried.
+
+**Counts moved:** tests 1,574 → 1,587 (App 980 → 993 — five `CrashReportWriterTests` grown from
+exception-only to environment-and-redaction, plus five new `CrashReportPointer` cases in
+`ErrorCatalogTests`). No new ADR, gotcha or pattern; the checklist's item 5 is the record of what
+is still owed a human.
+
+### §4.15 closed: the dialog frosting renders, verified by eye (2026-08-22)
+
+**The last open item in [technical-debt.md](technical-debt.md)'s §4 is closed.** §4.15 — 0.5.1's
+dialog frosting had never been seen, and nothing in the suite can assert that a blur rendered — was
+the one look only a human could do. Opening a dialog shows the window behind it blurred, not merely
+dimmed by `WlScrim`, so the `SetWindowCompositionAttribute` call is doing its job on this build:
+the frost stays and the item closes. Ticked on [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md)
+with a record-of-sitting line; §4 now reads **ALL CLOSED** and the open list drops from six to five.
+
+**Counts moved:** none — no code, no ADR, no new document (the checklist already exists). This is a
+closure by observation, which is exactly what Tier 2 of the closing order is for.
+
+### Tier 1 of the debt list closed: a crash now leaves a report, and the by-eye checklist exists (2026-08-22)
+
+**The commit-tier of [technical-debt.md](technical-debt.md)'s closing order is done.** Two items
+closed in code and one as a watch:
+
+- **§8.1 (cheap half)** — `App` now installs a `DispatcherUnhandledException` handler and an
+  `AppDomain.UnhandledException` backstop, both writing through one `CrashReportWriter` that appends
+  the exception's full `ToString()` to `crash-report.txt` beside `shell.json` in
+  `%LOCALAPPDATA%\WaveLinkBackup`, on the way down. The writer never throws — a crash handler that
+  threw on a crash path would put us back at the original incident. Guarded by five tests in
+  `CrashReportWriterTests`. The expensive half (the thirteenth error surface in XAML) re-opened as
+  §8.1a, because it is a design question, not a diff — and the file write unblocks that pass by
+  giving it real exception shapes to look at instead of guesses.
+- **§8.3** — closed as a *watch*, not a fix. There was never code to write; the debt was the risk of
+  an unmeasured font fallback in `InputSlots.CharacterWidth`, and the guard test already held both
+  directions. The rule that keeps it closed — nothing ships a change to the mono face, the 9.5px
+  label size or the .06em tracking without re-running the measurement in the same commit — now lives
+  in [[ADR-014]]'s Consequences as an explicit **Watch rule**, where the decision it guards lives.
+- **§8.2's enabler** — `operations/design/screen-1-by-eye-checklist.md` written. Every Tier 2 item
+  pointed at a file that was not in the repo; without it, each look is ad hoc and none of them leave
+  a record that they happened. It lists the four looks with a box, machine and date each, in the
+  order the sitting should go, plus a record-of-sittings table so the checklist's own history stays
+  in the repo.
+
+**Counts moved:** tests 1,569 → 1,574 (App 975 → 980, the five `CrashReportWriterTests`). No new ADR,
+gotcha or pattern — the checklist lives in the vendored `operations/design/` folder, which is exempt
+from the tally, and §8.3 owed a rule, not a document.
+
 ### The release shrank to 7.6 MB: framework-dependent, two artifacts (2026-08-22)
 
 **A shape decision that closed [technical-debt.md](technical-debt.md) §8.5 with a before/after,
@@ -70,9 +176,11 @@ artifact instead of riding inside the app's archive. Measured locally, exactly a
 | CLI archive | Inside the app's archive (`wlbackup.exe`, 70.4 MB of it) | `WaveLinkBackup-CLI-0.7.2-win-x64.zip` — **0.22 MB** (3 files, 0.48 MB raw) |
 | .NET runtime in the download | Twice (the app's loose copy + the CLI's bundled copy) | **Nowhere** — both resolve it from the machine's installed .NET 10 Desktop Runtime |
 
-Three changes together: `InvariantGlobalization=true` in the app's csproj (drops the 13 satellite
-locale folders); the CLI's `PublishSelfContained` flipped to `false`, keeping `PublishSingleFile`;
-and `release.yml` publishing two artifacts into separate directories. The updater's contract
+Three changes together: a satellite-locale trim in the app's csproj (originally
+`InvariantGlobalization=true`, replaced by `SatelliteResourceLanguages=en` in v0.7.3 — see
+[[the-app-dies-before-the-window-with-a-culture-error]]); the CLI's `PublishSelfContained` flipped
+to `false`, keeping `PublishSingleFile`; and `release.yml` publishing two artifacts into separate
+directories. The updater's contract
 widened with it — `UpdateSource.AssetSuffix` defaults to `app-win-x64.zip`, so a release carrying
 both assets resolves to the app, pinned by `A_release_with_both_app_and_cli_assets_picks_the_app`.
 

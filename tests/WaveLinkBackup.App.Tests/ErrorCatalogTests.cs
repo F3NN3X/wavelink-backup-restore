@@ -318,4 +318,67 @@ public sealed class ErrorCatalogTests
         Assert.Equal(ErrorWeight.Amber, AppErrorMapper.FromCoreSignal(signals[0].Signal)!.Weight);
         Assert.Equal(ErrorWeight.Amber, AppErrorMapper.FromCoreSignal(signals[3].Signal)!.Weight);
     }
+
+    // --- Crash-report pointer: the danger row points at the redacted report (§8.1a) ------------
+
+    [Fact]
+    public void A_crash_report_path_is_appended_to_a_failure_without_a_designed_code()
+    {
+        // The §8.1a surface: a failure with no designed inline-strip code (or none at all) points
+        // the danger row at the redacted report that was written on the way down.
+        var pointer = AppErrorMapper.CrashReportPointer(
+            "The restore failed.", null, @"C:\Users\tester\AppData\Local\WaveLinkBackup\crash-report.txt");
+
+        Assert.Equal(
+            "The restore failed.\nDetails in the crash report: C:\\Users\\tester\\AppData\\Local\\WaveLinkBackup\\crash-report.txt",
+            pointer);
+    }
+
+    [Fact]
+    public void A_missing_failure_message_gets_the_default_sentence_before_the_pointer()
+    {
+        var pointer = AppErrorMapper.CrashReportPointer(
+            null, null, @"C:\Users\tester\AppData\Local\WaveLinkBackup\crash-report.txt");
+
+        Assert.Equal(
+            "The restore failed.\nDetails in the crash report: C:\\Users\\tester\\AppData\\Local\\WaveLinkBackup\\crash-report.txt",
+            pointer);
+    }
+
+    [Fact]
+    public void A_designed_inline_strip_error_never_gets_a_crash_report_pointer()
+    {
+        // A designed error renders its own surface; the danger row never shows for it, so pointing
+        // at a crash report there would be noise. SnapshotCorrupted maps to 10 (InlineStrip).
+        var pointer = AppErrorMapper.CrashReportPointer(
+            "This backup is damaged and was not restored: checksum mismatch",
+            new SnapshotCorrupted(@"C:\backups\abc", "checksum mismatch"),
+            @"C:\Users\tester\AppData\Local\WaveLinkBackup\crash-report.txt");
+
+        Assert.Null(pointer);
+    }
+
+    [Fact]
+    public void A_dialog_placement_error_still_gets_the_pointer_when_it_reaches_the_danger_row()
+    {
+        // UnsupportedSnapshotSchema maps to 8 (Dialog), not InlineStrip. The window's inline-strip
+        // branch does not fire for it, so the danger row is what shows - and the pointer applies.
+        var pointer = AppErrorMapper.CrashReportPointer(
+            "This backup was made by a newer version of Wave Link Backup.",
+            new UnsupportedSnapshotSchema(Found: 2, Supported: 1),
+            @"C:\Users\tester\AppData\Local\WaveLinkBackup\crash-report.txt");
+
+        Assert.NotNull(pointer);
+        Assert.Contains("Details in the crash report:", pointer!);
+        Assert.StartsWith("This backup was made by a newer version", pointer!);
+    }
+
+    [Fact]
+    public void No_pointer_is_appended_when_no_crash_report_was_written_this_run()
+    {
+        // The common case: a designed failure (or a restore that never touched a crashing code
+        // path) leaves no report, and the row is unchanged.
+        Assert.Null(AppErrorMapper.CrashReportPointer("The restore failed.", null, null));
+        Assert.Null(AppErrorMapper.CrashReportPointer("The restore failed.", null, string.Empty));
+    }
 }

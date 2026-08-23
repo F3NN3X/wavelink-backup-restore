@@ -214,4 +214,26 @@ public static class AppErrorMapper
 
         return null;
     }
+
+    /// <summary>
+    /// The crash-report pointer for a failed restore (technical-debt.md §8.1a). 06-errors.md has no
+    /// "something unexpected happened" surface, so the evidence lives in the redacted report and the
+    /// one place the app can still speak after an unexpected fault — the danger row — points at it.
+    /// The pointer is appended only when BOTH hold: the failure carries no designed inline-strip code
+    /// (a designed error has its own surface, and a crash is not that error), and a report was written
+    /// this run. Null otherwise — the row stays exactly as it was before §8.1a.
+    /// </summary>
+    public static string? CrashReportPointer(string? failureMessage, CoreError? coreError, string? crashReportPath)
+    {
+        if (string.IsNullOrEmpty(crashReportPath))
+            return null;
+
+        // A designed inline-strip error renders its own surface; the danger row never shows for it.
+        var appError = coreError is { } error ? FromCoreSignal(new CoreSignal(error)) : null;
+        if (appError is not null && appError.Placement == ErrorPlacement.InlineStrip)
+            return null;
+
+        var failure = string.IsNullOrEmpty(failureMessage) ? "The restore failed." : failureMessage!;
+        return failure + "\nDetails in the crash report: " + crashReportPath;
+    }
 }

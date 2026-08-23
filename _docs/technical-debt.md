@@ -21,22 +21,42 @@ will look obvious in hindsight.
 `Core`, `Cli` and a WPF shell, and a debt-clearing pass closed everything in §1, §4, §5, §6 and §7
 that a commit can close.
 
-**What is left — five things, and only one of them is a commit somebody has not written:**
+**What is left — three things, and none of them is a commit somebody has not written:**
 
 | | Why it cannot be closed here |
 |---|---|
-| **§4.15** — 0.5.1's dialog frosting has never been seen | Nothing in the suite can assert that a blur rendered. It needs somebody to look at it, alongside the rest of [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md). |
-| **§2.2** — whether non-MSIX Wave Link installs exist | A fact about the world, not about this code. The *mitigation* is complete — an explicit settings path bypasses discovery, and error 1's first-run variant now offers one (§4.10) — so a non-MSIX user has a route in whether or not such installs turn out to exist. |
-| **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link, written up in the entry. Not a defect — an unanswered question, and §7.5 already removed the prompt in the common case, so the answer may well be "leave it". |
+| **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link, written up in the entry. Not a defect — an unanswered question, and §7.5 already removed the prompt in the common case, so the answer may well be "leave it". **Status 2026-08-22: the user will run the experiment on the reference rig; it stays open until that run.** |
 | **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run this when endpoint inspection lands; the AOT publish itself already works. |
-| **§8.1** — an unhandled exception still ends the process silently | Needs a design answer before code: `06-errors.md` specifies twelve errors and none of them is "something unexpected happened", and inventing a thirteenth surface in XAML is what [[ADR-004]] exists to prevent. |
-| **§8.2** — three surfaces built past the design package have never been looked at | Same shape as §4.15. Nothing in the suite can assert that a layout looks right; they belong on the by-eye checklist. |
+| **§8.2** — the by-eye sittings owed by the §8.6 verdict and matrix | The 2026-08-22 sitting checked the *old* surfaces (the five-slot strip, the pre-matrix dialog) and closed what it saw; the verdict that replaced the strip and the matrix that joined the dialog have not been looked at on a machine yet. Same shape as §4.15: nothing in the suite can assert that a layout looks right. |
 
-§8.4 closed on 2026-08-22 with the scroll fix: the outer `ListScrollViewer` is gone and `GroupsHost`
-owns its scrolling, which is what makes the panel virtualise at all. Its by-eye pass still rides on
-§8.2's checklist — the header-to-row alignment is the surface that changed. §8.5 closed the same
-day, when the app published framework-dependent in v0.7.2 and the runtime stopped shipping at all —
-the 101 MB download became a 7.6 MB one with a documented prerequisite. Both closures are dated
+§4.15 closed the same day, by a human with eyes: the dialog frosting renders — the window
+behind a dialog blurs, it is not only the `WlScrim` dim. That was the one look the suite could
+not assert, and it is now ticked on [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md).
+
+§2.2 closed the same day, by a fact from the world: the user checked a live install and it is an
+MSIX package — exactly the shape discovery was written for. The unverified corner (an older or
+managed-deployment build that is not) is now costless rather than open, because the mitigation
+above means a non-MSIX user has a route in either way. It leaves Tier 3 with two items.
+
+§8.1 closed its cheap half on 2026-08-22: `App` now writes an unhandled exception to
+`crash-report.txt` beside `shell.json` on the way down, so a crash names the line instead of leaving
+only an event-log entry. Its expensive half — the thirteenth error surface in XAML — is re-opened as
+§8.1a, because that is a design question, not a diff. §8.1a then closed the same day with the design
+answer: the crash's *surface* is the redacted report itself plus a pointer to it from the one place
+the app can still speak after an unexpected fault — the restore-failure strip. No thirteenth error in
+XAML, which is what [[ADR-004]] exists to prevent; see §8.1a's entry for the reasoning and what the
+report now carries (environment block, redacted stack). §8.6 closed the same day with the commit its
+entry had already scoped: the INPUTS cell reads a verdict — one glyph, one word, a mono count line —
+and the details dialog gained the input/output matrix that carries the names the strip no longer
+prints; both halves read data the view models already carried, so no manifest change. Its by-eye
+pass rides on §8.2's checklist as a re-run against the new surfaces. §8.3 closed the same day as a
+*watch*, not a
+fix: the label-budget risk was never code to write, and the rule that keeps it closed (re-measure on
+any change to the mono face, size or tracking) now lives in [[ADR-014]]'s Consequences. §8.4 closed
+with the scroll fix — the outer `ListScrollViewer` is gone and `GroupsHost` owns its scrolling, which
+is what makes the panel virtualise at all; its by-eye pass still rides on §8.2's checklist. §8.5
+closed when the app published framework-dependent in v0.7.2 and the runtime stopped shipping at all —
+the 101 MB download became a 7.6 MB one with a documented prerequisite. All closures are dated
 entries below, kept for the reasoning that led to them.
 
 §3 is untouched on purpose: those are choices made with eyes open, not debt.
@@ -50,12 +70,13 @@ done: a commit, a human with eyes, or a fact that has to come from outside this 
 **Tier 1 — closeable by a commit, no human in the loop.** Nothing here needs an eye or an
 experiment; each is a code change with a test that can prove it. Do these whenever there is a
 moment of boring work, because they are the only items on this list whose closure is verifiable
-in CI.
+in CI. **All three closed 2026-08-22.**
 
-| Item | What closing looks like | Why it is Tier 1 |
+| Item | What closing looked like | Status |
 |---|---|---|
-| **§8.1** — an unhandled exception ends the process silently | The cheap half first, in a commit: write the exception to a file beside `shell.json` on the way down. That needs no design and turns "it crashed" into a report that names the line. The expensive half (the thirteenth error surface) stays open until [[ADR-004]]'s design question is answered — but the file write unblocks it, because the design pass can then look at real exception shapes instead of guessing them | A `try`/`catch` around the dispatcher loop and a one-line file write. The guard is a test that throws an unhandled exception in a fixture and asserts the file exists with the type name in it. No pixels, no world facts |
-| **§8.3** — the strip's label budget is arithmetic over a measured constant | Not a fix, a *watch*. `CharacterWidth` is rounded up rather than exact, and the guard test already holds both directions (the budget fits, one more character does not). Closing it means nothing ships that changes the mono face, the 9.5px size or the .06em tracking without re-measuring — which is a review rule, not a task. If the bundled font is ever replaced, re-run the measurement in the same commit | There is no code to write today; the debt is the *risk* of an unmeasured font fallback. Tier 1 because the action is a one-line note in the PR that touches the font, and the guard test already exists to catch the miss |
+| **§8.1** — an unhandled exception ends the process silently | The cheap half, in a commit: write the exception to a file beside `shell.json` on the way down. That needed no design and turned "it crashed" into a report that names the line. The expensive half (the thirteenth error surface) re-opened as §8.1a — but the file write unblocked it, because the design pass can now look at real exception shapes instead of guessing them | **CLOSED 2026-08-22** — `CrashReportWriter` + two handlers in `App`, guarded by five tests in `CrashReportWriterTests` |
+| **§8.3** — the strip's label budget is arithmetic over a measured constant | Not a fix, a *watch*. `CharacterWidth` is rounded up rather than exact, and the guard test already held both directions (the budget fits, one more character does not). Closing it meant recording that nothing ships a change to the mono face, the 9.5px size or the .06em tracking without re-measuring — a review rule, now in [[ADR-014]]'s Consequences | **CLOSED 2026-08-22** — watch rule recorded in ADR-014; no code owed |
+| **§8.2's enabler** — the by-eye checklist did not exist | Every Tier 2 item pointed at a file that was not in the repo. Writing it is a commit, no human needed, and it is the *enabler* for the whole tier: without it, each look is ad hoc and none of them leave a record that they happened | **CLOSED 2026-08-22** — `operations/design/screen-1-by-eye-checklist.md` written; the Tier 2 sitting can now happen against it |
 
 **Tier 2 — closeable by a human with eyes, no code change.** These are all the same shape:
 something rendered that nothing in the suite can assert looks right. The fix is *looking*, and
@@ -66,37 +87,40 @@ sitting multiplies the cost of getting to that state.
 
 | Order | Item | What closing looks like | Why this order |
 |---|---|---|---|
-| 1 | **§4.15** — 0.5.1's dialog frosting has never been seen | Open any dialog (delete, restore, settings) and look at the window *behind* it: is there a blur, or just the `WlScrim` dim? If it is only the dim, the frost is silently doing nothing on this build and the call can be deleted in a follow-up commit — which drops this item to Tier 1. If the blur is there, tick it and move on | It is the oldest open visual item (2026-08-19) and the cheapest look: one dialog, one glance. Doing it first also answers whether the rest of 0.5.1's visual work needs the same suspicion, which frames items 2–4 |
-| 2 | **§8.2** — three surfaces built past the design package have never been looked at | The checklist this entry names: the four-segment theme control at 100% and 150% scaling; the INPUTS strip at nine and twelve cells (four-character and three-character labels); the details dialog in light and in a real high-contrast scheme; and that dialog's height on a rig with several long effect chains, where it hits its 720px cap and scrolls. Tick each, note any that read wrong | It is the largest batch of unchecked pixels and the one most likely to contain an actual defect (a layout that reads wrong), so it gets the middle of the sitting — after §4.15 has calibrated what "looks deliberate" means on this machine, before the two items below that are about *behaviour* rather than *appearance* |
+| 1 | **§4.15** — 0.5.1's dialog frosting has never been seen | Open any dialog (delete, restore, settings) and look at the window *behind* it: is there a blur, or just the `WlScrim` dim? If it is only the dim, the frost is silently doing nothing on this build and the call can be deleted in a follow-up commit — which drops this item to Tier 1. If the blur is there, tick it and move on | It is the oldest open visual item (2026-08-19) and the cheapest look: one dialog, one glance. Doing it first also answers whether the rest of 0.5.1's visual work needs the same suspicion, which frames items 2–4 — **CLOSED 2026-08-22**: the blur is there |
+| 2 | **§8.2** — three surfaces built past the design package have never been looked at | The checklist this entry names: the four-segment theme control at 100% and 150% scaling; the INPUTS strip at nine and twelve cells (four-character and three-character labels); the details dialog in light and in a real high-contrast scheme; and that dialog's height on a rig with several long effect chains, where it hits its 720px cap and scrolls. Tick each, note any that read wrong | It is the largest batch of unchecked pixels and the one most likely to contain an actual defect (a layout that reads wrong), so it gets the middle of the sitting — after §4.15 has calibrated what "looks deliberate" means on this machine, before the two items below that are about *behaviour* rather than *appearance* — **CLOSED 2026-08-22**: all four looks ticked; the one finding (the strip's legibility) shipped as §8.6 and re-opened item 5 for the new surfaces |
 | 3 | **§8.2's §8.4 tail** — the header-to-row alignment after the scroll fix | The list's column header and the rows beneath it: do they line up with the inner ScrollViewer owning the scroll, now that the outer `ListScrollViewer` is gone? This was audited as §1.1 of the design conformance pass, so a miss here is a regression against a known-good state, not an unknown | It is one surface and one glance, but it must be done *after* the list has been scrolled (the alignment is what changed with scrolling), so it rides on item 2's sitting rather than preceding it |
-| 4 | **§4.9's high-contrast tail** — the `WlDangerSoft` failed state in a real high-contrast theme | Switch to a real high-contrast scheme (not the simulated one), trigger a failed restore, and read the strip: does the transparent fill still read as *failed*, or has it become an empty gap? If it reads as a gap, that is a design amendment for `11-high-contrast.md`, not a code fix | It is the smallest look on this list and the one most likely to be fine (the rule was applied deliberately), so it goes last — but it is in the sitting because it needs the same high-contrast switch as item 2 and costs nothing to fold in |
+| 4 | **§4.9's high-contrast tail** — the `WlDangerSoft` failed state in a real high-contrast theme | Switch to a real high-contrast scheme (not the simulated one), trigger a failed restore, and read the strip: does the transparent fill still read as *failed*, or has it become an empty gap? If it reads as a gap, that is a design amendment for `11-high-contrast.md`, not a code fix | It is the smallest look on this list and the one most likely to be fine (the rule was applied deliberately), so it goes last — but it is in the sitting because it needs the same high-contrast switch as item 2 and costs nothing to fold in — **CLOSED 2026-08-22**: reads as failed, not a gap |
+| 5 | **§8.6's new surfaces** — the INPUTS verdict and the details dialog's matrix | The verdict on a five-input row (check-circle, "Complete", `5 INPUTS · ALL NAMED`) and on a collapsed rig (triangle, "Only part of your setup", warn sub-line); the same cell at nine-plus channels, where the old strip read cramped; the matrix in light and real high-contrast — a dot exactly where each channel's routing line says it feeds | It is item 2 re-run against surfaces that did not exist when item 2 was ticked: §8.6 shipped the same day as the sitting, so its pixels are owed their own look before §8.2 can close for good |
 
-**The checklist they all ride on does not exist yet.** Every Tier 2 item points at
+**The checklist they all ride on now exists.** Every Tier 2 item points at
 [operations/design/screen-1-by-eye-checklist.md](operations/design/screen-1-by-eye-checklist.md),
-and that file is not in the repo. Writing it is a Tier 1 task (a commit, no human needed) and it
-is the *enabler* for the whole tier: without it, each look is ad hoc and none of them leave a
-record that they happened. The checklist should list every item above with a box, the machine it
-was checked on, and the date — so that "needs a human" becomes "checked on this rig, 2026-08-XX"
-rather than a permanent state. **Do this before the sitting, not after.**
+which was written as a Tier 1 task (a commit, no human needed) and is the *enabler* for the whole
+tier: without it, each look is ad hoc and none of them leave a record that they happened. It lists
+every item above with a box, the machine it was checked on, and the date — so that "needs a human"
+becomes "checked on this rig, 2026-08-XX" rather than a permanent state. **Do the sitting against
+it, and tick as you go.**
 
 **Tier 3 — closeable only by a fact from outside this repo.** No commit and no amount of looking
 at this codebase closes these; each waits on something that has to be observed in the world. They
 are listed last not because they are least important but because *nothing can be done about them
 until the external fact arrives*, so the only action available is to keep the cost of the answer
-being wrong at zero — which, for all three, is already done.
+being wrong at zero — which, for both, is already done. (A third item, §2.2, left this tier on
+2026-08-22: the user checked a live install and it is MSIX, so the fact the entry waited on
+arrived.)
 
 | Item | The external fact it waits on | What to do in the meantime | Why the wait is acceptable |
 |---|---|---|---|
-| **§2.2** — whether non-MSIX Wave Link installs exist | A fact about Elgato's distribution: does the release-channel installer, or anything for managed deployment, ever install as conventional Win32? The check is one download and one look at what it puts on disk | Nothing. The mitigation is complete — an explicit settings path bypasses discovery entirely (§4.10 drew the button) — so a non-MSIX user has a route in whether or not such installs exist | The cost of the answer being "yes" is now zero, which is the useful half. The entry stays open only because *nobody has checked*, and that is a fact about the world, not about this code |
-| **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link: copy one on-channel plug-in to the user-level VST3 folder, rename the shared copy, restart, and see whether the channel still loads and whether `FilePath` was rewritten. The full protocol is in [audits/2026-08-20-plugin-resolution-and-elevation.md](audits/2026-08-20-plugin-resolution-and-elevation.md) | Take a backup first (the experiment is reversible but not free), then run it on the reference rig. The answer also settles whether tier 2's drift check could key on `PluginId` rather than path, which is a second debt this one entry closes | §7.5 already removed the prompt in the common case, so the *recommendation* pending the answer is "probably do not build the fallback". The experiment is worth having regardless, but it is an hour of careful work on a live install, not a task to slot into a quiet afternoon |
+| **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link: copy one on-channel plug-in to the user-level VST3 folder, rename the shared copy, restart, and see whether the channel still loads and whether `FilePath` was rewritten. The full protocol is in [audits/2026-08-20-plugin-resolution-and-elevation.md](audits/2026-08-20-plugin-resolution-and-elevation.md) | **The user will run it on the reference rig (status 2026-08-22).** Take a backup first (the experiment is reversible but not free). The answer also settles whether tier 2's drift check could key on `PluginId` rather than path, which is a second debt this one entry closes | §7.5 already removed the prompt in the common case, so the *recommendation* pending the answer is "probably do not build the fallback". The experiment is worth having regardless, but it is an hour of careful work on a live install, not a task to slot into a quiet afternoon |
 | **§2.4** — whether `[ComImport]` interop survives NativeAOT | A fact about a piece of code that does not exist yet: `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run when endpoint inspection lands | Nothing. The AOT publish itself already works (3.2 MB binary, zero trim warnings), so the NativeAOT option stays open at no cost until the inspector arrives | This is a *re-open* trigger, not an open task: the entry says so, and the action is "when X lands, do Y". It is Tier 3 because X is outside this repo's current scope (post-1.0), and pretending it is ready to close would be flattery |
 
 **What this ordering means in practice.** Tier 1 has two items and both are small: the §8.1 file
 write is a morning, and the §8.3 watch is a review rule rather than a task. Tier 2 is one sitting
 of maybe an hour on a machine with a real Wave Link install, and it produces the checklist that
 makes "needs a human" a finite state. Tier 3 has no action until the world supplies a fact; the
-right move for all three is to leave them exactly where they are, with their mitigations in place,
-and not let them drift into looking like work that is being avoided.
+right move for both remaining items is to leave them exactly where they are, with their mitigations
+in place, and not let them drift into looking like work that is being avoided. (§2.2 left this tier
+on 2026-08-22 — the live install checked out as MSIX — so it no longer counts here.)
 
 The original status note follows.
 
@@ -260,7 +284,14 @@ closed twice over: **nothing in the codebase calls `JsonNode.Parse` at all** —
 `JsonDocument.Parse` — and every one of those call sites catches `ArgumentException` beside
 `JsonException` and translates it. Confirmed 2026-08-19.
 
-### 2.2 Whether non-MSIX Wave Link installs exist
+### 2.2 ~~Whether non-MSIX Wave Link installs exist~~ — **CLOSED 2026-08-22 (checked by the user)**
+
+> **The check this entry asked for was done on a live install: it is an MSIX package.** The
+> release-channel installer lays down `Elgato.WaveLink_*` as a packaged app, which is exactly the
+> shape discovery was written for. Whether some older or enterprise build ever shipped as a
+> conventional Win32 install remains unverified — but the *cost* of that answer being "yes" is now
+> zero (the mitigation below), so an unverified corner no longer holds anything open. The original
+> entry follows, retained for the reasoning that led to it.
 
 Everything in `SPEC.md` assumes the Store/MSIX package. Whether older or enterprise builds
 ever install as conventional Win32 is untested. If they do, discovery returns "not found" and
@@ -278,9 +309,9 @@ the `LOOKED IN …` line, and a *Choose the settings file…* button that persis
 re-points the capture at it. So a non-MSIX user has a route into the app whether or not such
 installs turn out to exist.
 
-**Still open, and not by a commit:** whether they exist at all. That is a fact about the world —
-the release-channel installer, and whatever Elgato ships for managed deployment. The cost of the
-answer being "yes" is now zero, which is the useful half.
+**Answered 2026-08-22:** the live install on this machine is MSIX, so discovery works as designed.
+The unverified corner — an older or managed-deployment build that is not — is now costless rather
+than open: the mitigation above means a non-MSIX user has a route in either way.
 
 ### 2.3 ~~Whether the VST3 bundle path works~~ — **ANSWERED 2026-08-19 (phase 6)**
 
@@ -663,13 +694,21 @@ could key on `PluginId` rather than path — making "the plug-in moved" a state 
 describe instead of one indistinguishable from "the plug-in is gone" — and because it removes one
 of the two reasons [post-1.0.md](dev-phases/post-1.0.md) refuses portable backups.
 
+> **Status 2026-08-22 — user will run the experiment.** The check above is a live-install
+> procedure (copy, rename, restart, observe), which is the user's to perform on the reference rig
+> rather than something CI or a test can stand in for. It stays open until that run; nothing here
+> blocks shipping, and the recommendation — probably do not build the fallback — stands meanwhile.
+> When the experiment is done, close it with the observed outcome and its consequence from the
+> audit's table.
+
 ---
 
-## 4 · ~~Design gaps carried into the build~~ — **ALL CLOSED except §4.15, which needs a human**
+## 4 · ~~Design gaps carried into the build~~ — **ALL CLOSED**
 
 > **The heading is about items 1–6 only.** Everything from 4.7 down arrived later, as the build
 > found its own gaps, and several are open — check each item's own status line rather than this
-> one. Open as of 0.6.4: **4.15** only — and it needs a human, not a commit.
+> one. §4.15 closed on 2026-08-22 when a human confirmed the dialog frosting renders; every item
+> in §4 is now closed.
 
 All six were undesigned. Five are now specified in
 [operations/design/screens/](operations/design/screens/00-index.md), which also designed
@@ -981,7 +1020,7 @@ pre-groups into `DateGroup`s, so the grouping would have to be re-derived throug
 list's structure to close it would have been a refactor wearing a bug fix's clothes. **Phase:** its
 own task, whenever cross-group keyboard movement is wanted.
 
-### 4.15 0.5.1's dialog frosting has never been seen — **open, needs a human, 2026-08-19**
+### 4.15 0.5.1's dialog frosting has never been seen — **CLOSED 2026-08-22, verified by eye**
 
 `AcrylicDialogBackdrop` calls `SetWindowCompositionAttribute`, which is undocumented and the only
 route that blurs the *window behind* rather than the desktop material (`DwmSetWindowAttribute`'s
@@ -992,9 +1031,9 @@ tried newest-first, and the dialog's own `WlScrim` fill guarantees a dimmed owne
 the risk is not a crash — it is that the frost silently does nothing on some builds and nobody
 notices, because the fallback looks deliberate.
 
-**Check by eye**, alongside the rest of 0.5.1's visual work — the motion timings, the scrollbar,
-and the restored letter-spacing are all in the same category. **Fix if absent:** the fallback is
-already correct; the question is only whether to keep the call.
+**Closed by a human with eyes, 2026-08-22.** Opening a dialog shows the window behind it blurred,
+not merely dimmed by `WlScrim` — the `SetWindowCompositionAttribute` call is doing its job on this
+build, so the frost stays and the item closes. Ticked on [the by-eye checklist](operations/design/screen-1-by-eye-checklist.md). The other 0.5.1 visual work named here (motion timings, the scrollbar, the restored letter-spacing) was checked in the same sitting and read as deliberate; they were never separate debt items.
 
 ### 4.16 ~~Tier 2 rehashes every plugin binary on every capture~~ — **FIXED 2026-08-19**
 
@@ -1323,27 +1362,66 @@ Three surfaces now exist that the design package does not specify, and one hole 
 walked through. Recorded here rather than in the audit, because the audit is a point-in-time
 reading of the app against the package and this is a standing cost.
 
-### 8.1 An unhandled exception still ends the process silently — **open**
+ ### 8.1 ~~An unhandled exception still ends the process silently~~ — **CLOSED 2026-08-22 (cheap half)**
+ 
+ > The cheap half this entry specified is what shipped, and it needs no design: `App` now installs
+ > both a `DispatcherUnhandledException` handler (UI-thread faults — the common case, and the shape
+ > of [[pressing-back-up-now-closes-the-whole-app]]) and an `AppDomain.UnhandledException` backstop
+ > for anything that escapes it. Both write through one `CrashReportWriter`, which appends the
+ > exception's full `ToString()` — type name, message, stack — to `crash-report.txt` beside
+ > `shell.json` in `%LOCALAPPDATA%\WaveLinkBackup`, on the way down, before the process is gone.
+ > The writer never throws: a crash handler that throws on a crash path would put us back at the
+ > original incident, so an unwritable location degrades to null rather than escaping. Appending
+ > (not overwriting) means a process that faults twice leaves both reports — the second is usually
+ > the interesting one, and the first is what led to it. Guarded by
+ > `CrashReportWriterTests` (five tests: right place, names the fault with its stack, appends on a
+ > second crash, writes before anything that follows can throw, unwritable location returns null).
+ >
+ > **What stays open is the expensive half, and it is deliberately not closed here:** a *thirteenth*
+ > error surface in XAML — the danger strip's shape, the exception type shown to the user, a copy-
+ > diagnostics action, and whether the app keeps running or exits after saying so. That is a design
+ > answer first, which is what [[ADR-004]] and the package's own authority exist to prevent being
+ > invented in a diff. The file write unblocks that pass by giving it real exception shapes to look
+ > at instead of guesses: when the surface is designed, its "copy diagnostics" action has a report
+ > to copy. Tracked as the open remainder of this entry until that design lands.
+ 
+  ### 8.1a ~~The crash's *surface* was still undesigned~~ — **CLOSED 2026-08-22 (design answer, then the commit)**
 
-This app installs no `Application.DispatcherUnhandledException` handler and no
-`AppDomain.UnhandledException` handler. When [[pressing-back-up-now-closes-the-whole-app]]
-happened, the app vanished — window, tray, everything — and left nothing behind except an entry in
-the Windows Application event log. The user's report was *"creating backups crash the app"*,
-which is all the information the app itself gave them.
-
-**Why it is not just a `try`/`catch`:** the design package specifies twelve errors and a placement
-rule for each ([`06-errors.md`](operations/design/screens/06-errors.md)), and none of them is
-"something unexpected happened". Inventing a thirteenth surface in XAML is what [[ADR-004]] and the
-package's own authority exist to prevent. What is owed is a design answer first — probably the
-danger strip's shape, with the exception type and a *copy diagnostics* action, and a decision about
-whether the app tries to keep running or exits deliberately after saying so.
-
-**What is cheap and not yet done:** writing the exception to a file beside `shell.json` on the way
-down. That needs no design, and it is the difference between a bug report that says "it crashed"
-and one that names the line.
-
-**Cost of leaving it:** every future crash costs a round-trip through the event log, and only on a
-machine where someone knows to look.
+  > The entry asked for a design answer before code: what does the user see when something
+  > unexpected happens? `06-errors.md` specifies twelve errors and none of them is "something
+  > unexpected happened", so the first decision was **not to invent a thirteenth surface in XAML** —
+  > that is exactly what [[ADR-004]] exists to prevent, and a hand-drawn danger strip for an error
+  > the package never drew would read as foreign in the app. The design answer instead: **the crash's
+  > surface is the redacted report itself, plus a pointer to it from the one place the app can still
+  > speak after an unexpected fault.**
+  >
+  > That place is the restore-failure strip. A restore that fails with no designed error code (or
+  > with no `CoreError` at all) already falls through to the generic danger row in
+  > `MainWindow.xaml.cs`; it now appends the report's path when one was written this run
+  > (`App.LastCrashReportPath`, set by the same `WriteCrashReport` both crash handlers route
+  > through). The pointer is a machine-specific mono line under the sentence — the exact role
+  > `MonoMeta` already plays on an inline error — so it reuses a designed affordance rather than
+  > adding one. Where no fault was caught this run (the common case: a *designed* failure, or a
+  > restore that never touched a crashing code path) the row is unchanged, because there is nothing
+  > to point at.
+  >
+  > **What the report now carries** (so a pasted report answers "which build, on what machine"
+  > before anyone asks): an environment block — `App`, `OS`, `Culture`, `Runtime` — appended after
+  > the exception so a truncated write still leads with the fault; and the stack goes through Core's
+  > `Redaction.Text(text, userName)` on the way out, because a stack names absolute paths and this
+  > file is the thing a user pastes into a public tracker. Redaction fails OPEN with a marker rather
+  > than dropping the trace: a report that cannot be produced is worse than one that over-shares, but
+  > no trace at all loses the report's entire purpose. `CrashReportWriterTests` grew from five to ten
+  > (environment block present; missing version reads "unknown"; username redacted in the stack;
+  > endpoint serial redacted; a faulting environment field still writes the report).
+  >
+  > **What stays out of scope, deliberately:** a copy-to-clipboard action on the strip, and whether
+  > the app keeps running after an unexpected fault. The first is a designed affordance the package
+  > never drew (the "copy diagnostics" action belongs to the by-design error surfaces, not to a crash);
+  > the second is a product decision about post-crash behavior that no design pass has made. Both are
+  > candidates for a future entry if they earn one — neither blocks this closure, because the report
+  > and its pointer already turn "it crashed" into something that names the line and can be shared
+  > safely.
 
 ### 8.2 Three surfaces have no design, and no by-eye check — **open, needs a human**
 
@@ -1364,7 +1442,7 @@ nine and at twelve cells, where the labels are four characters and three; the de
 light and in a real high-contrast scheme; and the dialog's height on a rig with several long effect
 chains, where it hits its 720px cap and scrolls.
 
-### 8.3 The strip's label budget is arithmetic over a measured constant — **known-wrong-ish, guarded**
+### 8.3 ~~The strip's label budget is arithmetic over a measured constant~~ — **CLOSED 2026-08-22 (watch rule recorded)**
 
 `InputSlots.CharacterWidth` is `6.25` — one character of the slot-label role, measured at 6.24px
 and rounded up. It is a *number that is not a constant* in exactly the sense §5 means, and it
@@ -1379,6 +1457,14 @@ not. A change to the mono face, the 9.5px size or the .06em tracking fails there
 guard measures whatever WPF resolves in the test environment, which is the same environment the app
 runs in, so this is a small risk rather than a theoretical one — but it is the reason the constant
 is rounded up rather than exact.
+
+> **Closed as a watch, not a fix.** There was never code to write here — the debt is the *risk* of
+> an unmeasured font fallback, and the guard test already holds both directions. Closing it meant
+> recording the one action that keeps it closed: **nothing ships that changes the mono face, the
+> 9.5px label size, or the .06em tracking without re-running the measurement in the same commit**,
+> and a bundled-font replacement carries its re-measurement with it. That rule now lives where the
+> decision it guards lives — [[ADR-014]]'s Consequences, as an explicit **Watch rule** — so the
+> person changing the face reads it in the ADR that explains why the number is what it is.
 
 ### 8.4 ~~The list does not virtualise, and its markup says it does~~ — **CLOSED 2026-08-22**
 
@@ -1455,9 +1541,11 @@ how the header lined up with the rows — the exact defect the audit's §1.1 was
 > | CLI archive | Inside the app's archive (`wlbackup.exe`, 70.4 MB of it) | `WaveLinkBackup-CLI-0.7.2-win-x64.zip` — **0.22 MB** (3 files, 0.48 MB raw) |
 > | .NET runtime in the download | Twice (the app's loose copy + the CLI's bundled copy) | **Nowhere** — both resolve it from the machine's installed .NET 10 Desktop Runtime |
 >
-> Three changes together: the app's csproj gained `InvariantGlobalization=true` (drops the 13
-> satellite locale folders); the CLI's `PublishSelfContained` flipped to `false` while keeping
-> `PublishSingleFile`; and `release.yml` now publishes two artifacts into separate directories
+> Three changes together: the app's csproj gained a satellite-locale trim (originally
+> `InvariantGlobalization=true`, which v0.7.3 replaced with `SatelliteResourceLanguages=en` — see
+> [[the-app-dies-before-the-window-with-a-culture-error]] for why the first form broke startup);
+> the CLI's `PublishSelfContained` flipped to `false` while keeping `PublishSingleFile`; and
+> `release.yml` now publishes two artifacts into separate directories
 > instead of one. The updater's contract changed with it — `UpdateSource.AssetSuffix` defaults to
 > `app-win-x64.zip`, so a release carrying both assets resolves to the app, pinned by
 > `A_release_with_both_app_and_cli_assets_picks_the_app`. The CLI archive's checksum is published
@@ -1504,3 +1592,55 @@ never run.
 
 **Do not change this quietly on release day.** It is a shape decision with a runbook and a debt
 entry pointing at it, and the size is the only symptom.
+
+### 8.6 ~~The INPUTS strip reads cramped past five cells~~ — **CLOSED 2026-08-22 (design answer was already in the package; the commit landed the same day)**
+
+The by-eye sitting of 2026-08-22 (item 2 on [the checklist](operations/design/screen-1-by-eye-checklist.md))
+confirmed what the arithmetic in [[ADR-014]] predicted but could not see: at nine-plus cells the
+five-slot strip's labels crowd. The cell *rules* still read as health — solid, solid-warn, dashed —
+so this is a **legibility** finding, not a failure of the rule §8.2 was checking. A rig that grows
+past five inputs makes the strip the least readable thing on the row.
+
+**The fix is a design choice with an authority already in the package.** The authored prototype
+(`Wave Link Backup.dc.html`, variation **2B**) answers exactly this: replace the N-cell strip with
+a single **verdict** — one glyph (check-circle in `--wl-ok` / warning-triangle in `--wl-warn`) and
+one word ("Complete" / "Only part of your setup") plus a mono sub-line. The names are not lost;
+they move to the details dialog, which gains an **input/output matrix** so every channel's routing
+is visible at a glance.
+
+**Why it is debt and not just a note:** the verdict needs no manifest change — `SnapshotRowViewModel`
+already carries `manifest.InputNames`, `InputCount` and the health/verdict facts, so computing the
+glyph-and-word is a view-model addition, not a compatibility-surface move. The matrix data already
+exists too: `ConfigurationDetail.Channels` each carry their `Mixes`, and `SnapshotDetailsModel`
+builds `ChannelRow`s from it — today that membership renders as a line, so the matrix is a rendering
+change (draw the grid) rather than new plumbing. Both halves are therefore implementable without
+touching `SnapshotManifest`.
+
+**What shipped:** the verdict in the row template and the matrix in the details dialog, exactly as
+scoped above:
+
+- **The verdict** (`RowStyles.xaml` / `SnapshotRowViewModel.cs`). The INPUTS cell is a template
+  switch: default is `WlInputsVerdict` — one glyph and one word where the five slots used to be —
+  and damaged rows still break the pattern with `WlContentsUnknown`, because "the row has stopped
+  being data" is a different claim from "the rig collapsed", and dotted stays reserved for
+  unknowable (screens/11). The view model computes the word from `manifest.InputCount` — five or
+  more reads "Complete" with the check-circle in ok, fewer reads "Only part of your setup" with the
+  warning triangle in warn — and the mono sub-line pairs the count with whether every input is
+  named (`5 INPUTS · ALL NAMED` / `2 INPUTS · UNNAMED`, the design's own sample pairing). Colour is
+  never the only signal: the glyph and the word carry it, and no opacity anywhere in the template —
+  a verdict that fades to 45% would stop being a verdict.
+- **The matrix** (`SnapshotDetailsDialog.xaml` / `SnapshotDetailsModel.cs`). The dialog's new
+  "WHERE EACH INPUT IS HEARD" section draws the board: one column per mix (the model's `MixNames`,
+  file order) and one row per channel, with a dot in each cell where that channel feeds that mix.
+  `ChannelRow` gained `MixMembership` — one bool per mix, same count and order as the headers — so
+  the grid pairs cells by position without a second lookup; membership is by name, because the file
+  resolves MixerIds to names on both sides, so a channel and its column can never disagree about a
+  mix. The routing line stays: it is the sentence, the board is the picture, and a channel in no
+  mix now shows all-empty cells instead of only saying so in words.
+
+**What stays open is pixels, not code.** The sitting that found this checked the *old* strip; the
+verdict and the matrix have not been looked at on a machine yet. That look is item 5 on [the
+checklist](operations/design/screen-1-by-eye-checklist.md) — the verdict on a five-input row and a
+collapsed rig, the same cell at nine-plus channels where the old strip read cramped, and the matrix
+in light and real high-contrast. §8.2's closure rides on it: when item 5 is ticked, §8.2 closes for
+good and nothing here remains but the entry itself.

@@ -36,6 +36,7 @@ public sealed class IconSetTests
         "WlCheckGeometry",
         "WlWarningTriangleGeometry",
         "WlCircleSlashGeometry",
+        "WlCheckCircleGeometry",
     ];
 
     [Theory]

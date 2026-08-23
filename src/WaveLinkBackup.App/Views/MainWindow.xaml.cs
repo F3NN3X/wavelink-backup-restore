@@ -517,7 +517,16 @@ public partial class MainWindow : Window
                 }
             }
 
-            shell.Strip.ShowFailure(view.FailureMessage ?? "The restore failed.");
+            // No designed error code (or none at all): the danger row. The pointer helper appends
+            // the redacted crash report's path when one was written this run - 06 has no "something
+            // unexpected happened" surface, so the report is the evidence and this row points at it
+            // (technical-debt.md §8.1a). Null otherwise: the row stays exactly as before.
+            var failure = AppErrorMapper.CrashReportPointer(
+                view.FailureMessage,
+                view.CoreError,
+                Application.Current is App { LastCrashReportPath: { } reportPath } ? reportPath : null);
+
+            shell.Strip.ShowFailure(failure!);
         }
         else
         {

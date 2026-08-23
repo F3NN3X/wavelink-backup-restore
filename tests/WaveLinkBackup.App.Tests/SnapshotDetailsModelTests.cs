@@ -157,6 +157,33 @@ public sealed class SnapshotDetailsModelTests
         Assert.True(Channel("Meld Studio").IsInNoMix);
     }
 
+    /// <summary>
+    /// The board behind the routing line: each channel carries one cell per mix, in the same order
+    /// as the dialog's column headers (MixNames). A dot lands exactly where the routing line says
+    /// it does - and a channel in no mix shows all-empty cells, which is what makes "NOT IN ANY
+    /// MIX" visible at a glance instead of only in words.
+    /// </summary>
+    [Fact]
+    public void Every_channel_carries_one_membership_cell_per_mix_in_column_order()
+    {
+        var model = Model();
+
+        // The columns: the rig's mixes in file order, which the grid pairs cells against by index.
+        Assert.Equal(["Headphones", "Stream Mix"], model.MixNames);
+
+        // Wave Mic 1 feeds both; Browser only the first; Meld Studio neither. Each row is exactly
+        // as wide as the header, so no cell can drift a column.
+        Assert.Equal([true, true], Channel("Wave Mic 1").MixMembership);
+        Assert.Equal([true, false], Channel("Browser").MixMembership);
+        Assert.Equal([false, false], Channel("Meld Studio").MixMembership);
+
+        // Every row matches the header's width - the invariant that keeps the grid rectangular.
+        foreach (var channel in model.Channels)
+        {
+            Assert.Equal(model.MixNames.Count, channel.MixMembership.Count);
+        }
+    }
+
     [Fact]
     public void A_channel_counts_its_effects_and_a_bare_one_says_none()
     {

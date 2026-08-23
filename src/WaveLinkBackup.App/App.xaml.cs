@@ -89,6 +89,20 @@ public partial class App : Application
     /// <summary>Kept for RefreshShellFacts, which re-checks the live installation on every tick.</summary>
     private IFileSystem? fileSystem;
 
+    /// <summary>
+    /// The cheap half of §8.1: writes an unhandled exception beside shell.json before the process
+    /// is gone. Held here (not built in the handler) so the directory is known and the writer can
+    /// be reached by both the dispatcher and the AppDomain handlers.
+    /// </summary>
+    private CrashReportWriter? crashReports;
+
+    /// <summary>
+    /// The path of the crash report, for the one surface that can still speak after an unexpected
+    /// fault: a failed restore with no designed error code points at it (technical-debt.md §8.1a).
+    /// Null until a crash has been written this run — most runs never get here.
+    /// </summary>
+    internal string? LastCrashReportPath { get; private set; }
+
     /// <summary>Read by MainWindow at construction, and updated by every SaveGeometry.</summary>
     internal ShellState ShellState { get; private set; } = ShellState.Default;
 
@@ -183,6 +197,18 @@ public partial class App : Application
         chrome = new DwmWindowChrome();
 
         fileSystem = new FileSystem();
+
+        // §8.1: a fault must leave a report, not just an event-log entry on a machine where
+        // someone knows to look. The dispatcher handler catches UI-thread faults (the common case
+        // — the original incident was a button click); the AppDomain handler is the backstop for
+        // anything that escapes it. Both write through the same writer, so a fault that reaches
+        // both leaves one coherent report rather than two interleaved ones. Installed once the
+        // file system exists, because the writer needs it and there is no reason to wait past
+        // this line — every later startup step can throw.
+        crashReports = new CrashReportWriter(fileSystem, SettingsRepository.DefaultDirectory);
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
+
         settingsRepository = new SettingsRepository(fileSystem, SettingsRepository.DefaultDirectory);
 
         // Read BEFORE the first Apply: the theme preference lives in here, and applying the OS
@@ -245,6 +271,47 @@ public partial class App : Application
         if (!arguments.StartInTray) ShowMainWindow();
 
         RefreshTray();
+    }
+
+    /// <summary>
+    /// UI-thread fault. Writes the report first — that is the whole point of §8.1's cheap half —
+    /// then lets the process end. Handling it (e.Handled = true) would keep a broken app running,
+    /// which is a design decision this entry explicitly defers; what is owed right now is the
+    /// report, and the report must be written before anything else happens on the way down.
+    /// </summary>
+    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        WriteCrashReport(e.Exception);
+        e.Handled = false;
+    }
+
+    /// <summary>
+    /// Backstop for faults that escape the dispatcher (a background thread, a finalizer). It runs
+    /// on whatever thread faulted, which is why the writer takes an IFileSystem and serializes
+    /// itself rather than assuming a UI thread. The process ends after this regardless — there is
+    /// nothing to do but leave the report.
+    /// </summary>
+    private void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception exception)
+        {
+            WriteCrashReport(exception);
+        }
+    }
+
+    /// <summary>
+    /// Both handlers write through here so the report carries the same context regardless of which
+    /// one fired: the running build's version and the username to strip from the stack. The version
+    /// is read on the way down, not cached at startup — a fault during early startup can hit before
+    /// anything else exists, and the assembly attribute is still there then.
+    /// </summary>
+    private void WriteCrashReport(Exception exception)
+    {
+        var path = crashReports?.Write(exception, ReleaseVersion.Display(ReleaseVersion.Current), Redaction.CurrentUserName);
+        if (path is not null)
+        {
+            LastCrashReportPath = path;
+        }
     }
 
     private static (

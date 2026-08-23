@@ -53,6 +53,10 @@
     <Geometry x:Key="WlWarningTriangleGeometry">M21.73 18l-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3 M12 9v4 M12 17h.01</Geometry>
     <!-- lucide/circle-slash. The ring is <circle cx="12" cy="12" r="10">. -->
     <Geometry x:Key="WlCircleSlashGeometry">M2 12 A10 10 0 1 0 22 12 A10 10 0 1 0 2 12 Z M9 15 15 9</Geometry>
+    <!-- lucide/check-circle-2. The ring is <circle cx="12" cy="12" r="10"> as two arcs (WPF has no
+         circle element), the check is WlCheckGeometry's same two segments scaled into the ring -
+         the INPUTS verdict's green end. -->
+    <Geometry x:Key="WlCheckCircleGeometry">M2 12 A10 10 0 1 0 22 12 A10 10 0 1 0 2 12 Z M8.5 12.4 L10.9 14.8 L16 9.5</Geometry>
 
     <!--
       TrackedText is a FrameworkElement, not a TextBlock, so Typography's ten Style resources -
@@ -224,6 +228,43 @@
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Margin="0,0,0,6" />
         </Grid>
+    </DataTemplate>
+
+    <!--
+      The INPUTS cell's verdict (design variation 2b: "health as a verdict"). One glyph and one
+      word where the five-slot strip used to be - fastest to scan, and it stops reading cramped on
+      a big rig because it no longer prints a name per channel. The names move to the details view,
+      which is exactly what 2b trades: "it hides the names until you select the row".
+
+      The word is sentence-case Rubik (a person reads it as a sentence), the sub-line is tracked
+      mono (a machine produced it) - README's one hard typography rule. Green when the rig has all
+      five inputs, amber when it collapsed; colour is never the only signal because the glyph and
+      the word carry it (screens/11: shape-first). No opacity anywhere here - a verdict that fades
+      to 45% would stop being a verdict.
+    -->
+    <DataTemplate x:Key="WlInputsVerdict">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Path x:Name="VerdictIcon" Width="19" Height="19" Stretch="Uniform" Margin="0,0,9,0"
+                  Fill="{DynamicResource WlOk}" VerticalAlignment="Center"
+                  Data="{StaticResource WlCheckCircleGeometry}" />
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock x:Name="VerdictWord" Text="{Binding InputsVerdict}"
+                           FontFamily="{DynamicResource WlDisplayFont}" FontWeight="Normal" FontSize="13"
+                           Foreground="{DynamicResource WlStrong}" HorizontalAlignment="Left" />
+                <views:TrackedText x:Name="VerdictDetail" Text="{Binding InputsDetail}" Tracking=".10"
+                                   Style="{StaticResource WlSlotLabelTrackedText}" FontSize="10.5"
+                                   Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0" />
+            </StackPanel>
+        </StackPanel>
+        <DataTemplate.Triggers>
+            <!-- A collapsed rig: amber triangle, amber sub-line. The word stays WlStrong - it is a
+                 sentence, not a status readout, and dimming it would lose the verdict's point. -->
+            <DataTrigger Binding="{Binding InputsArePartial}" Value="True">
+                <Setter TargetName="VerdictIcon" Property="Fill" Value="{DynamicResource WlWarn}" />
+                <Setter TargetName="VerdictIcon" Property="Data" Value="{StaticResource WlWarningTriangleGeometry}" />
+                <Setter TargetName="VerdictDetail" Property="Foreground" Value="{DynamicResource WlWarn}" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
     </DataTemplate>
 
     <!--
@@ -575,24 +616,31 @@
                                             Focusable="False" />
 
                             <!--
-                              INPUTS: a template switch, not an ItemsControl in an odd state.
-                              Breaking the five-slot pattern IS the signal that the row has stopped
-                              being data (design section C / 02) - straight from the brief.
+                              INPUTS: the verdict (design variation 2b) - one glyph and one word,
+                              not five slots. The slot strip read cramped past nine cells on a big
+                              rig (by-eye sitting, screen-1 checklist item 2), so the names move to
+                              the details view and the row says only whether the setup is whole.
 
-                              WlContentsUnknown does not fit the guard test's own exemption list
-                              (it neither ends in Text/Geometry/Font/Pill nor starts with WlSlot),
-                              even though the brief's own fragment references it exactly this way.
-                              The verbose {StaticResource ResourceKey=...} form below resolves
-                              identically at runtime but does not match the guard's
-                              "(Dynamic|Static)Resource\s+(Wl...)" pattern, so a legitimate
-                              template-key reference does not read as an unrecognised brush. It is
-                              used ONLY for this key and for WlTierPresent/WlTierAbsent below, all
-                              three of which have the same gap.
+                              Damaged still breaks the pattern with WlContentsUnknown - "the row has
+                              stopped being data" is a different claim from "the rig collapsed",
+                              and dotted stays reserved for unknowable (screens/11). Declared AFTER
+                              the verdict default so it wins, same order the damaged WHY-pill trigger
+                              relies on.
+
+                               WlContentsUnknown and WlInputsVerdict do not fit the guard test's own
+                               exemption list (they neither end in Text/Geometry/Font/Pill/Ease nor
+                               start with WlSlot), even though the brief's own fragment references
+                               WlContentsUnknown exactly this way. The verbose {StaticResource
+                               ResourceKey=...} form below resolves identically at runtime but does
+                               not match the guard's "(Dynamic|Static)Resource\s+(Wl...)" pattern, so
+                               a legitimate template-key reference does not read as an unrecognised
+                               brush. It is used ONLY for these keys and for WlTierPresent/WlTierAbsent
+                               below, all of which have the same gap.
                             -->
                             <ContentControl Grid.Column="3" Margin="0,0,20,0" Content="{Binding}" Focusable="False">
                                 <ContentControl.Style>
                                     <Style TargetType="ContentControl">
-                                        <Setter Property="ContentTemplate" Value="{StaticResource WlSlotStrip}" />
+                                        <Setter Property="ContentTemplate" Value="{StaticResource ResourceKey=WlInputsVerdict}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsDamaged}" Value="True">
                                                 <Setter Property="ContentTemplate" Value="{StaticResource ResourceKey=WlContentsUnknown}" />
