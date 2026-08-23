@@ -26,6 +26,9 @@ on:
 
 permissions:
   contents: write
+  # ci-green reads the Actions API (workflow runs) to wait for a green CI on this commit; that is
+  # an actions-scope read, not covered by contents.
+  actions: read
 
 jobs:
   # CI is the gate: nothing publishes until the full suite is green on this exact commit. Polls
