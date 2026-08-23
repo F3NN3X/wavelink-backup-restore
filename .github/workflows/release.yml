@@ -36,6 +36,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/github-script@v7
+        # github-script does not export its github-token input to process.env; expose it here so
+        # the REST fetch below can authenticate. Same ephemeral token the action already holds.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           debug: true
           retries: 3
