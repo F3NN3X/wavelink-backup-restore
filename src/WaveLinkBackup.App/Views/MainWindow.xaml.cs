@@ -526,7 +526,9 @@ public partial class MainWindow : Window
                 view.CoreError,
                 Application.Current is App { LastCrashReportPath: { } reportPath } ? reportPath : null);
 
-            shell.Strip.ShowFailure(failure!);
+            // No report this run → CrashReportPointer returns null and the row keeps exactly the
+            // message it had before §8.1a (never a blank Detail).
+            shell.Strip.ShowFailure(failure ?? view.FailureMessage ?? "The restore failed.");
         }
         else
         {

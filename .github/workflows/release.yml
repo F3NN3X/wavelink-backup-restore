@@ -133,7 +133,8 @@ jobs:
           $notes = @()
           if (Test-Path CHANGELOG.md) {
             $text = Get-Content CHANGELOG.md -Raw
-            $pattern = "(?ms)^## \[$v\][^\r\n]*\r?\n(.*?)(?=^---\s*$|\Z)"
+            # Escape the version before it enters the pattern: a version string is data, not regex.
+            $pattern = "(?ms)^## \[" + [regex]::Escape($v) + "\][^\r\n]*\r?\n(.*?)(?=^---\s*$|\Z)"
             $match = [regex]::Match($text, $pattern)
             if ($match.Success) {
               $body = $match.Groups[1].Value
