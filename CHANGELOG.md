@@ -21,6 +21,35 @@ heading here.
 
 ---
 
+## [0.7.3] - 2026-08-23
+
+**The app that would not start is fixed, and releases now carry their own notes.** A crash that
+killed the tray app on launch — before any window or tray icon appeared — is resolved, and the
+release page now shows what changed in each version rather than only the download links.
+
+### Fixed
+
+- **The app no longer dies at startup with a culture error.** The publish had set
+  `InvariantGlobalization=true` to shed WPF's satellite locale assemblies from the English-only
+  build, but that puts the whole process in invariant mode where `CultureInfo("en")` throws. WPF's
+  font cache constructs that culture in a static constructor on the first text measure, so the app
+  died inside `Window.Show()` layout before any of our code ran — no window, no tray icon, nothing.
+  The fix swaps it for `SatelliteResourceLanguages=en`, which trims the non-English satellite
+  resources while keeping full globalization (real cultures, working text rendering). Verified: the
+  republished app runs clean and the event log is free of the `CultureNotFoundException` that had
+  been reproducing on every launch. See
+  [the gotcha](_docs/knowledge-base/gotchas/the-app-dies-before-the-window-with-a-culture-error.md).
+
+### Changed
+
+- **The GitHub release page now carries the version's notes.** The release body, which previously
+  held only the download links and checksums, now leads with a *What's new* section pulled from
+  this file for the tagged version — so a person landing on the release reads what changed before
+  they decide to download. The updater is untouched: it still reads only the `*app-win-x64.zip`
+  asset and its `.sha256`, never the body.
+
+---
+
 ## [0.7.2] - 2026-08-22
 
 ### Added

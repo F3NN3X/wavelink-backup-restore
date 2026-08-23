@@ -20,7 +20,7 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of v0.7.2 (2026-08-22).*
+*As of v0.7.3 (2026-08-23).*
 
 | Artifact | Count |
 |---|---|
@@ -56,6 +56,22 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### v0.7.3 — the startup crash is fixed, and releases carry their notes (2026-08-23)
+
+**The version that ships the fix above.** The crash recorded in
+[the-app-dies-before-the-window-with-a-culture-error.md](knowledge-base/gotchas/the-app-dies-before-the-window-with-a-culture-error.md)
+is resolved — `InvariantGlobalization` is gone from the app's csproj, replaced by
+`SatelliteResourceLanguages=en` — and the release pipeline now leads the GitHub release page with a
+*What's new* section pulled from [CHANGELOG.md](../../CHANGELOG.md) for the tagged version, so a
+release says what changed rather than only where to download. The updater is untouched: it still
+reads only the `*app-win-x64.zip` asset and its `.sha256`, never the body.
+
+**Counts moved:** none. No new ADR, pattern or gotcha beyond the one this version fixes; the test
+tally is unchanged at 1,587 (the fix is a build-config change with no new surface to assert
+against — a crash that fires before the window exists has nothing in the suite to hold it down, and
+the crash report in `%LOCALAPPDATA%\WaveLinkBackup\crash-report.txt` is what makes a future
+recurrence legible).
 
 ### The startup crash that named its own cause: invariant globalization was not how you trim satellites (2026-08-23)
 
@@ -160,9 +176,11 @@ artifact instead of riding inside the app's archive. Measured locally, exactly a
 | CLI archive | Inside the app's archive (`wlbackup.exe`, 70.4 MB of it) | `WaveLinkBackup-CLI-0.7.2-win-x64.zip` — **0.22 MB** (3 files, 0.48 MB raw) |
 | .NET runtime in the download | Twice (the app's loose copy + the CLI's bundled copy) | **Nowhere** — both resolve it from the machine's installed .NET 10 Desktop Runtime |
 
-Three changes together: `InvariantGlobalization=true` in the app's csproj (drops the 13 satellite
-locale folders); the CLI's `PublishSelfContained` flipped to `false`, keeping `PublishSingleFile`;
-and `release.yml` publishing two artifacts into separate directories. The updater's contract
+Three changes together: a satellite-locale trim in the app's csproj (originally
+`InvariantGlobalization=true`, replaced by `SatelliteResourceLanguages=en` in v0.7.3 — see
+[[the-app-dies-before-the-window-with-a-culture-error]]); the CLI's `PublishSelfContained` flipped
+to `false`, keeping `PublishSingleFile`; and `release.yml` publishing two artifacts into separate
+directories. The updater's contract
 widened with it — `UpdateSource.AssetSuffix` defaults to `app-win-x64.zip`, so a release carrying
 both assets resolves to the app, pinned by `A_release_with_both_app_and_cli_assets_picks_the_app`.
 

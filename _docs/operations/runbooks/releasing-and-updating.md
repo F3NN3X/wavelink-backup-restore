@@ -119,8 +119,10 @@ artifacts rather than one archive that shipped the runtime twice.
 The app archive's bulk is `Microsoft.Windows.SDK.NET.dll` (~23.7 MB raw, ~6.5 MB zipped) — the
 WinRT projection the TFM `net10.0-windows10.0.19041.0` requires for `UISettings`. It is not
 removable; trimming remains off because WPF and that projection are trimming-incompatible. The
-satellite locale folders are gone (`InvariantGlobalization=true` in the app's csproj), which was
-the cheap part.
+satellite locale folders are gone — originally via `InvariantGlobalization=true`, which v0.7.3
+replaced with `SatelliteResourceLanguages=en` (the first form put the process in invariant mode
+and broke WPF's font cache at startup; see [[the-app-dies-before-the-window-with-a-culture-error]]),
+which was the cheap part either way.
 
 The updater's asset match changed with it: `UpdateSource.AssetSuffix` defaults to
 `app-win-x64.zip`, so a release carrying both assets resolves to the app (pinned by

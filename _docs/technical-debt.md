@@ -1541,9 +1541,11 @@ how the header lined up with the rows — the exact defect the audit's §1.1 was
 > | CLI archive | Inside the app's archive (`wlbackup.exe`, 70.4 MB of it) | `WaveLinkBackup-CLI-0.7.2-win-x64.zip` — **0.22 MB** (3 files, 0.48 MB raw) |
 > | .NET runtime in the download | Twice (the app's loose copy + the CLI's bundled copy) | **Nowhere** — both resolve it from the machine's installed .NET 10 Desktop Runtime |
 >
-> Three changes together: the app's csproj gained `InvariantGlobalization=true` (drops the 13
-> satellite locale folders); the CLI's `PublishSelfContained` flipped to `false` while keeping
-> `PublishSingleFile`; and `release.yml` now publishes two artifacts into separate directories
+> Three changes together: the app's csproj gained a satellite-locale trim (originally
+> `InvariantGlobalization=true`, which v0.7.3 replaced with `SatelliteResourceLanguages=en` — see
+> [[the-app-dies-before-the-window-with-a-culture-error]] for why the first form broke startup);
+> the CLI's `PublishSelfContained` flipped to `false` while keeping `PublishSingleFile`; and
+> `release.yml` now publishes two artifacts into separate directories
 > instead of one. The updater's contract changed with it — `UpdateSource.AssetSuffix` defaults to
 > `app-win-x64.zip`, so a release carrying both assets resolves to the app, pinned by
 > `A_release_with_both_app_and_cli_assets_picks_the_app`. The CLI archive's checksum is published
