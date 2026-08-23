@@ -25,7 +25,7 @@ Update this file **in the same commit** as the document it counts. See
 | Artifact | Count |
 |---|---|
 | ADRs | 15 |
-| Gotchas | 27 |
+| Gotchas | 28 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
@@ -56,6 +56,27 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### The startup crash that named its own cause: invariant globalization was not how you trim satellites (2026-08-23)
+
+**A new gotcha, [the-app-dies-before-the-window-with-a-culture-error.md](knowledge-base/gotchas/the-app-dies-before-the-window-with-a-culture-error.md),** records a crash that
+reproduced twice on the dev machine and whose event-log entry pointed at WPF's font cache as if
+it were a font problem. It was not. `<InvariantGlobalization>true</InvariantGlobalization>` in
+`WaveLinkBackup.App.csproj` — added to shed WPF's 13 culture satellite assemblies (~9 MB) from an
+English-only UI — puts the *entire process* in invariant mode, where `CultureInfo("en")` throws.
+WPF's font cache constructs that culture in a static constructor on the first `TextBlock` measure,
+which is the first thing `Window.Show()` does: the app dies inside layout, before any of our code
+after `ShowMainWindow()` runs.
+
+The fix swaps the process-wide switch for the targeted one — `<SatelliteResourceLanguages>en</SatelliteResourceLanguages>`
+trims the *resources* while leaving full globalization (and therefore working text rendering)
+intact. Same apparent goal, one of them breaks the app. Verified end-to-end: republished exe runs
+clean, no `CultureNotFoundException` in the event log, full suite green at 1,587.
+
+**Counts moved:** gotchas 27 → 28. No test change — the guard is the absence of the flag, and a
+crash that fires before the window exists has nothing in the suite to assert against; the crash
+report in `%LOCALAPPDATA%\WaveLinkBackup\crash-report.txt` (the §8.1/§8.1a mechanism this entry
+leans on) is what makes a future recurrence legible instead of a mystery.
 
 ### The debt list's last two code items closed: a crash report that names its machine, and the INPUTS verdict (2026-08-22)
 

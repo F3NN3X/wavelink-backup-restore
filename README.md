@@ -155,7 +155,7 @@ Everything lives in [`_docs/`](_docs/). Start at [`_docs/index.md`](_docs/index.
 | [`_docs/audits/2026-08-19-design-conformance.md`](_docs/audits/2026-08-19-design-conformance.md) | The app read against the design package — what matched, what was fixed, what remains undesigned. |
 | [`_docs/dev-phases/`](_docs/dev-phases/README.md) | What is built, what remains, phase by phase. |
 | [`_docs/decisions/`](_docs/decisions/) | Why it is built this way — 15 ADRs. |
-| [`_docs/knowledge-base/gotchas/`](_docs/knowledge-base/gotchas/) | Twenty-seven ways this goes wrong, titled by symptom. |
+| [`_docs/knowledge-base/gotchas/`](_docs/knowledge-base/gotchas/) | Twenty-eight ways this goes wrong, titled by symptom. |
 | [`_docs/knowledge-base/patterns/`](_docs/knowledge-base/patterns/) | Shapes that work here, each naming its callers. |
 | [`_docs/operations/runbooks/releasing-and-updating.md`](_docs/operations/runbooks/releasing-and-updating.md) | How a release is cut and how the app finds it. |
 | [`_docs/technical-debt.md`](_docs/technical-debt.md) | The honest list, including assumptions nobody has checked. |
