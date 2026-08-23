@@ -44,7 +44,9 @@ jobs:
             // GraphQL, which GITHUB_TOKEN cannot reach on this account ("Resource not accessible
             // by integration"). Plain REST is what the token is scoped for.
             const ref = "${{ github.ref_name }}";
-            const url = `${context.serverUrl}/repos/${context.repo.owner}/${context.repo.repo}/actions/workflows/ci.yml/runs?branch=${encodeURIComponent(ref)}&event=push&per_page=10`;
+            // apiUrl, not serverUrl: the REST API lives at api.github.com; serverUrl is the web
+            // host (github.com), which has no /actions routes and 404s.
+            const url = `${context.apiUrl}/repos/${context.repo.owner}/${context.repo.repo}/actions/workflows/ci.yml/runs?branch=${encodeURIComponent(ref)}&event=push&per_page=10`;
             const deadline = Date.now() + 40 * 60 * 1000; // CI takes a few minutes; bound the wait
             for (;;) {
               const res = await fetch(url, {
