@@ -1,28 +1,39 @@
-# Wave Link Backup
+<h1 align="center">Wave Link Backup</h1>
 
-**Back up and restore your Elgato Wave Link setup — automatically, with a history you can actually read.**
+<p align="center">
+  Back up and restore your Elgato Wave Link setup — automatically, with a history you can actually read.
+</p>
 
-Wave Link keeps its entire configuration in one small JSON file and rolls its own backups for
-about three days. That is the gap this project fills: **one snapshot per distinct configuration,
-kept for as long as you like**, taken on your machine, by a tray app that runs while you forget
-it exists — or by a scriptable CLI when you want to do it yourself.
+<p align="center">
+  <img src="_docs/images/main-window.png" alt="The main window: the snapshot list with status strip, search and settings gear" width="820">
+</p>
 
-| | |
-|---|---|
-| **Platform** | Windows 10 20H1+ (`net10.0-windows`) — [why Windows only](_docs/decisions/ADR-008-windows-only-scope.md) |
-| **Status** | v0.7.4 — tray app and CLI, both working; the release/update loop is built but untested in the wild |
-| **Privacy** | Nothing leaves your computer, ever. No telemetry, no uploads, no accounts |
-| **Licence** | MIT (fork of [voltybat/WaveLinkSettingsUtility](https://github.com/voltybat/WaveLinkSettingsUtility), MIT) |
+Wave Link stores its entire configuration in one small JSON file and only keeps about three days
+of its own backups. This project fills that gap: **one snapshot per distinct configuration, kept
+for as long as you like**, taken on your machine by a tray app that runs while you forget it
+exists — or by a scriptable CLI when you'd rather do it yourself.
+
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#screenshots">Screenshots</a> •
+  <a href="#download">Download</a> •
+  <a href="#cli">CLI</a> •
+  <a href="#privacy">Privacy</a> •
+  <a href="#building">Building</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#documentation">Documentation</a> •
+  <a href="#credits">Credits</a>
+</p>
 
 ---
 
 ## Features
 
-### Automatic backups that respect you
+### Backups that don't get in the way
 
-- **Snapshots on change.** The app watches the settings file, waits for the write to settle,
-  and keeps at most one copy per interval (15 min to 24 h, your choice). Nothing changes, nothing
-  is written.
+- **Snapshots on change.** The app watches the settings file, waits for the write to settle, and
+  keeps at most one copy per interval (15 min to 24 h, your call). Nothing changes, nothing gets
+  written.
 - **Optional daily backup** at a time you pick, so quiet machines still get a known-good point.
 - **No duplicates.** Identical configurations are stored once; a corrupted snapshot never pushes
   a good one out of retention.
@@ -36,7 +47,7 @@ it exists — or by a scriptable CLI when you want to do it yourself.
 - **Trash, not delete.** Removing a backup moves it to a `.trash` folder inside your store;
   emptying the trash is a deliberate second step (Recycle Bin where one exists).
 
-### Restores that tell the truth
+### Restores that tell you what's happening
 
 - **Always snapshots first**, automatically. The one destructive button is safe to press.
 - **Names what's missing.** Not "an effect failed to load" — *"FabFilter Pro-Q 3 isn't installed
@@ -44,35 +55,20 @@ it exists — or by a scriptable CLI when you want to do it yourself.
 - **Restores your presets; plug-in files are opt-in** (`--with-plugins`, needs admin), because a
   `.vst3` copy is not a licence.
 
-### Optional tiers, resolved from what you actually use
+### What gets backed up
 
 - **Effect presets** (your EQ curves, gate thresholds) — on by default.
 - **VST3 plug-in files** — off by default; captured only for the plug-ins your setup references,
   not everything installed.
 
-### A tray app that gets out of the way
+### A tray app that stays out of the way
 
-- Runs in the system tray with a live "last backup" readout: back up now, open the store, pause
+- Lives in the system tray with a live "last backup" readout: back up now, open the store, pause
   for an hour, quit (which says so on its menu item).
 - **Themes that follow Windows** — light, dark and high contrast detected from the OS, plus your
   own override; the accent colour is taken from your system accent.
 - Start with Windows, hide-to-tray on close, weekly update check that *only looks* — it never
   installs anything without you.
-
-### A CLI for scripts and stubborn people
-
-```
-wlbackup backup --name "Before 3.3 beta"    # take one now
-wlbackup list                               # what you have
-wlbackup restore <id>                       # shows what changes, then asks
-wlbackup watch                              # back up on its own until Ctrl+C
-wlbackup help                               # everything else
-```
-
-Twelve verbs in total (`rename`, `delete`, `empty-trash`, `verify`, `prune`, `diagnostics`,
-`version`, …), machine-readable output with `--json`, and a distinct exit code per failure so
-scripts can branch. The CLI reads the same settings file as the app — a flag overrides that file
-for one run, never the other way around.
 
 ### What it will not do
 
@@ -84,10 +80,52 @@ for one run, never the other way around.
 
 ---
 
+## Screenshots
+
+| Snapshot details | Delete confirmation | Restore preview |
+|---|---|---|
+| <img src="_docs/images/snapshot-details.png" alt="Snapshot details dialog: what was captured in this backup" width="320"> | <img src="_docs/images/delete-view.png" alt="Delete confirmation for a snapshot" width="320"> | <img src="_docs/images/restore-view.png" alt="Restore preview showing what will change" width="320"> |
+
+---
+
+## Download
+
+Grab the latest release from [GitHub Releases](https://github.com/F3NN3X/wavelink-backup-restore/releases):
+
+| Asset | What it is |
+|---|---|
+| `WaveLinkBackup-*-app-win-x64.zip` | The tray app — extract and run. Requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0). |
+| `WaveLinkBackup-CLI-*-win-x64.zip` | The `wlbackup` CLI — a single file, framework-dependent or AOT. |
+
+Each release ships a `.sha256` sidecar for the archive. The app is **framework-dependent** by
+design: the runtime is a prerequisite, not a payload, so the archive stays under 8 MB instead of
+~101 MB.
+
+---
+
+## CLI
+
+Twelve verbs, machine-readable output with `--json`, and a distinct exit code per failure so
+scripts can branch. The CLI reads the same settings file as the app — a flag overrides that file
+for one run, never the other way around.
+
+```powershell
+wlbackup backup --name "Before 3.3 beta"    # take one now
+wlbackup list                               # what you have
+wlbackup restore <id>                       # shows what changes, then asks
+wlbackup watch                              # back up on its own until Ctrl+C
+wlbackup help                               # everything else
+```
+
+The remaining verbs: `rename`, `delete`, `empty-trash`, `verify`, `prune`, `diagnostics`,
+`version`.
+
+---
+
 ## Privacy — read this before sharing a backup
 
 A Wave Link settings file contains **hardware serial numbers** (inside audio device IDs) and
-**absolute paths including your Windows username**. Do not attach raw snapshots to bug reports.
+**absolute paths including your Windows username**. Don't attach raw snapshots to bug reports.
 
 Instead, use the redacting diagnostics: **Copy diagnostics** in Settings, or `wlbackup
 diagnostics`. The report strips serials, usernames and snapshot display names — it fails closed
@@ -100,10 +138,10 @@ otherwise. Nothing is ever uploaded; the output goes to your clipboard or your t
 
 Requires the .NET 10 SDK on Windows. The published app is **framework-dependent**: running it
 requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0), which a
-fresh machine will not have. That is a deliberate trade — the archive drops from ~101 MB to ~7.6 MB
+fresh machine won't have. That's a deliberate trade — the archive drops from ~101 MB to ~7.6 MB
 because the runtime ships nowhere at all — and it means a machine without the runtime gets the
 stock .NET "framework not found" error rather than a friendly in-app prompt (a framework-dependent
-WPF app fails before managed code runs, so there is no surface to show one from).
+WPF app fails before managed code runs, so there's no surface to show one from).
 
 ```powershell
 dotnet build WaveLinkBackup.slnx
@@ -151,10 +189,10 @@ Everything lives in [`_docs/`](_docs/). Start at [`_docs/index.md`](_docs/index.
 
 | Document | What it is |
 |---|---|
-| [`_docs/SPEC.md`](_docs/SPEC.md) | The build specification — where the settings live, what is inside them, the restore sequence, the validation traps. The authority on *what* to build. |
+| [`_docs/SPEC.md`](_docs/SPEC.md) | The build specification — where the settings live, what's inside them, the restore sequence, the validation traps. The authority on *what* to build. |
 | [`_docs/audits/2026-08-19-design-conformance.md`](_docs/audits/2026-08-19-design-conformance.md) | The app read against the design package — what matched, what was fixed, what remains undesigned. |
-| [`_docs/dev-phases/`](_docs/dev-phases/README.md) | What is built, what remains, phase by phase. |
-| [`_docs/decisions/`](_docs/decisions/) | Why it is built this way — 16 ADRs. |
+| [`_docs/dev-phases/`](_docs/dev-phases/README.md) | What's built, what remains, phase by phase. |
+| [`_docs/decisions/`](_docs/decisions/) | Why it's built this way — 16 ADRs. |
 | [`_docs/knowledge-base/gotchas/`](_docs/knowledge-base/gotchas/) | Twenty-nine ways this goes wrong, titled by symptom. |
 | [`_docs/knowledge-base/patterns/`](_docs/knowledge-base/patterns/) | Shapes that work here, each naming its callers. |
 | [`_docs/operations/runbooks/releasing-and-updating.md`](_docs/operations/runbooks/releasing-and-updating.md) | How a release is cut and how the app finds it. |
@@ -167,11 +205,20 @@ Built on **[voltybat/WaveLinkSettingsUtility](https://github.com/voltybat/WaveLi
 avoids the stale vendor folder, Core Audio endpoint enumeration, the shutdown sequence, and
 atomic writes.
 
-This project is a fork that adds what that tool deliberately is not — a watcher, a snapshot
+This project is a fork that adds what that tool deliberately isn't — a watcher, a snapshot
 store with retention, content-hash dedup, duplicate-key validation and a GUI. What was taken,
 what needed fixing, and why forking rather than contributing upstream was the right call is
 written up in [the audit](_docs/audits/2026-08-15-voltybat-wavelinksettingsutility.md) and
 [ADR-002](_docs/decisions/ADR-002-fork-wavelinksettingsutility.md).
+
+---
+
+<p align="center">
+  <strong>Platform</strong> Windows 10 20H1+ (<code>net10.0-windows</code>) — <a href="_docs/decisions/ADR-008-windows-only-scope.md">why Windows only</a><br>
+  <strong>Status</strong> v0.7.4 — tray app and CLI, both working; the release/update loop is built but untested in the wild<br>
+  <strong>Privacy</strong> Nothing leaves your computer, ever. No telemetry, no uploads, no accounts<br>
+  <strong>Licence</strong> MIT (fork of <a href="https://github.com/voltybat/WaveLinkSettingsUtility">voltybat/WaveLinkSettingsUtility</a>, MIT)
+</p>
 
 ---
 
