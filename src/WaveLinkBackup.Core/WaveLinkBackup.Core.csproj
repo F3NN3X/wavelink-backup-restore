@@ -28,6 +28,16 @@
   </PropertyGroup>
 
   <!--
+    System.ServiceProcess lives in its own package, not in the net10.0 base runtime (the type
+    forwards to it). WaveLinkService starts WavelinkSEService through ServiceController. The
+    package is P/Invoke-based - no reflection - so IsAotCompatible stays honest and the CLI's
+    AOT build keeps working.
+  -->
+  <ItemGroup>
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.0" />
+  </ItemGroup>
+
+  <!--
     Guard 1 of 3. The other two are source scans and live in the test project, because they
     are assertions about source text and are themselves worth testing.
 

@@ -106,7 +106,8 @@ public sealed class RestoreService(
     IFileSystem fileSystem,
     IWaveLinkProcess process,
     SnapshotStore store,
-    Func<SettingsInspection, SnapshotPayload?>? gatherPayload = null) : IRestoreService
+    Func<SettingsInspection, SnapshotPayload?>? gatherPayload = null,
+    IWaveLinkService? service = null) : IRestoreService
 {
     public Task<Result<RestorePlan>> PlanAsync(string snapshotId, SettingsInspection live, CancellationToken ct)
     {
@@ -114,7 +115,7 @@ public sealed class RestoreService(
         // so a slow disk never freezes the confirmation dialog's own window.
         return Task.Run(() => new RestoreOrchestrator(
             fileSystem, process, store, new SettingsWriter(fileSystem, process),
-            new SettingsReader(fileSystem), gatherPayload)
+            new SettingsReader(fileSystem), gatherPayload, service: service)
             .Plan(snapshotId, live), ct);
     }
 
@@ -127,7 +128,7 @@ public sealed class RestoreService(
     {
         var orchestrator = new RestoreOrchestrator(
             fileSystem, process, store, new SettingsWriter(fileSystem, process),
-            new SettingsReader(fileSystem), gatherPayload);
+            new SettingsReader(fileSystem), gatherPayload, service: service);
 
         // Run the synchronous Core sequence off the UI thread so the strip can animate while it
         // runs. The stages are reported from this background context; IProgress<T> marshals each
@@ -140,7 +141,21 @@ public sealed class RestoreService(
 
                 progress?.Report(RestoreStage.ClosingWaveLink);
 
-                var result = orchestrator.Restore(snapshotId, live, options);
+                // The orchestrator reports each step as it actually happens, so the strip advances
+                // live instead of jumping to "Checking" in one motion at the end. A report is only
+                // ever forwarded forward - Advance() throws on a stage behind the frontier, and the
+                // orchestrator emits close -> write -> relaunch in that order.
+                var result = orchestrator.Restore(
+                    snapshotId, live, options,
+                    step =>
+                    {
+                        switch (step)
+                        {
+                            case "close": progress?.Report(RestoreStage.ClosingWaveLink); break;
+                            case "write": progress?.Report(RestoreStage.WritingSettings); break;
+                            case "relaunch": progress?.Report(RestoreStage.StartingWaveLink); break;
+                        }
+                    });
                 if (!result.IsSuccess)
                 {
                     // The close, the write, or the pre-restore snapshot failed. Wave Link may be

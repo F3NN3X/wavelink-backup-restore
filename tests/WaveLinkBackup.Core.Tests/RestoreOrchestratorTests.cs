@@ -4,6 +4,7 @@ using WaveLinkBackup.Core.Automation;
 using WaveLinkBackup.Core.Capture;
 using WaveLinkBackup.Core.Discovery;
 using WaveLinkBackup.Core.Io;
+using WaveLinkBackup.Core.Process;
 using WaveLinkBackup.Core.Restore;
 using WaveLinkBackup.Core.Results;
 using WaveLinkBackup.Core.Snapshots;
@@ -45,6 +46,13 @@ public sealed class RestoreOrchestratorTests
         public SnapshotStore Store { get; private set; } = null!;
         public RestoreOrchestrator Orchestrator { get; set; } = null!;
 
+        /// <summary>
+        /// The service seam, injected so a test can prove the restore brings WavelinkSEService back
+        /// before it relaunches. Null by default: most tests do not care about the service, and an
+        /// orchestrator with no service behaves exactly as it did before this seam existed.
+        /// </summary>
+        public FakeWaveLinkService? Service { get; private set; }
+
         public Harness(string liveJson = Collapsed)
         {
             Fs.AddFile(SettingsPath, liveJson);
@@ -54,6 +62,15 @@ public sealed class RestoreOrchestratorTests
             Store = new SnapshotStore(Fs, Clock, StorePath);
             Orchestrator = new RestoreOrchestrator(
                 Fs, Process, Store, new SettingsWriter(Fs, Process), new SettingsReader(Fs));
+        }
+
+        /// <summary>Rebuilds the orchestrator with a service seam so a test can observe it.</summary>
+        public void WithService()
+        {
+            Service = new FakeWaveLinkService();
+            Orchestrator = new RestoreOrchestrator(
+                Fs, Process, Store, new SettingsWriter(Fs, Process), new SettingsReader(Fs),
+                service: Service);
         }
 
         // The explicit constructor, not SettingsInspector(IFileSystem) — that convenience
@@ -187,6 +204,77 @@ public sealed class RestoreOrchestratorTests
         Assert.Equal(Healthy, Encoding.UTF8.GetString(h.Fs.Read(SettingsPath)));
         Assert.True(result.Value.Relaunched);
         Assert.Equal("Elgato.WaveLink_g54w8ztgkx496", h.Process.LaunchedPackageFamily);
+    }
+
+    // ------------------ bringing the background service back before relaunch
+
+    /// <summary>
+    /// The whole point of the seam: a restore closes BOTH of Wave Link's processes, and an app that
+    /// comes up against a missing WavelinkSEService shows its own "Start Service / Exit App" box.
+    /// Starting the service first is what keeps that box from ever appearing.
+    /// </summary>
+    [Fact]
+    public void A_restore_starts_the_service_before_it_relaunches_Wave_Link()
+    {
+        var h = new Harness();
+        h.WithService();
+        var good = h.AddSnapshot(Healthy, "Before 3.3 beta");
+
+        var result = h.Orchestrator.Restore(good.Id, h.Live());
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.Relaunched);
+        // The service was brought back, and the app was launched after it - not instead of it.
+        Assert.Equal(1, h.Service!.EnsureStartedCalls);
+        Assert.True(h.Service.Running);
+        Assert.Equal("Elgato.WaveLink_g54w8ztgkx496", h.Process.LaunchedPackageFamily);
+    }
+
+    [Fact]
+    public void A_restore_that_cannot_relaunch_does_not_start_the_service()
+    {
+        // No package to relaunch through means no app coming up, which means nothing to show a
+        // "Start Service" box. The service is only worth starting when an app will actually run.
+        var h = new Harness();
+        h.WithService();
+        var good = h.AddSnapshot(Healthy, "good");
+
+        // An explicit path has no package around it, so the restore cannot relaunch through one.
+        var fs = new FakeFileSystem();
+        fs.AddFile(@"D:\rescued\Settings.json", Collapsed);
+        var store = new SnapshotStore(fs, new FakeClock(), StorePath);
+        var orchestrator = new RestoreOrchestrator(
+            fs, h.Process, store, new SettingsWriter(fs, h.Process), new SettingsReader(fs),
+            service: h.Service);
+
+        var live = SettingsInspector.For(fs, LocalAppData).Inspect(@"D:\rescued\Settings.json").Value;
+        var bytes = Encoding.UTF8.GetBytes(Healthy);
+        var snapshot = store.Write(bytes, SettingsAnalysis.Analyse(bytes).Value, SnapshotTrigger.Manual, "g").Value;
+
+        var result = orchestrator.Restore(snapshot.Id, live);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.Relaunched);
+        Assert.Equal(0, h.Service!.EnsureStartedCalls);
+    }
+
+    [Fact]
+    public void A_service_that_will_not_start_does_not_fail_the_restore()
+    {
+        // Reported, never fatal: the settings file is already written and the app can still be
+        // launched. If the service stays down, Wave Link simply shows its own prompt - exactly as
+        // before this seam existed. A restore must never be lost over a service it could not start.
+        var h = new Harness();
+        h.WithService();
+        h.Service!.StartFails = true;
+        var good = h.AddSnapshot(Healthy, "good");
+
+        var result = h.Orchestrator.Restore(good.Id, h.Live());
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.Relaunched);
+        Assert.Equal(1, h.Service!.EnsureStartedCalls);
+        Assert.False(h.Service.Running);
     }
 
     [Fact]

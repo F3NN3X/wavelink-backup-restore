@@ -55,7 +55,8 @@ public sealed class RestoreOrchestrator(
     SettingsReader reader,
     Func<SettingsInspection, SnapshotPayload?>? gatherPayload = null,
     string? appDataPath = null,
-    string? documentsPath = null)
+    string? documentsPath = null,
+    IWaveLinkService? service = null)
 {
     private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(10);
 
@@ -66,8 +67,16 @@ public sealed class RestoreOrchestrator(
     /// Which of the larger tiers to put back. Presets on, plug-in binaries off - the default is
     /// everything that cannot need administrator rights ([[ADR-006]]).
     /// </param>
+    /// <param name="reportStage">
+    /// Optional progress hook, called as each step completes: "close" after both processes are
+    /// verified exited, "write" after the settings file is back in place, and "relaunch" once Wave
+    /// Link has been started again. Null (the default) runs the sequence silently - the CLI and any
+    /// caller that does not show a strip pass nothing. The hook must be cheap and synchronous; it
+    /// reports what HAS happened, so it is never on the critical path of the restore itself.
+    /// </param>
     public Result<RestoreOutcome> Restore(
-        string snapshotId, SettingsInspection live, RestoreOptions? options = null)
+        string snapshotId, SettingsInspection live, RestoreOptions? options = null,
+        Action<string>? reportStage = null)
     {
         // 1. Verify the snapshot BEFORE touching anything. Restoring a file the app will
         //    reject looks identical to the snapshot being broken, and costs a whole restore
@@ -95,11 +104,13 @@ public sealed class RestoreOrchestrator(
         //    on the way out; harmless before the write, fatal racing it.
         var closed = process.CloseAndVerifyExited(CloseTimeout);
         if (!closed.IsSuccess) return Result<RestoreOutcome>.Fail(closed.Error);
+        reportStage?.Invoke("close");
 
         // 4. Write. Re-checks the precondition itself - this call site is not trusted, on
         //    purpose.
         var written = writer.Write(live.Location, settings.Value);
         if (!written.IsSuccess) return Result<RestoreOutcome>.Fail(written.Error);
+        reportStage?.Invoke("write");
 
         // 5. Tiers 3 and 4, while Wave Link is still closed - a plug-in binary cannot be
         //    replaced under a host that has it loaded, and presets are read at scan time.
@@ -116,7 +127,16 @@ public sealed class RestoreOrchestrator(
         var relaunched = false;
         if (live.Location.CanRelaunch)
         {
+            // Bring the background service back BEFORE the app: a restore closes both processes
+            // (step 3), and an app that comes up against a missing WavelinkSEService shows its own
+            // "Start Service / Exit App" box. Starting it first is what keeps that box from ever
+            // appearing. Reported, never fatal - if the service will not start (no rights, no
+            // dependency), the restore still launches the app and Wave Link falls back to its own
+            // prompt, exactly as before this seam existed.
+            service?.EnsureStarted();
+
             relaunched = process.LaunchByAppId(live.Location.PackageFamilyName).IsSuccess;
+            reportStage?.Invoke("relaunch");
         }
 
         // 7. Verify from the log, never from the UI - a mixer that looks correct can be a

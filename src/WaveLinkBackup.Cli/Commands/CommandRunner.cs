@@ -120,9 +120,14 @@ public sealed class CommandRunner(
         if (!live.IsSuccess) return Fail(live.Error);
 
         var store = Store(command);
+        // Bring WavelinkSEService back before relaunching so Wave Link does not show its own
+        // "Start Service" box. The CLI runs unelevated unless the user ran it as admin; a denied
+        // start is reported, never fatal - the restore still launches the app and Wave Link falls
+        // back to its own prompt exactly as before this seam existed.
         var orchestrator = new RestoreOrchestrator(
             fileSystem, process, store, new SettingsWriter(fileSystem, process),
-            new SettingsReader(fileSystem), live => GatherPayload(live, store), appDataPath, documentsPath);
+            new SettingsReader(fileSystem), live => GatherPayload(live, store), appDataPath, documentsPath,
+            service: new WaveLinkService());
 
         var plan = orchestrator.Plan(command.Arguments[0], live.Value);
         if (!plan.IsSuccess) return Fail(plan.Error);
