@@ -44,4 +44,69 @@ public sealed class WaveLinkProcessTests
         // ever fails, the shutdown sequence is only closing half of Wave Link.
         Assert.Contains("WavelinkSEService", new WaveLinkProcess().RunningProcessNames);
     }
+
+    // The exit-probe verdicts, tested through ProbeHasExited with fake probes so no live process
+    // is touched. These are the two exception shapes Process.HasExited actually throws; the third
+    // case is the regression that crashed v0.7.3 in the wild (WavelinkSEService runs as System).
+
+    [Fact]
+    public void Exit_probe_that_reads_false_means_still_running()
+    {
+        Assert.False(WaveLinkProcess.ProbeHasExited(() => false));
+    }
+
+    [Fact]
+    public void Exit_probe_that_throws_invalid_operation_means_already_gone()
+    {
+        // The handle is invalid because the process has exited.
+        Assert.True(
+            WaveLinkProcess.ProbeHasExited(() => throw new InvalidOperationException()));
+    }
+
+    [Fact]
+    public void Exit_probe_denied_access_to_an_elevated_process_means_not_verifiably_gone()
+    {
+        // WavelinkSEService runs as System; a user-level app cannot open a handle to it, so
+        // HasExited throws Win32Exception(5) instead of returning. That must read as "not
+        // exited" - the kill and the final verify then report WaveLinkStillRunning rather than
+        // letting the fault escape as an unhandled crash.
+        Assert.False(
+            WaveLinkProcess.ProbeHasExited(
+                () => throw new System.ComponentModel.Win32Exception(5, "Access is denied.")));
+    }
+
+    [Fact]
+    public void Exit_probe_that_throws_something_else_is_not_swallowed()
+    {
+        // Only the two documented failure shapes are mapped. Anything else is a genuine surprise
+        // and must propagate, not be silently read as either verdict.
+        Assert.Throws<System.IO.IOException>(
+            () => WaveLinkProcess.ProbeHasExited(
+                () => throw new System.IO.IOException("disk full")));
+    }
+
+    // CloseRequiresElevation reads live processes, so the only case that is deterministic on a
+    // test machine is "nothing running" - no process to probe means no elevation needed. The
+    // other verdicts (reachable -> false, higher-integrity -> true) ride on ProbeHasExited's two
+    // exception shapes above; the real property is the same handle access that HasExited uses.
+
+    [Fact]
+    public void No_Wave_Link_running_needs_no_elevation()
+    {
+        var process = new WaveLinkProcess();
+        if (process.IsRunning) Assert.Skip("Wave Link is running on this machine.");
+
+        // Nothing to close means nothing to elevate for: the restore can run in-process.
+        Assert.False(process.CloseRequiresElevation);
+    }
+
+    [Fact]
+    public void Elevation_never_needed_when_nothing_is_running_agrees_with_IsRunning()
+    {
+        var process = new WaveLinkProcess();
+
+        // When it is not running the answer must be false; when it is running the probe answers
+        // for each live process, so we only assert the half that holds on any machine.
+        if (!process.IsRunning) Assert.False(process.CloseRequiresElevation);
+    }
 }

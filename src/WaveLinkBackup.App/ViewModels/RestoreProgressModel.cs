@@ -89,6 +89,17 @@ public sealed class RestoreProgressModel : ObservableObject
     public string Reassurance => ReassuranceText;
 
     /// <summary>
+    /// 0–1: how far through the four stages the restore has got. It counts COMPLETED stages, not
+    /// the current one — stage 0 current = 0.25 (one quarter of the way in), stage 1 = 0.5,
+    /// stage 2 = 0.75, and the bar holds at 0.75 while the final stage is still running; only
+    /// Complete() takes it to 1.0. Counting the current stage would fill the bar to full a moment
+    /// before "DONE" actually prints, which reads as finished when it is not. Drives the strip's
+    /// red progress bar the same way BackupProgress.Fraction drives the backup strip's — one
+    /// number, one converter.
+    /// </summary>
+    public double Fraction => (_finished ? StageLabels.Length : _current) / (double)StageLabels.Length;
+
+    /// <summary>
     /// Move the frontier to <paramref name="stage"/>: it becomes Current, every earlier stage
     /// Done, every later one Pending. The orchestrator calls this in order as each step completes.
     /// </summary>
@@ -117,6 +128,7 @@ public sealed class RestoreProgressModel : ObservableObject
         _current = index;
         Raise(nameof(Stages));
         Raise(nameof(CurrentIndex));
+        Raise(nameof(Fraction));
         Raise(nameof(RightEndReadout));
     }
 
@@ -136,6 +148,7 @@ public sealed class RestoreProgressModel : ObservableObject
         _finished = true;
         Raise(nameof(Stages));
         Raise(nameof(CurrentIndex));
+        Raise(nameof(Fraction));
         Raise(nameof(IsFinished));
         Raise(nameof(RightEndReadout));
     }

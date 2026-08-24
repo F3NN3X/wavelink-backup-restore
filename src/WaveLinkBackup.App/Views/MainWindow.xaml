@@ -402,10 +402,32 @@
                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Grid>
 
-                    <!-- SucceededUnconfirmed, and every inline error: the neutral hollow circle -
-                         NOT amber. 06's inline-strip anatomy asks for the same 11px dot the
-                         unconfirmed outcome uses, and for the same reason: nothing happened, so
-                         nothing is un-whole. -->
+                    <!-- SucceededUnconfirmed: the SAME ringed check as confirmed. The write went
+                         through - the only open question is whether Wave Link's log recorded it,
+                         which "Check again" resolves. A hollow circle read as "nothing happened",
+                         so a working restore looked like a no-op; the check says what actually
+                         occurred and the sentence beside it carries the caveat. -->
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="SucceededUnconfirmed">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <Ellipse Stroke="{DynamicResource WlOk}" StrokeThickness="1.5" Fill="Transparent" />
+                        <Path Data="{StaticResource WlCheckGeometry}" Stroke="{DynamicResource WlOk}"
+                              StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Width="10" Height="10" Stretch="Uniform"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <!-- Every inline error: the neutral hollow circle - NOT amber. 06's inline-strip
+                         anatomy asks for this dot, and for the same reason: nothing is un-whole, so
+                         an error carries no success or failure marker of its own. -->
                     <Ellipse Width="11" Height="11"
                              HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Ellipse.Style>
@@ -415,9 +437,6 @@
                                 <Setter Property="Fill" Value="Transparent" />
                                 <Setter Property="StrokeThickness" Value="1.5" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Strip.Kind}" Value="SucceededUnconfirmed">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding Strip.IsInlineError}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
@@ -665,8 +684,11 @@
                      Settings proportion bar uses; the track's ActualWidth is its parameter. -->
                 <Border Grid.Row="1" x:Name="BackupProgressTrack" Height="2"
                         Background="{DynamicResource WlLine}" HorizontalAlignment="Stretch">
+                    <!-- The fill is the app's own red (WlDanger), not the accent: a backup in
+                         flight is progress, and the accent is the user's colour - the design keeps
+                         those two separate. -->
                     <Border x:Name="BackupProgressFill" Height="2"
-                            Background="{DynamicResource WlAccent}" HorizontalAlignment="Left">
+                            Background="{DynamicResource WlDanger}" HorizontalAlignment="Left">
                         <Border.Width>
                             <MultiBinding Converter="{StaticResource WlFractionWidthConverter}">
                                 <Binding Path="BackupProgress.Fraction" />
@@ -710,6 +732,7 @@
                     <RowDefinition Height="Auto" /> <!-- status line -->
                     <RowDefinition Height="Auto" /> <!-- reassurance line -->
                     <RowDefinition Height="Auto" /> <!-- the stage row -->
+                    <RowDefinition Height="Auto" /> <!-- the progress bar, on the strip's bottom edge -->
                 </Grid.RowDefinitions>
 
                 <!--
@@ -721,7 +744,10 @@
                     <!-- Hollow dot: 11px, 1px WlLine2 - the "in progress" marker, not a spinner. -->
                     <Ellipse Width="11" Height="11" VerticalAlignment="Center"
                              Stroke="{DynamicResource WlLine2}" StrokeThickness="1" Fill="Transparent" />
+                    <!-- Foreground is set explicitly: the window's own status strip does the same,
+                         because on the dark WlChrome strip an inherited colour reads near-black. -->
                     <views:TrackedText Margin="8,0,0,0" Tracking=".14" VerticalAlignment="Center"
+                                        Foreground="{DynamicResource WlText}"
                                         Text="{Binding RestoreStatusLabel}">
                         <views:TrackedText.Style>
                             <Style TargetType="views:TrackedText" BasedOn="{StaticResource WlStatusStripTrackedText}" />
@@ -783,6 +809,25 @@
                                Style="{StaticResource WlMonoMetaText}" FontSize="11.5"
                                Foreground="{DynamicResource WlMuted}" VerticalAlignment="Center" />
                 </Grid>
+
+                <!-- The bar sits on the strip's bottom edge, full width - the same treatment as the
+                     backup strip above it: a 2px WlLine track with a WlDanger fill whose width is
+                     Fraction x the track's ActualWidth. RestoreProgress.Fraction advances one
+                     quarter per stage and reaches 1 only when Complete fires, so the bar fills in
+                     four even jumps rather than crawling - which matches how the stages themselves
+                     advance (named steps, not a spinner). -->
+                <Border Grid.Row="3" x:Name="RestoreProgressTrack" Height="2" Margin="0,12,0,0"
+                        Background="{DynamicResource WlLine}" HorizontalAlignment="Stretch">
+                    <Border x:Name="RestoreProgressFill" Height="2"
+                            Background="{DynamicResource WlDanger}" HorizontalAlignment="Left">
+                        <Border.Width>
+                            <MultiBinding Converter="{StaticResource WlFractionWidthConverter}">
+                                <Binding Path="RestoreProgress.Fraction" />
+                                <Binding ElementName="RestoreProgressTrack" Path="ActualWidth" />
+                            </MultiBinding>
+                        </Border.Width>
+                    </Border>
+                </Border>
             </Grid>
         </Border>
 
@@ -1131,7 +1176,7 @@
                         <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center"
                                    Text="{Binding FoundSettingsPath}"
                                    FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
-                                   Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+                                   Foreground="{DynamicResource WlMuted}" />
                     </StackPanel>
 
                     <!--
@@ -1175,7 +1220,7 @@
                         <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center"
                                    Text="{Binding FirstRunLookedInLabel}"
                                    FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
-                                   Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+                                   Foreground="{DynamicResource WlMuted}" />
 
                         <Button x:Name="ChooseSettingsFileButton" Margin="0,10,0,0"
                                 HorizontalAlignment="Center"
@@ -1189,11 +1234,11 @@
                         <TextBlock HorizontalAlignment="Left"
                                    Text="{Binding StorePath}"
                                    FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
-                                   Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+                                   Foreground="{DynamicResource WlMuted}" />
                         <TextBlock HorizontalAlignment="Right"
                                    Text="FREE AND OPEN SOURCE · NOTHING LEAVES THIS COMPUTER"
                                    FontFamily="{DynamicResource WlMonoFont}" FontSize="11.5"
-                                   Foreground="{DynamicResource WlMuted}" Opacity="0.8" />
+                                   Foreground="{DynamicResource WlMuted}" />
                     </Grid>
                 </StackPanel>
             </Grid>

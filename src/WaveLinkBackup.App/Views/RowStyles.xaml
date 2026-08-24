@@ -314,8 +314,11 @@
       regardless of WhyIsPrimary, so the design's 1px wl-line is already satisfied.
     -->
     <DataTemplate x:Key="WlWhyPill">
+        <!-- CornerRadius 4, not the 999 this carried: the WHY pill sits in the same column family
+             as the tier badges (SETTINGS / PRESETS / PLUGINS), which draw at radius 4 - a fully
+             rounded edge read as an oval chip next to their squared rectangles. -->
         <Border x:Name="WhyBorder" Background="{DynamicResource WlCard}" BorderBrush="{DynamicResource WlLine}"
-                BorderThickness="1" CornerRadius="999" Padding="9,5">
+                BorderThickness="1" CornerRadius="4" Padding="9,5">
             <views:TrackedText x:Name="WhyText" Text="{Binding Why}" Tracking=".14" FontSize="10.5"
                                 Style="{StaticResource WlTierBadgeTrackedText}"
                                 Foreground="{DynamicResource WlMuted}" />
@@ -777,7 +780,7 @@
                                 <TextBlock Grid.Column="2" Text="{Binding DetailFileName}"
                                            Style="{StaticResource WlMonoMetaText}"
                                            Foreground="{DynamicResource WlMuted}"
-                                           Opacity="0.75" VerticalAlignment="Center" />
+                                           VerticalAlignment="Center" />
                             </Grid>
                         </Grid>
                         </StackPanel>

@@ -8,10 +8,12 @@
     <SolidColorBrush x:Key="WlRaised"    Color="#1B1D1C" />
     <SolidColorBrush x:Key="WlSunken"    Color="#0B0D0C" />
 
-    <!-- Text -->
+    <!-- Text. WlMuted is the dim mono micro-labels, meta lines and section headers used across
+         every dialog; #8B9096 on the dark surfaces read as low-contrast in practice, so it sits
+         a step brighter than the design's first cut while staying clearly below WlText. -->
     <SolidColorBrush x:Key="WlText"      Color="#C8CBD2" />
     <SolidColorBrush x:Key="WlStrong"    Color="#FFFFFF" />
-    <SolidColorBrush x:Key="WlMuted"     Color="#8B9096" />
+    <SolidColorBrush x:Key="WlMuted"     Color="#A6ABB3" />
 
     <!--
       Lines. The design's own values are rgba(200,203,210,.12) / .24 / .05 - grey-200 (WlText's

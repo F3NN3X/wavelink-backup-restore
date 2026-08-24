@@ -126,6 +126,12 @@ public sealed class ShellViewModel : ObservableObject
         isRestoring = true;
 
         Raise(nameof(RestoreProgress));
+        // Fraction lives on the swapped-in model, and its value (0) is identical to the old
+        // instance's - so a binding that cached the path at first resolution never re-subscribes
+        // and the fill stays at zero width even as stages advance. Raising it here forces every
+        // RestoreProgress.* path to re-resolve against the fresh model before Advance() fires its
+        // own change events.
+        Raise(nameof(RestoreProgress.Fraction));
         Raise(nameof(IsRestoring));
         Raise(nameof(RestoreStatusLabel));
         // The four CanX facts all fold in not-IsRestoring, so re-raise them: the buttons and their

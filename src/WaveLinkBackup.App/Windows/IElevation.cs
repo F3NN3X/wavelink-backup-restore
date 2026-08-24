@@ -70,7 +70,10 @@ public sealed class ShellExecuteElevation(string? executablePath = null) : IElev
 
         var info = new ProcessStartInfo(executable)
         {
-            // Required by `runas`: the verb is only honoured through the shell.
+            // Required by `runas`: the verb is only honoured through the shell. No stream
+            // redirection here - it is incompatible with UseShellExecute, and the child's progress
+            // reaches the caller over a named pipe instead (StageReportChannel), which works across
+            // the UAC boundary without touching the process's standard streams at all.
             UseShellExecute = true,
             Verb = "runas",
         };

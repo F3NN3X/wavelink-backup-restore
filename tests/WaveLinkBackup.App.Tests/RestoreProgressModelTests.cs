@@ -109,4 +109,28 @@ public class RestoreProgressModelTests
         Assert.Contains("“Before restore”", model.Reassurance);
         Assert.Contains("Your mixer is closed while this happens", model.Reassurance);
     }
+
+    [Fact]
+    public void Fraction_Counts_Completed_Stages_Not_The_Current_One()
+    {
+        var model = new RestoreProgressModel();
+
+        // Stage 0 current: nothing is done yet, so the bar starts empty.
+        Assert.Equal(0.0, model.Fraction, 3);
+
+        model.Advance(RestoreStage.WritingSettings);
+        // One stage (Closing) is done: a quarter of the way through.
+        Assert.Equal(0.25, model.Fraction, 3);
+
+        model.Advance(RestoreStage.StartingWaveLink);
+        Assert.Equal(0.5, model.Fraction, 3);
+
+        model.Advance(RestoreStage.Checking);
+        // Three stages done; the final one is current but not finished, so the bar holds at
+        // three-quarters rather than jumping to full a moment before "DONE" prints.
+        Assert.Equal(0.75, model.Fraction, 3);
+
+        model.Complete();
+        Assert.Equal(1.0, model.Fraction, 3);
+    }
 }

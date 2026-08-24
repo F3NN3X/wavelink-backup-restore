@@ -22,6 +22,12 @@ public sealed class FakeWaveLinkProcess : IWaveLinkProcess
     public int KillAttempts { get; private set; }
     public string? LaunchedPackageFamily { get; private set; }
 
+    /// <summary>
+    /// Models a Wave Link process that runs above this one's integrity level (WavelinkSEService
+    /// as System): it cannot be closed from here, so a restore must elevate to reach it.
+    /// </summary>
+    public bool CloseRequiresElevation { get; set; }
+
     public IReadOnlyList<string> RunningProcessNames =>
         Running ? ["Elgato.WaveLink", "WavelinkSEService"] : [];
 

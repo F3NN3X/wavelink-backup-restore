@@ -7,6 +7,7 @@ using WaveLinkBackup.Core.Process;
 using WaveLinkBackup.Core.Restore;
 using WaveLinkBackup.Core.Results;
 using WaveLinkBackup.Core.Snapshots;
+using WaveLinkBackup.App.Windows;
 
 namespace WaveLinkBackup.App.Startup;
 
@@ -64,13 +65,19 @@ public static class HeadlessRestore
 {
     /// <param name="fileSystem">Injected so a test can run the whole path without a real disk.</param>
     /// <param name="process">Injected for the same reason: no test may close the real Wave Link.</param>
+    /// <param name="service">
+    /// The WavelinkSEService seam, injected so a test never starts a real service. Null (the default
+    /// from a caller that does not pass one) means "no service to bring back" - the restore still
+    /// launches the app and Wave Link falls back to its own prompt.
+    /// </param>
     public static int Run(
         ShellArguments arguments,
         BackupSettings settings,
         IFileSystem fileSystem,
         IWaveLinkProcess process,
         IClock clock,
-        string? localAppData = null)
+        string? localAppData = null,
+        IWaveLinkService? service = null)
     {
         if (arguments.RestoreSnapshotId is not { Length: > 0 } id) return RestoreExitCode.Failure;
 
@@ -88,10 +95,22 @@ public static class HeadlessRestore
             new SettingsReader(fileSystem),
             // The copy the user comes back to should be as complete as any other, so the
             // pre-restore snapshot obeys the same tier settings a normal capture does.
-            settingsInspection => TierCapture.For(fileSystem).Gather(settingsInspection, settings));
+            settingsInspection => TierCapture.For(fileSystem).Gather(settingsInspection, settings),
+            // This is the elevated path: it holds the rights to start WavelinkSEService (it just
+            // closed one), so bringing the service back here is what keeps Wave Link from showing
+            // its "Start Service" box after a plugin-binary restore.
+            service: service);
 
+        // The shell that started this process drives its in-progress strip from these markers - one
+        // line per completed step, in order, so it advances live instead of sitting on "Closing Wave
+        // Link" until the whole restore is done. They travel over a named pipe (StageReportChannel),
+        // not stdout: the child is started with UseShellExecute + runas, which forbids stream
+        // redirection. If the shell is not listening Connect returns null and this reports nothing;
+        // the restore runs exactly as it would have without the channel.
+        using var channel = StageReportChannel.Connect(id);
         var result = orchestrator.Restore(
-            id, live.Value, new RestoreOptions(Presets: true, PluginBinaries: arguments.WithPlugins));
+            id, live.Value, new RestoreOptions(Presets: true, PluginBinaries: arguments.WithPlugins),
+            step => StageReportChannel.Report(channel, step));
 
         // A restore that ran is a success even when Wave Link's log could not confirm it. The
         // shell that started this process re-reads the store and shows the outcome; reporting an

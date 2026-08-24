@@ -30,26 +30,35 @@
         <views:BoolToVisibilityConverter x:Key="WhenTrue" />
         <views:InverseBoolToVisibilityConverter x:Key="WhenFalse" />
 
-        <!-- The board's one cell: a filled dot where the channel feeds the mix, an empty ring
-             where it does not. Shape-first (screens/11) - high contrast keeps both shapes and the
-             fill is WlOk, never the only signal because the row and column names sit beside it.
+        <!-- The board's one cell: a green checkmark where the channel feeds the mix, an empty ring
+             where it does not. Shape-first (screens/11) - high contrast keeps both shapes and
+             the fill is WlOk, never the only signal because the row and column names sit beside it.
              Keyed rather than inline: an inline DataTemplate with DataType=bool would match its own
-             bool item and re-enter itself forever (the OOM in XamlObjectWriter). -->
+             bool item and re-enter itself forever (the OOM in XamlObjectWriter). The check is the
+             app's own WlCheckGeometry, stroke-rendered like every other check in this window - a
+             dot read as "a cell that is filled", not as "this input goes here". -->
         <DataTemplate x:Key="WlMatrixCell">
             <Grid Width="26" Height="20">
-                <Ellipse Stroke="{DynamicResource WlLine2}" StrokeThickness="1" Opacity="0.55" />
-                <Ellipse Fill="{DynamicResource WlOk}" Visibility="Collapsed">
-                    <Ellipse.Style>
-                        <Style TargetType="Ellipse">
+                <!-- A fixed square, centred in the cell: an Ellipse with no size would stretch to
+                     the 26x20 grid and draw an oval. Equal width and height keep it a true circle. -->
+                <Ellipse Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                         Stroke="{DynamicResource WlLine2}" StrokeThickness="1" Opacity="0.55" />
+                <!-- The check's visibility comes ONLY from its style's trigger: a local
+                     Visibility attribute would outrank the style and keep it collapsed forever. -->
+                <Path Data="{StaticResource WlCheckGeometry}" StrokeThickness="1.8"
+                      Stretch="Uniform" Width="12" Height="12">
+                    <Path.Style>
+                        <Style TargetType="Path">
                             <Setter Property="Visibility" Value="Collapsed" />
+                            <Setter Property="Stroke" Value="{DynamicResource WlOk}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding}" Value="True">
                                     <Setter Property="Visibility" Value="Visible" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </Ellipse.Style>
-                </Ellipse>
+                    </Path.Style>
+                </Path>
             </Grid>
         </DataTemplate>
 
@@ -210,7 +219,7 @@
                                                                 <TextBlock Grid.Column="0" Text="{Binding PositionLabel}"
                                                                            Style="{StaticResource WlMonoMetaText}"
                                                                            Foreground="{DynamicResource WlMuted}"
-                                                                           Opacity="0.7" VerticalAlignment="Center" />
+                                                                           VerticalAlignment="Center" />
 
                                                                 <TextBlock x:Name="EffectName" Grid.Column="1"
                                                                            Text="{Binding Name}"
@@ -397,7 +406,7 @@
                                     <views:TrackedText Text="{Binding MainOutputLine}" Tracking=".10"
                                                        Margin="0,6,0,0"
                                                        Style="{StaticResource WlSlotLabelTrackedText}"
-                                                       Foreground="{DynamicResource WlMuted}" Opacity="0.8"
+                                                       Foreground="{DynamicResource WlMuted}"
                                                        Visibility="{Binding MainOutputLine, Converter={StaticResource LineVisible}}"
                                                        AutomationProperties.Name="Where Wave Link plays out" />
                                 </StackPanel>

@@ -1,0 +1,89 @@
+<Window x:Class="WaveLinkBackup.App.Views.ElevationNoticeDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Administrator rights needed"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        AllowsTransparency="True"
+        WindowStartupLocation="Manual"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Background="Transparent">
+
+    <!--
+      The inform-then-elevate notice (screens/13-elevation.md). Shown when a restore must close a
+      running Wave Link that sits above this process's integrity level, so the graceful close and
+      the kill both fail in place and an elevated copy has to do it instead.
+
+      It is a plain-language explanation of WHY Windows is about to ask for rights - the UAC prompt
+      stays the consent gate, but it no longer appears unexplained. Unlike the restore confirmation
+      it is not destructive: "Continue" merely routes to the elevated copy, and "Cancel" changes
+      nothing. Both are therefore ordinary buttons - Continue primary, Cancel secondary - with focus
+      starting on the safe choice (Cancel) exactly as DeleteDialog does for its irreversible action.
+
+      The same borderless-modal shape as RestoreDialog and DeleteDialog: WlScrim fills this window
+      edge to edge and a 460px WlCard card sits centred on top of it. WindowStartupLocation is
+      Manual, not CenterOwner: DialogOverlay positions the window over its owner on SourceInitialized,
+      and CenterOwner would re-centre a full-owner-sized overlay afterwards.
+    -->
+    <Grid>
+        <!-- The scrim: what dims the app behind. -->
+        <Border Background="{DynamicResource WlScrim}" />
+
+        <!-- The card: 460px, WlCard surface, hairline-24% border (WlLine2), 8px radius. -->
+        <Border Width="460" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="{DynamicResource WlCard}"
+                BorderBrush="{DynamicResource WlLine2}" BorderThickness="1" CornerRadius="8"
+                Effect="{StaticResource WlDialogShadow}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />    <!-- content -->
+                    <RowDefinition Height="Auto" /> <!-- footer -->
+                </Grid.RowDefinitions>
+
+                <!-- Content: 26px left/right, 26 top / 24 bottom, 18px between blocks. -->
+                <StackPanel Grid.Row="0" Margin="26,26,26,24">
+
+                    <!-- 1. Title: dialog title role. -->
+                    <TextBlock Text="Administrator rights needed"
+                               Style="{StaticResource WlDialogTitleText}"
+                               Foreground="{DynamicResource WlStrong}"
+                               AutomationProperties.Name="Elevation notice title" />
+
+                    <!-- 2. Body: the plain-language why, two sentences over a reassurance line. -->
+                    <TextBlock TextWrapping="Wrap" Margin="0,18,0,0"
+                               Style="{StaticResource WlBodyText}"
+                               Foreground="{DynamicResource WlText}">
+                        <Run Text="Wave Link's background service is running with system rights that this app does not have. " />
+                        <Run Text="Restoring needs to close it first, so Windows will ask for administrator permission." />
+                    </TextBlock>
+
+                    <!-- 3. Reassurance: the way nothing is lost by declining. -->
+                    <TextBlock TextWrapping="Wrap" Margin="0,12,0,0"
+                               Style="{StaticResource WlSecondaryText}"
+                               Foreground="{DynamicResource WlMuted}">
+                        <Run Text="Your settings and presets are safe either way - declining changes nothing." />
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Footer: WlBg, hairline top, 18px vertical / 26px horizontal, right-aligned. -->
+                <Border Grid.Row="1" Background="{DynamicResource WlBg}"
+                        BorderBrush="{DynamicResource WlLine}" BorderThickness="0,1,0,0"
+                        Padding="26,18">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <!-- Cancel: secondary. Focus starts here; Escape is equivalent to it. -->
+                        <Button x:Name="CancelButton" Content="_Cancel" IsDefault="False"
+                                Style="{StaticResource WlSecondaryButton}"
+                                AutomationProperties.Name="Cancel restore" />
+
+                        <!-- Continue: primary. Routes to the elevated copy; the UAC prompt that
+                             follows is still the consent gate. Enter fires it once the user has
+                             tabbed onto it (wired in code-behind) - not from anywhere, which is why
+                             IsDefault stays off and focus can start safely on Cancel. -->
+                        <Button x:Name="ContinueButton" Content="_Continue" IsDefault="False" Margin="9,0,0,0"
+                                Style="{StaticResource WlPrimaryButton}"
+                                AutomationProperties.Name="Continue with administrator rights" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

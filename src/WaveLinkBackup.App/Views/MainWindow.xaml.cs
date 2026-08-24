@@ -401,6 +401,31 @@ public partial class MainWindow : Window
             return;
         }
 
+        // A second reason to elevate, independent of tier 4: a running Wave Link process that sits
+        // above this one's integrity level (WavelinkSEService as System) cannot be closed from a
+        // non-elevated copy - the graceful close and the kill both fail for the same reason, so an
+        // in-process restore would end with "Wave Link still running" after already writing the
+        // pre-restore snapshot. The probe asks each running process whether it can be reached; it
+        // does not infer from a name or path (the ADR-011 discipline). When it answers yes, tell
+        // the user WHY Windows is about to ask for rights - the UAC prompt is still the consent
+        // gate, but it no longer appears unexplained - and route to the elevated copy.
+        if ((Application.Current as App)?.RestoreCloseRequiresElevation == true)
+        {
+            // Inform first: a plain-language explanation of WHY Windows is about to ask for rights,
+            // with a Cancel that changes nothing. The UAC prompt the elevated copy raises stays the
+            // consent gate - it no longer appears unexplained. A stock MessageBox had no Cancel and
+            // no theme; this is the app's own dialog shape instead.
+            var notice = new ElevationNoticeDialog { Owner = this };
+            if (notice.ShowDialog() != true)
+            {
+                RestoreFocusToList();
+                return; // Declined - nothing was touched, no elevated copy launched.
+            }
+
+            await RunElevatedRestoreAsync(row.Id, row.Name);
+            return;
+        }
+
         await RunRestoreAsync(
             row.Id, row.Name, live,
             new RestoreOptions(Presets: true, PluginBinaries: wantsPlugins));
@@ -416,10 +441,19 @@ public partial class MainWindow : Window
     /// as far as the user is concerned, and a separate "waiting for permission" state would be a
     /// screen nobody sees for more than a second. Nothing has been written while Windows is asking:
     /// the elevated copy takes the pre-restore snapshot itself.
+    ///
+    /// The child reports each step it finishes as a marker on stdout (<c>WLRESTORE-STAGE close</c>,
+    /// <c>write</c>, <c>relaunch</c>); this reads them line by line and advances the strip live, so
+    /// the user watches the four steps move instead of sitting on step one until it is over. The
+    /// marker channel is best-effort: if the child never emits one (an older build, or a failure
+    /// before its first step) the strip simply stays at "Closing Wave Link", which is still true.
     /// </summary>
     private async Task RunElevatedRestoreAsync(string snapshotId, string snapshotName)
     {
         shell.BeginRestore(snapshotName);
+        // The restore has begun as far as the user is concerned - closing Wave Link is step one and
+        // it is already underway. The child's markers advance the strip from here; if none arrive
+        // this stays put, which is the honest state for a child that died before its first step.
         shell.RestoreProgress.Advance(RestoreStage.ClosingWaveLink);
 
         restoreCts = new CancellationTokenSource();
@@ -428,10 +462,22 @@ public partial class MainWindow : Window
         ElevationOutcome outcome;
         try
         {
-            // Off the UI thread: RunElevated blocks until the elevated copy exits, and the strip
-            // has to keep animating while Windows shows its consent dialog.
+            // Off the UI thread: RunElevated blocks until the elevated copy exits, and the strip has
+            // to keep animating while Windows shows its consent dialog. The child's stage markers
+            // travel over a named pipe (StageReportChannel), not stdout - runas forbids stream
+            // redirection - so this second task reads that pipe line by line and advances the strip
+            // live as each step lands. It ends when the child closes its end, i.e. when the elevated
+            // copy exits; if the child never connects (declined prompt) it ends with the token.
+            var stages = Task.Run(
+                () => StageReportChannel.ReadLines(snapshotId, TrackElevatedStages, token), token);
+
             outcome = await Task.Run(
                 () => elevation.RunElevated(["--restore", snapshotId, "--with-plugins"], token), token);
+
+            // The pipe reader should have ended with the child; if it has not (a stray hold on the
+            // pipe) do not let it outlive the restore - cancel it and stop waiting for it here.
+            try { await stages; }
+            catch (OperationCanceledException) { /* the token fired while the child was still up */ }
         }
         finally
         {
@@ -468,6 +514,40 @@ public partial class MainWindow : Window
         }
 
         await shell.List.RefreshAsync();
+    }
+
+    /// <summary>
+    /// Reads one line of the elevated child's stdout and, if it is a stage marker, advances the
+    /// in-progress strip to match. Runs on the background thread that owns the child process, so
+    /// the advance is marshalled back to the UI thread - the same hop IProgress&lt;T&gt; makes for the
+    /// in-process restore's stage reports.
+    ///
+    /// Only a marker advances anything: every other line (an unexpected message, an empty line) is
+    /// ignored rather than treated as progress. A marker behind the current frontier is dropped -
+    /// Advance() throws on backwards motion and a late or duplicated line must not take the strip
+    /// down. Forward-only, in order, exactly like the orchestrator emits them.
+    /// </summary>
+    private void TrackElevatedStages(string line)
+    {
+        if (!line.StartsWith("WLRESTORE-STAGE ", StringComparison.Ordinal)) return;
+
+        var step = line["WLRESTORE-STAGE ".Length..].Trim();
+        RestoreStage? stage = step switch
+        {
+            "close" => RestoreStage.ClosingWaveLink,
+            "write" => RestoreStage.WritingSettings,
+            "relaunch" => RestoreStage.StartingWaveLink,
+            _ => null,
+        };
+
+        if (stage is not { } s) return;
+
+        // The child emits close -> write -> relaunch in order and never repeats one, so each marker
+        // is strictly forward. Guard anyway: a marker at or behind the frontier is a no-op here
+        // rather than an exception that would kill the read loop mid-restore.
+        if ((int)s <= shell.RestoreProgress.CurrentIndex) return;
+
+        Dispatcher.Invoke(() => shell.RestoreProgress.Advance(s));
     }
 
     /// <summary>

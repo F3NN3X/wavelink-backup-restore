@@ -264,7 +264,7 @@
                                 <!-- The honest figure, read off this snapshot's own manifest. -->
                                 <TextBlock Text="{Binding PluginFiles.MetaText}"
                                            Style="{StaticResource WlMonoMetaText}"
-                                           Foreground="{DynamicResource WlMuted}" Opacity="0.8"
+                                           Foreground="{DynamicResource WlMuted}"
                                            Margin="0,6,0,0" />
                             </StackPanel>
 
