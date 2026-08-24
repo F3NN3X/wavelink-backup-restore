@@ -2,7 +2,7 @@
 title: "Documentation Stats"
 status: published
 created: 2026-08-16
-updated: 2026-08-22
+updated: 2026-08-24
 tags: [meta, stats]
 ---
 
@@ -20,20 +20,20 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of v0.7.3 (2026-08-23).*
+*As of v0.7.4 (2026-08-24).*
 
 | Artifact | Count |
 |---|---|
-| ADRs | 15 |
-| Gotchas | 28 |
+| ADRs | 16 |
+| Gotchas | 29 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
 | Audits | 3 (6 + 15 + 4 findings, one open question) |
-| Sessions | 25 |
+| Sessions | 26 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,587 passing** — Core 494 · CLI 100 · App 993 |
+| **Tests** | **1,598 passing** — Core 504 · CLI 100 · App 994 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,36 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### v0.7.4 — a restore puts the service back, and the trash row finally refreshes (2026-08-24)
+
+**The version that ships the two features and one fix above.** A restore now brings the Wave Link
+service back before it relaunches the app ([[ADR-016]]), emptying the trash reports its progress as
+it goes, and the settings dialog's trash row no longer shows a stale count after emptying.
+
+- **One ADR.** [[ADR-016]] — a restore brings the service back before it relaunches. The new
+  `IWaveLinkService` seam sits beside `IWaveLinkProcess`, the orchestrator owns the "service, then
+  app" ordering, and a failed start is reported rather than fatal because the settings are already
+  written by that point. Its *Alternatives considered* is the useful half: starting it from the
+  relaunch step, making failure fatal, prompting the user, putting the call in the shells, and
+  starting it before the close — each with the reason it lost.
+
+- **One gotcha.** [[the-row-shows-stale-data-after-you-update-it]] — a WPF view-model property that
+  is an auto-property never raises `PropertyChanged`, so re-assigning it updates the field and not
+  the screen. The trash row's first bind coincided with the window opening, which is why the value
+  looked right at first and wrong after every later write. Its "plausible explanation" section names
+  the trap that costs time: the data in memory was always correct, so chasing the count leads away
+  from the one-line declaration that is the real defect.
+
+- **One session.** [service-autostart-and-trash-progress](sessions/2026-08-24-service-autostart-and-trash-progress.md) —
+  what happened, including the progress test that used `System.Threading.Progress<T>` directly and
+  never received its reports on a bare test thread (no synchronization context to pump), fixed by a
+  synchronous fake that records the exact `(Done, Total)` sequence.
+
+**Counts moved:** ADRs 15 → 16 · gotchas 28 → 29 · sessions 25 → 26 · tests 1,587 → 1,598 (Core
+494 → 504 — three `RestoreOrchestratorTests` for the service seam and two `TrashTests` for the
+progress callback; App 993 → 994 — the trash-row refresh test that asserts the *rendered* text
+changes, which is what an auto-property silently breaks).
 
 ### v0.7.3 — the startup crash is fixed, and releases carry their notes (2026-08-23)
 

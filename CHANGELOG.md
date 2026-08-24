@@ -21,6 +21,22 @@ heading here.
 
 ---
 
+## [0.7.4] - 2026-08-24
+
+**A restore now puts the service back before it relaunches, and emptying the trash shows where it is.** A restore that closes Wave Link's processes used to leave its background service down, so the relaunched app came up against a missing `WavelinkSEService` and showed its own "Start Service / Exit App" box. That no longer happens on the elevated path where most restores run — and the trash-empty action, which could freeze the window while a full store was cleared, now reports its progress as it goes.
+
+### Added
+
+- **A restore brings the Wave Link service back before it relaunches the app.** A new `IWaveLinkService` seam in Core (`Exists`, `IsRunning`, `EnsureStarted()`) sits beside `IWaveLinkProcess`; the real implementation goes through the Service Control Manager with a 15-second start timeout. The restore orchestrator calls it immediately before relaunching, so the app comes up against a running service instead of Wave Link's "Start Service / Exit App" box. A failed start is reported, never fatal — the settings are already written by that point, and an unelevated caller simply falls back to Wave Link's own prompt, exactly as before. See [ADR-016](_docs/decisions/ADR-016-a-restore-brings-the-service-back-before-it-relaunches.md).
+
+- **Emptying the trash shows live progress.** The settings dialog's trash row now fills a determinate bar and counts "Removing N of M…" as items are cleared, instead of looking frozen while a full store is emptied. `SnapshotStore.EmptyTrash` gained an optional `IProgress<(int Done, int Total)>` callback that reports after each successful removal; the existing CLI and app callers are untouched because it defaults to null.
+
+### Fixed
+
+- **The trash row no longer shows a stale count and size after emptying.** The row's view-model property was an auto-property, so re-assigning it never raised `PropertyChanged` and the screen kept its first value. It is now a notifying property; all three write sites (initial open, folder change, post-empty refresh) update the UI at once with no XAML changes. See [the gotcha](_docs/knowledge-base/gotchas/the-row-shows-stale-data-after-you-update-it.md).
+
+---
+
 ## [0.7.3] - 2026-08-23
 
 **The app that would not start is fixed, and releases now carry their own notes.** A crash that

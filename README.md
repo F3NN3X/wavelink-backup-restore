@@ -10,7 +10,7 @@ it exists — or by a scriptable CLI when you want to do it yourself.
 | | |
 |---|---|
 | **Platform** | Windows 10 20H1+ (`net10.0-windows`) — [why Windows only](_docs/decisions/ADR-008-windows-only-scope.md) |
-| **Status** | v0.7.2 — tray app and CLI, both working; the release/update loop is built but untested in the wild |
+| **Status** | v0.7.4 — tray app and CLI, both working; the release/update loop is built but untested in the wild |
 | **Privacy** | Nothing leaves your computer, ever. No telemetry, no uploads, no accounts |
 | **Licence** | MIT (fork of [voltybat/WaveLinkSettingsUtility](https://github.com/voltybat/WaveLinkSettingsUtility), MIT) |
 
@@ -107,7 +107,7 @@ WPF app fails before managed code runs, so there is no surface to show one from)
 
 ```powershell
 dotnet build WaveLinkBackup.slnx
-dotnet test  WaveLinkBackup.slnx        # 1,587 tests
+dotnet test  WaveLinkBackup.slnx        # 1,598 tests
 
 # CLI — framework-dependent single file; resolves the runtime from the machine at startup
 dotnet publish src/WaveLinkBackup.Cli -c Release                      # ~0.2 MB archive
@@ -154,8 +154,8 @@ Everything lives in [`_docs/`](_docs/). Start at [`_docs/index.md`](_docs/index.
 | [`_docs/SPEC.md`](_docs/SPEC.md) | The build specification — where the settings live, what is inside them, the restore sequence, the validation traps. The authority on *what* to build. |
 | [`_docs/audits/2026-08-19-design-conformance.md`](_docs/audits/2026-08-19-design-conformance.md) | The app read against the design package — what matched, what was fixed, what remains undesigned. |
 | [`_docs/dev-phases/`](_docs/dev-phases/README.md) | What is built, what remains, phase by phase. |
-| [`_docs/decisions/`](_docs/decisions/) | Why it is built this way — 15 ADRs. |
-| [`_docs/knowledge-base/gotchas/`](_docs/knowledge-base/gotchas/) | Twenty-eight ways this goes wrong, titled by symptom. |
+| [`_docs/decisions/`](_docs/decisions/) | Why it is built this way — 16 ADRs. |
+| [`_docs/knowledge-base/gotchas/`](_docs/knowledge-base/gotchas/) | Twenty-nine ways this goes wrong, titled by symptom. |
 | [`_docs/knowledge-base/patterns/`](_docs/knowledge-base/patterns/) | Shapes that work here, each naming its callers. |
 | [`_docs/operations/runbooks/releasing-and-updating.md`](_docs/operations/runbooks/releasing-and-updating.md) | How a release is cut and how the app finds it. |
 | [`_docs/technical-debt.md`](_docs/technical-debt.md) | The honest list, including assumptions nobody has checked. |
