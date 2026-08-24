@@ -88,16 +88,48 @@ public sealed record TrashRowModel(
             ? new TrashRowModel(
                 Title: title,
                 Description: "Emptying hands them to the Windows Recycle Bin, so you would still have one more "
-                             + "chance to change your mind.",
+                              + "chance to change your mind.",
                 MonoLine: $"{Readable.Bytes(bytes)} · {trashPath}",
                 Volume: volume,
                 HasItems: true)
             : new TrashRowModel(
                 Title: title,
                 Description: "This folder is on a network drive, where Windows keeps no Recycle Bin — emptying "
-                             + "deletes them for good.",
+                              + "deletes them for good.",
                 MonoLine: $"{Readable.Bytes(bytes)} · {trashPath}",
                 Volume: volume,
                 HasItems: true);
     }
+}
+
+/// <summary>
+/// The live state of an in-flight trash-empty, projected onto the same row that shows the count.
+/// A pure value type, exactly like <see cref="TrashRowModel"/>: in comes how many snapshots have
+/// gone and how many were there to go; out goes the sentence and the bar's fraction. No I/O, no WPF.
+///
+/// The bar is DETERMINATE because the numbers are real — <c>SnapshotStore.EmptyTrash</c> reports
+/// after each successful removal, so <see cref="Done"/> only ever moves forward and <see cref="Total"/>
+/// was known before the first removal. A spinner would be the worse version of the same lie a fake
+/// determinate bar is (04-in-progress.md's rule, applied to a smaller operation).
+/// </summary>
+public sealed record TrashEmptyProgress(
+    int Done,
+    int Total)
+{
+    /// <summary>Whether the empty is in flight. The row shows the bar only while this is true.</summary>
+    public bool Active => Total > 0 && Done < Total;
+
+    /// <summary>True once every snapshot has gone (or there was nothing to remove).</summary>
+    public bool Complete => Total > 0 && Done >= Total;
+
+    /// <summary>0 to 1, for the bar across the row's bottom edge.</summary>
+    public double Fraction => Total <= 0 ? 0.0 : Math.Clamp((double)Done / Total, 0.0, 1.0);
+
+    /// <summary>
+    /// The sentence that replaces the row's title while emptying: "Removing 3 of 7…". The ellipsis
+    /// is the same "work in flight" marker the backing-up strip uses; the count is real, not a guess.
+    /// </summary>
+    public string Sentence => Total <= 0
+        ? "Emptying the trash…"
+        : $"Removing {Done} of {Total}…";
 }

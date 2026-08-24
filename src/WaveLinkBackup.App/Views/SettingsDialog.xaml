@@ -254,6 +254,28 @@
                                 <TextBlock Text="{Binding TrashRow.MonoLine}" Style="{StaticResource WlMonoMetaText}"
                                            Foreground="{DynamicResource WlMuted}" Margin="0,6,0,0"
                                            AutomationProperties.Name="Trash row statistics" />
+
+                                <!-- Live empty-trash progress: shown only while the operation is in flight.
+                                     The sentence replaces the title's role ("Removing 3 of 7…") and the
+                                     determinate bar below it tracks real removals - no spinner, no guesswork. -->
+                                <StackPanel Margin="0,8,0,0"
+                                            Visibility="{Binding TrashProgress, Converter={StaticResource TrashRowVisible}}">
+                                    <TextBlock Text="{Binding TrashProgress.Sentence}" Style="{StaticResource WlSecondaryText}"
+                                               Foreground="{DynamicResource WlMuted}"
+                                               AutomationProperties.Name="Trash empty progress" />
+                                    <Border x:Name="TrashProgressTrack" Height="2" Margin="0,6,0,0"
+                                            Background="{DynamicResource WlLine}" HorizontalAlignment="Stretch">
+                                        <Border Height="2" HorizontalAlignment="Left"
+                                                Background="{DynamicResource WlDanger}">
+                                            <Border.Width>
+                                                <MultiBinding Converter="{StaticResource FractionWidth}">
+                                                    <Binding Path="TrashProgress.Fraction" />
+                                                    <Binding ElementName="TrashProgressTrack" Path="ActualWidth" />
+                                                </MultiBinding>
+                                            </Border.Width>
+                                        </Border>
+                                    </Border>
+                                </StackPanel>
                             </StackPanel>
 
                             <!-- Empty trash: secondary. 40% opacity + not interactive when the trash is
@@ -553,32 +575,16 @@
                                                 </MultiBinding>
                                             </Border.Width>
                                             <!--
-                                              README Screen 3 colours the bar in ROW ORDER: ok for
-                                              your setup, warn for the effects list, accent at 75%
-                                              for the presets - and the plug-in files, when they
-                                              are in, join the accent block they would swell.
-
-                                              Keyed on Tier, not on Name. Matching the English row
-                                              label meant every segment but one painted ok, and a
-                                              copy edit to that label would have taken the last
-                                              colour with it.
+                                              The bar is the app's own red (WlDanger) in every segment.
+                                              The segments still carry meaning - their WIDTHS are the
+                                              byte share of each tier, and the high-contrast legend below
+                                              names them - but the fill no longer doubles as a tier colour
+                                              code; one colour reads as "this is the bar" rather than a
+                                              four-colour chart.
                                             -->
                                             <Border.Style>
                                                 <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="{DynamicResource WlOk}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Tier}" Value="2">
-                                                            <Setter Property="Background" Value="{DynamicResource WlWarn}" />
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Tier}" Value="3">
-                                                            <Setter Property="Background" Value="{DynamicResource WlAccent}" />
-                                                            <Setter Property="Opacity" Value="0.75" />
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Tier}" Value="4">
-                                                            <Setter Property="Background" Value="{DynamicResource WlAccent}" />
-                                                            <Setter Property="Opacity" Value="0.75" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
+                                                    <Setter Property="Background" Value="{DynamicResource WlDanger}" />
                                                 </Style>
                                             </Border.Style>
                                         </Border>
@@ -700,7 +706,7 @@
                                                AutomationProperties.Name="Wave Link settings file path" />
                                     <TextBlock Text="{Binding WhichWaveLink.ChosenAtText}"
                                                Style="{StaticResource WlMonoMetaText}"
-                                               Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0" Opacity="0.8"
+                                               Foreground="{DynamicResource WlMuted}" Margin="0,2,0,0"
                                                AutomationProperties.Name="When this installation was chosen" />
                                 </StackPanel>
 
@@ -806,7 +812,7 @@
                         <TextBlock Text="{Binding StartupRegistryLine}"
                                    Style="{StaticResource WlMonoMetaText}"
                                    Foreground="{DynamicResource WlMuted}" Margin="0,8,0,0"
-                                   Opacity="0.8" TextTrimming="CharacterEllipsis"
+                                   TextTrimming="CharacterEllipsis"
                                    AutomationProperties.Name="Where the startup entry is kept" />
                     </StackPanel>
 
@@ -1085,10 +1091,10 @@
                                         AutomationProperties.Name="Copy diagnostics to the clipboard" />
                             </Grid>
 
-                            <!-- The flag-override line, at 80% opacity. -->
+                            <!-- The flag-override line. Full opacity: the brush alone is the dim tier. -->
                             <TextBlock Text="A COMMAND-LINE FLAG OVERRIDES THIS FILE FOR THAT ONE RUN AND ISN'T SAVED"
                                        Style="{StaticResource WlMonoMetaText}" Foreground="{DynamicResource WlMuted}"
-                                       Margin="0,4,0,0" Opacity="0.8"
+                                       Margin="0,4,0,0"
                                        AutomationProperties.Name="Command-line flag override note" />
                         </StackPanel>
                     </Border>

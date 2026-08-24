@@ -721,12 +721,37 @@ public sealed class SettingsViewModel : ObservableObject
     /// </summary>
     public WhichWaveLinkModel? WhichWaveLink { get; private set; }
 
+    private TrashRowModel? trashRow;
+
     /// <summary>
     /// The empty-trash row hosted under WHERE BACKUPS ARE KEPT (Plan 6's projection). Set by the
-    /// app before the dialog opens and re-set on a folder change - never cached across a move.
-    /// Null when there is no store to read (the row hides itself).
+    /// app before the dialog opens and re-set on a folder change or after an empty - never cached
+    /// across a move. Null when there is no store to read (the row hides itself).
+    ///
+    /// A backing-field property, not an auto-property: the title, description and mono line all bind
+    /// into it, so re-setting it after "Empty trash" must raise PropertyChanged or the row keeps
+    /// showing the pre-empty count. The progress bar beside it worked because TrashProgress already
+    /// went through Set; this one had not.
     /// </summary>
-    public TrashRowModel? TrashRow { get; set; }
+    public TrashRowModel? TrashRow
+    {
+        get => trashRow;
+        set => Set(ref trashRow, value);
+    }
+
+    private TrashEmptyProgress? trashProgress;
+
+    /// <summary>
+    /// The live state of an in-flight trash-empty, or null when nothing is being emptied. Set by
+    /// the app on the press (before a single snapshot has gone), updated from the background thread
+    /// as each removal lands, and cleared once the row is re-read. The row's bar binds to this; it
+    /// shows only while <see cref="TrashEmptyProgress.Active"/> is true.
+    /// </summary>
+    public TrashEmptyProgress? TrashProgress
+    {
+        get => trashProgress;
+        set => Set(ref trashProgress, value);
+    }
 
     /// <summary>
     /// Free bytes on the volume holding the backup folder, for the mono stats line. Null when the

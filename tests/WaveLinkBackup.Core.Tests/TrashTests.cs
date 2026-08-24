@@ -229,4 +229,57 @@ public sealed class TrashTests
         Assert.Equal("fine", emptied[0].Manifest.DisplayName);
         Assert.Single(store.ListTrash());
     }
+
+    [Fact]
+    public void Emptying_reports_progress_after_each_successful_removal()
+    {
+        // The Settings row's determinate bar needs a real per-item signal, not a guess. The store
+        // reports (done, total) after each snapshot actually goes - so the bar only ever moves
+        // forward and its total was known before the first removal.
+        var (store, _, clock) = Subject();
+        var first = Write(store, "one");
+        clock.Advance(TimeSpan.FromMinutes(1));
+        var second = Write(store, "two");
+        clock.Advance(TimeSpan.FromMinutes(1));
+        var third = Write(store, "three");
+        store.Delete(first.Id);
+        store.Delete(second.Id);
+        store.Delete(third.Id);
+
+        var reports = new Reports();
+        var emptied = store.EmptyTrash(new FakeRecycleBin(), progress: reports);
+
+        Assert.Equal(3, emptied.Count);
+        Assert.Equal([(1, 3), (2, 3), (3, 3)], reports);
+    }
+
+    [Fact]
+    public void Emptying_an_empty_trash_reports_nothing()
+    {
+        var (store, _, _) = Subject();
+        var reports = new Reports();
+
+        store.EmptyTrash(new FakeRecycleBin(), progress: reports);
+
+        Assert.Empty(reports);
+    }
+
+    /// <summary>
+    /// Collects reports on the calling thread. NOT <see cref="Progress{T}"/>: that posts to the
+    /// captured synchronization context, and a test has none, so every report would land on the
+    /// thread pool after the assertions had already run. Same shape as SnapshotStoreTests.Reports.
+    /// </summary>
+    private sealed class Reports : IProgress<(int Done, int Total)>, IEnumerable<(int Done, int Total)>
+    {
+        private readonly List<(int Done, int Total)> reports = [];
+
+        public (int Done, int Total) this[Index index] => reports[index];
+
+        public void Report((int Done, int Total) value) => reports.Add(value);
+
+        public IEnumerator<(int Done, int Total)> GetEnumerator() => reports.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            GetEnumerator();
+    }
 }

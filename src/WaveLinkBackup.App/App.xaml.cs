@@ -127,6 +127,16 @@ public partial class App : Application
     /// <summary>Read by MainWindow: closing hides, unless the app is on its way out.</summary>
     internal bool IsShuttingDown => shuttingDown;
 
+    /// <summary>
+    /// Whether a restore must run elevated to close Wave Link - true when a running Wave Link
+    /// process sits above this one's integrity level (WavelinkSEService as System), which a
+    /// non-elevated copy cannot even open a handle to. Read by MainWindow before it commits to an
+    /// in-process restore, so it can tell the user WHY Windows will ask for rights instead of
+    /// letting the UAC prompt appear unexplained (screens/13-elevation.md). False when nothing is
+    /// running or every running process is reachable - the common case, where no prompt appears.
+    /// </summary>
+    internal bool RestoreCloseRequiresElevation => waveLinkProcess?.CloseRequiresElevation ?? false;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -169,8 +179,12 @@ public partial class App : Application
             var elevatedSettings = arguments.ApplyTo(
                 new SettingsRepository(elevatedFileSystem, SettingsRepository.DefaultDirectory).Read());
 
+            // The elevated copy holds the rights to start WavelinkSEService (it just closed one),
+            // so it brings the service back before relaunching - this is the path that actually
+            // keeps Wave Link's "Start Service" box from appearing.
             Shutdown(HeadlessRestore.Run(
-                arguments, elevatedSettings, elevatedFileSystem, new WaveLinkProcess(), new SystemClock()));
+                arguments, elevatedSettings, elevatedFileSystem, new WaveLinkProcess(), new SystemClock(),
+                service: new WaveLinkService()));
             return;
         }
 
@@ -365,7 +379,12 @@ public partial class App : Application
         // before any window is shown - the same reason the shell VM is built here. It wraps Core's
         // RestoreOrchestrator; the view-model never touches a Wave Link process API itself.
         var waveLinkProcess = new WaveLinkProcess();
-        var restoreService = new RestoreService(fileSystem, waveLinkProcess, store, gatherPayload);
+        // Brings WavelinkSEService back before the app relaunches, so a restore never leaves Wave
+        // Link staring at its own "Start Service" box. The in-process path runs unelevated, where
+        // starting a System service is denied - that is reported, not fatal, and Wave Link falls
+        // back to its own prompt exactly as before this seam existed.
+        var restoreService = new RestoreService(
+            fileSystem, waveLinkProcess, store, gatherPayload, new WaveLinkService());
 
         return (new BackupHost(coordinator, clock), service, store, waveLinkProcess, restoreService, shell, runKeyAutostart);
     }
@@ -1030,7 +1049,7 @@ public partial class App : Application
     /// Recycle Bin to catch them, so emptying deletes for good. After either path the row and the
     /// free-space figure are re-read - both describe the volume's current state, not a cached one.
     /// </summary>
-    internal void EmptyTrash(Window owner, SettingsViewModel vm)
+    internal async Task EmptyTrash(Window owner, SettingsViewModel vm)
     {
         if (store is null || vm.TrashRow is not { } row) return;
 
@@ -1043,14 +1062,26 @@ public partial class App : Application
             if (dialog.ShowDialog() != true) return;
         }
 
-        store.EmptyTrash(new RecycleBin());
+        // The empty runs off the UI thread so a large trash never freezes the window. Progress is
+        // reported per removal and marshalled back to the UI thread by Progress<T>, driving the row's
+        // determinate bar. The total is known up front (TrashSize), so the bar starts at 0 of N on
+        // the press rather than flashing blank - the same "up for the whole operation" rule as the
+        // backing-up strip.
+        var (totalCount, _) = store.TrashSize();
+        vm.TrashProgress = new TrashEmptyProgress(0, totalCount);
+
+        await Task.Run(() =>
+            store.EmptyTrash(new RecycleBin(), progress: new Progress<(int Done, int Total)>(report =>
+                vm.TrashProgress = new TrashEmptyProgress(report.Done, report.Total))));
 
         // Re-detect: the row now reports whatever is left (usually "the trash is empty"), and the
-        // free-space figure may have moved. Never reuse the pre-empty numbers.
+        // free-space figure may have moved. Never reuse the pre-empty numbers. Clearing the progress
+        // in the same pass makes the bar's removal "in place" - the count line replaces it, no flash.
         var (newCount, newBytes) = store.TrashSize();
         vm.TrashRow = TrashRowModel.Build(
             newCount, newBytes, store.TrashPath,
             store.TrashGoesToRecycleBin(new RecycleBin()));
+        vm.TrashProgress = null;
         vm.FreeSpaceBytes = fileSystem!.GetAvailableFreeBytes(settings.StorePath);
     }
 

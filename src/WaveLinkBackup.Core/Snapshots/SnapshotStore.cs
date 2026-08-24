@@ -370,13 +370,22 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     /// Best effort per snapshot: one directory locked by a sync client must not strand the
     /// rest. Returns what actually went.
     /// </summary>
-    public IReadOnlyList<Snapshot> EmptyTrash(IRecycleBin recycleBin)
+    /// <param name="recycleBin">Where each trashed snapshot goes, or null to delete outright.</param>
+    /// <param name="progress">
+    /// Optional per-item progress: reported as <c>(done, total)</c> after each successful removal.
+    /// The caller owns the reporting thread; this method reports from whichever thread it runs on.
+    /// Null (the default) skips reporting entirely - no allocation, no callback.
+    /// </param>
+    public IReadOnlyList<Snapshot> EmptyTrash(IRecycleBin recycleBin, IProgress<(int Done, int Total)>? progress = null)
     {
         var toRecycleBin = TrashGoesToRecycleBin(recycleBin);
-        var emptied = new List<Snapshot>();
+        var trashed = ListTrash();
+        var total = trashed.Count;
+        var emptied = new List<Snapshot>(total);
 
-        foreach (var snapshot in ListTrash())
+        for (var i = 0; i < trashed.Count; i++)
         {
+            var snapshot = trashed[i];
             try
             {
                 if (toRecycleBin)
@@ -389,6 +398,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
                 }
 
                 emptied.Add(snapshot);
+                progress?.Report((i + 1, total));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

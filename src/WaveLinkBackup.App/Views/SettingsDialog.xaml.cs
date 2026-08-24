@@ -47,9 +47,14 @@ public partial class SettingsDialog : Window
 
         // Empty trash: the Plan-6 action. The button is already IsEnabled=false when the trash is
         // empty (ActionEnabled), so this only runs with items to remove. Local volumes run straight
-        // through; network/removable confirm first (RequiresConfirmation).
-        EmptyTrashButton.Click += (_, _) =>
-            (Application.Current as App)?.EmptyTrash(this, model);
+        // through; network/removable confirm first (RequiresConfirmation). The empty itself runs off
+        // the UI thread and drives the row's progress bar, so the handler awaits it - a fire-and-
+        // forget would let the window close mid-empty and drop the final re-detect.
+        EmptyTrashButton.Click += async (_, _) =>
+        {
+            if (Application.Current is App app)
+                await app.EmptyTrash(this, model);
+        };
 
         // Change… re-opens the error-2 chooser (the same dialog that fires at startup when two
         // installations are found and none is chosen). App.ChangeWaveLink owns the whole flow:
