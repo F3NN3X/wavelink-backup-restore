@@ -21,10 +21,6 @@ heading here.
 
 ## [Unreleased]
 
-### Added
-
-- **Every release archive now carries a signed build provenance attestation.** The `.sha256` beside a download proves it arrived intact and nothing more, because the same pipeline produced the file and the hash, which `UpdateRelease.Sha256` has always said in its own comment. The release workflow now signs a Sigstore statement binding each archive's digest to this repository, the commit and the workflow run, so anyone deciding whether to run a download can check where it came from with `gh attestation verify <archive> --repo <owner>/<repo>`. It applies from the first release cut after v0.7.6; earlier releases were published before the step existed and carry checksums only. It is deliberately outside the updater: `UpdateDownloader` still requires a published checksum and still refuses an update without one, and putting an attestation check in the app would mean shipping a verifier and a trust root into a tray app to answer a question the updater is not asking. Code signing remains the other half of the gap, since it is what answers the same question for SmartScreen without the user doing anything.
-
 ### Changed
 
 - **README's build commands now actually reproduce the release, and that is measured rather than asserted.** The workflow claimed a local `dotnet publish` produced the same artifact. For the CLI it did, because `WaveLinkBackup.Cli.csproj` pins `win-x64`. For the app it did not: `WaveLinkBackup.App.csproj` pins no RID, so the README's command produced a RID-agnostic publish carrying an extra `runtimes/` tree and a different `deps.json`, `System.ServiceProcess.ServiceController.dll` and main assembly. Adding `--runtime win-x64`, which is what CI passes, makes the output byte-for-byte identical across every file. README carries the flag and the reason; the workflow comment now says which project needs it and why.

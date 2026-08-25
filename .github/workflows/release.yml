@@ -36,10 +36,6 @@ permissions:
   # ci-green reads the Actions API (workflow runs) to wait for a green CI on this commit; that is
   # an actions-scope read, not covered by contents.
   actions: read
-  # Both are what attest-build-provenance needs: id-token to get the OIDC token it signs with, and
-  # attestations to store the result against the repository.
-  id-token: write
-  attestations: write
 
 jobs:
   # CI is the gate: nothing publishes until the full suite is green on this exact commit. Polls
@@ -166,23 +162,6 @@ jobs:
           "app=$app" >> $env:GITHUB_OUTPUT
           "cli=$cli" >> $env:GITHUB_OUTPUT
 
-      # The checksum proves integrity: the archive arrived as it left. It cannot prove where it
-      # came from, because the same pipeline produced both the file and the hash, and
-      # UpdateDownloader's own comment says as much. This closes that half: Sigstore signs a
-      # statement binding each archive's digest to this repository, this commit and this workflow
-      # run, so anyone deciding whether to run the download can check its origin:
-      #
-      #   gh attestation verify WaveLinkBackup-X.Y.Z-app-win-x64.zip --repo <owner>/<repo>
-      #
-      # Nothing in the app depends on this. The updater still requires a published checksum and
-      # still refuses an update that has none; attestation is for the person, not the code.
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: |
-            ${{ steps.package.outputs.app }}
-            ${{ steps.package.outputs.cli }}
-
       # The release body carries the asset links and checksums so a human who lands on the
       # GitHub Release page can verify by hand what the updater verifies automatically. The
       # updater only reads the .sha256 beside *app-win-x64.zip; this is for people, not code.
@@ -247,18 +226,9 @@ jobs:
             "",
             "## Verifying a download",
             "",
-            "The checksum shows the archive arrived intact:",
-            "",
             $fence,
             "(Get-FileHash $app -Algorithm SHA256).Hash.ToLower()",
             "# should equal: $appHash",
-            $tripleTick,
-            "",
-            "The attestation shows where it came from, which a self-published checksum cannot.",
-            "It names the commit and the workflow run that built the archive:",
-            "",
-            $fence,
-            "gh attestation verify $app --repo ${{ github.repository }}",
             $tripleTick
           )
           $lines | Out-File -FilePath release_body.md -Encoding utf8

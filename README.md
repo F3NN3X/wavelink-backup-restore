@@ -120,26 +120,9 @@ Grab the latest release from
 The download is under 8 MB rather than about 101 MB because the app does not carry the .NET
 runtime with it.
 
-### Checking what you downloaded
-
-Every release ships a `.sha256` sidecar, which tells you the archive arrived intact. It cannot
-tell you where it came from, because the same pipeline produced both the file and the hash, so
-anyone able to publish a release can publish a matching hash.
-
-Releases cut after v0.7.6 also carry a signed build provenance attestation. The signing
-certificate is issued to the workflow run itself and expires with it, so there is no key to steal:
-what it proves is that the archive came out of this repository's release workflow at a named
-commit.
-
-```powershell
-gh attestation verify WaveLinkBackup-<version>-app-win-x64.zip --repo F3NN3X/wavelink-backup-restore
-```
-
-Needs the [GitHub CLI](https://cli.github.com/), signed in. v0.7.6 and earlier predate this and
-have checksums only.
-
-If you would rather not trust either, the commands under [Building](#building) reproduce the
-release archives byte for byte.
+Every release ships a `.sha256` sidecar for each archive, and the release page prints both
+hashes. If you would rather not take the binary on trust at all, the commands under
+[Building](#building) reproduce the release archives byte for byte.
 
 ---
 
