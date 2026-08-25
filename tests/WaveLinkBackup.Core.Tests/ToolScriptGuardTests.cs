@@ -62,21 +62,64 @@ public sealed class ToolScriptGuardTests
             $"FileSystem.OpenShared uses. Found:{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
     }
 
+    /// <summary>
+    /// Any way a PowerShell script pulls bytes out of a file. The rule is about reading, not about
+    /// the filename: <c>seed-fixture-store.ps1</c> WRITES a settings.json into a throwaway store
+    /// and never opens a live one, and flagging it would be the guard crying wolf on the first
+    /// script it met that was not the one it was written for.
+    /// </summary>
+    private static readonly Regex ReadsAFile = new(
+        @"Get-Content\b|\[(System\.)?IO\.StreamReader\]|\[(System\.)?IO\.File\]::(ReadAll|OpenRead)",
+        RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// The positive form of the rule, and the load-bearing half: whatever API a script reaches
+    /// for, if it READS Wave Link's settings file it has to have thought about the lock.
+    /// </summary>
+    internal static bool NeedsShareModeAndLacksIt(string script)
+    {
+        var code = StripComments(script);
+
+        return code.Contains("Settings.json", StringComparison.OrdinalIgnoreCase)
+            && ReadsAFile.IsMatch(code)
+            && !code.Contains("FileShare", StringComparison.Ordinal);
+    }
+
     [Fact]
     public void A_tool_script_that_reads_settings_json_names_a_share_mode()
     {
-        // The rule above bans one spelling of the mistake. This one is the positive form, and it
-        // is the load-bearing half: whatever API a script reaches for, if it touches Settings.json
-        // it has to have thought about the lock.
         var offenders = ToolScripts()
-            .Where(s => s.Text.Contains("Settings.json", StringComparison.OrdinalIgnoreCase))
-            .Where(s => !s.Text.Contains("FileShare", StringComparison.Ordinal))
+            .Where(s => NeedsShareModeAndLacksIt(s.Text))
             .Select(s => $"  {Path.GetFileName(s.Path)}")
             .ToArray();
 
         Assert.True(offenders.Length == 0,
             "A script that reads Settings.json must request a share mode; Wave Link holds that " +
             $"file open. Found:{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
+    }
+
+    [Fact]
+    public void The_share_mode_rule_separates_reading_from_writing()
+    {
+        // Pins the distinction that made the rule cry wolf the first time.
+        Assert.True(NeedsShareModeAndLacksIt(
+            "$t = Get-Content -Raw 'Settings.json'"));
+        Assert.True(NeedsShareModeAndLacksIt(
+            "$t = [IO.File]::ReadAllText($settingsJsonPath)  # Settings.json"
+                .Replace("  # Settings.json", "") + "\n$p = 'Settings.json'"));
+
+        // Reads it, and says how. The whole point of the rule.
+        Assert.False(NeedsShareModeAndLacksIt(
+            "$s = [IO.FileStream]::new('Settings.json', [IO.FileMode]::Open, " +
+            "[IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)"));
+
+        // Writes one, never opens a live one. Not this rule's business.
+        Assert.False(NeedsShareModeAndLacksIt(
+            "[IO.File]::WriteAllBytes((Join-Path $dir 'settings.json'), $bytes)"));
+
+        // Names the file only in prose.
+        Assert.False(NeedsShareModeAndLacksIt(
+            "# reads Settings.json one day\n$t = Get-Content -Raw $journal"));
     }
 
     [Fact]

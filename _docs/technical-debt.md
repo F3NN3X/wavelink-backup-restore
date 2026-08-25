@@ -52,6 +52,12 @@ in a real high-contrast scheme. **Only item 5 is owed**, and it exists because t
 finding — the INPUTS strip read cramped past nine cells — shipped as §8.6 the same day, replacing
 the surface the sitting had just checked.
 
+**The rigs are seeded, not built.** [`tools/seed-fixture-store.ps1`](../tools/seed-fixture-store.ps1)
+writes a throwaway store holding all five — five named inputs, a collapsed two-input rig, nine
+channels, twelve, and one with long effect chains — so the sitting starts at the looking rather
+than at half an hour of channel surgery in Wave Link. Point the app's backup folder at it through
+Settings, and back afterwards.
+
 | What to look at | What closing looks like |
 |---|---|
 | **The INPUTS verdict** on a five-input row, and on a collapsed rig | Check-circle in the ok colour, "Complete", mono sub-line reading `5 INPUTS · ALL NAMED`; on the collapsed rig a warning triangle in warn, "Only part of your setup", `UNNAMED` in warn. The word stays full-strength either way — colour is never the only signal |

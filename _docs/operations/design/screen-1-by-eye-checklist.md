@@ -39,12 +39,29 @@ makes.
 
 ## Setup
 
+**The rigs can be seeded rather than built.** Every snapshot below — five named inputs, a collapsed
+two-input rig, nine channels, twelve, and one with long effect chains on every channel — is written
+by [`tools/seed-fixture-store.ps1`](../../../tools/seed-fixture-store.ps1) into a throwaway store,
+so the sitting does not start with half an hour of adding and removing channels in Wave Link:
+
+```powershell
+.\tools\seed-fixture-store.ps1
+# then: app -> Settings -> change the backup folder to the path it prints
+# after the sitting: change it back, and delete the folder
+```
+
+The seeder refuses to write inside the real store, and `FixtureStoreSeederTests` holds it to the
+manifest shape the app reads. The snapshots are for looking at, **not for restoring** — the
+endpoint ids are invented, so a restore would describe channels no device on this rig has.
+
 - [ ] Wave Link is installed and has run at least once, so a settings file exists to read.
 - [ ] The store holds **at least three snapshots**: one with five inputs, one with nine or more, and
       one older than both — the strip and the collapse rule are only legible against a spread.
-- [ ] A rig with **nine or more channels** is reachable (add channels in Wave Link if none of the
-      snapshots has them), so the strip can be seen past its five-cell design width.
+      *(Seeded, or your own.)*
+- [ ] A rig with **nine or more channels** is reachable, so the strip can be seen past its
+      five-cell design width. *(Seeded as "Nine channels" and "Twelve channels".)*
 - [ ] A rig with **several long effect chains** is reachable, for the details dialog's height cap.
+      *(Seeded as "Long effect chains": six effects on each of five channels.)*
 - [ ] Both a light theme and a **real** high-contrast scheme (Windows' own, not the app's simulated
       one) are switchable without a reboot.
 
