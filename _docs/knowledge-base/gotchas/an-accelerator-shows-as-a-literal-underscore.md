@@ -14,7 +14,7 @@ before it shipped only because the fix was written with a test beside it.
 
 ## Symptom
 
-You add an access key the normal way — `Content="_Cancel"` — and the button renders **`_Cancel`**,
+You add an access key the normal way, `Content="_Cancel"`, and the button renders **`_Cancel`**,
 with the underscore as text. `Alt+C` does nothing. Every other button in the app behaves the same
 way, so it reads as "WPF accelerators are broken here" rather than as a bug in one file.
 
@@ -34,13 +34,13 @@ so the underscore was never interpreted.
 
 ## The plausible explanation, and why it is wrong
 
-The first guess is **"Windows hides accelerator underlines until Alt is pressed"** — which is true,
+The first guess is **"Windows hides accelerator underlines until Alt is pressed"**, which is true,
 and is exactly the wrong lead. That behaviour hides the *underline* on a working accelerator; it
 does not print an underscore. If you can see an underscore character, the access key was never
 parsed, and pressing Alt will not reveal anything.
 
 The second guess is that `AccessText` is needed instead of a plain string. It is needed when the
-content is an *element* rather than a string — this app's destructive buttons hold a `StackPanel`
+content is an *element* rather than a string, this app's destructive buttons hold a `StackPanel`
 with an icon, so those really do need `<AccessText Text="_Restore this backup" />`. But swapping a
 plain `Content="_Cancel"` for an `AccessText` changes nothing while the presenter still refuses to
 recognise it. Both halves are required, and fixing only the visible one sends you looking in the
@@ -65,13 +65,13 @@ that, and fails the build if a new `ControlTemplate` adds a bare `ContentPresent
 
 This is the same shape as
 [[a-settings-control-moves-and-nothing-happens]]: a control that **looks** wired, with a model
-behind it that is correct, and nothing joining the two. The general lesson is worth keeping — *a
-declared affordance is not evidence of a working one* — and it is why the accessibility work got
+behind it that is correct, and nothing joining the two. The general lesson is worth keeping, *a
+declared affordance is not evidence of a working one*, and it is why the accessibility work got
 view tests rather than model tests.
 
 ## References
 
-- [[a-settings-control-moves-and-nothing-happens]] — the same failure shape, a stepper with no handler
-- [technical-debt.md](../../technical-debt.md) §7.4 — Windows keyboard conventions
+- [[a-settings-control-moves-and-nothing-happens]]: the same failure shape, a stepper with no handler
+- [technical-debt.md](../../technical-debt.md) §7.4, Windows keyboard conventions
 - `tests/WaveLinkBackup.App.Tests/KeyboardConventionTests.cs`
 - `src/WaveLinkBackup.App/Views/ControlStyles.xaml`

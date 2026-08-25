@@ -24,7 +24,7 @@ different from the usual one:
 
 1. **`Core` carries no third-party dependencies at all.** Adding the first one to the *shell*
    is less severe, but it is still the first.
-2. **The CLI is the only NativeAOT-eligible artifact** — WPF does not support AOT, which is
+2. **The CLI is the only NativeAOT-eligible artifact**. WPF does not support AOT, which is
    why [[ADR-004]] kept them in separate projects. Anything that compromises AOT here forecloses
    the option the project has been protecting for three phases
    ([technical-debt.md](../technical-debt.md) §2.4).
@@ -36,7 +36,7 @@ different from the usual one:
 **Hand-roll it.** A pure `CommandLineParser` in the CLI project: `string[]` in, a
 `ParsedCommand` record out, no IO and no dependencies.
 
-Being pure is the point — it makes the parser testable with no console, no filesystem and no
+Being pure is the point, it makes the parser testable with no console, no filesystem and no
 setup, exactly like `Analysis/` in Core ([[pure-analysis-core]]).
 
 ## Alternatives considered
@@ -56,18 +56,18 @@ therefore cheap to test exhaustively.
 **This rules out:**
 
 - Free niceties: no auto-generated help, no completion scripts, no `--help` per subcommand
-  unless written. Help text is hand-maintained, which means **it can drift from the parser** —
+  unless written. Help text is hand-maintained, which means **it can drift from the parser**,
   a test asserts every verb appears in it.
 - Sophisticated syntax. No option bundling (`-yj`), no `--opt=value` *and* `--opt value` both
   supported, no response files. One form each, documented.
 
 **Revisit if:** the verb list grows a second level (`wlbackup store list`, `wlbackup store
 prune`), or help/completion becomes a real user request. At that point the hundred lines stop
-being boring and a library earns its place — and this ADR gets superseded rather than
+being boring and a library earns its place, and this ADR gets superseded rather than
 quietly ignored.
 
 ## References
 
-- [[ADR-004]] — why the CLI is its own project, and why AOT matters
+- [[ADR-004]]: why the CLI is its own project, and why AOT matters
 - [phase-4-cli.md](../dev-phases/phase-4-cli.md) §1
 - [technical-debt.md](../technical-debt.md) §1.5, §2.4

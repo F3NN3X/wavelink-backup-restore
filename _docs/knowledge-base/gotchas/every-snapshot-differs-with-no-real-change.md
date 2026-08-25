@@ -30,7 +30,7 @@ meaningful.
 **Something in the pipeline re-serialized the file instead of copying it.**
 
 Wave Link writes its own `Settings.json` with `System.Text.Json`'s **default** encoder and
-`WriteIndented`. That is a measurable fact, not an inference — a default round-trip reproduces
+`WriteIndented`. That is a measurable fact, not an inference, a default round-trip reproduces
 the file byte for byte:
 
 ```
@@ -48,7 +48,7 @@ breaks dedup.
 > *"Set `Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping`, or `+` and `/` in the base64
 > plugin state get rewritten to `\uXXXX`."*
 
-**This is the trap, and it was this project's own documented recommendation** — from
+**This is the trap, and it was this project's own documented recommendation.** From
 `SPEC.md` §5 and §7·2, and recorded as finding 2 against upstream.
 
 It is exactly backwards. The relaxed encoder *un-escapes* what Wave Link deliberately wrote,
@@ -68,11 +68,11 @@ The second plausible-but-wrong explanation:
 > *"Wave Link rewrites the file constantly, so the content genuinely is different every time."*
 
 Half true, and it sends you past the real cause. Wave Link **does** rewrite `Settings.json` on
-every launch — with **near-identical bytes**. That is the case hash-dedup exists to absorb
+every launch, with **near-identical bytes**. That is the case hash-dedup exists to absorb
 ([[ADR-007]]). If dedup is not absorbing it, something downstream is changing bytes, and the
 only thing downstream is your own code.
 
-The tell: the diff is not in `WindowPlacement` or a timestamp — the fields you would expect to
+The tell: the diff is not in `WindowPlacement` or a timestamp, the fields you would expect to
 churn. It is inside `AudioPluginConfigurations`, in the longest strings in the file.
 
 ## Fix
@@ -80,7 +80,7 @@ churn. It is inside `AudioPluginConfigurations`, in the longest strings in the f
 **Never re-serialize a settings file you are only storing. Copy bytes.**
 
 This was always the right rule, and the encoder confusion is the argument for it. A backup
-tool that rewrites the thing it is backing up has already lost — and as this document shows,
+tool that rewrites the thing it is backing up has already lost, and as this document shows,
 even a *well-intentioned, carefully-chosen* encoder setting can be the thing that breaks it.
 
 ```csharp
@@ -92,7 +92,7 @@ var sha   = Convert.ToHexString(SHA256.HashData(bytes));
 Parsing exists for **validation and the health fingerprint only**, and its output is metadata,
 never a file.
 
-Where a rewrite is genuinely required — a repair path, not a capture path — **match Wave
+Where a rewrite is genuinely required, a repair path, not a capture path, **match Wave
 Link's own settings**: default encoder, `WriteIndented = true`. Verify byte-identity against
 the source on a file you have not modified, rather than trusting any encoder recommendation
 including this one.
@@ -101,7 +101,7 @@ including this one.
 
 - **Capture is a byte copy**, enforced by having exactly one function that reads settings bytes
   and no `JsonSerializer` call anywhere in the capture path.
-- **Test byte-identity against a real fixture** — one containing `+` inside a `ParameterState`,
+- **Test byte-identity against a real fixture.** One containing `+` inside a `ParameterState`,
   asserting captured bytes equal source bytes. One line, and it catches every variant of this.
 - **Treat a dedup miss as a bug.** Two consecutive captures with no user action producing
   different hashes means something is rewriting bytes. Surface it.
@@ -112,8 +112,8 @@ including this one.
 
 ## References
 
-- `SPEC.md` §5, §7·2 — **both contain the superseded recommendation**; see the Corrections
+- `SPEC.md` §5, §7·2, **both contain the superseded recommendation**; see the Corrections
   block at the top of that document
-- [Audit](../../audits/2026-08-15-voltybat-wavelinksettingsutility.md) finding 2 — downgraded
+- [Audit](../../audits/2026-08-15-voltybat-wavelinksettingsutility.md) finding 2, downgraded
 - [[ADR-001]] · [[ADR-007]] · [[file-parses-but-wave-link-resets]] ·
   [[capture-fails-while-wave-link-is-running]]

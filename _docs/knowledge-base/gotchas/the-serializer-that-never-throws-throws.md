@@ -14,7 +14,7 @@ going red at once.
 
 ## Symptom
 
-Twelve unrelated tests — preset restore, plug-in restore, restore orchestration — fail together
+Twelve unrelated tests, preset restore, plug-in restore. Restore orchestration, fail together
 with:
 
 ```
@@ -34,8 +34,8 @@ DateTime.TryParse(text, culture,
     DateTimeStyles.RoundtripKind | DateTimeStyles.AdjustToUniversal, out var parsed)
 ```
 
-Those two flags are **mutually exclusive**, and `TryParse` says so by throwing `ArgumentException`
-— not by returning `false`. A `TryParse` that throws is surprising enough on its own; a `TryParse`
+Those two flags are **mutually exclusive**, and `TryParse` says so by throwing `ArgumentException`,
+not by returning `false`. A `TryParse` that throws is surprising enough on its own; a `TryParse`
 that throws *on its flags rather than its input* means it throws for **every** call, including the
 ones that would have parsed.
 
@@ -45,13 +45,13 @@ was every file the new code had just written.
 ## The plausible explanation, and why it is wrong
 
 The failing tests all restore things, so the first instinct is that the tier-2 schema change broke
-the restore path — that a reader somewhere is now rejecting a manifest it used to accept. That is a
+the restore path, that a reader somewhere is now rejecting a manifest it used to accept. That is a
 reasonable read of twelve restore tests going red, and it sends you into `TierRestore` and
 `RestoreOrchestrator`, which are innocent.
 
 The second guess is bad *data*: a timestamp written in a format the reader cannot handle. Also
 wrong, and it wastes a round trip through the writer. The exception names a **parameter**, not a
-value — `(Parameter 'styles')` is the whole diagnosis, and it is easy to skim past because the
+value, `(Parameter 'styles')` is the whole diagnosis, and it is easy to skim past because the
 sentence before it talks about values.
 
 ## Fix
@@ -69,7 +69,7 @@ adding nothing even if it had been legal.
 
 ## How to avoid it
 
-**A "never throws" contract needs a test that feeds it rubbish**, and this one had them — which is
+**A "never throws" contract needs a test that feeds it rubbish**, and this one had them, which is
 why the blast radius was twelve red tests in one run instead of a support ticket about a restore
 that stopped working. The lesson is not "be careful with flags"; it is that the guarantee was
 written down *and enforced*, so violating it was loud.
@@ -79,7 +79,7 @@ serializer's own header comment states the rule; the tests are what make it true
 
 ## References
 
-- [[newest-backup-is-the-broken-one]] — the other place this codebase pays for a reader that is
+- [[newest-backup-is-the-broken-one]]: the other place this codebase pays for a reader that is
   tolerant on purpose
-- [technical-debt.md](../../technical-debt.md) §4.16 — the hash cache the field is for
+- [technical-debt.md](../../technical-debt.md) §4.16, the hash cache the field is for
 - `src/WaveLinkBackup.Core/Snapshots/PluginManifestSerializer.cs`

@@ -13,7 +13,7 @@ from the Windows Application event log, which carried the exception and the stac
 
 ## Symptom
 
-Press **Back up now** in the window. The app disappears — window, tray icon, the lot. No message,
+Press **Back up now** in the window. The app disappears, window, tray icon, the lot. No message,
 no dialog, no log of its own. The backup itself is written and is perfectly good; the process that
 wrote it is gone.
 
@@ -48,7 +48,7 @@ handler with nothing above it, ends the process.
 ## The plausible explanation, and why it is wrong
 
 *"It started when I added channels to Wave Link, so the capture is choking on the bigger
-configuration."* That is what it looks like — the crash appears the day the rig changes, and it
+configuration."* That is what it looks like, the crash appears the day the rig changes, and it
 appears on the action that reads the rig.
 
 It is not that. `wlbackup backup` captured all nine channels from the command line without
@@ -77,7 +77,7 @@ guards itself in one line. `RefreshShellFacts` carries the same guard, for the s
 
 ## How to avoid it
 
-**Guard the method, not the caller.** Fixing the one caller fixes one caller — and this bug arrived
+**Guard the method, not the caller.** Fixing the one caller fixes one caller, and this bug arrived
 exactly that way: the same hazard was spotted for `SystemEvents.DisplaySettingsChanged` a phase
 earlier and handled with a `Dispatcher.BeginInvoke` at that call site, and then missed here.
 
@@ -91,5 +91,5 @@ with no trace but the Windows event log. See `technical-debt.md` §8.1.
 ## References
 
 - `src/WaveLinkBackup.App/Hosting/UiThread.cs` · `tests/…/UiThreadTests.cs`
-- [[the-tray-icon-refuses-every-image-you-draw]] — the other tray-icon trap, same file
-- `_docs/technical-debt.md` §8.1 — the missing crash surface
+- [[the-tray-icon-refuses-every-image-you-draw]]: the other tray-icon trap, same file
+- `_docs/technical-debt.md` §8.1, the missing crash surface

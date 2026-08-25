@@ -30,12 +30,12 @@ Assert.NotEmpty(reports);   // Collection was empty
 `Progress<T>` does not invoke its callback where `Report` was called. It captures the
 `SynchronizationContext` at construction and **posts** to it.
 
-In WPF that context is the dispatcher, which is the whole point — a background capture can report
+In WPF that context is the dispatcher, which is the whole point, a background capture can report
 straight into a binding. In a test there is no context, so `Progress<T>` falls back to the thread
 pool: the callbacks are queued, the assertion runs, and the queued work lands afterwards on some
 other thread.
 
-It is a race the test loses deterministically, which is at least honest — an intermittent version
+It is a race the test loses deterministically, which is at least honest, an intermittent version
 of this would be far worse.
 
 ## The plausible explanation, and why it is wrong
@@ -45,7 +45,7 @@ looking in `Write` for a missing `progress?.Report(...)`. That search finds noth
 calls are there and correct.
 
 The second guess is that the synchronous method needs awaiting somehow, or that the test needs to
-be `async`. It does not — `Write` really has finished. Making the test `async` and awaiting
+be `async`. It does not, `Write` really has finished. Making the test `async` and awaiting
 something arbitrary sometimes makes it pass, which is worse than failing: it looks fixed while
 staying a race.
 
@@ -82,6 +82,6 @@ inline rather than depending on a dispatcher.
 
 ## References
 
-- [technical-debt.md](../../technical-debt.md) §4.21 item 2 — the backing-up strip this was for
-- `tests/WaveLinkBackup.Core.Tests/SnapshotStoreTests.cs` — the `Reports` collector
+- [technical-debt.md](../../technical-debt.md) §4.21 item 2, the backing-up strip this was for
+- `tests/WaveLinkBackup.Core.Tests/SnapshotStoreTests.cs`, the `Reports` collector
 - `src/WaveLinkBackup.Core/Snapshots/SnapshotStore.cs`

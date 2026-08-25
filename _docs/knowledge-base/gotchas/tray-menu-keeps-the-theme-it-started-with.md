@@ -14,7 +14,7 @@ written before the fix and failed on two plausible workarounds before the real o
 
 ## Symptom
 
-The app follows Windows dark/light correctly — the window recolours the moment the OS changes,
+The app follows Windows dark/light correctly, the window recolours the moment the OS changes,
 with no restart. **The tray's context menu does not.** It keeps whichever theme was current when
 the app started, for the life of the process.
 
@@ -29,12 +29,12 @@ tree**: when `Application.Resources` changes, WPF walks the loaded windows and i
 
 A tray icon's `ContextMenu` is not on that path. It is created from a `ResourceDictionary` and
 handed to `TaskbarIcon.ContextMenu`, and the `TaskbarIcon` itself is never loaded into a visual
-tree — that is why it needs `ForceCreate()` at all. So the menu has **no parent in any tree**, the
+tree. That is why it needs `ForceCreate()` at all. So the menu has **no parent in any tree**, the
 invalidation never reaches it, and its `DynamicResource`s resolve exactly once: when the dictionary
 is loaded.
 
-This is not specific to tray menus. Anything reachable only from `Application.Resources` — a
-detached popup, a control built in code and never parented, an object held in a static — has the
+This is not specific to tray menus. Anything reachable only from `Application.Resources`, a
+detached popup, a control built in code and never parented, an object held in a static, has the
 same problem.
 
 ## What does not fix it
@@ -46,7 +46,7 @@ Both of these look right and neither works. They were tried in that order:
 | Close the menu and reopen it | Reopening realises the popup again but reuses the same `ContextMenu` instance. Its resource references were already resolved and are not re-evaluated. |
 | `menu.UpdateLayout()` after the swap | Layout is not resource resolution. There is nothing marked dirty to recompute. |
 
-`SetResourceReference` on individual properties does work — but only for the properties you
+`SetResourceReference` on individual properties does work, but only for the properties you
 remember to list, and not for anything inside a `ControlTemplate`. That is a fix that decays.
 
 ## The fix
@@ -71,8 +71,8 @@ tray.ContextMenu = trayMenu;
 See `App.RebuildTrayMenu`. Three things follow from it:
 
 - **Re-wire the click handlers.** They were attached to the discarded instance.
-- **Rebuild *before* refreshing state.** Anything that writes into the menu's items — a checked
-  toggle, a header readout — must run against the new instance, or it lands on the one being
+- **Rebuild *before* refreshing state.** Anything that writes into the menu's items, a checked
+  toggle, a header readout, must run against the new instance, or it lands on the one being
   thrown away. `App.OnThemeChanged` orders it that way deliberately.
 - **Do not also merge the dictionary into `App.xaml`.** Two paths to the same menu, one of them a
   cached instance that is never rebuilt, is the bug again with extra steps.
@@ -86,6 +86,6 @@ this and a silent regression.
 
 ## See also
 
-- `src/WaveLinkBackup.App/App.xaml.cs` — `RebuildTrayMenu`, `OnThemeChanged`
+- `src/WaveLinkBackup.App/App.xaml.cs`, `RebuildTrayMenu`, `OnThemeChanged`
 - [patterns/named-method-seams.md](../patterns/named-method-seams.md)
-- [2026-08-17-phase-5-plan-3-theme-following.md](../../plans/2026-08-17-phase-5-plan-3-theme-following.md) — Outcome
+- [2026-08-17-phase-5-plan-3-theme-following.md](../../plans/2026-08-17-phase-5-plan-3-theme-following.md), Outcome

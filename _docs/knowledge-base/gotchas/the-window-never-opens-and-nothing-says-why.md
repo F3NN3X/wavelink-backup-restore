@@ -19,7 +19,7 @@ A dialog does not appear. Depending on where the caller sits, you get one of:
 
 - an unhandled `XamlParseException` on the UI thread;
 - a test runner reporting `[FATAL ERROR]` / "Catastrophic failure" and then hanging;
-- in a release build with a `try`/`catch` upstream, **nothing at all** — the click does nothing.
+- in a release build with a `try`/`catch` upstream, **nothing at all**, the click does nothing.
 
 The window is never partly built. It fails inside `InitializeComponent`, so there is no half-drawn
 dialog to inspect and no binding-error trace to read.
@@ -33,8 +33,8 @@ the binding-error output you would go looking for.
 | What was written | What WPF does |
 |---|---|
 | A `Style` with `TargetType="TextBlock"` applied to a `TrackedText` | Throws `InvalidOperationException: 'TextBlock' TargetType does not match type of element 'TrackedText'` when the style is applied. |
-| `<Run Text="{Binding SomeGetOnlyProperty}" />` | `Run.Text` is registered `BindsTwoWayByDefault` — a `Run` is editable inside a `RichTextBox` — so this throws *"A TwoWay or OneWayToSource binding cannot work on the read-only property"*. `TextBlock.Text` is one-way, so the same expression is fine there. |
-| `<DoubleAnimation To="0" />` on `MaxHeight`, with no `From` | The animation reads the property's base value as its origin. `MaxHeight` defaults to `Infinity`, and `DoubleAnimation` throws *"cannot use default origin value of 'Infinity'"*. Fires on the state change, not at construction — here, on every **deselect**. |
+| `<Run Text="{Binding SomeGetOnlyProperty}" />` | `Run.Text` is registered `BindsTwoWayByDefault`, a `Run` is editable inside a `RichTextBox`, so this throws *"A TwoWay or OneWayToSource binding cannot work on the read-only property"*. `TextBlock.Text` is one-way, so the same expression is fine there. |
+| `<DoubleAnimation To="0" />` on `MaxHeight`, with no `From` | The animation reads the property's base value as its origin. `MaxHeight` defaults to `Infinity`, and `DoubleAnimation` throws *"cannot use default origin value of 'Infinity'"*. Fires on the state change, not at construction, here, on every **deselect**. |
 
 The first is the nastiest, because the two names involved differ by four characters and describe
 the same design role: `WlColumnHeaderText` (a `TextBlock` style) and `WlColumnHeaderTrackedText`
@@ -67,7 +67,7 @@ Style="{StaticResource WlColumnHeaderTrackedText}"
 ## The real fix is the test
 
 Every one of these was invisible to the compiler, to the XAML parser at build time, and to every
-existing test — because **no test had ever constructed those two windows.** Model coverage was
+existing test, because **no test had ever constructed those two windows.** Model coverage was
 thorough; view coverage was absent, and the failure mode of a view is that it does not exist.
 
 Showing a window IS the assertion:
@@ -88,12 +88,12 @@ a view test for yet:
 - `TypographyTests.No_TrackedText_wears_a_TextBlock_style`
 - `MainWindowTemplateTests.Every_Run_that_binds_its_text_asks_for_a_one_way_binding`
 
-Both were verified to fail against the original code before the fix went in — a guard that cannot
+Both were verified to fail against the original code before the fix went in, a guard that cannot
 fail is not a guard.
 
 ## See also
 
-- [a-binding-expression-appears-on-screen.md](a-binding-expression-appears-on-screen.md) — the
+- [a-binding-expression-appears-on-screen.md](a-binding-expression-appears-on-screen.md), the
   same file, a different XAML rule, and a symptom you *can* see
 - [a-dialog-opens-as-a-black-rectangle.md](a-dialog-opens-as-a-black-rectangle.md)
 - [2026-08-19-design-audit-and-ui-fixes.md](../../sessions/2026-08-19-design-audit-and-ui-fixes.md)

@@ -15,8 +15,8 @@ working third form was verified by an AOT publish that ran.
 
 ## Symptom
 
-You paste a perfectly ordinary Core Audio interop class — the one every sample on the internet
-shows, the one upstream ships — into a library, and it will not build. Not a warning. An error,
+You paste a perfectly ordinary Core Audio interop class, the one every sample on the internet
+shows, the one upstream ships, into a library, and it will not build. Not a warning. An error,
 from a file you did not write:
 
 ```
@@ -47,7 +47,7 @@ angles: **the trimmer cannot see through COM.**
   The trimmer cannot prove which members are reachable, so it cannot promise it has kept them.
 
 Neither is a false positive. Trimming really can remove those members, and the result is not a
-build failure — it is a `NullReferenceException` or a wrong-slot call in a shipped binary.
+build failure. It is a `NullReferenceException` or a wrong-slot call in a shipped binary.
 
 ## The plausible explanation, and why it is wrong
 
@@ -57,7 +57,7 @@ and it is the attractive one because the code demonstrably works when you run it
 It is wrong twice. The flag is on because *something else* wants it: here, the CLI's NativeAOT
 option, kept open since phase 1. Suppressing the message in the library silently revokes that for
 the whole solution, and nobody finds out until a publish months later. And the analyser is not
-speculating — it is describing a real mechanism, so the suppression converts a build error into a
+speculating. It is describing a real mechanism, so the suppression converts a build error into a
 crash on a user's machine.
 
 The second attractive wrong turn is **"drop `IsAotCompatible` from this project."** Same problem
@@ -71,7 +71,7 @@ there is nothing left for the trimmer to lose.
 
 Three things make it work:
 
-1. **`[GeneratedComInterface]` instead of `[ComImport]`**, and the interfaces must be `partial` —
+1. **`[GeneratedComInterface]` instead of `[ComImport]`**, and the interfaces must be `partial`,
    as must any type they are nested in.
 2. **Blittable parameters only.** Declare interface out-parameters as `IntPtr` and wrap them by
    hand rather than letting the marshaller do it; that keeps the generated code trivial and
@@ -91,18 +91,18 @@ internal partial interface IMMDeviceCollection
 }
 ```
 
-The generator needs `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — see [[ADR-017]], which is also
+The generator needs `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>`. See [[ADR-017]], which is also
 where the trade against `RecycleBin`'s deliberate refusal of that flag is argued.
 
 **Two smaller traps on the way.** Structs used in generated signatures must be at least `internal`,
 or the generated file cannot see them and you get a cascade of CS0122 followed by confusing CS8500
-"pointer to a managed type" errors — the second is fallout from the first, not a separate problem.
+"pointer to a managed type" errors, the second is fallout from the first, not a separate problem.
 And a `[SupportedOSPlatform("windows")]` annotation is needed on the class when the project targets
 plain `net10.0`, or CA1416 becomes the next build error.
 
 ## How to avoid it
 
-Nothing prevents this one — it is a property of the analysers, and hitting it is how you learn
+Nothing prevents this one. It is a property of the analysers, and hitting it is how you learn
 which mechanism to reach for. What makes it cheap the second time is knowing the answer is
 "source-generated COM", not "suppress it".
 
@@ -114,8 +114,8 @@ the second language arrives without announcing itself.
 
 ## References
 
-- [[ADR-017]] — the decision, and why `AllowUnsafeBlocks` on Core is a different trade from the one
+- [[ADR-017]]: the decision, and why `AllowUnsafeBlocks` on Core is a different trade from the one
   `RecycleBin` refused
-- [technical-debt.md](../../technical-debt.md) §2.4 — the question this closed, and its evidence
+- [technical-debt.md](../../technical-debt.md) §2.4, the question this closed, and its evidence
   table in [the archive](../../archive/technical-debt-closed.md)
-- `src/WaveLinkBackup.Core/Abstractions/WindowsAudioEndpointInspector.cs` — the working form
+- `src/WaveLinkBackup.Core/Abstractions/WindowsAudioEndpointInspector.cs`, the working form

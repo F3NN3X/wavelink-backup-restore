@@ -10,7 +10,7 @@ tags: [gotcha, restore, process]
 # The restore writes cleanly, then the old settings come back
 
 **Provenance:** **Read, not reproduced.** The rule comes from `SPEC.md` §4, which explicitly
-corrects an earlier draft of itself, and from upstream's shutdown sequence — which gets this
+corrects an earlier draft of itself, and from upstream's shutdown sequence, which gets this
 right and documents why. The race has not been triggered deliberately here.
 
 ## Symptom
@@ -18,7 +18,7 @@ right and documents why. The race has not been triggered deliberately here.
 The restore reports success. The bytes were written, and re-reading the file immediately
 afterwards confirms the new content.
 
-Wave Link relaunches — and the mixer shows the *old* configuration. Reading `Settings.json`
+Wave Link relaunches, and the mixer shows the *old* configuration. Reading `Settings.json`
 again now shows the old content. Your write is simply gone, with no error anywhere.
 
 ## Cause
@@ -58,16 +58,16 @@ your write and fatal if it races it. What matters is not *how* the process ended
 
 Order, with the reason attached where the order is load-bearing:
 
-1. **Validate the source first** ([[file-parses-but-wave-link-resets]]) — before anything is
+1. **Validate the source first** ([[file-parses-but-wave-link-resets]]), before anything is
    closed. Restoring a file the app will reject looks identical to the snapshot being broken.
-2. **Close both processes** — `Elgato.WaveLink` **and** `WavelinkSEService`. Two processes,
+2. **Close both processes**, `Elgato.WaveLink` **and** `WavelinkSEService`. Two processes,
    and the service is the one that gets forgotten.
 3. **Wait for exit, then re-check `IsRunning`.** ← the fix. Not a sleep: an assertion.
 4. **Snapshot the current file**, even though it is the bad one. Rollback and evidence.
-5. **Write atomically** — temp file in the same directory, then
+5. **Write atomically**, temp file in the same directory, then
    `File.Replace(temp, target, backupPath)`. Atomic on NTFS, and it produces the rollback copy
    in the same operation, so there is no window where the target is half-written.
-6. **Relaunch via the shell AppID** — `shell:AppsFolder\<packageFamilyName>!App`. An MSIX app
+6. **Relaunch via the shell AppID**, `shell:AppsFolder\<packageFamilyName>!App`. An MSIX app
    cannot be started from its `.exe` path.
 7. **Verify from the new log**, not from the UI.
 
@@ -80,7 +80,7 @@ fileOps.ReplaceAtomic(tempPath, settingsPath, rollbackPath);
 ```
 
 A sleep is not a substitute for step 3. `Start-Sleep -Milliseconds 1500` is fine in a one-off
-script and is not a utility's exit condition — on a loaded machine the exit takes longer, and
+script and is not a utility's exit condition, on a loaded machine the exit takes longer, and
 a fixed sleep fails exactly when the machine is under the kind of load that caused the
 problem.
 
@@ -89,7 +89,7 @@ problem.
 - **Make "verified exited" a precondition of the write function**, not a step the caller is
   trusted to have performed. Enforce it at the boundary and the race cannot be reintroduced by
   a future caller.
-- **Test it through `IWaveLinkProcess`** — a fake that reports `IsRunning == true` after a
+- **Test it through `IWaveLinkProcess`.** A fake that reports `IsRunning == true` after a
   close must make the write throw. That is the whole seam's purpose ([[ADR-002]]).
 - **Never verify a restore from the UI.** A mixer that looks correct can be a freshly
   generated default. Verify from the log.
@@ -98,4 +98,4 @@ problem.
 
 - `SPEC.md` §4, §7
 - [[ADR-002]] · [[restore-a-settings-file-safely]] · [[newest-backup-is-the-broken-one]]
-- [glossary.md](../../glossary.md) — *verified exited*, *atomic write*, *shell AppID*
+- [glossary.md](../../glossary.md), *verified exited*, *atomic write*, *shell AppID*

@@ -18,15 +18,15 @@ the MSIX package's `LocalState`. It enumerates them by scanning that one directo
 refuses to restore anything whose filename does not match
 `^Settings\.json\.backup-\d{8}-\d{9}$`.
 
-That filename regex is a genuinely good guard — it stops a mistyped path writing arbitrary
+That filename regex is a genuinely good guard, it stops a mistyped path writing arbitrary
 bytes into a config file. But the location it enforces is fatal:
 
-> **Resetting or uninstalling the MSIX package deletes `LocalState` wholesale — every backup
+> **Resetting or uninstalling the MSIX package deletes `LocalState` wholesale, every backup
 > with it.** The tool's backups are destroyed by precisely the event you would most want to
 > recover from.
 
 The location is not the only problem. Three requirements collide with upstream's model at
-once, and they all trace to the same root — **identity by filename**:
+once, and they all trace to the same root, **identity by filename**:
 
 | Requirement | Blocked by |
 |---|---|
@@ -54,7 +54,7 @@ The backup store is **user-chosen**, defaulting to `%LOCALAPPDATA%\WaveLinkBacku
 ```
 
 **Identity moves from the filename to `manifest.json`.** The display name lives there and
-nowhere else, so renaming is a metadata write — no file moves, no collisions, no sanitising,
+nowhere else, so renaming is a metadata write, no file moves, no collisions, no sanitising,
 no breakage from a slash in a name.
 
 The safety guard is kept in spirit and rebuilt on the new identity: restore asserts *"this
@@ -67,15 +67,15 @@ bytes into a config file, with no constraint on naming or location.
 | Field | Purpose |
 |---|---|
 | `displayName`, `notes` | What the user typed. Freely editable. |
-| `createdUtc`, `trigger` | `manual` / `watcher` / `preRestore` — pre-restore snapshots render distinctly |
+| `createdUtc`, `trigger` | `manual` / `watcher` / `preRestore`, pre-restore snapshots render distinctly |
 | `settingsSha256` | The dedup key ([[ADR-007]]) |
 | `waveLinkVersion` | The first question when a restore fails ([[newest-backup-is-the-broken-one]]) |
 | `inputCount`, `inputNames` | The health fingerprint, surfaced in the list |
 | `hasDuplicateKeys` | Result of the `JsonDocument` walk; marks the entry suspect |
-| `tiers` | Which of tiers 1–4 this snapshot actually contains |
+| `tiers` | Which of tiers 1, 4 this snapshot actually contains |
 
 The manifest is also, not incidentally, the entire restore UI. Every column in the main
-window's list reads from it — nothing needs opening a snapshot to render the row.
+window's list reads from it. Nothing needs opening a snapshot to render the row.
 
 ## Alternatives considered
 
@@ -83,7 +83,7 @@ window's list reads from it — nothing needs opening a snapshot to render the r
 |---|---|
 | **Keep upstream's location, add a second store** | Two sources of truth for "what backups exist", and the fragile one still looks authoritative. |
 | **Filename-encoded metadata** (`2026-08-15_2307_before-3-3-beta`) | Readable in Explorer, and that is the whole argument for it. Against it: rename becomes a move, user text becomes a path, and every field you later want to add becomes another delimiter. The filename in the UI's expanded row (`2026-08-11_2136_before-3-3-beta.wlbk`) already gives the Explorer-legibility benefit without carrying identity. |
-| **SQLite index alongside the store** | Fast, and wrong for this scale. Four backups. It also introduces a file that can disagree with the directory it describes — a self-describing directory cannot. |
+| **SQLite index alongside the store** | Fast, and wrong for this scale. Four backups. It also introduces a file that can disagree with the directory it describes, a self-describing directory cannot. |
 | **Single-file archive per snapshot** (`.wlbk` zip) | Tidier in Explorer, and it makes partial reads (just the manifest, for the list) and tier-3/4 selective restore harder. Reconsider only if the store ever holds thousands of entries. |
 
 ## Consequences
@@ -93,16 +93,16 @@ reset or reinstall, and adding manifest fields later without touching anything o
 
 **This rules out:**
 
-- Upstream's `ValidateManagedPath` as written. It must be rewritten, not adapted — and it is
+- Upstream's `ValidateManagedPath` as written. It must be rewritten, not adapted, and it is
   entangled with `NewBackupPath` and `ManagedBackups`, so all three change together. Fixing
   one alone leaves restore refusing its own files.
 - Identifying a snapshot from its path alone. Any code that wants to know what a snapshot *is*
-  reads its manifest. That is a per-snapshot file read on list load — trivial at this scale,
+  reads its manifest. That is a per-snapshot file read on list load, trivial at this scale,
   and the reason the manifest carries every field the list needs.
 
 **This creates an obligation:** the store now outlives the application that wrote it, in a
 location the user chose and may back up, sync or move. `manifest.json` is a compatibility
-surface from day one — version it.
+surface from day one, version it.
 
 **Revisit if:** the store routinely holds thousands of snapshots, at which point the
 per-snapshot manifest read stops being free and an index earns its keep.

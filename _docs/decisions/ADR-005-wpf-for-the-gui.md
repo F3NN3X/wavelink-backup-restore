@@ -26,7 +26,7 @@ packaging and friction rather than capability.
 **WPF**, on .NET 10.
 
 Design values become **brush resources declared once per theme**, swapped via
-`DynamicResource` — never literals repeated at call sites. That is what makes live theme
+`DynamicResource`, never literals repeated at call sites. That is what makes live theme
 switching a resource swap rather than a window rebuild, and it is what the handoff means when
 it says to treat every `--wl-*` name as a resource key.
 
@@ -34,9 +34,9 @@ it says to treat every `--wl-*` name as a resource key.
 
 | Option | Why not |
 |---|---|
-| **WinUI 3** | The modern answer, and it drags in the Windows App SDK for no benefit at this scale. It also pushes toward MSIX packaging — which for *this* app is quietly ironic, since [[ADR-003]] exists because MSIX package resets destroy `LocalState`. Its Mica and theming story is better out of the box; that is one afternoon of WPF work, not a framework choice. |
+| **WinUI 3** | The modern answer, and it drags in the Windows App SDK for no benefit at this scale. It also pushes toward MSIX packaging, which for *this* app is quietly ironic, since [[ADR-003]] exists because MSIX package resets destroy `LocalState`. Its Mica and theming story is better out of the box; that is one afternoon of WPF work, not a framework choice. |
 | **Avalonia** | Buys cross-platform that [[ADR-008]] explicitly does not want, and gives up first-party Win32 interop we need for the custom caption bar and Mica. |
-| **WinForms** | Perfectly capable of the mechanics, and you will fight it for a week on one list view that needs to look pleasant. The design is high-fidelity — hairline borders at 12% opacity, a 3px left selection edge, five-cell health strips, 140/220ms transitions. That is a templating problem, and templating is WPF's actual strength. |
+| **WinForms** | Perfectly capable of the mechanics, and you will fight it for a week on one list view that needs to look pleasant. The design is high-fidelity, hairline borders at 12% opacity, a 3px left selection edge, five-cell health strips, 140/220ms transitions. That is a templating problem, and templating is WPF's actual strength. |
 
 ## Consequences
 
@@ -62,15 +62,15 @@ enough to hit the handoff's fidelity bar rather than approximate it.
 | Windows high-contrast mode | Not designed; see [technical-debt.md](../technical-debt.md) §4 |
 
 **Fonts:** Rubik and JetBrains Mono are open-licensed and embedded with the app. The fallbacks
-if footprint rules them out are Segoe UI Variable and Cascadia Mono — geometry holds, warmth
+if footprint rules them out are Segoe UI Variable and Cascadia Mono, geometry holds, warmth
 is lost. Decide once, in phase 5, not per-screen.
 
 **Revisit if:** WPF stops being supported on a .NET version we need, or the app grows a
-requirement — a modern in-box control, a Windows-11-only shell integration — that WinUI 3
+requirement, a modern in-box control, a Windows-11-only shell integration, that WinUI 3
 gives free and WPF cannot reach. Neither is on the horizon.
 
 ## References
 
 - `SPEC.md` §10
-- [README.md](../operations/design/README.md) — tokens, four screens, window geometry
+- [README.md](../operations/design/README.md), tokens, four screens, window geometry
 - [[ADR-004]] · [[ADR-008]]

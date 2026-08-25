@@ -12,7 +12,7 @@ tags: [gotcha, vst3, expectations]
 **Provenance:** **Inspected, not reproduced.** Vendor folders examined on the reference
 machine 2026-08-15: `%APPDATA%\FabFilter` holds 246 files, all presets;
 `%APPDATA%\Supertone\Clear` holds only crash reports. **No licence material exists in what
-tier 3 copies** — that absence is measured. The user-facing failure has not been staged.
+tier 3 copies**, that absence is measured. The user-facing failure has not been staged.
 
 ## Symptom
 
@@ -34,12 +34,12 @@ Vendors authorise via one of:
 - an online account check.
 
 All three are outside `%APPDATA%\<Vendor>\<Plugin>\` (tier 3) and outside the `.vst3` itself
-(tier 4). Several are deliberately machine-bound — copying them to another machine would not
+(tier 4). Several are deliberately machine-bound, copying them to another machine would not
 work even if we found them, because *not being copyable* is the entire feature.
 
 ## The plausible explanation, and why it is wrong
 
-> *"The licence file must be somewhere in the vendor's `%APPDATA%` folder — we just missed
+> *"The licence file must be somewhere in the vendor's `%APPDATA%` folder, we just missed
 > it. Widen the tier 3 glob."*
 
 It is not there. That was checked, folder by folder, and the check is the provenance line at
@@ -52,7 +52,7 @@ The second, more damaging wrong turn is a design one:
 
 This is a request to defeat machine-binding, and the honest answer is that it cannot be done
 and should not be attempted. A tool that appeared to succeed at it would be worse than one
-that declines — it would produce a rebuild that works until it silently does not.
+that declines, it would produce a rebuild that works until it silently does not.
 
 ## Fix
 
@@ -63,7 +63,7 @@ it**. The Settings dialog's note is not decorative copy:
 > On a new machine you'll install and re-authorise those plug-ins yourself, then restore.
 
 Scope tier 4 honestly in every place it is described: it gets a **working plugin on the same
-machine** — after an uninstall, a bad update, a vendor pulling a version. On a rebuild the
+machine**, after an uninstall, a bad update, a vendor pulling a version. On a rebuild the
 user reinstalls and re-authorises regardless, and then restores.
 
 **Tier 2 is what actually helps on a rebuild**, and it costs 4 KB. Name, vendor, version and
@@ -76,12 +76,12 @@ switchable ([[ADR-006]]).
 - **Never describe a snapshot as "complete" or "everything".** It is a settings backup with
   optional plugin capture. Copy that overclaims here is a support burden with a delay fuse.
 - **Keep the licence note in Settings** even when it looks like clutter. It appears at the
-  moment the user is deciding whether to enable tier 4 — the only moment they will read it.
+  moment the user is deciding whether to enable tier 4, the only moment they will read it.
 - **Do not add a "back up licences" tier**, and record here why, so the idea does not return
   as a feature request that looks reasonable.
 
 ## References
 
 - `SPEC.md` §9
-- [README.md](../../operations/design/README.md) — Screen 3, plain-language notes
+- [README.md](../../operations/design/README.md). Screen 3, plain-language notes
 - [[ADR-006]] · [[vst3-backs-up-as-nothing]] · [[restored-backup-has-dead-channels]]

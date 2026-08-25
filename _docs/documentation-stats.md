@@ -57,6 +57,32 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### The living documentation gets its punctuation back (2026-08-25)
+
+**Sixty-six documents rewritten for readability, and four stale facts found on the way.** The em
+dash had become this project's most reliable tell: 1,086 of them across the documents people
+actually read. They are gone, replaced by the punctuation each sentence wanted, and the glossary's
+`**Term** - definition` openings are now `**Term.** Definition`.
+
+- **Dated records were left alone, on purpose.** `archive/`, `sessions/`, `audits/`, `plans/` and
+  `dev-phases/` are accounts of what happened on a particular day. The closed-debt archive says in
+  its own header that entries are kept verbatim, and rewriting a record changes the record rather
+  than the writing.
+
+- **Quotations keep their original punctuation.** Several documents quote the design package word
+  for word. A first pass rewrote inside those quotations, which misquotes the source; ten of them
+  were found and restored before this landed.
+
+- **Four stale facts, three of them in README.** A *weekly* update check that *only looks*, when
+  0.7.6 made it daily and gave it a voice. The test, ADR and gotcha counts. The status line still
+  reading v0.7.4. Plus a `#privacy` nav link that pointed at a slug the heading had stopped
+  producing, and a sentence with its words in the wrong order.
+
+- **Verified structurally rather than by eye alone.** Link counts, wikilink counts, code fences,
+  headings, table rows and line counts are identical in all sixty-six files; every relative link
+  still resolves; the suite is unchanged at 1,668.
+
+
 ### The app says an update exists, without being asked (2026-08-25)
 
 **A gap that every setting denied.** The design says *"check for updates on its own — weekly, on by
@@ -238,7 +264,7 @@ changes, which is what an auto-property silently breaks).
 [the-app-dies-before-the-window-with-a-culture-error.md](knowledge-base/gotchas/the-app-dies-before-the-window-with-a-culture-error.md)
 is resolved — `InvariantGlobalization` is gone from the app's csproj, replaced by
 `SatelliteResourceLanguages=en` — and the release pipeline now leads the GitHub release page with a
-*What's new* section pulled from [CHANGELOG.md](../../CHANGELOG.md) for the tagged version, so a
+*What's new* section pulled from [CHANGELOG.md](../CHANGELOG.md) for the tagged version, so a
 release says what changed rather than only where to download. The updater is untouched: it still
 reads only the `*app-win-x64.zip` asset and its `.sha256`, never the body.
 
@@ -261,7 +287,7 @@ after `ShowMainWindow()` runs.
 
 The fix swaps the process-wide switch for the targeted one — `<SatelliteResourceLanguages>en</SatelliteResourceLanguages>`
 trims the *resources* while leaving full globalization (and therefore working text rendering)
-intact. Same apparent goal, one of them breaks the app. Verified end-to-end: republished exe runs
+intact. Same apparent goal. One of them breaks the app. Verified end-to-end: republished exe runs
 clean, no `CultureNotFoundException` in the event log, full suite green at 1,587.
 
 **Counts moved:** gotchas 27 → 28. No test change — the guard is the absence of the flag, and a
@@ -361,7 +387,7 @@ both assets resolves to the app, pinned by `A_release_with_both_app_and_cli_asse
 
 **The trade, stated rather than hidden.** A machine without the .NET 10 Desktop Runtime cannot
 start the app, and because a framework-dependent WPF app fails at native load before managed code
-runs, there is no in-app surface to say so — the user gets the stock .NET error dialog. The README
+runs. There is no in-app surface to say so — the user gets the stock .NET error dialog. The README
 names the prerequisite; that is the whole mitigation.
 
 **Documentation touched:** [releasing-and-updating.md](operations/runbooks/releasing-and-updating.md)
@@ -633,7 +659,7 @@ to contradict a sentence in an accepted ADR.
   enough to mislead: "elevation" in particular means *a second headless process*, not a
   permission this one acquires.
 - **The tally was stale by a whole release** and is corrected above.
-- **A corpus pass fixed what had drifted**, run against the rules in [README.md](README.md)
+- **A corpus pass fixed what had drifted**. Run against the rules in [README.md](README.md)
   rather than by eye:
   - `index.md` claimed *"Phase 6 has started"*, 1,050 tests, *"eight records"* against a
     nine-row ADR table, and **listed ten of sixteen gotchas** — which is worse than listing

@@ -16,7 +16,7 @@ symptom is unrecoverable.
 
 ## Symptom
 
-*Empty trash* removes the backups it was asked to remove — **and some it was not.** Sometimes
+*Empty trash* removes the backups it was asked to remove, **and some it was not.** Sometimes
 the entire trash folder. Sometimes directories beside it. There is no error; the operation
 reports success.
 
@@ -40,7 +40,7 @@ C# makes the mistake easy: `path + '\0'` looks complete, and both compile.
 
 ## The plausible explanation, and why it is wrong
 
-> *"It deleted too much, so the path I passed must have been wrong — probably a parent
+> *"It deleted too much, so the path I passed must have been wrong, probably a parent
 > directory, or a trailing separator issue."*
 
 The path is right. Inspect it and it will be exactly the one snapshot. The bug is not in the
@@ -62,8 +62,8 @@ var from = path + '\0' + '\0';
 var buffer = Marshal.StringToHGlobalUni(from);
 ```
 
-Also set `FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT` — without them the shell may show
-UI from a background operation — and keep `FOF_ALLOWUNDO`, which is the entire reason the call
+Also set `FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT`, without them the shell may show
+UI from a background operation, and keep `FOF_ALLOWUNDO`, which is the entire reason the call
 exists rather than `Directory.Delete`.
 
 ## How to avoid it
@@ -80,5 +80,5 @@ exists rather than `Directory.Delete`.
 ## References
 
 - `src/WaveLinkBackup.Core/Abstractions/RecycleBin.cs`
-- `tests/WaveLinkBackup.Core.Tests/RecycleBinTests.cs` — the sibling test
+- `tests/WaveLinkBackup.Core.Tests/RecycleBinTests.cs`, the sibling test
 - [technical-debt.md](../../technical-debt.md) §7.1 · `operations/design/screens/05-delete-dialogs.md`

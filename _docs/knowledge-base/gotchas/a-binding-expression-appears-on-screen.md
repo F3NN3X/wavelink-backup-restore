@@ -38,7 +38,7 @@ XAML's parser treats the content of a property element as a value for that prope
 through its type converter. `Text` is a `string`, the content is a valid `string`, and nothing
 anywhere has cause to complain.
 
-The property-element form gets reached for when the attribute form looks awkward — a long
+The property-element form gets reached for when the attribute form looks awkward, a long
 expression, or several `Run`s that must not be separated by whitespace the parser will collapse.
 Both are real problems with real solutions; this is not one of them.
 
@@ -48,7 +48,7 @@ Both are real problems with real solutions; this is not one of them.
 |---|---|
 | Check the DataContext | It is correct. Nothing is being resolved, so nothing can resolve wrongly. |
 | Look for a binding error in the Output window | A binding was never created. |
-| `<Run.Text><Binding Path="X" /></Run.Text>` | This one actually **does** work — object-element syntax for the binding itself is evaluated. It is also three times the length, and it hides the same mistake next to it. |
+| `<Run.Text><Binding Path="X" /></Run.Text>` | This one actually **does** work, object-element syntax for the binding itself is evaluated. It is also three times the length, and it hides the same mistake next to it. |
 
 ## The fix
 
@@ -66,21 +66,21 @@ Two details that are not optional:
 - **The space is its own `Run`.** A `Run`'s leading whitespace is collapsed away, so it cannot
   ride on the front of the second one.
 - **`Mode=OneWay`.** `Run.Text` binds TwoWay by default and every model property behind one of
-  these is get-only, so the plain form throws — see
+  these is get-only, so the plain form throws. See
   [the-window-never-opens-and-nothing-says-why.md](the-window-never-opens-and-nothing-says-why.md).
   Fixing this gotcha lands you directly in that one.
 
 ## Why it survived a phase
 
-The settings dialog's *model* was covered thoroughly — `SettingsViewModelTests` drives every
+The settings dialog's *model* was covered thoroughly, `SettingsViewModelTests` drives every
 control's commit behaviour against a real repository. The **view** was never constructed by any
 test, so nothing ever looked at what it rendered.
 
 `SettingsDialogViewTests` now reads the `Run`s the dialog actually produced and fails on any text
-containing `{Binding` — the rendered string, not the source spelling.
+containing `{Binding`, the rendered string, not the source spelling.
 
 ## See also
 
-- `src/WaveLinkBackup.App/Views/SettingsDialog.xaml` — the two plain-language notes
+- `src/WaveLinkBackup.App/Views/SettingsDialog.xaml`, the two plain-language notes
 - [the-window-never-opens-and-nothing-says-why.md](the-window-never-opens-and-nothing-says-why.md)
 - [2026-08-19-design-audit-and-ui-fixes.md](../../sessions/2026-08-19-design-audit-and-ui-fixes.md)

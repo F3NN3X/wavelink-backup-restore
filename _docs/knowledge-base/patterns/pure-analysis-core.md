@@ -15,7 +15,7 @@ A backup tool must not modify what it is backing up. That is easy to state and e
 violate: any code path that parses a file and writes something derived from it can silently
 substitute a re-serialized version for the original. This project's withdrawn encoder finding
 ([[every-snapshot-differs-with-no-real-change]]) is exactly that mistake, and it survived
-review twice — once in the spec, once in an audit — because "don't re-serialize" is a
+review twice, once in the spec, once in an audit, because "don't re-serialize" is a
 convention, and conventions are only as good as the reviewer's attention that day.
 
 ## Solution
@@ -25,7 +25,7 @@ no way to acquire the ability.
 
 `WaveLinkBackup.Core.Analysis` has:
 
-- no constructors — every type is `static` or a `record`;
+- no constructors, every type is `static` or a `record`;
 - no injected dependencies, so no seam can be handed in;
 - no `async`, so nothing awaits a stream;
 - no reference to `IFileSystem` or `IWaveLinkProcess`.
@@ -49,18 +49,18 @@ There is no parameter it could write through and no field it could have been giv
 | Where | Why it uses this |
 |---|---|
 | `src/WaveLinkBackup.Core/Io/SettingsInspector.cs:ReadAndAnalyse` | Analyses each read; retries once when the result is `MalformedSettings`, because a torn read is not a broken config |
-| `src/WaveLinkBackup.Core/Io/SettingsWriter.cs:Write` | Validates content **before** replacing anything — restoring a file the app will reject looks identical to the snapshot being broken |
+| `src/WaveLinkBackup.Core/Io/SettingsWriter.cs:Write` | Validates content **before** replacing anything, restoring a file the app will reject looks identical to the snapshot being broken |
 | `src/WaveLinkBackup.Core/Analysis/LogAnalysis.cs` | Same shape for log text: `Verify(string) → RestoreVerdict` |
 
 ## Held down by
 
-`tests/WaveLinkBackup.Core.Tests/SettingsAnalysisTests.cs` — 11 tests, no fakes, no setup.
+`tests/WaveLinkBackup.Core.Tests/SettingsAnalysisTests.cs`, 11 tests, no fakes, no setup.
 That is the practical payoff: the component carrying the most risk is the cheapest in the
 codebase to test exhaustively. `DuplicateKeyScannerTests` adds 8 more the same way.
 
 The boundary itself is enforced by
 `tests/WaveLinkBackup.Core.Tests/SourceGuardTests.cs:Core_never_reads_a_file_without_choosing_a_share_mode`
-and its two siblings — see [[guards-that-can-fail]].
+and its two siblings. See [[guards-that-can-fail]].
 
 ## When not to use it
 
@@ -73,6 +73,6 @@ because *half* of Core is analysis and that half is where silent corruption woul
 
 ## References
 
-- [[ADR-004]] — the Core/shell split this sits inside
-- [[every-snapshot-differs-with-no-real-change]] — the bug this shape makes unrepresentable
+- [[ADR-004]]: the Core/shell split this sits inside
+- [[every-snapshot-differs-with-no-real-change]]: the bug this shape makes unrepresentable
 - [Phase 1 design](../../plans/2026-08-16-phase-1-core-design.md) §1

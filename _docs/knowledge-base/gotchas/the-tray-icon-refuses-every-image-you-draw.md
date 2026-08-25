@@ -10,7 +10,7 @@ tags: [gotcha, wpf, tray, interop]
 
 **Provenance:** **Experienced.** Cost two failed launches while building phase 5 plan 2. The
 design requires the tray glyph to be *generated* rather than shipped as `.ico` files, because
-`screens/11-high-contrast.md` says the icon follows the system icon contrast — which no static
+`screens/11-high-contrast.md` says the icon follows the system icon contrast, which no static
 file can do.
 
 ## Symptom
@@ -37,7 +37,7 @@ Both are `WinExe` crashes with no console, so they are only visible if stderr is
 ## Cause
 
 `TaskbarIcon.IconSource` accepts an `ImageSource`, and the type says nothing about the real
-constraint. H.NotifyIcon converts one by taking **`new Uri(imageSource.ToString())`** — so it only
+constraint. H.NotifyIcon converts one by taking **`new Uri(imageSource.ToString())`**, so it only
 supports images that *came from a URI*. A `BitmapImage` with a `UriSource`, or a `BitmapFrame`
 loaded from a pack URI, stringifies back to that URI and works.
 
@@ -78,7 +78,7 @@ freeing first flashes an empty slot. `App.RefreshTray` keeps that order.
 
 `TrayIconRendererTests` loads each rendered icon back and checks its dimensions. Hand-assembled
 binary headers are exactly the kind of code that is wrong in a way nothing catches until a user
-right-clicks — and the two failures above were both invisible to the compiler.
+right-clicks, and the two failures above were both invisible to the compiler.
 
 ## See also
 

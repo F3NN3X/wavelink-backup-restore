@@ -17,7 +17,7 @@ made. Present since 0.7.2 and invisible for three releases, because nobody had r
 The in-app update finds a new version, downloads it, and refuses to install it with a checksum
 error. Every time. Retrying does not help, and neither does a different network.
 
-The release itself is fine — download the archive by hand, hash it, and it matches the published
+The release itself is fine. Download the archive by hand, hash it, and it matches the published
 `.sha256` exactly.
 
 ## Cause
@@ -46,12 +46,12 @@ mismatch, on every update, forever.
 ## The plausible explanation, and why it is wrong
 
 **"The download is corrupt."** That is what a checksum error means everywhere else, and it is the
-only thing the message says — so the search starts at the network, the CDN, or the proxy. It is
+only thing the message says, so the search starts at the network, the CDN, or the proxy. It is
 none of those, and every check you can run points the wrong way: the archive downloads fine, its
 hash matches its own published file, and the release workflow is producing correct checksums for
 both artifacts.
 
-The failure is not in either file. It is in which file was compared with which — and nothing in the
+The failure is not in either file. It is in which file was compared with which, and nothing in the
 error surfaces that, because the code that chose the pairing believed it had the right one.
 
 **"CI would have caught a bad release."** CI publishes both archives and both digests correctly.
@@ -73,7 +73,7 @@ Order no longer decides the answer, and the size fed to the progress bar is the 
 rather than whichever asset happened to be last.
 
 **A checksum belonging to a different file is treated as NO checksum**, not used anyway. It would
-fail every time, and `UpdateDownloader` already refuses to install what it cannot verify — that is
+fail every time, and `UpdateDownloader` already refuses to install what it cannot verify. That is
 the honest failure instead of a misleading one.
 
 ## How to avoid it
@@ -82,7 +82,7 @@ the honest failure instead of a misleading one.
 publishes. Two of its four cases fail against the old pairing, verified before the fix went in.
 
 **The reason this survived is worth more than the fix.** Every payload in `UpdateFeedTests` carried
-one archive and one `.sha256` — and with one of each, *"take any asset ending .sha256"* and *"take
+one archive and one `.sha256`, and with one of each, *"take any asset ending .sha256"* and *"take
 the right one"* are indistinguishable. The fixture was simpler than production in exactly the
 dimension the bug lived in.
 
@@ -91,6 +91,6 @@ the 0.7.2 packaging change touched this file, so nothing prompted anyone to look
 
 ## References
 
-- [[ADR-012]] — check-only updates with a staged swap
-- [[the-update-installs-nothing-and-says-nothing]] — the failure immediately after this one
-- `src/WaveLinkBackup.App/Updates/IUpdateFeed.cs` — the pairing
+- [[ADR-012]]: check-only updates with a staged swap
+- [[the-update-installs-nothing-and-says-nothing]]: the failure immediately after this one
+- `src/WaveLinkBackup.App/Updates/IUpdateFeed.cs`, the pairing

@@ -22,7 +22,7 @@ publishes **framework-dependent** (no `PublishSelfContained`), so:
 dotnet publish src/WaveLinkBackup.Cli -c Release      →  ~0.2 MB   framework-dependent single file
 ```
 
-That is the shipped artifact — it resolves the .NET 10 Desktop Runtime from the machine at
+That is the shipped artifact, it resolves the .NET 10 Desktop Runtime from the machine at
 startup. The 3.2 MB figure quoted in session records is a *different* publish, run deliberately
 with `-p:PublishAot=true`. Do not read either number as a regression of the other; they are two
 answers to "how small can the CLI be" under different runtime assumptions.
@@ -32,7 +32,7 @@ answers to "how small can the CLI be" under different runtime assumptions.
 Two things are needed, and the second is the one that catches people.
 
 1. A Visual Studio developer shell, for the MSVC linker.
-2. **`vswhere.exe` on `PATH`** — the dev shell does *not* put it there.
+2. **`vswhere.exe` on `PATH`**, the dev shell does *not* put it there.
 
 ```powershell
 Import-Module 'C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\Microsoft.VisualStudio.DevShell.dll'
@@ -47,7 +47,7 @@ dotnet publish src/WaveLinkBackup.Cli -c Release `
 
 `PublishSingleFile=false` is required: it conflicts with AOT.
 
-Expect **~3.2 MB**. Verify it runs — `wlbackup version` is enough to prove the native image
+Expect **~3.2 MB**. Verify it runs, `wlbackup version` is enough to prove the native image
 starts and the P/Invokes resolve.
 
 ## The failure signature, which lies
@@ -62,7 +62,7 @@ command,;operable program or batch file.;C:\...\MSVC\14.44.35207\bin\Hostx64\x64
 
 Read that carefully, because it is built to be misread:
 
-- **It names `link.exe` and an exit code**, so it reads as a linker failure — a bad object file,
+- **It names `link.exe` and an exit code**, so it reads as a linker failure, a bad object file,
   an unresolved symbol, *something you just wrote*.
 - The real cause is the first clause. `Microsoft.NETCore.Native.targets` shells out to
   `vswhere` to locate the toolchain, and when that fails **its error text is spliced into the
@@ -79,5 +79,5 @@ just whichever install the targets found first, and it is not the problem either
 
 ## Related
 
-- [technical-debt.md](../../technical-debt.md) §2.4 — why AOT is kept open at all
-- [guards-that-can-fail.md](../patterns/guards-that-can-fail.md) — the guards this recipe checks are still true
+- [technical-debt.md](../../technical-debt.md) §2.4, why AOT is kept open at all
+- [guards-that-can-fail.md](../patterns/guards-that-can-fail.md), the guards this recipe checks are still true

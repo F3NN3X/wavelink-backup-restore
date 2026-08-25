@@ -10,7 +10,7 @@ tags: [gotcha, vst3, filesystem]
 # A plugin backs up as zero bytes, and the snapshot still says it succeeded
 
 **Provenance:** **Spec-derived. Never observed.** From the VST3 specification, not from this
-machine — **all six referenced plugins on the reference machine are single files**, so this
+machine, **all six referenced plugins on the reference machine are single files**, so this
 path cannot be exercised by the author's own setup. That is the reason it is written down
 before it happens rather than after.
 
@@ -42,7 +42,7 @@ on the API, `File.Copy` fails with an access error that gets swallowed, or a len
 returns something meaningless, or an existence check passes and the copy produces nothing.
 **The snapshot reports success** because nothing surfaced an exception.
 
-Bundles are not exotic and are becoming more common — installers increasingly ship them that
+Bundles are not exotic and are becoming more common, installers increasingly ship them that
 way.
 
 ## The plausible explanation, and why it is wrong
@@ -57,7 +57,7 @@ The second wrong turn:
 > *"If it were wrong, the backup would fail loudly."*
 
 It does not. A directory with a file extension satisfies most casual existence checks, and the
-failure is a *silent absence* — the hardest kind to notice, because the snapshot looks
+failure is a *silent absence*, the hardest kind to notice, because the snapshot looks
 complete and nothing is discovered until a restore, on a different machine, months later.
 
 ## Fix
@@ -90,7 +90,7 @@ report, not a valid snapshot.
   `Contents\x86_64-win\Fake.vst3` and assert the capture recurses it. This is the only way
   this path gets exercised, because the author's machine never will
   ([technical-debt.md](../../technical-debt.md) §2.3).
-- **Never let a per-plugin capture failure be silent.** Aggregate failures and surface them —
+- **Never let a per-plugin capture failure be silent.** Aggregate failures and surface them,
   a snapshot that captured five of six plugins is not a successful snapshot with a footnote.
 - **Assert non-zero size after every capture.** Cheap, and it catches this plus several
   failure modes nobody has thought of.
@@ -100,4 +100,4 @@ report, not a valid snapshot.
 - `SPEC.md` §9
 - [technical-debt.md](../../technical-debt.md) §2.3
 - [[ADR-006]] · [[restored-plugin-demands-a-licence]]
-- [glossary.md](../../glossary.md) — *bundle*, *referenced, not installed*
+- [glossary.md](../../glossary.md), *bundle*, *referenced, not installed*

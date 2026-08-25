@@ -16,7 +16,7 @@ away from it:
 | Rule | Where breaking it surfaces |
 |---|---|
 | No `File.ReadAllBytes` in Core | On a machine with Wave Link running. **Never in CI.** |
-| No reflection-based `JsonSerializer` in Core | Only under NativeAOT — phase 7 |
+| No reflection-based `JsonSerializer` in Core | Only under NativeAOT, phase 7 |
 | Core stays headless | When AOT or the test host fails, phases later |
 
 A comment saying "don't do X" catches none of them. Worse, a *guard* that silently never
@@ -83,13 +83,13 @@ decoration and every build stays green.
 
 ## When not to use it
 
-When the compiler or an analyzer can express the rule. A source scan is a blunt instrument —
+When the compiler or an analyzer can express the rule. A source scan is a blunt instrument,
 it sees text, not semantics, and will not notice `var f = File; f.ReadAllBytes(p);`. It is the
 right tool only when the rule is about *what may appear in this project's source*, which no
 general analyzer knows.
 
 Keep the pattern list short. Each one is a small tax on every reader who has to work out why
-their obvious code is rejected — so the error message must say *why*, not just *no*.
+their obvious code is rejected, so the error message must say *why*, not just *no*.
 
 ## References
 

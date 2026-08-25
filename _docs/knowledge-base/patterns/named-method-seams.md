@@ -19,7 +19,7 @@ Stream Open(string path, FileMode mode, FileAccess access, FileShare share);
 ```
 
 Which means every call site can get it wrong, and the failure only appears on a machine with
-Wave Link actually running — never in CI. Upstream has exactly this shape
+Wave Link actually running, never in CI. Upstream has exactly this shape
 (`IFileOperations.ReadAllBytes` delegating to `File.ReadAllBytes`) and the bug with it.
 
 ## Solution
@@ -44,7 +44,7 @@ public byte[] ReadSharedBytes(string path)
 ```
 
 Callers cannot pick the wrong share mode because they never pick one. The knowledge lives in
-one place, next to the comment explaining why — and the name `ReadSharedBytes` is a prompt to
+one place, next to the comment explaining why, and the name `ReadSharedBytes` is a prompt to
 the next reader that sharing is the point, rather than an incidental flag.
 
 ## Callers
@@ -57,10 +57,10 @@ the next reader that sharing is the point, rather than an incidental flag.
 
 ## Held down by
 
-- `tests/WaveLinkBackup.Core.Tests/FileSystemTests.cs:Reads_a_file_that_another_handle_holds_open_for_writing`
-  — proves the share mode works, using a second `FileStream` rather than needing Wave Link.
-- `tests/WaveLinkBackup.Core.Tests/RealInstallTests.cs:The_naive_read_fails_while_Wave_Link_is_running`
-  — proves the naive call *does* fail, so the pattern is not solving an imaginary problem.
+- `tests/WaveLinkBackup.Core.Tests/FileSystemTests.cs:Reads_a_file_that_another_handle_holds_open_for_writing`,
+proves the share mode works, using a second `FileStream` rather than needing Wave Link.
+- `tests/WaveLinkBackup.Core.Tests/RealInstallTests.cs:The_naive_read_fails_while_Wave_Link_is_running`,
+proves the naive call *does* fail, so the pattern is not solving an imaginary problem.
 - `SourceGuardTests` fails the build if `File.ReadAllBytes` reappears anywhere in Core.
 
 ## When not to use it
@@ -74,5 +74,5 @@ flexibility, it is an opportunity to be wrong.
 
 ## References
 
-- [[capture-fails-while-wave-link-is-running]] — the bug that motivated it
-- [[guards-that-can-fail]] — how the rule stays enforced
+- [[capture-fails-while-wave-link-is-running]]: the bug that motivated it
+- [[guards-that-can-fail]]: how the rule stays enforced

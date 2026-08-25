@@ -9,9 +9,9 @@ tags: [recipe, restore]
 
 # Restore a settings file safely
 
-**When:** every restore — whether performed by the app, the CLI, or by hand during recovery.
+**When:** every restore, whether performed by the app, the CLI, or by hand during recovery.
 
-**Prerequisites:** a candidate snapshot, and write access to `LocalState`. Tiers 1–3 need no
+**Prerequisites:** a candidate snapshot, and write access to `LocalState`. Tiers 1, 3 need no
 elevation; **tier 4 does**, because `C:\Program Files\Common Files\VST3` is not user-writable.
 Prompt for it only if tier 4 is actually being restored.
 
@@ -25,15 +25,15 @@ Prompt for it only if tier 4 is actually being restored.
 
 ### 1. Validate the source before touching anything
 
-Check the candidate parses, that `MixerConfiguration.InputSettings` is an object, and — the
-one that matters — that it has **no case-insensitively duplicated keys**, using a
+Check the candidate parses, that `MixerConfiguration.InputSettings` is an object, and, the
+one that matters, that it has **no case-insensitively duplicated keys**, using a
 `JsonDocument` tree walk.
 
 > **Why first:** restoring a file the app will reject looks *identical* to the snapshot being
 > broken. You lose a full restore cycle, and the current config, distinguishing them. Validate
 > while everything is still safely running.
 
-Do not use `ConvertFrom-Json` for this. It silently collapses duplicates — see
+Do not use `ConvertFrom-Json` for this. It silently collapses duplicates. See
 [[file-parses-but-wave-link-resets]].
 
 ### 2. Check the health fingerprint against the current config
@@ -45,7 +45,7 @@ A restore that drops five inputs to two is probably a mistake, and the user shou
 > **Why here:** this is information for the confirmation dialog, so it must be gathered before
 > anything is closed. The now-vs-after table exists for exactly this.
 
-A collapsed candidate is not automatically wrong — sometimes it is the only snapshot there is.
+A collapsed candidate is not automatically wrong, sometimes it is the only snapshot there is.
 Warn; do not block.
 
 ### 3. Take a pre-restore snapshot
@@ -53,7 +53,7 @@ Warn; do not block.
 Capture the current configuration, `trigger: preRestore`, named `Before restore`.
 
 > **Why before closing:** you want the state as it is now, and you want it even though it is
-> the bad one — it is both the rollback and the evidence. **Automatic, never a checkbox**
+> the bad one. It is both the rollback and the evidence. **Automatic, never a checkbox**
 > ([[ADR-003]]): it is what makes the destructive button safe to press, and a user in a hurry
 > is exactly the user who would skip it.
 
@@ -63,18 +63,18 @@ Capture the current configuration, `trigger: preRestore`, named `Before restore`
 force-kill of the tree only on timeout.
 
 > **Why graceful first:** it lets the app checkpoint cleanly. An unconditional kill risks
-> leaving other state inconsistent, and buys nothing — see step 5 for what actually protects
+> leaving other state inconsistent, and buys nothing. See step 5 for what actually protects
 > the write.
 
 `WavelinkSEService` is the one people forget. Two processes.
 
 ### 5. Assert the processes are gone
 
-Re-check `IsRunning`. If either is still up, **abort** — do not write.
+Re-check `IsRunning`. If either is still up, **abort**. Do not write.
 
 > **Why this is the load-bearing step:** a graceful exit **flushes in-memory config on the way
 > out**. Harmless if that happens before your write; fatal if it races it, and the failure is
-> invisible — your write succeeds, verifies, and is silently overwritten seconds later.
+> invisible, your write succeeds, verifies, and is silently overwritten seconds later.
 > See [[restored-settings-revert-seconds-later]].
 >
 > **The invariant is exit, not kill method.** A fixed `Sleep` is not a substitute: on a loaded
@@ -90,13 +90,13 @@ File.Replace(tempPath, settingsPath, rollbackPath);
 ```
 
 > **Why not `WriteAllBytes`:** `File.Replace` is atomic on NTFS and produces the rollback copy
-> in the same operation. There is no window in which `Settings.json` is half-written — which
+> in the same operation. There is no window in which `Settings.json` is half-written, which
 > matters, because a half-written file is the one state from which nothing recovers cleanly.
 >
 > **Why the same directory:** `File.Replace` requires source and destination on the same
 > volume. A temp file in `%TEMP%` may not be.
 
-Copy bytes. Do not re-serialize — see [[every-snapshot-differs-with-no-real-change]].
+Copy bytes. Do not re-serialize. See [[every-snapshot-differs-with-no-real-change]].
 
 ### 7. Relaunch via the shell AppID
 
@@ -127,12 +127,12 @@ Success is the **absence** of `Failed to parse settings file` plus the presence 
 
 Three things, in order of trustworthiness:
 
-1. **The log** — no parse failure, and `Applied saved friendly name` for a name you recognise.
+1. **The log**, no parse failure, and `Applied saved friendly name` for a name you recognise.
 2. **The input count and names** match the snapshot's manifest.
 3. **The file size** on disk is close to the snapshot's. A file that has become ~11 KB has been
    rejected and regenerated, whatever the window shows.
 
-If Wave Link wrote a *new* backup of its own immediately after launch, that is worth noticing —
+If Wave Link wrote a *new* backup of its own immediately after launch. That is worth noticing,
 it is the signature of a reset ([[newest-backup-is-the-broken-one]]).
 
 ## If it goes wrong
@@ -142,7 +142,7 @@ same procedure with it as the source. `File.Replace`'s `rollbackPath` from step 
 copy of the same thing, at file level.
 
 **If the config was rejected**, do not immediately retry with the next-newest snapshot. Rank
-by content first — the newest is very often the post-reset default
+by content first, the newest is very often the post-reset default
 ([[newest-backup-is-the-broken-one]]).
 
 **If the restore fails after a Wave Link update**, check `waveLinkVersion` in the manifest

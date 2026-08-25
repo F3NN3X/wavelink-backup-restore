@@ -10,12 +10,12 @@ tags: [gotcha, portability, privacy]
 # Someone else's backup restores into dead channels
 
 **Provenance:** **Read, not reproduced.** Derived from the `Settings.json` schema as inspected
-2026-08-15 — `InputSettings` keyed by Core Audio endpoint IDs, plugin `FilePath`s absolute.
+2026-08-15, `InputSettings` keyed by Core Audio endpoint IDs, plugin `FilePath`s absolute.
 No cross-machine restore has been attempted.
 
 ## Symptom
 
-A user copies a snapshot from one machine to another — a rebuild, a second PC, or a friend's
+A user copies a snapshot from one machine to another, a rebuild, a second PC, or a friend's
 "here's my mic chain, try it". The restore reports success.
 
 The mixer shows the right *channel names* and the right *effect chains*, and no audio. Inputs
@@ -39,7 +39,7 @@ value inside the entry; the binding does not, because it is the key.
 `C:\Program Files\Common Files\VST3` is a *default*, not a location. A user who installs
 plugins elsewhere gets no matches even with every plugin installed.
 
-The result looks like a partial success, which is worse than a clean failure — the user sees
+The result looks like a partial success, which is worse than a clean failure, the user sees
 their channel names and reasonably concludes the rest is a bug.
 
 ## The plausible explanation, and why it is wrong
@@ -54,16 +54,16 @@ The design temptation is the real trap:
 > *"We should remap device IDs on restore so backups become portable."*
 
 This is a **different feature**, and calling it a bugfix is how it gets built badly. Endpoint
-IDs are **foreign keys, not labels** — the ID is referenced elsewhere in the document both as
+IDs are **foreign keys, not labels**, the ID is referenced elsewhere in the document both as
 a bare string and as a composite `<deviceId>|<suffix>`. Anything that rewrites one must walk
 the entire tree, rewrite both forms, and handle the destination key already existing.
 
 That is why the config is never modelled as a flat list of channels, even though pure
-backup/restore never needs the distinction — it moves whole files. The moment "repair a dead
+backup/restore never needs the distinction, it moves whole files. The moment "repair a dead
 input by pointing it at a new device" is wanted, the model has to already be right.
 
 If portability is genuinely wanted, the feature is **"export a chain"**, built on
-`AudioPluginConfigurations` alone — the effect chain without the device binding. That is a
+`AudioPluginConfigurations` alone, the effect chain without the device binding. That is a
 separate feature with a separate design.
 
 ## Fix
@@ -74,7 +74,7 @@ separate feature with a separate design.
 > so restoring it somewhere else won't line up with that machine's inputs.
 
 **Resolve plugins from `FilePath` first**, with standard directories as fallback only, and use
-tier 2's manifest to report what did not resolve — name, vendor and version, so the user knows
+tier 2's manifest to report what did not resolve, name, vendor and version, so the user knows
 what to install ([[ADR-006]]).
 
 **Surface the input drop in the restore dialog.** The now-vs-after table already does this:
@@ -84,7 +84,7 @@ should be visible *before* the button is pressed, not discovered after.
 ## The privacy consequence, which is the same fact wearing a different hat
 
 That endpoint ID contains a **hardware serial number**. Absolute paths contain the **Windows
-username**. And users *will* attach snapshots to bug reports — they will not think about it,
+username**. And users *will* attach snapshots to bug reports, they will not think about it,
 and by then it is in a public issue tracker.
 
 Owed before the repo goes public: a **"copy diagnostics" action that redacts both**, and
@@ -106,6 +106,6 @@ issue tracker.
 
 - `SPEC.md` §3, §11
 - [technical-debt.md](../../technical-debt.md) §3, §6
-- [README.md](../../operations/design/README.md) — Screen 2, Screen 3 notes
+- [README.md](../../operations/design/README.md). Screen 2, Screen 3 notes
 - [[ADR-006]] · [[ADR-008]] · [[restored-plugin-demands-a-licence]]
-- [glossary.md](../../glossary.md) — *endpoint ID*, *machine-local*
+- [glossary.md](../../glossary.md), *endpoint ID*, *machine-local*

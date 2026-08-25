@@ -15,7 +15,7 @@ the real one from that incident.
 ## Symptom
 
 The mixer has collapsed to defaults. You go to Wave Link's own backups, take the most recent
-one — obviously the closest to the last known-good state — and restore it.
+one, obviously the closest to the last known-good state, and restore it.
 
 The mixer is still collapsed. You try the next one. Same.
 
@@ -33,8 +33,8 @@ From the incident:
 ```
 
 Three minutes and 28 KB separate the newest file from the one you actually want. Sorting by
-timestamp puts the useless one first, and — because rolling retention keeps roughly ten
-copies covering about three days — repeatedly restoring the wrong one can age the good ones
+timestamp puts the useless one first, and, because rolling retention keeps roughly ten
+copies covering about three days, repeatedly restoring the wrong one can age the good ones
 out entirely.
 
 ## The plausible explanation, and why it is wrong
@@ -48,7 +48,7 @@ triggers a backup**. The reset writes defaults, Wave Link saves, and the save is
 The damage is *inside* the backup timeline, not outside it.
 
 The second wrong turn is trusting the UI after a restore. A mixer that looks correct can be a
-freshly generated default — five channels named plausibly is not evidence. Verify from the
+freshly generated default, five channels named plausibly is not evidence. Verify from the
 log, not the window.
 
 ## Fix
@@ -66,7 +66,7 @@ surface it in the list. That is what the five-slot health strip in the main wind
 collapsed configuration breaks the visual pattern of the whole column before any text is read.
 
 **The threshold must be relative.** Five inputs and 43 KB is *one user's rig*. Compare a
-snapshot against **that user's previous snapshots**, never against a constant — an absolute
+snapshot against **that user's previous snapshots**, never against a constant, an absolute
 threshold is a bug waiting for the first user with three inputs.
 
 Verify a restore from the newest log, not from the UI:
@@ -94,4 +94,4 @@ Success is the **absence** of `Failed to parse settings file` plus the presence 
 - `SPEC.md` §2, §3, §4, §5, §11
 - [[ADR-003]] · [[ADR-007]] · [[file-parses-but-wave-link-resets]] ·
   [[restore-a-settings-file-safely]]
-- [glossary.md](../../glossary.md) — *collapsed*, *health fingerprint*, *relative not absolute*
+- [glossary.md](../../glossary.md), *collapsed*, *health fingerprint*, *relative not absolute*

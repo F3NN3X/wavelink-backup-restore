@@ -14,7 +14,7 @@ Writing `Settings.json` while Wave Link is still exiting loses the write: the ap
 in-memory config on the way out, over the top of yours. The write succeeds, verifies, and is
 gone thirty seconds later ([[restored-settings-revert-seconds-later]]).
 
-The natural fix is a documented sequence — *close, verify, then write*. Upstream does this,
+The natural fix is a documented sequence, *close, verify, then write*. Upstream does this,
 and repeats the same four lines at five call sites:
 
 ```csharp
@@ -43,7 +43,7 @@ public Result Write(SettingsLocation location, byte[] content)
 }
 ```
 
-`SettingsWriter` does not close Wave Link — closing is the caller's job, and phase 2 will
+`SettingsWriter` does not close Wave Link, closing is the caller's job, and phase 2 will
 orchestrate it. What it guarantees is that a write *cannot happen* while Wave Link is up,
 regardless of what the caller did or forgot.
 
@@ -62,9 +62,9 @@ restart is a situation to report, not a bug to crash on.
 
 ## Held down by
 
-- `tests/WaveLinkBackup.Core.Tests/SettingsWriterTests.cs:Refuses_to_write_while_Wave_Link_is_running`
-  — asserts the write is refused **and** that the file on disk is untouched.
-- `…:A_process_that_survives_the_kill_blocks_the_write` — the compound case: a close that
+- `tests/WaveLinkBackup.Core.Tests/SettingsWriterTests.cs:Refuses_to_write_while_Wave_Link_is_running`,
+asserts the write is refused **and** that the file on disk is untouched.
+- `…:A_process_that_survives_the_kill_blocks_the_write`, the compound case: a close that
   reports failure must not be followed by a successful write.
 - `FakeWaveLinkProcess.StaysRunningAfterClose` exists solely to make this reachable, which is
   what the seam is for.
@@ -72,13 +72,13 @@ restart is a situation to report, not a bug to crash on.
 ## When not to use it
 
 When the check is expensive and the caller already knows the answer. `IsRunning` is a process
-enumeration — microseconds — so paying it on every write is free.
+enumeration, microseconds, so paying it on every write is free.
 
 Also not for preconditions that are genuinely a caller's decision: `SettingsWriter` validates
 that *content is parseable* but takes no view on whether it is the content the user wanted.
 
 ## References
 
-- [[restored-settings-revert-seconds-later]] — the race
-- [[restore-a-settings-file-safely]] — the full sequence this is one step of
-- [Audit](../../audits/2026-08-15-voltybat-wavelinksettingsutility.md) — upstream's duplicated version
+- [[restored-settings-revert-seconds-later]]: the race
+- [[restore-a-settings-file-safely]]: the full sequence this is one step of
+- [Audit](../../audits/2026-08-15-voltybat-wavelinksettingsutility.md), upstream's duplicated version

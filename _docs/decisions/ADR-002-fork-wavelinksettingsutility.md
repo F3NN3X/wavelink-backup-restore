@@ -18,21 +18,21 @@ tags: [decision, architecture, upstream]
 this problem that are tedious to get right and boring to get wrong:
 
 - **`SettingsDiscovery`** globs `Elgato.WaveLink_*` under `Packages` and requires
-  `Settings.json` to exist — so it never touches the stale vendor folder that catches everyone
+  `Settings.json` to exist, so it never touches the stale vendor folder that catches everyone
   ([[backup-succeeds-but-protects-nothing]]). It also handles multiple installed packages,
   which it refuses to guess between and demands `--settings-path` instead.
 - **`WindowsAudioEndpointInspector`** is ~80 lines of hand-declared `[ComImport]` Core Audio
   interfaces. This is how you tell "this input is dead" from "this input is fine", and it is
   exactly the kind of code nobody enjoys writing twice.
-- **The shutdown sequence** — graceful close, 10-second timeout, kill tree on timeout, then
+- **The shutdown sequence.** Graceful close, 10-second timeout, kill tree on timeout, then
   *assert not running* before writing.
-- **Atomic write** — temp file, then `File.Replace(temp, path, backupPath)`.
-- **Seam interfaces** — `IFileOperations`, `IWaveLinkProcess`, `Func<DateTime> clock`. The
+- **Atomic write.** Temp file, then `File.Replace(temp, path, backupPath)`.
+- **Seam interfaces.** `IFileOperations`, `IWaveLinkProcess`, `Func<DateTime> clock`. The
   reason it has 30 KB of tests against 60 KB of code.
 
 It is not, however, the same product. It is a manual tool: backups happen only when invoked,
 with no watcher, no schedule and no dedup, so repeated runs write identical copies. **That gap
-is the entire reason this project exists** — and it is also why forking is honest rather than
+is the entire reason this project exists**, and it is also why forking is honest rather than
 parasitic. We are not repackaging someone's work; we are building a different thing on its
 foundations.
 
@@ -45,8 +45,8 @@ shutdown sequence, atomic write and the seam interfaces. Replace the backup mode
 
 | Option | Why not |
 |---|---|
-| **Depend on it as a library** | It is a console application, not a published package. There is no versioned artifact to depend on, and the changes we need are structural — [[ADR-003]] rewrites where backups live, which reaches into `NewBackupPath`, `ManagedBackups` and `ValidateManagedPath` at once. |
-| **Contribute upstream instead** | Adding a watcher, a snapshot store, dedup and a GUI to a deliberately minimal CLI tool is not a contribution, it is a takeover of someone else's design. Individual fixes — the encoder, duplicate-key detection — are worth offering back. |
+| **Depend on it as a library** | It is a console application, not a published package. There is no versioned artifact to depend on, and the changes we need are structural, [[ADR-003]] rewrites where backups live, which reaches into `NewBackupPath`, `ManagedBackups` and `ValidateManagedPath` at once. |
+| **Contribute upstream instead** | Adding a watcher, a snapshot store, dedup and a GUI to a deliberately minimal CLI tool is not a contribution. It is a takeover of someone else's design. Individual fixes, the encoder, duplicate-key detection, are worth offering back. |
 | **Write fresh** | Discards ~80 lines of correct COM interop, a verified shutdown sequence and a discovery routine that already avoids the project's biggest trap. Weeks of work to arrive at the same place, with new bugs. |
 
 ## Consequences
@@ -61,7 +61,7 @@ both, in part, undoing those assumptions.
 **We also inherit its defects.** Five of them, itemised in
 [technical-debt.md](../technical-debt.md) §1 with severities and owner phases. They become real
 debt the moment the fork lands, which is why they are written down before it does. The
-critical one — backups inside `LocalState` — is not a bug to fix later; it is the change the
+critical one, backups inside `LocalState`, is not a bug to fix later; it is the change the
 fork exists to make.
 
 **Obligations:** MIT requires attribution. Preserve the licence and the copyright notice, name
