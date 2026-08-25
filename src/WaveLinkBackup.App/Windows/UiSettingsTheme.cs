@@ -23,7 +23,7 @@ public sealed class UiSettingsTheme : ISystemTheme
     /// <summary>
     /// Held in a FIELD deliberately. UISettings unsubscribes itself when the instance is
     /// collected, and the symptom is theme following that works for a minute and then quietly
-    /// stops — which looks like a Windows bug rather than ours.
+    /// stops, which looks like a Windows bug rather than ours.
     /// </summary>
     private readonly UISettings? settings;
 
@@ -105,7 +105,7 @@ public sealed class UiSettingsTheme : ISystemTheme
     /// The one decision this class makes about a preference change: only Category.Color means
     /// anything to us (high contrast going on or off), and only then do we re-raise. Exposed as
     /// an internal method rather than left private so a test can pin the runtime swap without
-    /// changing the developer's own Windows settings — the subscription in Start() is unchanged,
+    /// changing the developer's own Windows settings. The subscription in Start() is unchanged,
     /// this is a testability seam not a design change.
     /// </summary>
     internal void HandleUserPreference(UserPreferenceChangedEventArgs e)
@@ -122,7 +122,7 @@ public sealed class UiSettingsTheme : ISystemTheme
         // BeginInvoke rather than Invoke: in production this is called from a thread we do not
         // own (the WinRT pool, or a SystemEvents worker), and blocking that thread on our own
         // dispatcher is a deadlock waiting for a slow tick. When the raise already arrives ON
-        // the UI thread there is nothing to marshal — raising straight through is what lets a
+        // the UI thread there is nothing to marshal: raising straight through is what lets a
         // test pin the swap deterministically without pumping the loop.
         if (dispatcher.CheckAccess())
         {

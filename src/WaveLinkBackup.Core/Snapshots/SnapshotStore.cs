@@ -9,7 +9,7 @@ namespace WaveLinkBackup.Core.Snapshots;
 /// How far a <see cref="SnapshotStore.Write"/> has got, in bytes it has actually written.
 ///
 /// Measured, not staged. 04-in-progress.md asks the backing-up strip for a DETERMINATE bar,
-/// and a determinate bar over invented stages is a worse lie than a spinner — which the design
+/// and a determinate bar over invented stages is a worse lie than a spinner, which the design
 /// bans for exactly that reason. <see cref="TotalBytes"/> is known before the first write because
 /// the payload names its sources and their sizes.
 /// </summary>
@@ -53,7 +53,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
 
     /// <summary>
     /// Where deleted snapshots wait. A directory inside the store, so it travels with it and
-    /// behaves identically on every volume type — unlike the Recycle Bin, which does not exist
+    /// behaves identically on every volume type: unlike the Recycle Bin, which does not exist
     /// on network shares.
     /// </summary>
     public const string TrashFolderName = ".trash";
@@ -234,7 +234,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
 
         foreach (var directory in fileSystem.EnumerateDirectories(directoryPath, "*"))
         {
-            // The trash lives inside the store, so listing the store must skip it — otherwise
+            // The trash lives inside the store, so listing the store must skip it: otherwise
             // deleting something would appear to do nothing.
             if (string.Equals(Path.GetFileName(directory), TrashFolderName, StringComparison.OrdinalIgnoreCase))
             {
@@ -312,7 +312,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
 
         var destination = Path.Combine(TrashPath, found.Value.Id);
 
-        // Same id trashed twice — the user restored one by hand and deleted again. Rare, and a
+        // Same id trashed twice: the user restored one by hand and deleted again. Rare, and a
         // silent overwrite would destroy the earlier copy.
         for (var attempt = 2; fileSystem.DirectoryExists(destination); attempt++)
         {
@@ -340,14 +340,14 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     /// caller because the store already owns the filesystem, and threading one into every
     /// consumer just to build a guard would be dependency for its own sake.
     ///
-    /// Not called by <see cref="List"/> — that would rehash the whole store on every
+    /// Not called by <see cref="List"/>. That would rehash the whole store on every
     /// window open. Callers verify what they are about to act on.
     /// </summary>
     public Result<SnapshotManifest> Verify(Snapshot snapshot) =>
         new SnapshotGuard(fileSystem).Verify(snapshot.Directory);
 
     /// <summary>
-    /// Count and total bytes, for the Settings row. Cheap — it reads manifests, not files.
+    /// Count and total bytes, for the Settings row. Cheap. It reads manifests, not files.
     /// </summary>
     public (int Count, long Bytes) TrashSize()
     {
@@ -358,7 +358,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     }
 
     /// <summary>
-    /// Whether emptying will be recoverable. Ask before promising an undo — the answer is
+    /// Whether emptying will be recoverable. Ask before promising an undo. The answer is
     /// false on network shares and many removable volumes, and the store is user-chosen.
     /// </summary>
     public bool TrashGoesToRecycleBin(IRecycleBin recycleBin) => recycleBin.IsAvailableFor(TrashPath);

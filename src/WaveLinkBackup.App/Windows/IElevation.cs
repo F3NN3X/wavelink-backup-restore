@@ -46,7 +46,7 @@ public interface IElevation
 
 /// <summary>
 /// The real one: `ShellExecute` with the `runas` verb, which is what shows the consent dialog
-/// Windows draws itself. We never paint an administrator prompt — a program that draws its own is
+/// Windows draws itself. We never paint an administrator prompt. A program that draws its own is
 /// teaching the user to trust a thing they should not.
 /// </summary>
 public sealed class ShellExecuteElevation(string? executablePath = null) : IElevation

@@ -54,7 +54,7 @@ public static class PluginManifestSerializer
                 writer.WriteNumber("binarySizeBytes", plugin.BinarySizeBytes);
 
                 // Round-trip "O" so a tick is not lost between capture and the next capture's
-                // comparison — the whole value of the field is that it compares exactly.
+                // comparison: the whole value of the field is that it compares exactly.
                 WriteNullable(
                     writer,
                     "binaryLastWriteUtc",

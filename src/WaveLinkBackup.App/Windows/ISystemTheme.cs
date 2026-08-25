@@ -7,7 +7,7 @@ namespace WaveLinkBackup.App.Windows;
 /// Everything Windows can tell us about the palette, behind one event.
 ///
 /// One <see cref="Changed"/> rather than three, because every source underneath means the same
-/// thing to the app — the palette moved, re-apply — and a consumer that has to subscribe to
+/// thing to the app, the palette moved, re-apply, and a consumer that has to subscribe to
 /// three is a consumer that will subscribe to two.
 /// </summary>
 public interface ISystemTheme : IDisposable

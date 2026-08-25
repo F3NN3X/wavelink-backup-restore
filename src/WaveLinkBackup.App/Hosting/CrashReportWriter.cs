@@ -11,15 +11,15 @@ namespace WaveLinkBackup.App.Hosting;
 ///
 /// This is the cheap half of technical-debt.md §8.1, and it carries the design answer for §8.1a:
 /// the crash's *surface* is this report, redacted, plus a pointer to it wherever the app can still
-/// speak (the restore-failure strip). No thirteenth error surface in XAML — the package specifies
+/// speak (the restore-failure strip). No thirteenth error surface in XAML: the package specifies
 /// twelve errors and none of them is "something unexpected happened", and inventing one is what
 /// [[ADR-004]] exists to prevent. What IS owed on a fault is evidence that names the line, and it
 /// must be easy to investigate: every report carries an environment block (version, OS, culture,
 /// runtime) beside the exception, so a pasted report answers "which build, on what machine" before
 /// anyone asks.
 ///
-/// The stack goes through <see cref="Redaction"/>. A stack trace names absolute paths —
-/// <c>C:\Users\joran\AppData\Local\…</c> — and this file is the thing a user pastes into a public
+/// The stack goes through <see cref="Redaction"/>. A stack trace names absolute paths:
+/// <c>C:\Users\joran\AppData\Local\…</c>, and this file is the thing a user pastes into a public
 /// tracker when they attach anything at all. Redaction strips the username and any endpoint serial
 /// the way "copy diagnostics" does, so the report is safe to share by construction rather than by
 /// whoever attaches it remembering. If redaction itself faults on a shape it has never seen, the
@@ -34,7 +34,7 @@ public sealed class CrashReportWriter(IFileSystem fileSystem, string directoryPa
 {
     /// <summary>
     /// The report's name. It sits beside shell.json in %LOCALAPPDATA%\WaveLinkBackup, which is
-    /// where the user (or a "copy diagnostics" action) will look first — and it is a DIFFERENT
+    /// where the user (or a "copy diagnostics" action) will look first, and it is a DIFFERENT
     /// file from settings.json and shell.json, so a crash can never corrupt either of those.
     /// </summary>
     public const string FileName = "crash-report.txt";
@@ -46,7 +46,7 @@ public sealed class CrashReportWriter(IFileSystem fileSystem, string directoryPa
     /// <summary>
     /// Appends one exception to the report and returns its path, or null when it could not be
     /// written. Appending rather than overwriting means a process that throws twice leaves both
-    /// reports — the second crash is usually the interesting one, and the first is what led to it.
+    /// reports. The second crash is usually the interesting one, and the first is what led to it.
     /// </summary>
     public string? Write(Exception exception) => Write(exception, appVersion: null, userName: null);
 
@@ -56,7 +56,7 @@ public sealed class CrashReportWriter(IFileSystem fileSystem, string directoryPa
     /// </param>
     /// <param name="userName">
     /// The Windows username to strip from paths in the stack. Defaults to the current user when
-    /// null — passed explicitly so a test can pin what gets redacted without depending on who runs it.
+    /// null: passed explicitly so a test can pin what gets redacted without depending on who runs it.
     /// </param>
     public string? Write(Exception exception, string? appVersion, string? userName)
     {
@@ -75,7 +75,7 @@ public sealed class CrashReportWriter(IFileSystem fileSystem, string directoryPa
                 // crashed" and "it crashed HERE". The type name is still present (first line of
                 // ToString), so a report that only gets its first line still names the fault.
                 //
-                // Redacted on the way out — see the type's summary for why the stack cannot leave
+                // Redacted on the way out: see the type's summary for why the stack cannot leave
                 // this file naming the user's profile folder.
                 var body = Redact(exception.ToString(), userName) + Environment.NewLine;
 
@@ -98,7 +98,7 @@ public sealed class CrashReportWriter(IFileSystem fileSystem, string directoryPa
             catch
             {
                 // Best effort. If the directory is unwritable or the disk is full, the crash still
-                // ends the process — but it does not end it having thrown a SECOND exception out of
+                // ends the process, but it does not end it having thrown a SECOND exception out of
                 // the handler that was supposed to be its last act.
                 return null;
             }
@@ -107,7 +107,7 @@ public sealed class CrashReportWriter(IFileSystem fileSystem, string directoryPa
 
     /// <summary>
     /// The block that answers "which build, on what machine" without anyone asking: version, OS,
-    /// culture and runtime. Every value is best-effort — a field that cannot be read says
+    /// culture and runtime. Every value is best-effort. A field that cannot be read says
     /// "unknown" rather than throwing out of the handler.
     /// </summary>
     private string EnvironmentBlock(string? appVersion)
@@ -141,7 +141,7 @@ public sealed class CrashReportWriter(IFileSystem fileSystem, string directoryPa
     }
 
     /// <summary>
-    /// Runs the exception text through Core's <see cref="Redaction"/> — the same rule "copy
+    /// Runs the exception text through Core's <see cref="Redaction"/>: the same rule "copy
     /// diagnostics" uses, so the report and the clipboard report share one definition of safe.
     /// Fails OPEN with a marker rather than dropping the stack: the investigation value of a
     /// redacted-but-missing trace is lower than its privacy cost, but NO trace at all loses the

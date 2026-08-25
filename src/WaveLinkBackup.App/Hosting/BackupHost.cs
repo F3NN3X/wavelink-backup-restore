@@ -98,8 +98,8 @@ public sealed class BackupHost : IDisposable
     public void Resume() => pausedUntil = null;
 
     /// <summary>
-    /// Called by the host timer. Cheap when nothing is due — only a Capture decision touches
-    /// disk — so the shell can call it as often as it likes.
+    /// Called by the host timer. Cheap when nothing is due, only a Capture decision touches
+    /// disk, so the shell can call it as often as it likes.
     /// </summary>
     public TickResult Tick()
     {
@@ -123,7 +123,7 @@ public sealed class BackupHost : IDisposable
 
     /// <summary>
     /// Ignores the debounce and the rate limit. The original incident happened during an
-    /// update, while the machine was restarting — a strategy that only captures during
+    /// update, while the machine was restarting. A strategy that only captures during
     /// steady-state operation misses the exact moment that matters.
     /// </summary>
     public TickResult CaptureOnShutdown()

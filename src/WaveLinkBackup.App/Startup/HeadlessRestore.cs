@@ -45,7 +45,7 @@ public static class RestoreExitCode
 }
 
 /// <summary>
-/// One restore, then exit — what the elevated copy of this app does and the only thing it does
+/// One restore, then exit: what the elevated copy of this app does and the only thing it does
 /// (operations/design/screens/13-elevation.md).
 ///
 /// It exists because `C:\Program Files\Common Files\VST3` is not user-writable and the running

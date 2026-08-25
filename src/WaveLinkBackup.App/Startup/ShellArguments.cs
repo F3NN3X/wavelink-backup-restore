@@ -5,7 +5,7 @@ namespace WaveLinkBackup.App.Startup;
 
 /// <summary>
 /// The shell's command line. Deliberately NOT shared with the CLI's parser: the two have
-/// almost nothing in common — no verbs here, and the CLI has no --tray — and coupling them
+/// almost nothing in common, no verbs here, and the CLI has no --tray, and coupling them
 /// would mean every future CLI verb widened the shell's surface (ADR-009 took the same view of
 /// hand-rolled parsing over a library).
 ///
@@ -21,7 +21,7 @@ namespace WaveLinkBackup.App.Startup;
 /// </param>
 /// <param name="WithPlugins">
 /// Whether that restore includes tier 4. Only meaningful alongside
-/// <paramref name="RestoreSnapshotId"/> — it is the entire reason the elevated copy exists.
+/// <paramref name="RestoreSnapshotId"/>. It is the entire reason the elevated copy exists.
 /// </param>
 /// <param name="ApplyUpdateForProcessId">
 /// Set only by the STAGED copy an update starts of itself, and for the same reason
@@ -44,13 +44,13 @@ public sealed record ShellArguments(
     public bool IsValid => Error is null;
 
     /// <summary>
-    /// True when this process exists to perform one restore and exit — no window, no tray, no
+    /// True when this process exists to perform one restore and exit: no window, no tray, no
     /// watcher, and no single-instance mutex.
     ///
     /// The mutex is the important omission. It is `Local\` and per-user, so the elevated copy runs
     /// as the SAME user and would find the mutex already taken by the window that started it, see
     /// itself as a second launch, and exit without restoring anything. That is correct behaviour
-    /// for a second launch and wrong for this one, because this process is not a second instance —
+    /// for a second launch and wrong for this one, because this process is not a second instance.
     /// it is one operation, and the race the mutex prevents is two watchers over one settings file.
     /// </summary>
     public bool IsHeadlessRestore => RestoreSnapshotId is not null;

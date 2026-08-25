@@ -7,7 +7,7 @@ namespace WaveLinkBackup.App.Theming;
 /// The user's choice, wrapped around the OS.
 ///
 /// A DECORATOR rather than a second source of truth, because every consumer in the app already
-/// reads the palette through <see cref="ISystemTheme"/> — ThemeManager.Follow, the main window's
+/// reads the palette through <see cref="ISystemTheme"/>: ThemeManager.Follow, the main window's
 /// chrome and its ShellViewModel.IsHighContrast, the tray menu's material, the tray icon. Adding a
 /// preference beside that interface would mean finding all of them and teaching each one the
 /// precedence rule; putting it behind the same interface means none of them changes and none of
@@ -38,7 +38,7 @@ public sealed class PreferredTheme : ISystemTheme
 
     /// <summary>
     /// The EFFECTIVE answer, not Windows' own: the high-contrast rendering rules
-    /// (screens/11 — no fills, shape-first health, disabled at full opacity) belong to the palette
+    /// (screens/11: no fills, shape-first health, disabled at full opacity) belong to the palette
     /// being drawn, not to the setting that usually turns it on. A user who picked High contrast
     /// here needs them exactly as much.
     /// </summary>

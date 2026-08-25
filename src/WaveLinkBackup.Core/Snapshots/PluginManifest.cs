@@ -83,7 +83,7 @@ public sealed record PluginManifestEntry(
 
     /// <summary>
     /// The first folder tier 3 read, or null when it read none. Kept because most of what asks
-    /// this question wants one answer — a diagnostic line, a log — and only restore needs all of
+    /// this question wants one answer, a diagnostic line, a log, and only restore needs all of
     /// them.
     /// </summary>
     public string? PresetSource => PresetSources.Count > 0 ? PresetSources[0] : null;
@@ -96,7 +96,7 @@ public sealed record PluginManifestEntry(
     /// <paramref name="sizeBytes"/> and was last written at <paramref name="lastWriteUtc"/>.
     ///
     /// Conservative in every direction. No hash, no recorded size or no recorded time means
-    /// no — an entry from a snapshot written before schema 3 has none of them, and the honest
+    /// no: an entry from a snapshot written before schema 3 has none of them, and the honest
     /// answer for it is to hash. This is a cache with an invalidation rule, so it says yes only
     /// when all three agree.
     /// </summary>

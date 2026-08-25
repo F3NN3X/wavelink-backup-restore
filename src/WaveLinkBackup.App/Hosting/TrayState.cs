@@ -20,7 +20,7 @@ public enum TrayStatus
 }
 
 /// <param name="LastError">
-/// From TickResult. Non-null means the watcher tried and failed — which is what makes NEEDS YOU
+/// From TickResult. Non-null means the watcher tried and failed, which is what makes NEEDS YOU
 /// reachable at all (technical-debt.md 7.3).
 /// </param>
 public readonly record struct TrayConditions(

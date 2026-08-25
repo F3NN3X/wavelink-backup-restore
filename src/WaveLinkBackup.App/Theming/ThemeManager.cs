@@ -40,7 +40,7 @@ public static class ThemeManager
 
     /// <summary>
     /// The pack URI names the assembly explicitly. The short "/Theming/Dark.xaml" form resolves
-    /// against the ENTRY assembly, which under a test host is the runner rather than this app —
+    /// against the ENTRY assembly, which under a test host is the runner rather than this app,
     /// so the short form works when run and fails when tested, which is the worst of both.
     /// </summary>
     public static ResourceDictionary Load(AppTheme theme) => new()
@@ -74,8 +74,8 @@ public static class ThemeManager
 
         var dictionaries = Application.Current.Resources.MergedDictionaries;
 
-        // Slot 0 is the theme by convention; everything merged after it — the tray menu's styles
-        // — references these keys. Replacing in place rather than appending is what keeps that
+        // Slot 0 is the theme by convention; everything merged after it, the tray menu's styles,
+        // references these keys. Replacing in place rather than appending is what keeps that
         // ordering true across a swap.
         if (dictionaries.Count == 0) dictionaries.Add(dictionary);
         else dictionaries[0] = dictionary;
@@ -83,7 +83,7 @@ public static class ThemeManager
 
     /// <summary>
     /// Applies now and on every change. <paramref name="afterApply"/> runs after the swap, for
-    /// the things that read the dictionary rather than binding to it — the tray icon is drawn
+    /// the things that read the dictionary rather than binding to it. The tray icon is drawn
     /// from resolved brushes, so it has to be redrawn, and doing it here rather than in a second
     /// subscriber means the ordering is guaranteed instead of depending on subscription order.
     /// </summary>

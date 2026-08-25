@@ -5,19 +5,19 @@ namespace WaveLinkBackup.App.ViewModels;
 /// <summary>Which of the three decision dialogs to show. 06-errors.md "Dialogs".</summary>
 public enum ErrorDialogVariant
 {
-    /// <summary>Error 2 — two Wave Link installations, none chosen. Neutral, chooser.</summary>
+    /// <summary>Error 2: two Wave Link installations, none chosen. Neutral, chooser.</summary>
     TwoInstallations,
 
-    /// <summary>Error 4 — malformed settings file. Amber: the live config is not whole.</summary>
+    /// <summary>Error 4: malformed settings file. Amber: the live config is not whole.</summary>
     MalformedSettings,
 
-    /// <summary>Error 8 — backup made by a newer version. Neutral; no Restore at all.</summary>
+    /// <summary>Error 8: backup made by a newer version. Neutral; no Restore at all.</summary>
     NewerVersion,
 }
 
 /// <summary>
 /// What an installation turns out to be, once somebody has looked at it. Supplied by the caller
-/// rather than derived here, because finding out means reading a file — and this model is pure.
+/// rather than derived here, because finding out means reading a file, and this model is pure.
 /// </summary>
 /// <param name="IsRunning">
 /// Whether this is the installation Wave Link is currently running from.
@@ -35,9 +35,9 @@ public sealed record ErrorInstallDetail(
 /// One row of error 2's chooser: a Wave Link installation the user must pick between.
 ///
 /// 06 §2 gives each row a version in Rubik 500, a RUNNING chip where applicable, the ellipsised
-/// path, and a <c>SETTINGS SAVED … · N INPUTS · N KB</c> meta line — and the selected row a
+/// path, and a <c>SETTINGS SAVED … · N INPUTS · N KB</c> meta line, and the selected row a
 /// <c>--wl-bg</c> fill with a 3px accent left edge. Until 0.6.1 it drew a bare radio and a path,
-/// which makes "choose between two installations" a decision by file path alone — the exact thing
+/// which makes "choose between two installations" a decision by file path alone: the exact thing
 /// this dialog exists to make easier (technical-debt.md §4.21 item 7).
 /// </summary>
 public sealed record ErrorInstallOption(
@@ -88,24 +88,24 @@ public sealed record ErrorInstallOption(
 /// <summary>
 /// The optional note block under the body: a mono label over a sentence (error 4's amber "if it
 /// stays broken" note) or a two-line mono readout (error 8's "made with / you have"). Null for
-/// error 2, which has no block — its content is the chooser rows instead.
+/// error 2, which has no block. Its content is the chooser rows instead.
 /// </summary>
 public sealed record ErrorNoteBlock(string? Label, string Body, string? SecondLine = null);
 
 /// <summary>
-/// The error dialog's entire content, computed BEFORE anything is shown — a pure projection in the
+/// The error dialog's entire content, computed BEFORE anything is shown: a pure projection in the
 /// same shape as <see cref="DeleteDialogModel"/> and <see cref="RestoreDialogModel"/>. In comes one
 /// of the three Core errors that 06-errors.md places in a dialog (2, 4, 8); out goes what the
 /// dialog renders: title, body, weight, an optional note block, the error-2 chooser rows, and the
-/// footer buttons. No I/O, no WPF — the view binds to this and computes nothing.
+/// footer buttons. No I/O, no WPF: the view binds to this and computes nothing.
 ///
 /// Copy is taken verbatim from 06-errors.md (the catalog's <see cref="AppError"/> already holds the
 /// title/body; the block text and button labels live here because they are dialog-specific). The
 /// machine-specific mono values (a parse error, a schema version) arrive at render time from the
-/// Core error itself — they are never hard-coded.
+/// Core error itself. They are never hard-coded.
 ///
 /// <b>Weight rule as 06 states it:</b> neutral unless the configuration is not whole. Error 4 is
-/// the only amber of the three — there the LIVE settings file is the thing that cannot be read.
+/// the only amber of the three: there the LIVE settings file is the thing that cannot be read.
 /// Errors 2 and 8 are neutral: a choice is needed (2) or this copy just doesn't understand a newer
 /// format yet (8); nothing is damaged either way.
 /// </summary>
@@ -120,7 +120,7 @@ public sealed record ErrorDialogModel(
     string? GhostLabel,
     /// <summary>Error 2 only: the "remember this one" checkbox. Null for errors 4 and 8.</summary>
     string? RememberLabel,
-    /// <summary>The card's width in DIPs — 620 for the chooser (error 2), 560 for the other two.</summary>
+    /// <summary>The card's width in DIPs, 620 for the chooser (error 2), 560 for the other two.</summary>
     double CardWidth)
 {
 
@@ -139,15 +139,15 @@ public sealed record ErrorDialogModel(
     public static ErrorDialogModel Build(CoreError error) => Build(error, describe: null);
 
     /// <param name="describe">
-    /// What each error-2 candidate turns out to be, when somebody can look. Null — and a null
-    /// answer for any one candidate — leaves that row with its path and its radio, which is what
+    /// What each error-2 candidate turns out to be, when somebody can look. Null, and a null
+    /// answer for any one candidate, leaves that row with its path and its radio, which is what
     /// every row had before this existed.
     /// </param>
     public static ErrorDialogModel Build(
         CoreError error, Func<string, ErrorInstallDetail?>? describe) => error switch
     {
-        // 2 — two installations. Neutral. The chooser lists what Core found; the user picks one.
-        // The answer must persist (08-settings-persistence.md) — the caller reads ChosenPath after
+        // 2: two installations. Neutral. The chooser lists what Core found; the user picks one.
+        // The answer must persist (08-settings-persistence.md). The caller reads ChosenPath after
         // ShowDialog and writes it to settings, which is why the model exposes the selected option.
         MultiplePackagesFound { Candidates: var candidates } => new ErrorDialogModel(
             Title: AppError.ByCode(2).Title,
@@ -161,7 +161,7 @@ public sealed record ErrorDialogModel(
             RememberLabel: "Remember this one and stop asking",
             CardWidth: 620),
 
-        // 4 — malformed settings. AMBER: the live configuration is the thing that is not whole.
+        // 4: malformed settings. AMBER: the live configuration is the thing that is not whole.
         // The mono detail (a parse position) comes from Core; the note names the way out.
         MalformedSettings { Detail: var detail } => new ErrorDialogModel(
             Title: AppError.ByCode(4).Title,
@@ -179,8 +179,8 @@ public sealed record ErrorDialogModel(
             RememberLabel: null,
             CardWidth: 560),
 
-        // 8 — newer version. Neutral: the backup is fine, this copy just doesn't understand it yet.
-        // No Restore button at all — it would not work (06 §8). The block names both versions.
+        // 8: newer version. Neutral: the backup is fine, this copy just doesn't understand it yet.
+        // No Restore button at all. It would not work (06 §8). The block names both versions.
         UnsupportedSnapshotSchema { Found: var found, Supported: var supported } => new ErrorDialogModel(
             Title: AppError.ByCode(8).Title,
             Body: AppError.ByCode(8).Body,

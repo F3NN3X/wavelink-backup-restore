@@ -33,7 +33,7 @@ public sealed record PluginPresenceResult(
     PluginPresence Presence);
 
 /// <summary>
-/// What a restore would find on this machine for the plugins a snapshot recorded — and the two
+/// What a restore would find on this machine for the plugins a snapshot recorded, and the two
 /// clauses the restore dialog prints when the answer is "not all of them".
 ///
 /// The sentences live here rather than in the shell for the same reason
@@ -42,7 +42,7 @@ public sealed record PluginPresenceResult(
 /// </summary>
 public sealed record PluginRestoreCheck(IReadOnlyList<PluginPresenceResult> Plugins)
 {
-    /// <summary>Nothing to compare against — a snapshot written before tier 2 existed.</summary>
+    /// <summary>Nothing to compare against, a snapshot written before tier 2 existed.</summary>
     public static PluginRestoreCheck Unknown { get; } = new([]);
 
     public IReadOnlyList<PluginPresenceResult> Missing =>
@@ -98,7 +98,7 @@ public sealed record PluginRestoreCheck(IReadOnlyList<PluginPresenceResult> Plug
     /// <summary>
     /// The quiet line for plugins that ARE installed at a different version. Never a failure and
     /// never amber: `ParameterState` is written by a specific plugin version and normally survives
-    /// an update, because plugins version their own state — but it is not guaranteed, and this is
+    /// an update, because plugins version their own state, but it is not guaranteed, and this is
     /// the one place the user can find out that it happened.
     /// </summary>
     public string? DriftNote
@@ -156,7 +156,7 @@ public sealed class PluginResolution(IFileSystem fileSystem)
             }
 
             // On disk beats in the cache: the cache is rebuilt by scanning and can name a plugin
-            // that has since been uninstalled. Directory as well as file — a bundle is a directory
+            // that has since been uninstalled. Directory as well as file. A bundle is a directory
             // ([[vst3-backs-up-as-nothing]]), and testing only for a file reports every bundled
             // plugin missing.
             var onDisk = plugin.FilePath.Length > 0

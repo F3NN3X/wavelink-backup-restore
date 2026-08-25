@@ -9,7 +9,7 @@ public enum DeleteVariant
     /// <summary>The ordinary case: other backups exist and this one is not a pre-restore copy.</summary>
     Normal,
 
-    /// <summary>Deleting the only backup. Neutral — NOT amber (10-decisions.md §2).</summary>
+    /// <summary>Deleting the only backup. Neutral, NOT amber (10-decisions.md §2).</summary>
     OnlyBackup,
 
     /// <summary>A pre-restore copy: the way back from a restore. No colour.</summary>
@@ -26,17 +26,17 @@ public sealed record DeleteContextBlock(string Label, string Body);
 /// The delete confirmation dialog's entire content, computed BEFORE anything is shown.
 ///
 /// A pure projection, exactly like <see cref="RestoreDialogModel"/>: in comes the selected
-/// snapshot and how many backups exist, out goes what the 480px dialog renders — title, one
+/// snapshot and how many backups exist, out goes what the 480px dialog renders: title, one
 /// sentence of consequence, an optional context block, and the mono meta line. No I/O, no WPF.
 /// The view binds to this; it does not compute.
 ///
 /// The variant is decided by two facts only: whether this is the ONLY backup, and whether it
-/// is a pre-restore copy. OnlyBackup outranks PreRestore — when there is one backup and it is
+/// is a pre-restore copy. OnlyBackup outranks PreRestore, when there is one backup and it is
 /// a pre-restore copy, "it is the only backup you have" is the load-bearing sentence.
 ///
 /// The dialog NEVER says "Recycle Bin" (05 §"Why the dialog never says Recycle Bin"): the
 /// backup folder is user-chosen and the Recycle Bin does not exist on network shares, so the
-/// one destination true on every volume is named instead — "the trash in your backup folder".
+/// one destination true on every volume is named instead: "the trash in your backup folder".
 /// The Recycle Bin is named in exactly one place in the whole app: the empty-trash row.
 /// </summary>
 public sealed record DeleteDialogModel(

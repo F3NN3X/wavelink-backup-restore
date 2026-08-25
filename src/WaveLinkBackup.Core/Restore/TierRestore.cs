@@ -22,7 +22,7 @@ public sealed record RestoreOptions(bool Presets = true, bool PluginBinaries = f
 {
     public static RestoreOptions Default { get; } = new();
 
-    /// <summary>Settings only — nothing outside Wave Link's own LocalState is touched.</summary>
+    /// <summary>Settings only: nothing outside Wave Link's own LocalState is touched.</summary>
     public static RestoreOptions SettingsOnly { get; } = new(Presets: false, PluginBinaries: false);
 }
 
@@ -44,7 +44,7 @@ public sealed record TierRestoreResult(
 /// <summary>
 /// Putting tiers 3 and 4 back.
 ///
-/// Never fails a restore. By the time this runs the settings file — the product — is already
+/// Never fails a restore. By the time this runs the settings file, the product, is already
 /// written; a preset that cannot be copied or a Program Files directory that refuses a write must
 /// be reported, not rolled back over. The result says what was skipped and whether elevation was
 /// the reason, and the caller decides how loudly to say so.
@@ -53,9 +53,9 @@ public sealed record TierRestoreResult(
 /// LocalState and <c>%APPDATA%</c>, both of which the user owns, so an ordinary account restores
 /// everything that matters without a UAC prompt ([[ADR-006]]).
 /// </summary>
-/// <param name="appDataPath">Roaming <c>%APPDATA%</c> — where the AppData half of tier 3 goes back.</param>
+/// <param name="appDataPath">Roaming <c>%APPDATA%</c>: where the AppData half of tier 3 goes back.</param>
 /// <param name="documentsPath">
-/// The Documents folder — where the other half goes back. Resolved by the caller through
+/// The Documents folder: where the other half goes back. Resolved by the caller through
 /// <c>GetFolderPath</c>, never composed: on a machine with a redirected Documents folder a composed
 /// path would recreate the vendor's tree in a folder nothing reads.
 /// </param>
@@ -126,7 +126,7 @@ public sealed class TierRestore(IFileSystem fileSystem, string appDataPath, stri
         return new TierRestoreResult(presets, binaries, skipped, needsElevation);
     }
 
-    /// <summary>Exactly the file, or its children — never a directory that merely shares a prefix.</summary>
+    /// <summary>Exactly the file, or its children: never a directory that merely shares a prefix.</summary>
     private static bool IsUnder(string relative, string root) =>
         string.Equals(relative, root, StringComparison.OrdinalIgnoreCase)
         || relative.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase);

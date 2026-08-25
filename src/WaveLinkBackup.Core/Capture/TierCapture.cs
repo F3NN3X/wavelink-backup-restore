@@ -7,7 +7,7 @@ namespace WaveLinkBackup.Core.Capture;
 
 /// <summary>
 /// What each tier would cost, measured rather than read. The Settings dialog prints these four
-/// figures and must never hard-code them ([[ADR-006]]) — a number the user is asked to decide on
+/// figures and must never hard-code them ([[ADR-006]]). A number the user is asked to decide on
 /// has to be their number.
 /// </summary>
 /// <param name="PresetBytes">
@@ -40,7 +40,7 @@ public sealed record CaptureEstimate(
 /// test cannot redirect a folder the code asks Windows for.
 /// </param>
 /// <param name="documentsPath">
-/// The user's Documents folder, the other place tier 3 looks — where FabFilter and every vendor
+/// The user's Documents folder, the other place tier 3 looks: where FabFilter and every vendor
 /// that treats a preset as a document keeps the files (technical-debt.md §4.18).
 /// </param>
 public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, string documentsPath)
@@ -49,14 +49,14 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, stri
     private readonly PresetFiles presets = new(fileSystem, appDataPath, documentsPath);
     private readonly PluginBinaryFiles binaries = new(fileSystem);
 
-    /// <summary>Roaming AppData, resolved through GetFolderPath — never a composed string.</summary>
+    /// <summary>Roaming AppData, resolved through GetFolderPath, never a composed string.</summary>
     public static string SystemAppData =>
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
     /// <summary>
     /// Documents, resolved through GetFolderPath. The reference rig has it redirected to another
     /// drive entirely, so a composed <c>%USERPROFILE%\Documents</c> would look in an empty folder
-    /// and report that the user has no presets — the same trap technical-debt.md §5 records for
+    /// and report that the user has no presets: the same trap technical-debt.md §5 records for
     /// <c>%LOCALAPPDATA%</c>, with a quieter failure.
     /// </summary>
     public static string SystemDocuments =>
@@ -75,7 +75,7 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, stri
     /// <param name="previous">
     /// The newest snapshot's plugins.json, when there is one. Used for ONE thing: skipping the
     /// tier 2 hash of a binary that has not been touched since it was written
-    /// (technical-debt.md §4.16). Null is always correct and always safe — it means every binary
+    /// (technical-debt.md §4.16). Null is always correct and always safe. It means every binary
     /// is read and hashed, which is what every capture did before this parameter existed.
     /// </param>
     public SnapshotPayload Gather(
@@ -120,7 +120,7 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, stri
         }
 
         // ---- Tier 4, all or nothing. "A plugin that cannot be captured must fail the tier, not
-        //      quietly reduce it" — a snapshot claiming PLUGINS with one missing is a snapshot
+        //      quietly reduce it": a snapshot claiming PLUGINS with one missing is a snapshot
         //      that cannot do the thing its badge promises.
         var captured4 = new List<CapturedFile>();
         var binaryRoots = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -190,7 +190,7 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, stri
     }
 
     /// <summary>
-    /// What a capture taken right now would cost, per tier, ignoring the toggles — the
+    /// What a capture taken right now would cost, per tier, ignoring the toggles. The
     /// Settings dialog has to price a tier that is switched off, because pricing it is how the
     /// user decides.
     /// </summary>
@@ -204,7 +204,7 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, stri
     /// Null when the file cannot be opened. The caller decides what that costs: tier 4 gives up
     /// the whole tier, everything else drops the file.
     ///
-    /// It opens and closes rather than reading — the bytes are the store's business, and reading
+    /// It opens and closes rather than reading. The bytes are the store's business, and reading
     /// them here to find out whether they are readable is what made a capture hold the whole
     /// plug-in set in memory (technical-debt.md §4.19).
     /// </summary>

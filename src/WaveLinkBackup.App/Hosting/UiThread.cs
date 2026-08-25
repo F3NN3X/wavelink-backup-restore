@@ -9,13 +9,13 @@ namespace WaveLinkBackup.App.Hosting;
 /// icon and the shell's facts after a capture, and every caller ran on the UI thread until the
 /// backing-up strip moved the capture into a <c>Task.Run</c> so the progress bar could animate.
 /// From that thread, <c>TaskbarIcon.Icon = …</c> is a <c>DependencyObject.SetValue</c> on an object
-/// the UI thread owns, which throws — and an exception on a thread-pool thread, rethrown into an
+/// the UI thread owns, which throws, and an exception on a thread-pool thread, rethrown into an
 /// async void event handler with no handler above it, ends the process. Pressing "Back up now"
 /// killed the app, tray and all.
 ///
 /// The guard lives at the METHOD rather than at the call site on purpose. Marshalling one caller
 /// fixes one caller; a method that marshals itself is safe for the next one, which is how this
-/// arrived — the same hazard was spotted and handled for <c>SystemEvents</c> a phase earlier and
+/// arrived. The same hazard was spotted and handled for <c>SystemEvents</c> a phase earlier and
 /// missed here.
 /// </summary>
 public static class UiThread
@@ -25,7 +25,7 @@ public static class UiThread
     /// the caller should return; false if the caller is already there and should carry on.
     ///
     /// Blocking <see cref="Dispatcher.Invoke(Action)"/> rather than <c>BeginInvoke</c>, so a caller
-    /// that goes on to read what the refresh produced sees it. That is safe for every caller here —
+    /// that goes on to read what the refresh produced sees it. That is safe for every caller here.
     /// they are inside an <c>await</c>, so the UI thread is pumping. It would deadlock a caller
     /// that blocked the UI thread waiting for the background work, but that caller has already
     /// frozen the window it is refreshing.

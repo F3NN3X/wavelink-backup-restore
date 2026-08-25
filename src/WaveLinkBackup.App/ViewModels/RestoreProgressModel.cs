@@ -20,14 +20,14 @@ public enum StageStatus
 /// <summary>One row of the in-progress strip: a named stage and its current treatment.</summary>
 /// <param name="Index">0–3, left to right. Drives "STEP n OF 4".</param>
 /// <param name="Label">The ALL-CAPS mono label exactly as designed.</param>
-/// <param name="Status">Pending / Current / Done — the view maps each to its own treatment.</param>
+/// <param name="Status">Pending / Current / Done, the view maps each to its own treatment.</param>
 public sealed record RestoreStageView(int Index, string Label, StageStatus Status);
 
 /// <summary>
 /// The restore in-progress strip's state: four named stages advancing left to right, no spinner.
 ///
 /// 04-in-progress.md is authoritative. Wave Link is closed during a restore, so the work is
-/// shown as four named steps rather than an abstract bar — a spinner would imply uncertainty
+/// shown as four named steps rather than an abstract bar. A spinner would imply uncertainty
 /// that does not exist. This model owns the frontier; the view just renders each stage's
 /// status. The orchestrator drives it in order via <see cref="Advance"/>; anything out of order
 /// is a bug and throws, because silently re-ordering the steps would lie to the user about
@@ -56,7 +56,7 @@ public sealed class RestoreProgressModel : ObservableObject
 
     public RestoreProgressModel()
     {
-        // Start with stage 0 current, the rest pending — a restore that has begun is already closing Wave Link.
+        // Start with stage 0 current, the rest pending. A restore that has begun is already closing Wave Link.
         _stages = StageLabels.Select((label, index) => new RestoreStageView(
             index, label, index == 0 ? StageStatus.Current : StageStatus.Pending)).ToArray();
 
@@ -71,7 +71,7 @@ public sealed class RestoreProgressModel : ObservableObject
     /// <summary>0–3: which stage is (or was) current. Drives "STEP n OF 4".</summary>
     public int CurrentIndex => _finished ? StageLabels.Length - 1 : _current;
 
-    /// <summary>True once the final stage has been marked done — the restore finished.</summary>
+    /// <summary>True once the final stage has been marked done, the restore finished.</summary>
     public bool IsFinished => _finished;
 
     /// <summary>Seconds elapsed, whole seconds, for the right-end readout.</summary>
@@ -90,11 +90,11 @@ public sealed class RestoreProgressModel : ObservableObject
 
     /// <summary>
     /// 0–1: how far through the four stages the restore has got. It counts COMPLETED stages, not
-    /// the current one — stage 0 current = 0.25 (one quarter of the way in), stage 1 = 0.5,
+    /// the current one: stage 0 current = 0.25 (one quarter of the way in), stage 1 = 0.5,
     /// stage 2 = 0.75, and the bar holds at 0.75 while the final stage is still running; only
     /// Complete() takes it to 1.0. Counting the current stage would fill the bar to full a moment
     /// before "DONE" actually prints, which reads as finished when it is not. Drives the strip's
-    /// red progress bar the same way BackupProgress.Fraction drives the backup strip's — one
+    /// red progress bar the same way BackupProgress.Fraction drives the backup strip's, one
     /// number, one converter.
     /// </summary>
     public double Fraction => (_finished ? StageLabels.Length : _current) / (double)StageLabels.Length;

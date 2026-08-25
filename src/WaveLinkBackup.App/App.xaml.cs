@@ -31,7 +31,7 @@ namespace WaveLinkBackup.App;
 /// <summary>
 /// The app is the PROCESS, not the window.
 ///
-/// "Configured once, then ignored — so it lives in the tray and the window is the exception."
+/// "Configured once, then ignored, so it lives in the tray and the window is the exception."
 /// If closing the window stopped the backups, the app would fail its own promise and become
 /// upstream's tool with extra steps. So: OnExplicitShutdown, the coordinator lives here and
 /// outlives every window, and closing hides.
@@ -42,8 +42,8 @@ public partial class App : Application
 
     /// <summary>
     /// Fixed, and pinned here rather than left to the library. H.NotifyIcon derives its default
-    /// GUID from the executable path, so the icon's registered settings — position, "show in
-    /// taskbar" — reset the first time the exe moves.
+    /// GUID from the executable path, so the icon's registered settings, position, "show in
+    /// taskbar", reset the first time the exe moves.
     /// </summary>
     private static readonly Guid TrayIconId = new("2f8b6f4e-9d3a-4c17-9b52-6a1d4f0e7c38");
 
@@ -99,7 +99,7 @@ public partial class App : Application
     /// <summary>
     /// The path of the crash report, for the one surface that can still speak after an unexpected
     /// fault: a failed restore with no designed error code points at it (technical-debt.md §8.1a).
-    /// Null until a crash has been written this run — most runs never get here.
+    /// Null until a crash has been written this run. Most runs never get here.
     /// </summary>
     internal string? LastCrashReportPath { get; private set; }
 
@@ -116,7 +116,7 @@ public partial class App : Application
     /// The newest snapshot, for the menu readout and the tooltip.
     ///
     /// Read from the STORE rather than from BackupHost.LastBackupAt, which only knows about
-    /// captures made during this run — so a freshly started app would say "no backup yet" with
+    /// captures made during this run, so a freshly started app would say "no backup yet" with
     /// thirty backups on disk.
     /// </summary>
     private (DateTimeOffset? TakenAt, int? Inputs) newest;
@@ -226,12 +226,12 @@ public partial class App : Application
         fileSystem = new FileSystem();
 
         // §8.1: a fault must leave a report, not just an event-log entry on a machine where
-        // someone knows to look. The dispatcher handler catches UI-thread faults (the common case
-        // — the original incident was a button click); the AppDomain handler is the backstop for
+        // someone knows to look. The dispatcher handler catches UI-thread faults (the common case,
+        // the original incident was a button click); the AppDomain handler is the backstop for
         // anything that escapes it. Both write through the same writer, so a fault that reaches
         // both leaves one coherent report rather than two interleaved ones. Installed once the
         // file system exists, because the writer needs it and there is no reason to wait past
-        // this line — every later startup step can throw.
+        // this line. Every later startup step can throw.
         crashReports = new CrashReportWriter(fileSystem, SettingsRepository.DefaultDirectory);
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
@@ -296,7 +296,7 @@ public partial class App : Application
         };
         timer.Start();
 
-        // Windows shutting down is a shutdown path too — and the ORIGINAL INCIDENT happened
+        // Windows shutting down is a shutdown path too, and the ORIGINAL INCIDENT happened
         // during an update, while the machine was restarting. A shell that only captures on a
         // deliberate Quit misses the exact case CaptureOnShutdown was written for.
         SessionEnding += (_, _) => ShutdownEverything();
@@ -420,7 +420,7 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// UI-thread fault. Writes the report first — that is the whole point of §8.1's cheap half —
+    /// UI-thread fault. Writes the report first. That is the whole point of §8.1's cheap half,
     /// then lets the process end. Handling it (e.Handled = true) would keep a broken app running,
     /// which is a design decision this entry explicitly defers; what is owed right now is the
     /// report, and the report must be written before anything else happens on the way down.
@@ -434,7 +434,7 @@ public partial class App : Application
     /// <summary>
     /// Backstop for faults that escape the dispatcher (a background thread, a finalizer). It runs
     /// on whatever thread faulted, which is why the writer takes an IFileSystem and serializes
-    /// itself rather than assuming a UI thread. The process ends after this regardless — there is
+    /// itself rather than assuming a UI thread. The process ends after this regardless. There is
     /// nothing to do but leave the report.
     /// </summary>
     private void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -448,7 +448,7 @@ public partial class App : Application
     /// <summary>
     /// Both handlers write through here so the report carries the same context regardless of which
     /// one fired: the running build's version and the username to strip from the stack. The version
-    /// is read on the way down, not cached at startup — a fault during early startup can hit before
+    /// is read on the way down, not cached at startup: a fault during early startup can hit before
     /// anything else exists, and the assembly attribute is still there then.
     /// </summary>
     private void WriteCrashReport(Exception exception)
@@ -479,7 +479,7 @@ public partial class App : Application
             gatherPayload);
 
         // Watch the installation we actually found. Falling back to LocalAppData means the
-        // watcher still starts when Wave Link is missing — it just never fires, and the tray
+        // watcher still starts when Wave Link is missing. It just never fires, and the tray
         // says why rather than the process refusing to run.
         var live = inspector.Inspect(settings.ChosenWaveLinkPath);
         var watchPath = live.IsSuccess
@@ -552,7 +552,7 @@ public partial class App : Application
     /// Builds the menu from scratch, and does so again on every theme change.
     ///
     /// A tray icon's ContextMenu has no parent in ANY visual tree, so the resources-changed
-    /// notification that an Application.Resources swap raises never reaches it — its
+    /// notification that an Application.Resources swap raises never reaches it: its
     /// DynamicResources resolve once, when it is loaded, and then never again. Neither closing
     /// and reopening the menu nor an UpdateLayout refreshes them. Rebuilding is what makes a
     /// live theme change actually visible in the menu, which is the whole point of following the
@@ -608,7 +608,7 @@ public partial class App : Application
         var (material, corners) = ChromeChoice.ForTrayMenu(highContrast);
 
         // The background is the STYLE's business and stays opaque, so nothing here touches it.
-        // What DWM contributes is the rounded corner and a frame that matches the OS theme —
+        // What DWM contributes is the rounded corner and a frame that matches the OS theme,
         // two things the app genuinely cannot draw for itself.
         chrome.Apply(source.Handle, material, corners, dark);
     }
@@ -673,8 +673,8 @@ public partial class App : Application
     /// <summary>
     /// Whether the watcher is running, set to an absolute value rather than flipped.
     ///
-    /// Internal because Screen 4's own checkbox — "Keep backing up on its own when my settings
-    /// change" — is the first-run screen's one setting, and it needs to say what it means rather
+    /// Internal because Screen 4's own checkbox, "Keep backing up on its own when my settings
+    /// change", is the first-run screen's one setting, and it needs to say what it means rather
     /// than what the last press did. It was `IsChecked="True"` in the XAML and wired to nothing:
     /// a control that showed a state it did not read and changed a setting it did not write.
     /// </summary>
@@ -707,7 +707,7 @@ public partial class App : Application
     /// Error 8's "Get the update": Settings, at UPDATES, with a check already running so the new
     /// version's row is showing by the time the user looks at it (screens/12).
     ///
-    /// The check is the ONLY thing started automatically here. Installing is still a press — "It
+    /// The check is the ONLY thing started automatically here. Installing is still a press. "It
     /// never installs anything without you" holds on this path exactly as it does on every other.
     /// </summary>
     internal void OpenSettingsAtUpdates() => OpenSettings(scrollToUpdates: true);
@@ -999,8 +999,8 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Download, verify, stage, hand over. Returns null when the hand-over started — at which
-    /// point this process is on its way out and has nothing left to report — or the mono line for
+    /// Download, verify, stage, hand over. Returns null when the hand-over started, at which
+    /// point this process is on its way out and has nothing left to report, or the mono line for
     /// the failed-update block.
     ///
     /// The shutdown is deliberate and complete. The staged copy cannot rename a directory this
@@ -1058,7 +1058,7 @@ public partial class App : Application
 
     /// <summary>
     /// What one backup would cost on this machine, per tier. Zero for every tier when Wave Link
-    /// cannot be inspected — the dialog then prints dashes rather than a guess, which is the same
+    /// cannot be inspected: the dialog then prints dashes rather than a guess, which is the same
     /// answer the bottom bar gives when it cannot read free space.
     /// </summary>
     private CaptureEstimate MeasureTiers()
@@ -1268,7 +1268,7 @@ public partial class App : Application
     /// on the clipboard.
     ///
     /// On the clipboard and nowhere else. There is no upload here and no setting that would
-    /// create one — the whole point is to give the user something safe to paste, not to collect
+    /// create one. The whole point is to give the user something safe to paste, not to collect
     /// anything. <see cref="Diagnostics.Report"/> runs every field through
     /// <see cref="Redaction"/>, so the promise printed beside the button is kept by construction
     /// rather than by whoever adds the next field remembering.
@@ -1305,7 +1305,7 @@ public partial class App : Application
     /// What each error-2 candidate turns out to be, so its row can say more than a path
     /// (06 §2, technical-debt.md §4.21 item 7).
     ///
-    /// Each candidate is inspected on its own — the whole point of the dialog is that discovery
+    /// Each candidate is inspected on its own: the whole point of the dialog is that discovery
     /// could not choose between them, so nothing here may lean on the "current" one. A candidate
     /// that cannot be read yields null, and its row falls back to a path and a radio.
     ///
@@ -1348,7 +1348,7 @@ public partial class App : Application
 
     /// <summary>
     /// How many files a folder holds when it holds files but no backups, or null when it is a
-    /// usable store — empty, or already holding snapshots.
+    /// usable store: empty, or already holding snapshots.
     ///
     /// The test is for a snapshot directory rather than for a <c>manifest.json</c> at the top
     /// level: the store's own shape is one directory per snapshot, so a top-level manifest would
@@ -1373,7 +1373,7 @@ public partial class App : Application
     internal void UseDefaultStore() => SetStorePath(SnapshotStore.DefaultStorePath);
 
     /// <summary>
-    /// Error 1's "Choose the settings file…" — the escape hatch for a Wave Link discovery cannot
+    /// Error 1's "Choose the settings file…": the escape hatch for a Wave Link discovery cannot
     /// find.
     ///
     /// This is the only route a non-MSIX install has into the app at all
@@ -1395,7 +1395,7 @@ public partial class App : Application
         settings = settings with { ChosenWaveLinkPath = picker.FileName };
         settingsRepository?.Save(settings);
 
-        // Rebuild the capture path around the chosen file, exactly as a folder change does — the
+        // Rebuild the capture path around the chosen file, exactly as a folder change does: the
         // watcher and every later capture must read the file the user just pointed at, not the one
         // discovery failed to find.
         ApplyChosenWaveLink();
@@ -1501,7 +1501,7 @@ public partial class App : Application
     /// <summary>
     /// The second designed notification: Wave Link rejected a restored backup and reset the live
     /// configuration. Raised by the window when a restore comes back Rejected, because the window
-    /// may well be hidden at that point — a headless restore is a supported path, and the strip it
+    /// may well be hidden at that point. A headless restore is a supported path, and the strip it
     /// draws is no use to somebody who is not looking at it.
     /// </summary>
     internal void NotifyWaveLinkReset() =>
@@ -1509,7 +1509,7 @@ public partial class App : Application
 
     /// <summary>
     /// The DPI scale of the screen holding the taskbar, which is the screen the tray icon is drawn
-    /// on — and not necessarily the one holding the window, or the primary one.
+    /// on, and not necessarily the one holding the window, or the primary one.
     ///
     /// Asked of <c>Shell_TrayWnd</c> directly, because that IS the taskbar: any indirection through
     /// a screen rectangle would have to guess which screen it sits on. Falls back to 1.0 when the
@@ -1612,7 +1612,7 @@ public partial class App : Application
     /// The design's readout: a mono label plus what a machine produced.
     /// screens/12: "LAST BACKUP (mono 10px label + TODAY 23:07 · 5 INPUTS)".
     ///
-    /// The day qualifier is not decoration — "23:07" alone is ambiguous the moment a backup is
+    /// The day qualifier is not decoration: "23:07" alone is ambiguous the moment a backup is
     /// more than a day old, which for this app is the normal case.
     /// </summary>
     private string Readout()

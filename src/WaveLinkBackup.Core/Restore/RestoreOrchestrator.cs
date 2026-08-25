@@ -171,7 +171,7 @@ public sealed class RestoreOrchestrator(
 
     /// <summary>
     /// Whether ANY plug-in's destination refuses a write from this process as it is currently
-    /// running. Measured by probing each one, not inferred from the path — see
+    /// running. Measured by probing each one, not inferred from the path: see
     /// <see cref="PluginBinaryPayload.NeedsElevation"/> for why the inference is wrong often
     /// enough to matter.
     ///

@@ -14,8 +14,8 @@ public enum PresetRoot
     AppData,
 
     /// <summary>
-    /// The Documents folder, resolved through <c>GetFolderPath</c>. Where FabFilter — and every
-    /// vendor that treats a preset as a document rather than a setting — keeps the actual
+    /// The Documents folder, resolved through <c>GetFolderPath</c>. Where FabFilter, and every
+    /// vendor that treats a preset as a document rather than a setting, keeps the actual
     /// <c>.ffp</c> files.
     /// </summary>
     Documents,
@@ -40,12 +40,12 @@ public sealed record PresetDiscovery(IReadOnlyList<PresetSourceFolder> Sources, 
 }
 
 /// <summary>
-/// Tier 3: the presets a plugin saved — the user's own irreplaceable work, and the only tier whose
+/// Tier 3: the presets a plugin saved: the user's own irreplaceable work, and the only tier whose
 /// contents cannot be re-downloaded from anyone.
 ///
 /// This is a heuristic and [[ADR-006]] says so. Vendors agree on nothing, and the first version
 /// of this class looked in one place only: <c>%APPDATA%\&lt;Vendor&gt;\</c>. Run against a real rig
-/// (technical-debt.md §4.18) that turned out to capture the wrong thing quietly — for FabFilter it
+/// (technical-debt.md §4.18) that turned out to capture the wrong thing quietly, for FabFilter it
 /// found three files (an interface default, a MIDI map, a preset cache) while the 172 <c>.ffp</c>
 /// presets the Settings dialog promises sat in <c>Documents\FabFilter\Presets\Pro-Q 4\</c>, and for
 /// Supertone Clear it captured two crash reports and called them presets.
@@ -57,7 +57,7 @@ public sealed record PresetDiscovery(IReadOnlyList<PresetSourceFolder> Sources, 
 /// <param name="appDataPath">Roaming <c>%APPDATA%</c>.</param>
 /// <param name="documentsPath">
 /// The user's Documents folder. Injected, and resolved by the caller through
-/// <c>GetFolderPath(MyDocuments)</c> rather than composed from <c>%USERPROFILE%</c> — the reference
+/// <c>GetFolderPath(MyDocuments)</c> rather than composed from <c>%USERPROFILE%</c>. The reference
 /// rig has it redirected to another volume entirely, which is the same trap technical-debt.md §5
 /// records for <c>%LOCALAPPDATA%</c>.
 /// </param>
@@ -72,7 +72,7 @@ public sealed class PresetFiles(IFileSystem fileSystem, string appDataPath, stri
     ///
     /// Lower-case and unqualified, which is the one thing about this layout that could bite: a
     /// vendor literally named "AppData" would be indistinguishable from the root segment. No such
-    /// vendor exists, and the alternative — a reserved prefix nobody can read — costs more than the
+    /// vendor exists, and the alternative, a reserved prefix nobody can read, costs more than the
     /// risk. A snapshot written before this layout has neither segment, and
     /// <see cref="RootOf"/> reads it as AppData, which is where those files came from.
     /// </summary>
@@ -112,7 +112,7 @@ public sealed class PresetFiles(IFileSystem fileSystem, string appDataPath, stri
     /// Supertone Clear is why this exists: <c>%APPDATA%\Supertone\Clear\Reports\</c> holds crash
     /// dumps and nothing else, and the first version of this class captured them, counted them and
     /// reported them to the user as saved presets. Excluding them makes Clear report a folder it
-    /// found with zero files in it — "we looked and there is nothing here", which is a state
+    /// found with zero files in it. "we looked and there is nothing here", which is a state
     /// <see cref="Snapshots.PluginManifestEntry.PresetFileCount"/> is explicitly designed to show.
     /// </summary>
     public static IReadOnlySet<string> NeverPresets { get; } =
@@ -161,8 +161,8 @@ public sealed class PresetFiles(IFileSystem fileSystem, string appDataPath, stri
     /// The two roots do NOT get the same fallbacks, and the difference is deliberate.
     /// <c>%APPDATA%\&lt;Vendor&gt;</c> ends the AppData list because a vendor folder there is
     /// config-sized whatever it holds. <c>Documents\&lt;Vendor&gt;</c> does not end the Documents
-    /// list, because a vendor folder in Documents is as likely to be a project library — sessions,
-    /// renders, sample packs — as a preset folder, and a fallback that wide would turn a
+    /// list, because a vendor folder in Documents is as likely to be a project library, sessions,
+    /// renders, sample packs, as a preset folder, and a fallback that wide would turn a
     /// ten-megabyte tier into a hundred-gigabyte one on somebody's machine. Documents stops at
     /// <c>&lt;Vendor&gt;\Presets</c>: a folder that says what it is.
     /// </summary>

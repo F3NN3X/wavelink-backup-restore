@@ -12,11 +12,11 @@ namespace WaveLinkBackup.Core.Analysis;
 /// This exists because the alternative is a user attaching their settings file, which carries
 /// hardware serial numbers and their Windows username, into a tracker with a permanent URL
 /// (SPEC.md §11, technical-debt.md §6). Giving them something better to paste is the only version
-/// of this that works — telling people not to attach things does not.
+/// of this that works: telling people not to attach things does not.
 ///
 /// Two rules, and they are the whole design:
 ///
-///   1. Everything goes through <see cref="Redaction"/>. Not "paths do" — everything, including
+///   1. Everything goes through <see cref="Redaction"/>. Not "paths do": everything, including
 ///      strings this composes itself, because the next field somebody adds will be composed the
 ///      same way and will not think about it.
 ///   2. Nothing is ever sent anywhere. This returns a string. The caller puts it on the
@@ -24,7 +24,7 @@ namespace WaveLinkBackup.Core.Analysis;
 ///
 /// It quotes STRUCTURE, never content: how many inputs, what they are called, which tiers a
 /// snapshot claims, what the versions are. The settings file itself is never included, redacted or
-/// otherwise — a redacted copy of a file is still a copy of a file, and the whole point is that
+/// otherwise: a redacted copy of a file is still a copy of a file, and the whole point is that
 /// nobody needs one to answer a support question.
 /// </summary>
 public static class Diagnostics
@@ -44,7 +44,7 @@ public static class Diagnostics
             Lines(appVersion, settings, live, snapshots, now, userName, endpoints));
 
     /// <summary>
-    /// The report as lines. The shape the CLI wants — its output seam writes one line at a time —
+    /// The report as lines. The shape the CLI wants, its output seam writes one line at a time,
     /// and it spares every caller a split on a separator it would have to guess.
     /// </summary>
     public static IReadOnlyList<string> Lines(
@@ -146,7 +146,7 @@ public static class Diagnostics
             var manifest = snapshot.Manifest;
 
             // The DISPLAY NAME is left out. It is the one free-text field in a snapshot and people
-            // put anything in it — "before Dave's session", a client's name. Nothing in a support
+            // put anything in it: "before Dave's session", a client's name. Nothing in a support
             // conversation needs it, and its absence costs the report nothing.
             Line(
                 "  •",
@@ -164,8 +164,8 @@ public static class Diagnostics
     }
 
     /// <summary>
-    /// How many snapshots are described individually. Enough to show a pattern — a run of
-    /// automatics, a pre-restore, the gap where the watcher stopped — without turning a paste
+    /// How many snapshots are described individually. Enough to show a pattern, a run of
+    /// automatics, a pre-restore, the gap where the watcher stopped, without turning a paste
     /// into a wall.
     /// </summary>
     public const int NewestDescribed = 10;

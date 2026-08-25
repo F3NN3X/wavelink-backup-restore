@@ -12,7 +12,7 @@ namespace WaveLinkBackup.Core.Automation;
 /// NEEDS YOU state and the status strip's folder-unavailable variant both read it; without it
 /// the tray has a state it cannot enter, and a failing watcher is invisible.
 ///
-/// A skipped duplicate is NOT an error — nothing is wrong, the configuration simply has not
+/// A skipped duplicate is NOT an error. Nothing is wrong, the configuration simply has not
 /// changed.
 /// </param>
 public sealed record TickResult(CaptureDecision Decision, CaptureResult? Capture, CoreError? Error = null)

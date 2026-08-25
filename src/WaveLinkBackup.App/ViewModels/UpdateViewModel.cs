@@ -3,7 +3,7 @@ using WaveLinkBackup.App.Updates;
 namespace WaveLinkBackup.App.ViewModels;
 
 /// <summary>
-/// Settings' <c>UPDATES</c> section (screens/12), which did not exist in any form — error 8's
+/// Settings' <c>UPDATES</c> section (screens/12), which did not exist in any form: error 8's
 /// *"Get the update"* button deep-linked to a section that was never built
 /// (technical-debt.md §4.21 item 5).
 ///
@@ -16,7 +16,7 @@ namespace WaveLinkBackup.App.ViewModels;
 public sealed class UpdateViewModel : ObservableObject
 {
     /// <summary>
-    /// Daily, where the design says weekly — "Check for updates on its own — weekly, on by
+    /// Daily, where the design says weekly, "Check for updates on its own, weekly, on by
     /// default." [[ADR-018]] carries the change and the reason.
     ///
     /// The short version: weekly was the right number when the check only ever ran on the way into
@@ -65,7 +65,7 @@ public sealed class UpdateViewModel : ObservableObject
 
     /// <summary>
     /// Whether there is a release feed to reach at all. False hides the whole section: a
-    /// "Check now" that cannot reach anything is worse than no button (technical-debt.md §5 —
+    /// "Check now" that cannot reach anything is worse than no button (technical-debt.md §5,
     /// the feed is a fact about a deployment, not about the program).
     /// </summary>
     public bool IsConfigured { get; }
@@ -111,7 +111,7 @@ public sealed class UpdateViewModel : ObservableObject
     /// <summary>Whether the available-update row's two actions are showing.</summary>
     public bool HasUpdate => state.Result == UpdateCheckResult.UpdateAvailable && state.Release is not null;
 
-    /// <summary>"What changed" — the release's own page. Null hides the button.</summary>
+    /// <summary>"What changed": the release's own page. Null hides the button.</summary>
     public string? NotesUrl => state.Release?.NotesUrl;
 
     /// <summary>A check or an install is running. Both buttons hold while one is.</summary>
@@ -135,7 +135,7 @@ public sealed class UpdateViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The failed-update block's mono line, or null. NEUTRAL, not amber — screens/12: "a failed
+    /// The failed-update block's mono line, or null. NEUTRAL, not amber: screens/12: "a failed
     /// update leaves a working app, so nothing is un-whole."
     /// </summary>
     public string? Failure
@@ -207,7 +207,7 @@ public sealed class UpdateViewModel : ObservableObject
     }
 
     /// <summary>
-    /// "Install and restart". Only ever from a press — see the class comment.
+    /// "Install and restart". Only ever from a press: see the class comment.
     ///
     /// On success the app is about to be replaced and restarted, so nothing here reports one:
     /// the evidence of success is the new version running.
@@ -236,7 +236,7 @@ public sealed class UpdateViewModel : ObservableObject
         }
     }
 
-    /// <summary>The failed block's "Try again" — clears the block and re-runs the install.</summary>
+    /// <summary>The failed block's "Try again", clears the block and re-runs the install.</summary>
     public Task RetryAsync(CancellationToken ct = default)
     {
         Failure = null;

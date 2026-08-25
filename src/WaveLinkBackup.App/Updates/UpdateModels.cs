@@ -9,7 +9,7 @@ namespace WaveLinkBackup.App.Updates;
 /// did not publish one.
 ///
 /// This is integrity, not authenticity. It proves the bytes that arrived are the bytes the
-/// release names — which catches a truncated download, a corrupted mirror and a tampered
+/// release names, which catches a truncated download, a corrupted mirror and a tampered
 /// transport. It does NOT prove who published the release, because whoever controls the release
 /// controls the checksum beside it. Only code signing answers that, and this app is not signed
 /// yet. An update with no checksum is refused rather than installed hopefully.
@@ -35,14 +35,14 @@ public enum UpdateCheckResult
     /// <summary>Checked, and something newer exists.</summary>
     UpdateAvailable,
 
-    /// <summary>The check itself failed — no network, a rate limit, a feed that changed shape.</summary>
+    /// <summary>The check itself failed: no network, a rate limit, a feed that changed shape.</summary>
     CheckFailed,
 }
 
 /// <param name="Release">Present only on <see cref="UpdateCheckResult.UpdateAvailable"/>.</param>
 /// <param name="FailureDetail">
 /// Present only on <see cref="UpdateCheckResult.CheckFailed"/>: the mono line under the message.
-/// A failed CHECK is neutral, like a failed update — nothing about the running app is un-whole.
+/// A failed CHECK is neutral, like a failed update, nothing about the running app is un-whole.
 /// </param>
 public sealed record UpdateCheck(
     UpdateCheckResult Result,
@@ -66,7 +66,7 @@ public sealed record UpdateCheck(
 /// hard-coded and cannot): the feed is a fact about a deployment, not about the program.
 /// </summary>
 /// <param name="AssetSuffix">
-/// Which asset in a release is the one to download — matched on the end of the file name, so a
+/// Which asset in a release is the one to download: matched on the end of the file name, so a
 /// versioned name like <c>WaveLinkBackup-1.4.0-app-win-x64.zip</c> still resolves. The suffix
 /// must be specific enough to pick out the APP archive when the release also carries the CLI's
 /// <c>WaveLinkBackup-CLI-X.Y.Z-win-x64.zip</c>: both end in <c>win-x64.zip</c>, so matching on
@@ -75,7 +75,7 @@ public sealed record UpdateCheck(
 public sealed record UpdateSource(string Owner, string Repository, string AssetSuffix = "app-win-x64.zip")
 {
     /// <summary>
-    /// Whether a feed can be built from this at all. False disables the whole UPDATES section —
+    /// Whether a feed can be built from this at all. False disables the whole UPDATES section:
     /// a "Check now" button that cannot reach anything is worse than no button.
     /// </summary>
     public bool IsConfigured => Owner.Length > 0 && Repository.Length > 0;
@@ -97,7 +97,7 @@ public static class ReleaseVersion
 {
     /// <summary>
     /// <c>v1.4.0</c>, <c>1.4.0</c>, <c>1.4</c> and <c>1.4.0-beta.2</c> all read; anything else is
-    /// null. Pre-release suffixes are DROPPED rather than ordered — this app has no pre-release
+    /// null. Pre-release suffixes are DROPPED rather than ordered. This app has no pre-release
     /// channel, and inventing an ordering for one would decide, silently, whether a beta counts as
     /// newer than the release it precedes.
     /// </summary>
@@ -117,7 +117,7 @@ public static class ReleaseVersion
 
     /// <summary>
     /// The running build's version, with its unset components zeroed the same way a parsed tag's
-    /// are — so <c>1.4.0</c> from a tag and <c>1.4.0.0</c> from the assembly compare equal rather
+    /// are, so <c>1.4.0</c> from a tag and <c>1.4.0.0</c> from the assembly compare equal rather
     /// than the assembly always looking newer.
     /// </summary>
     public static Version Current =>

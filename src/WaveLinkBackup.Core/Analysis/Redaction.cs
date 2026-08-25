@@ -7,7 +7,7 @@ namespace WaveLinkBackup.Core.Analysis;
 /// diagnostic can be pasted into a public issue tracker.
 ///
 /// The threat is not an attacker, it is helpfulness. Users attach whatever the app gives them
-/// to a bug report, and they will not think about it — by the time anyone does, it is in a public
+/// to a bug report, and they will not think about it. By the time anyone does, it is in a public
 /// tracker with a permanent URL. So the rule here is that a redactor is only useful if it is the
 /// ONLY way diagnostics leave the app, and if it fails closed: an ID this cannot parse is masked
 /// wholesale rather than passed through in the hope that it is harmless.
@@ -17,7 +17,7 @@ namespace WaveLinkBackup.Core.Analysis;
 ///   1. Hardware serial numbers, inside Core Audio endpoint IDs. `InputSettings` is keyed by
 ///      them, and the leading segment IS the device's serial:
 ///      <c>BS33J1A05009\PCM_IN_01_C_00_SD1</c>.
-///   2. The Windows username, inside every absolute path the app records — settings paths,
+///   2. The Windows username, inside every absolute path the app records: settings paths,
 ///      plug-in paths, the store path, the log path.
 ///
 /// PURE, and in Core, because the CLI and the shell must not each grow their own version of a
@@ -33,7 +33,7 @@ public static partial class Redaction
     /// <c>BS33J1A05009\PCM_IN_01_C_00_SD1</c> → <c>[redacted]\PCM_IN_01_C_00_SD1</c>.
     ///
     /// The tail is KEPT on purpose. It says which physical port the channel is on, which is the
-    /// part a support conversation is actually about, and it identifies nothing — every Wave:3 on
+    /// part a support conversation is actually about, and it identifies nothing. Every Wave:3 on
     /// earth has the same one.
     ///
     /// An ID with no separator is masked ENTIRELY. It is not a shape this understands, and
@@ -52,7 +52,7 @@ public static partial class Redaction
     /// A path with the user's own name taken out of it:
     /// <c>C:\Users\joran\AppData\Local\…</c> → <c>C:\Users\[redacted]\AppData\Local\…</c>.
     ///
-    /// The SHAPE is kept — drive, profile root, and everything below it — because "which folder"
+    /// The SHAPE is kept, drive, profile root, and everything below it, because "which folder"
     /// is the whole diagnostic value of a path, and it is the segment naming the person that
     /// carries none of it.
     ///
@@ -77,7 +77,7 @@ public static partial class Redaction
     }
 
     /// <summary>
-    /// Every input name, endpoint ID and path in one go — for a diagnostic that quotes a settings
+    /// Every input name, endpoint ID and path in one go, for a diagnostic that quotes a settings
     /// file's structure without quoting the file.
     ///
     /// Input names are NOT redacted. "Wave Mic 1", "Voice", "Browser" are what the user calls

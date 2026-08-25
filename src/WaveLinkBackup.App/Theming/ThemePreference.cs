@@ -3,8 +3,8 @@ namespace WaveLinkBackup.App.Theming;
 /// <summary>
 /// What the USER asked for, as opposed to <see cref="AppTheme"/>, which is what gets drawn.
 ///
-/// The two are different types on purpose. Auto has no palette of its own — it is a deferral to
-/// Windows — and a single enum carrying both would let "Auto" reach
+/// The two are different types on purpose. Auto has no palette of its own, it is a deferral to
+/// Windows, and a single enum carrying both would let "Auto" reach
 /// <see cref="ThemeManager.Load"/>, where there is no Auto.xaml and never will be.
 /// </summary>
 public enum ThemePreference
@@ -18,7 +18,7 @@ public enum ThemePreference
 
 /// <summary>
 /// The preference and the OS reduced to the one theme to draw. Pure, so the precedence rule is a
-/// table test rather than something only a screenshot catches — the same shape as
+/// table test rather than something only a screenshot catches: the same shape as
 /// <see cref="AccentPalette"/>.
 /// </summary>
 public static class ThemeChoice
@@ -40,7 +40,7 @@ public static class ThemeChoice
             _ => system,
         };
 
-    /// <summary>How the preference is spelt in shell.json. Stable — it is a persisted value.</summary>
+    /// <summary>How the preference is spelt in shell.json. Stable. It is a persisted value.</summary>
     public static string ToStorageName(ThemePreference preference) => preference switch
     {
         ThemePreference.Dark => "dark",

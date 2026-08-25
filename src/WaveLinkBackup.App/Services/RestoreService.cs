@@ -70,7 +70,7 @@ public interface IRestoreService
     /// itself, because it does not own the locator or the chosen-path setting.
     /// </param>
     /// <param name="options">
-    /// What to put back. Defaults to settings and presets — the tiers that never need a prompt.
+    /// What to put back. Defaults to settings and presets. The tiers that never need a prompt.
     /// The window passes <c>PluginBinaries: true</c> only when the user opted in AND the
     /// destinations were measured as writable; when they are not, the elevated copy does the whole
     /// restore instead ([[ADR-011]]).

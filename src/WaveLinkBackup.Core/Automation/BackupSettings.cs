@@ -16,12 +16,12 @@ namespace WaveLinkBackup.Core.Automation;
 /// every launch (screens/10-decisions.md 4).
 /// </param>
 /// <param name="IncludePresets">
-/// Tier 3 — the presets each effect saved under <c>%APPDATA%\&lt;Vendor&gt;\</c>. On by default:
+/// Tier 3: the presets each effect saved under <c>%APPDATA%\&lt;Vendor&gt;\</c>. On by default:
 /// they are the user's own irreplaceable work (their EQ curves, their gate thresholds) and about
 /// 10 MB ([[ADR-006]]).
 /// </param>
 /// <param name="IncludePluginFiles">
-/// Tier 4 — the <c>.vst3</c> files themselves. OFF by default: ~40 MB, re-downloadable from the
+/// Tier 4: the <c>.vst3</c> files themselves. OFF by default: ~40 MB, re-downloadable from the
 /// vendor, and copying one does not copy the licence.
 ///
 /// Tiers 1 and 2 have no switch, deliberately. Together they are under half a megabyte and they
@@ -35,7 +35,7 @@ namespace WaveLinkBackup.Core.Automation;
 /// the dialog said "at most one an hour" as though it were a fact about the world.
 /// </param>
 /// <param name="CheckForUpdates">
-/// Whether to look for a new version weekly. On by default, and it ONLY looks — screens/12: "It
+/// Whether to look for a new version weekly. On by default, and it ONLY looks: screens/12: "It
 /// never installs anything without you". It never installs, and that part is unchanged - but an
 /// available update IS now said out loud: on the status strip, in the tray menu, and once per
 /// version as a notification ([[ADR-018]]). This line used to promise the opposite. The switch
@@ -64,7 +64,7 @@ public sealed record BackupSettings(
     bool CheckForUpdates = true,
     DateTimeOffset? LastUpdateCheckUtc = null)
 {
-    /// <summary>One hour — what the interval was when it was a constant (ADR-007).</summary>
+    /// <summary>One hour: what the interval was when it was a constant (ADR-007).</summary>
     public const int DefaultIntervalMinutes = 60;
 
     /// <summary>
@@ -77,7 +77,7 @@ public sealed record BackupSettings(
     /// <summary>Where the daily stepper starts when the user switches it on: 03:00.</summary>
     public const int DefaultDailyMinutes = 3 * 60;
 
-    /// <summary>Half an hour, wrapping at midnight — the daily stepper's step.</summary>
+    /// <summary>Half an hour, wrapping at midnight, the daily stepper's step.</summary>
     public const int DailyStepMinutes = 30;
 
     /// <summary>The daily time as a wall clock, or null when the daily backup is off.</summary>

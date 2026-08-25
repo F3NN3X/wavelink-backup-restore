@@ -7,7 +7,7 @@ namespace WaveLinkBackup.Core.Restore;
 public sealed record PlanRow(string Label, string Now, string After, bool Changes);
 
 /// <summary>
-/// What tier 4 a snapshot is carrying, if any — the one part of a restore that can need
+/// What tier 4 a snapshot is carrying, if any: the one part of a restore that can need
 /// administrator rights ([[ADR-006]]).
 ///
 /// Answered here rather than left to the shell to work out, because the shell's only correct
@@ -19,13 +19,13 @@ public sealed record PlanRow(string Label, string Now, string After, bool Change
 /// <param name="Bytes">What those binaries weigh, so the row can print an honest figure.</param>
 /// <param name="NeedsElevation">
 /// Whether any destination directory refuses a write from this process as it is currently
-/// running — measured, not inferred from the path.
+/// running: measured, not inferred from the path.
 ///
 /// It is false more often than the path suggests. `C:\Program Files\Common Files\VST3` is
 /// read-only for Users under Windows' default ACL, but several audio plug-in installers grant
 /// Everyone full control so their own updates need no administrator, and on such a machine every
-/// plug-in restores with no prompt. Assuming from the path prompts people who did not need asking
-/// — which is the whole point of measuring ([[ADR-011]], and technical-debt.md's own rule that a
+/// plug-in restores with no prompt. Assuming from the path prompts people who did not need asking,
+/// which is the whole point of measuring ([[ADR-011]], and technical-debt.md's own rule that a
 /// path that looks like a constant is not one).
 /// </param>
 public sealed record PluginBinaryPayload(int Count, long Bytes, bool NeedsElevation = true)

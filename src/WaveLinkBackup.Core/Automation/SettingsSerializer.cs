@@ -111,7 +111,7 @@ public static class SettingsSerializer
 
     /// <summary>
     /// A round-trip UTC timestamp, or null for anything that does not parse. Null is the safe
-    /// answer here: it means "never checked", which makes the next check happen — the failure
+    /// answer here: it means "never checked", which makes the next check happen. The failure
     /// direction is one extra request, not a check that never runs again.
     /// </summary>
     private static DateTimeOffset? Timestamp(JsonElement root, string name) =>

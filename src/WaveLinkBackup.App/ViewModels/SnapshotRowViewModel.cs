@@ -21,7 +21,7 @@ public sealed class SnapshotRowViewModel : ObservableObject
     /// The date header this row sits under: TODAY, YESTERDAY, or <c>MON 18 AUG</c>.
     ///
     /// Carried by the row rather than by a group object, because a <c>CollectionView</c> groups on
-    /// a property — and that is what let the list become ONE Selector instead of one per date
+    /// a property, and that is what let the list become ONE Selector instead of one per date
     /// (technical-debt.md §4.14). It also removes the way a row's date and its header could
     /// disagree: there is now only one of them.
     /// </summary>

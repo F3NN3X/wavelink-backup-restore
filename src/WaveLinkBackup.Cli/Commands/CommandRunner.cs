@@ -228,7 +228,7 @@ public sealed class CommandRunner(
         //
         // On a local drive emptying is reversible, and per the design "a dialog guarding a
         // reversible action is the noise that teaches people to click through the ones that
-        // matter". On a network or removable store it is permanent, so it asks — and says why.
+        // matter". On a network or removable store it is permanent, so it asks, and says why.
         if (!toRecycleBin && !command.AssumeYes &&
             !output.Confirm($"Empty the trash? {summary} go for good — this backup folder is " +
                             "somewhere Windows keeps no Recycle Bin."))
@@ -308,7 +308,7 @@ public sealed class CommandRunner(
     /// <summary>
     /// The redacted self-description (technical-debt.md §6). It prints; it never sends.
     ///
-    /// A live inspection that FAILS is not a failure of this verb — "Wave Link could not be read"
+    /// A live inspection that FAILS is not a failure of this verb: "Wave Link could not be read"
     /// is often the very thing being diagnosed, and refusing to produce a report in that case
     /// would leave the user with nothing to paste but their settings file.
     /// </summary>
@@ -425,7 +425,7 @@ public sealed class CommandRunner(
     private SnapshotPayload? GatherPayload(SettingsInspection live, SnapshotStore store)
     {
         // The newest snapshot's plugins.json, so tier 2 can skip re-hashing a binary nothing has
-        // touched (technical-debt.md §4.16). Null on every doubt — it only ever costs a hash.
+        // touched (technical-debt.md §4.16). Null on every doubt. It only ever costs a hash.
         var newest = store.List().FirstOrDefault();
         var previous = newest is null ? null : new SnapshotPluginReader(fileSystem).Read(newest);
 

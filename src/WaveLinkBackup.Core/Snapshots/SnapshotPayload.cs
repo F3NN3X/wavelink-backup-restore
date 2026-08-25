@@ -6,7 +6,7 @@ namespace WaveLinkBackup.Core.Snapshots;
 /// A file the capture decided to take, and where it goes inside the snapshot.
 ///
 /// A reference, not the bytes. It used to carry a <c>byte[]</c>, which put every preset and
-/// every plug-in binary on the heap at once — ~40 MB on the reference rig, and unbounded on a rig
+/// every plug-in binary on the heap at once: ~40 MB on the reference rig, and unbounded on a rig
 /// with a sample-library instrument on a channel (technical-debt.md §4.19). The store copies from
 /// <see cref="Path"/> through <see cref="Abstractions.IFileSystem.CopyFile"/>, which streams and
 /// hashes in one pass, so the peak is a buffer.
@@ -37,7 +37,7 @@ public sealed record SnapshotPayload(
     /// <summary>A capture that looked and found no third-party plugins and no extra files.</summary>
     public static SnapshotPayload Empty { get; } = new(PluginManifest.Empty, [], []);
 
-    /// <summary>Tier 2 only — what a capture with no filesystem behind it can honestly claim.</summary>
+    /// <summary>Tier 2 only: what a capture with no filesystem behind it can honestly claim.</summary>
     public static SnapshotPayload ForPlugins(IReadOnlyList<ResolvedPlugin> plugins) =>
         new(new PluginManifest(
                 PluginManifest.CurrentSchemaVersion,

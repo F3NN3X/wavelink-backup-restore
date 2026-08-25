@@ -4,7 +4,7 @@ namespace WaveLinkBackup.App.ViewModels;
 
 /// <summary>
 /// The backing-up half of 04-in-progress.md, which had no implementation of any kind: the restore
-/// half shipped complete — four named stages, connectors, STEP n OF 4 — and this one was a
+/// half shipped complete, four named stages, connectors, STEP n OF 4, and this one was a
 /// <c>BackupHost.IsCapturing</c> flag that only the tray icon read (technical-debt.md §4.21 item 2).
 ///
 /// The bar is determinate because the numbers are real. The design bans a spinner ("a spinner
@@ -39,7 +39,7 @@ public sealed class BackupProgressModel : ObservableObject
 
     /// <summary>
     /// 04's mono meta, right-aligned: <c>470 KB · WRITING</c>. The figure is what has been written
-    /// so far once anything has, and the total before that — so the line is never blank and never
+    /// so far once anything has, and the total before that, so the line is never blank and never
     /// claims a byte that is not down yet.
     /// </summary>
     public string Meta

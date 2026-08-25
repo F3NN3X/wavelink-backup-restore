@@ -3,7 +3,7 @@ namespace WaveLinkBackup.Cli.Output;
 /// <summary>
 /// Hand-maintained, because the parser is hand-rolled (ADR-009) and nothing generates this.
 /// That means it CAN drift from the parser, so a test asserts every verb and option appears
-/// here — which is the price of the decision, paid rather than ignored.
+/// here, which is the price of the decision, paid rather than ignored.
 /// </summary>
 public static class HelpText
 {

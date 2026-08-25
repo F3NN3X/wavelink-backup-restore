@@ -49,7 +49,7 @@ public sealed class WaveLinkBackupFiles(IFileSystem fileSystem)
         return [.. auto, .. artifacts];
     }
 
-    /// <summary>Total bytes without reading a single one — the Settings dialog's row 1.</summary>
+    /// <summary>Total bytes without reading a single one, the Settings dialog's row 1.</summary>
     public long Measure(SettingsLocation location) => FileTree.TotalBytes(Discover(location));
 
     private IReadOnlyList<SourceFile> Newest(

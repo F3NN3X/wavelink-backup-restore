@@ -5,7 +5,7 @@ namespace WaveLinkBackup.App.Windows;
 /// (screens/12-tray-autostart-update.md).
 ///
 /// The complication is that whether the entry actually runs is decided somewhere else. Task
-/// Manager's Startup tab does not delete the Run value — it writes an approval record under
+/// Manager's Startup tab does not delete the Run value. It writes an approval record under
 /// StartupApproved, and Windows honours that. An app that only looked at the Run key would show
 /// a toggle that reads on, does nothing at login, and looks like a bug in this app rather than
 /// a choice the user made in Task Manager.
@@ -48,7 +48,7 @@ public sealed class RunKeyAutostart(IRegistryKeys registry, string executablePat
     /// disabled. 0x02 and 0x06 mean enabled; 0x03 means the user disabled it. The low bit is
     /// the disable flag, which is why this tests the bit rather than listing the values.
     ///
-    /// Anything shorter than a byte tells us nothing, and is NOT read as a veto — failing
+    /// Anything shorter than a byte tells us nothing, and is NOT read as a veto: failing
     /// toward "the user may still turn this on".
     /// </summary>
     private bool IsVetoed()

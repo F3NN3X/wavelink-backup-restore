@@ -12,13 +12,13 @@ namespace WaveLinkBackup.Core.Abstractions;
 /// operation" is a true statement worth encoding.
 ///
 /// Only <see cref="SnapshotStore.EmptyTrash"/> uses it. Ordinary deletion is a directory move
-/// into <c>.trash</c> and touches none of this — which is the point, because the Recycle Bin is
+/// into <c>.trash</c> and touches none of this, which is the point, because the Recycle Bin is
 /// unavailable on exactly the volumes a careful person keeps backups on.
 /// </summary>
 public interface IRecycleBin
 {
     /// <summary>
-    /// Whether the Recycle Bin covers this path. False is normal, not an error — network
+    /// Whether the Recycle Bin covers this path. False is normal, not an error: network
     /// shares and many removable volumes have no Recycle Bin, and the backup store is
     /// user-chosen. Callers must ask before promising the user an undo.
     /// </summary>

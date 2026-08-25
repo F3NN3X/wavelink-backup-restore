@@ -10,7 +10,7 @@ namespace WaveLinkBackup.Cli.CommandLine;
 /// message text.
 ///
 /// The names here deliberately do NOT match the error type names. They collided when they did,
-/// because a switch arm cannot tell a constant from a type of the same name — and the compiler
+/// because a switch arm cannot tell a constant from a type of the same name, and the compiler
 /// error for that is unhelpful enough to be worth avoiding by construction.
 /// </summary>
 public static class ExitCode

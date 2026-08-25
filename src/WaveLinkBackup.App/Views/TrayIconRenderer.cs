@@ -10,7 +10,7 @@ namespace WaveLinkBackup.App.Views;
 /// The tray icon is GENERATED, not shipped as four .ico files.
 ///
 /// screens/11-high-contrast.md: "The tray icon follows the system icon contrast." A static icon
-/// cannot do that — the taskbar's theme is the system's, which is not necessarily the app's, and
+/// cannot do that. The taskbar's theme is the system's, which is not necessarily the app's, and
 /// in high contrast the colours are not ours at all. Drawing it means the glyph is always
 /// rendered against whatever the taskbar currently is.
 ///
@@ -19,13 +19,13 @@ namespace WaveLinkBackup.App.Views;
 public static class TrayIconRenderer
 {
     /// <summary>
-    /// LUCIDE, verbatim — the substitution point this class was written to have
+    /// LUCIDE, verbatim: the substitution point this class was written to have
     /// (technical-debt.md §4.7). Every path is copied unchanged from the lucide-icons repository
     /// on the same 24px grid; see THIRD-PARTY-NOTICES.md for the ISC licence, and
     /// ControlStyles.xaml's own note for the two mechanical differences from the .svg files.
     ///
     /// The four states compose a shield with one of four marks inside it, which is the design's
-    /// own construction (screens/12) rather than four whole Lucide icons — so the shield body is
+    /// own construction (screens/12) rather than four whole Lucide icons, so the shield body is
     /// lucide/shield-check's outline, and each mark is the glyph Lucide draws for that meaning.
     /// </summary>
     private const string ShieldPath =
@@ -41,7 +41,7 @@ public static class TrayIconRenderer
     /// </summary>
     private const string ArrowPath = "M12 8v6 M9 11.5l3 3 3-3";
 
-    /// <summary>lucide/triangle-alert's stem and dot, without its triangle — the shield IS the frame.</summary>
+    /// <summary>lucide/triangle-alert's stem and dot, without its triangle. The shield IS the frame.</summary>
     private const string BangPath = "M12 8v5 M12 16h.01";
 
     /// <summary>lucide/circle-slash's slash, without its circle, for the same reason.</summary>
@@ -51,7 +51,7 @@ public static class TrayIconRenderer
     /// The pixel size to render at for a given DPI, from the 16px logical size Windows asks the
     /// notification area for.
     ///
-    /// Snapped to the sizes an .ico is normally cut at — 16, 20, 24, 32, 48, 64 — rather than
+    /// Snapped to the sizes an .ico is normally cut at, 16, 20, 24, 32, 48, 64, rather than
     /// scaled continuously. The shell rescales whatever it is given, and a bitmap at 38px scaled
     /// to 40 is blurrier than one at 48 scaled down. The fixed 32 this replaced was right at 100%
     /// and 150% and soft above (technical-debt.md §4.8 minor 1).
@@ -77,7 +77,7 @@ public static class TrayIconRenderer
     /// IconSource is the obvious property and it cannot work here: H.NotifyIcon converts one by
     /// calling new Uri(source.ToString()), so it only accepts images that CAME FROM a URI. A
     /// generated glyph has no URI, and no amount of wrapping gives it one. Both failures are
-    /// runtime-only — the compiler is happy either way — so this was found by launching the app.
+    /// runtime-only, the compiler is happy either way, so this was found by launching the app.
     /// </summary>
     public static System.Drawing.Icon Render(TrayStatus status, Color colour, int pixelSize = 32)
     {
@@ -116,7 +116,7 @@ public static class TrayIconRenderer
     /// <summary>
     /// Wraps PNG bytes in a one-entry ICO container. A PNG-compressed icon entry is what
     /// Windows has used for the large sizes since Vista, so this is the format's own idiom
-    /// rather than a trick — and it avoids GetHicon, whose handle we would then have to
+    /// rather than a trick, and it avoids GetHicon, whose handle we would then have to
     /// remember to destroy.
     /// </summary>
     private static System.Drawing.Icon IconFrom(byte[] png, int pixelSize)
@@ -159,7 +159,7 @@ public static class TrayIconRenderer
     /// <summary>
     /// Amber is the only colour the icon ever takes, and it means what it means everywhere else:
     /// something is not whole. In high contrast amber means nothing, so NEEDS YOU becomes
-    /// WindowText and PAUSED becomes GrayText at FULL opacity — never the 55% used in the normal
+    /// WindowText and PAUSED becomes GrayText at FULL opacity: never the 55% used in the normal
     /// themes, because transparency is not a contrast guarantee (screens/11).
     /// </summary>
     public static Color ColourFor(TrayStatus status, bool highContrast)

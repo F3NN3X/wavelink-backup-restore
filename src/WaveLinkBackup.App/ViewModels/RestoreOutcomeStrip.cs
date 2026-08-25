@@ -82,7 +82,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     public Action? OnAction { get; set; }
 
     /// <summary>
-    /// The accent button's action. Only the rejected strip has one — 03-restore-outcomes.md §3
+    /// The accent button's action. Only the rejected strip has one: 03-restore-outcomes.md §3
     /// gives it a ghost "Show the log" AND a primary <c>Restore "Before restore"</c>, and the
     /// primary is the recovery path for the only failure that costs someone their mixer.
     /// </summary>
@@ -153,7 +153,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     }
 
     /// <summary>
-    /// The snapshot the rejected strip's primary button restores — the "Before restore" copy taken
+    /// The snapshot the rejected strip's primary button restores: the "Before restore" copy taken
     /// moments earlier. Null on every other kind, and on a rejection with no such copy.
     ///
     /// 03 renders that row selected immediately below the strip, "so the button and the row
@@ -251,7 +251,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     /// </summary>
     /// <param name="recoverySnapshotId">
     /// The "Before restore" snapshot this restore took on its way in. Only the Rejected arm uses
-    /// it, and only to build the recovery the design gives that state. Null means there is none —
+    /// it, and only to build the recovery the design gives that state. Null means there is none:
     /// see the Rejected arm for what the strip does then.
     /// </param>
     /// <param name="monoMeta">

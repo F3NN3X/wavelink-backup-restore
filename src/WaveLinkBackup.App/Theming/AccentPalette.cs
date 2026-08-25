@@ -5,7 +5,7 @@ namespace WaveLinkBackup.App.Theming;
 /// <param name="Key">The brush resource key this replaces.</param>
 /// <param name="Opacity">
 /// Carried separately rather than folded into the colour's alpha, because that is how the
-/// authored dictionaries express it — SolidColorBrush.Opacity, not a premultiplied ARGB — and
+/// authored dictionaries express it: SolidColorBrush.Opacity, not a premultiplied ARGB, and
 /// the derived brushes have to be interchangeable with the authored ones.
 /// </param>
 public readonly record struct AccentBrush(string Key, Color Colour, double Opacity);
@@ -15,7 +15,7 @@ public readonly record struct AccentBrush(string Key, Color Colour, double Opaci
 ///
 /// 01-tokens-and-mapping.md: "When the user's accent is set, --wl-accent-soft = accent at 12%
 /// (dark) / 7% (light) and --wl-accent-line = accent at 32% / 24%." Deriving rather than
-/// authoring is what keeps that true — four authored values would drift the first time one of
+/// authoring is what keeps that true: four authored values would drift the first time one of
 /// them was edited.
 ///
 /// Pure, so the percentages are a table test rather than something only a screenshot catches.
@@ -27,7 +27,7 @@ public static class AccentPalette
     ///
     /// WlDanger, because the design calls out two different reds in one window as a bug: the
     /// accent is the user's, and danger is ours. WlAccentInk, because it is the ink drawn ON the
-    /// accent — deriving it from the accent is how you arrive at white on yellow.
+    /// accent: deriving it from the accent is how you arrive at white on yellow.
     /// </summary>
     public static IReadOnlyList<AccentBrush> Derive(Color accent, AppTheme theme)
     {

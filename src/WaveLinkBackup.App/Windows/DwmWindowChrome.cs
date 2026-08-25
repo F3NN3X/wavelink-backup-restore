@@ -7,7 +7,7 @@ namespace WaveLinkBackup.App.Windows;
 ///
 /// Everything here is version-gated at RUNTIME rather than by the project's TFM. The App project
 /// targets 10.0.19041.0 because that is what the WinRT UISettings projection needs, and that is
-/// years older than any of these attributes — so "the SDK knows about it" says nothing about
+/// years older than any of these attributes, so "the SDK knows about it" says nothing about
 /// whether the machine does. An unstyled window on Windows 10 is fine; a crash is not.
 /// </summary>
 public sealed class DwmWindowChrome : IWindowChrome
@@ -28,7 +28,7 @@ public sealed class DwmWindowChrome : IWindowChrome
 
     /// <summary>
     /// DWMWA_SYSTEMBACKDROP_TYPE needs Windows 11 22H2. Build 22000 had only the undocumented
-    /// DWMWA_MICA_EFFECT (1029), which is deliberately NOT used here — an undocumented attribute
+    /// DWMWA_MICA_EFFECT (1029), which is deliberately NOT used here: an undocumented attribute
     /// that Microsoft already replaced is a worse bet than no backdrop at all.
     /// </summary>
     private static bool SupportsBackdrop => Environment.OSVersion.Version.Build >= 22621;
@@ -79,7 +79,7 @@ public sealed class DwmWindowChrome : IWindowChrome
     private static int Set(IntPtr hwnd, int attribute, int value)
     {
         // The attribute is read as a DWORD, so the length is 4 and the value must outlive the
-        // call — hence a local rather than an expression.
+        // call, hence a local rather than an expression.
         var payload = value;
 
         return DwmSetWindowAttribute(hwnd, attribute, ref payload, sizeof(int));

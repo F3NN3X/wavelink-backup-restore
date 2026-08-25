@@ -1,7 +1,7 @@
 namespace WaveLinkBackup.App.Windows;
 
 /// <summary>
-/// Windows 11 uses Mica for long-lived window BACKGROUNDS and Acrylic for TRANSIENT surfaces —
+/// Windows 11 uses Mica for long-lived window BACKGROUNDS and Acrylic for TRANSIENT surfaces:
 /// menus, flyouts, context menus. The distinction is not cosmetic: Mica on a context menu looks
 /// like someone applied an effect, which is exactly the impression a native-feeling app must
 /// avoid. So the caption bar and the tray menu ask this same seam for different materials.
@@ -19,7 +19,7 @@ public enum Backdrop
 
 public enum Corners
 {
-    /// <summary>Whatever Windows would do unasked — right for an ordinary resizable window.</summary>
+    /// <summary>Whatever Windows would do unasked, right for an ordinary resizable window.</summary>
     Default,
 
     /// <summary>DWMWCP_ROUND. A menu is rounded whether or not its host window would be.</summary>
@@ -28,7 +28,7 @@ public enum Corners
 
 /// <summary>
 /// The three DwmSetWindowAttribute calls the Windows 11 look needs, behind an interface so the
-/// DECISION — which surface gets which material — is testable even though the interop is not
+/// DECISION, which surface gets which material, is testable even though the interop is not
 /// (design §E lists Mica under "not tested").
 /// </summary>
 public interface IWindowChrome

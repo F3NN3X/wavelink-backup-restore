@@ -36,7 +36,7 @@ public sealed class SettingsInspector(
 {
     /// <summary>
     /// Builds one against a given LocalAppData. Named rather than a constructor overload so
-    /// that the environment dependency is visible at every call site — see
+    /// that the environment dependency is visible at every call site: see
     /// <see cref="SettingsLocator.SystemLocalAppData"/> for why that matters.
     /// </summary>
     public static SettingsInspector For(IFileSystem fileSystem, string localAppDataPath) =>

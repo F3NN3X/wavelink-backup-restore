@@ -102,7 +102,7 @@ public static class Readable
     /// <summary>
     /// Settings' UPDATES row: <c>TODAY 09:14</c>, <c>YESTERDAY 22:40</c>, or <c>12 AUG</c>.
     ///
-    /// Not <see cref="RelativeTime"/>, which answers "how long ago" — the design's line answers
+    /// Not <see cref="RelativeTime"/>, which answers "how long ago": the design's line answers
     /// "when did it last look", and a date is the more useful shape for something that happens
     /// weekly.
     /// </summary>

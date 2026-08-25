@@ -71,7 +71,7 @@ public sealed class SnapshotListViewModel(
 
     /// <summary>
     /// Grouping lives here rather than in the XAML's own CollectionViewSource so a test can
-    /// assert it without a window — which is the whole reason the old shape's defect went
+    /// assert it without a window, which is the whole reason the old shape's defect went
     /// unnoticed for a phase.
     /// </summary>
     private ListCollectionView BuildView()
@@ -97,14 +97,14 @@ public sealed class SnapshotListViewModel(
 
     /// <summary>
     /// <see cref="Rows"/> grouped by <see cref="SnapshotRowViewModel.GroupHeader"/>, for the
-    /// window's <c>GroupStyle</c>. The grouping is the SAME derivation as before — it just lives
+    /// window's <c>GroupStyle</c>. The grouping is the SAME derivation as before. It just lives
     /// in a CollectionView instead of in a second collection of collections.
     /// </summary>
     public ListCollectionView View => view ??= BuildView();
 
     /// <summary>
-    /// The date groups, still. Nothing in the app renders this any more — the view groups
-    /// <see cref="View"/> instead — but "TODAY holds these three rows" is the thing several
+    /// The date groups, still. Nothing in the app renders this any more, the view groups
+    /// <see cref="View"/> instead, but "TODAY holds these three rows" is the thing several
     /// suites are actually about, and asserting it against a projection is clearer than
     /// walking a CollectionView's group objects.
     /// </summary>

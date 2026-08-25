@@ -22,7 +22,7 @@ public interface IUpdateFeed
 /// mono line saying which.
 ///
 /// Hand-parsed rather than deserialised into a type, matching every other JSON reader in this
-/// codebase — reflection-based serialization is what would close off NativeAOT ([[ADR-004]],
+/// codebase: reflection-based serialization is what would close off NativeAOT ([[ADR-004]],
 /// technical-debt.md §2.4), and a source-scan guard fails the build on it.
 /// </summary>
 public sealed class GitHubReleaseFeed(UpdateSource source, HttpClient http) : IUpdateFeed

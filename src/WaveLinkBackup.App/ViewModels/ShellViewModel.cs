@@ -100,7 +100,7 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>
     /// The backing-up strip's state (04-in-progress.md's first half). One instance for the
-    /// window's life, like <see cref="RestoreProgress"/> — and for the same reason: 04 says the
+    /// window's life, like <see cref="RestoreProgress"/>, and for the same reason: 04 says the
     /// strip is "replaced in place by the result line" and never reappear-flashes, which a model
     /// swapped out per capture would make hard to hold to.
     /// </summary>
@@ -440,7 +440,7 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>
     /// What the last <see cref="Apply"/> was told. Read by the window for the few lines that are
-    /// composed at render time from machine-specific figures — 03 §3's rejection meta among them —
+    /// composed at render time from machine-specific figures, 03 §3's rejection meta among them,
     /// rather than being a property the view model can name in advance.
     /// </summary>
     public ShellFacts Facts => facts;

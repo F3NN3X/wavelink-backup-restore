@@ -20,7 +20,7 @@ public interface IFileSystem
     /// A file's length, or 0 when it cannot be determined.
     ///
     /// Exists so that "how big would a backup be?" can be answered without reading 40 MB of
-    /// plug-in binaries into memory — the Settings dialog asks that question every time it
+    /// plug-in binaries into memory: the Settings dialog asks that question every time it
     /// opens, and tiers 3 and 4 are large enough that measuring by reading would be felt.
     /// </summary>
     long GetFileSize(string path);
@@ -43,7 +43,7 @@ public interface IFileSystem
     /// Whether the file can be opened for reading right now, under
     /// <see cref="ReadSharedBytes"/>'s share mode.
     ///
-    /// Exists so a caller can decide a tier's fate — tier 4 is all or nothing — without reading
+    /// Exists so a caller can decide a tier's fate, tier 4 is all or nothing, without reading
     /// the bytes to find out. It opens a handle and closes it; it reads nothing.
     /// </summary>
     bool CanReadShared(string path);
@@ -69,7 +69,7 @@ public interface IFileSystem
     /// as it is currently running.
     ///
     /// Asked rather than assumed, because the assumption is wrong more often than it looks.
-    /// `C:\Program Files\Common Files\VST3` is not user-writable by Windows' default ACL — but
+    /// `C:\Program Files\Common Files\VST3` is not user-writable by Windows' default ACL, but
     /// several audio plug-in installers loosen it so their own updates need no administrator, and
     /// on a machine where one has, tier 4 restores perfectly well with no prompt at all. Deciding
     /// from the path alone means prompting people who did not need to be asked.

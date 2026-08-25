@@ -4,7 +4,7 @@ namespace WaveLinkBackup.App.Startup;
 /// Mandatory rather than polite: two instances means two watchers racing on one settings file.
 ///
 /// A Mutex detects; named events activate. There is no IPC payload because the only message is
-/// "show yourself" — but there are TWO events, so a second launch carrying --tray can exit
+/// "show yourself", but there are TWO events, so a second launch carrying --tray can exit
 /// silently rather than forcing open a window nobody asked for.
 ///
 /// Local\ rather than Global\: settings and the store are per-user, so two people signed into

@@ -5,7 +5,7 @@ namespace WaveLinkBackup.App.Updates;
 
 /// <param name="Path">Where the verified archive landed, or null when it did not.</param>
 /// <param name="FailureDetail">
-/// The mono line under the failed-update block. Null on success. A failed download is NEUTRAL —
+/// The mono line under the failed-update block. Null on success. A failed download is NEUTRAL:
 /// screens/12: "a failed update leaves a working app, so nothing is un-whole."
 /// </param>
 public sealed record UpdateDownload(string? Path, string? FailureDetail)
@@ -20,7 +20,7 @@ public sealed record UpdateDownload(string? Path, string? FailureDetail)
 /// release published.
 ///
 /// Refusing is the point. An update that installs whatever arrived replaces a working program
-/// with an unknown one, and this is the single most dangerous thing this app does — it is the only
+/// with an unknown one, and this is the single most dangerous thing this app does. It is the only
 /// code path that overwrites its own binaries. So: an update with no published checksum is
 /// refused, a mismatch is refused, and a partial file is deleted rather than left where a later
 /// run might find it.
@@ -32,7 +32,7 @@ public sealed record UpdateDownload(string? Path, string? FailureDetail)
 public sealed class UpdateDownloader(HttpClient http)
 {
     /// <summary>
-    /// Downloads to <paramref name="directory"/>, hashing as it streams — the archive is tens of
+    /// Downloads to <paramref name="directory"/>, hashing as it streams. The archive is tens of
     /// megabytes and there is no reason for it to be resident.
     /// </summary>
     public async Task<UpdateDownload> DownloadAsync(
@@ -63,7 +63,7 @@ public sealed class UpdateDownloader(HttpClient http)
             if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
             {
                 // Deleted, not kept: a file that failed its checksum must not be sitting there for
-                // a later run — or a person — to find and trust.
+                // a later run, or a person, to find and trust.
                 Delete(path);
                 return UpdateDownload.Failed("THE DOWNLOAD DIDN'T MATCH ITS CHECKSUM · NOTHING WAS INSTALLED");
             }

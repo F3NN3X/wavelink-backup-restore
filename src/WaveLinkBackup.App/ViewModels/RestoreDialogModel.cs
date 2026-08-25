@@ -19,14 +19,14 @@ public sealed record RestoreDialogRow(string Label, string NowValue, string Afte
 /// The restore confirmation dialog's entire content, computed BEFORE anything is shown.
 ///
 /// A pure projection: in comes a <see cref="RestorePlan"/> (Core's read-only "what would happen"
-/// description) and out goes exactly what Screen 2 renders — title, body, the now-vs-after table,
+/// description) and out goes exactly what Screen 2 renders: title, body, the now-vs-after table,
 /// the version-mismatch note, the missing-plug-in warning, and the reassurance line. No I/O, no
 /// WPF. The view binds to this; it does not compute.
 ///
 /// The three rows Core knows about (Inputs, Channel names, Effects) come straight from the plan,
 /// so the dialog can never disagree with what a restore would actually do. The two the design
 /// adds (Saved presets, Mixes) are passed in separately because Core's manifest does not record
-/// them yet — they render only when values are supplied, and are simply absent until that data
+/// them yet. They render only when values are supplied, and are simply absent until that data
 /// exists rather than invented.
 /// </summary>
 /// <param name="MissingPluginLead">
@@ -73,7 +73,7 @@ public sealed record RestoreDialogModel(
 
     /// <summary>
     /// Always present: the way back. The pre-restore backup is automatic and always named
-    /// "Before restore" — that is what makes the one destructive button safe to press.
+    /// "Before restore". That is what makes the one destructive button safe to press.
     /// </summary>
     public const string ReassuranceText =
         "Your current settings are saved as “Before restore” first, so you can come back to today.";
@@ -112,7 +112,7 @@ public sealed record RestoreDialogModel(
             rows.Add(new RestoreDialogRow(row.Label, row.Now, row.After, row.Changes));
         }
 
-        // The design's two extra rows. Only when BOTH sides are known — a half-known row would be
+        // The design's two extra rows. Only when BOTH sides are known. A half-known row would be
         // a guess, and this dialog must not print one for the app's single irreversible action.
         if (presetCountNow is { } nowPresets && presetCountAfter is { } afterPresets)
         {
@@ -132,7 +132,7 @@ public sealed record RestoreDialogModel(
         // only when the versions differ; Core already wrote the sentence (RestorePlanner).
         //
         // Plug-in version drift joins it here rather than getting a surface of its own. It is the
-        // same kind of fact — "something is a different version than when this was taken" — and it
+        // same kind of fact, "something is a different version than when this was taken", and it
         // is deliberately NOT the amber block: a plug-in that updated is not missing, and nothing
         // about the restore is un-whole.
         var versionNote = Sentences(plan.VersionWarning, plan.Plugins?.DriftNote);
@@ -178,7 +178,7 @@ public sealed class PluginFilesRow(PluginBinaryPayload payload) : ObservableObje
     public const string RowTitle = "Also put the plug-in files back";
 
     /// <summary>
-    /// When the plug-in folder refuses this process a write — Windows' default ACL on
+    /// When the plug-in folder refuses this process a write: Windows' default ACL on
     /// `C:\Program Files\Common Files\VST3`.
     /// </summary>
     public const string RowDescriptionElevated =

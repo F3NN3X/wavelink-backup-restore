@@ -2,7 +2,7 @@ namespace WaveLinkBackup.App.Windows;
 
 /// <summary>
 /// The registry, narrowed to what autostart needs. A seam rather than direct Microsoft.Win32
-/// calls because the interesting behaviour — the Task Manager veto — is otherwise only testable
+/// calls because the interesting behaviour, the Task Manager veto, is otherwise only testable
 /// by writing to the developer's real HKCU and hoping.
 /// </summary>
 public interface IRegistryKeys

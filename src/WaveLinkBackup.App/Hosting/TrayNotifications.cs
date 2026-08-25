@@ -23,13 +23,13 @@ public enum TrayNotificationKind
 
 /// <param name="ActionLabel">
 /// The designed action. Carried in the body rather than as a button: a classic balloon has no
-/// buttons, and Windows renders one as a toast without them — see <c>TrayNotifier</c>.
+/// buttons, and Windows renders one as a toast without them, see <c>TrayNotifier</c>.
 /// </param>
 public sealed record TrayNotification(
     TrayNotificationKind Kind, string Title, string Body, string ActionLabel);
 
 /// <summary>
-/// Whether to notify, as a pure function — the same shape as <see cref="TrayState"/> and for the
+/// Whether to notify, as a pure function: the same shape as <see cref="TrayState"/> and for the
 /// same reason: a decision this consequential should be assertable from a table rather than
 /// inferred from whichever code path happened to reach the tray.
 ///
@@ -55,7 +55,7 @@ public sealed class TrayNotifications
 {
     /// <summary>
     /// The design's figure. Nine days rather than a week because Wave Link's own AutoBackups
-    /// "cover about three days" — the notice is meant to arrive after that cover has run out, not
+    /// "cover about three days". The notice is meant to arrive after that cover has run out, not
     /// while it still holds.
     /// </summary>
     public static readonly TimeSpan Silence = TimeSpan.FromDays(9);

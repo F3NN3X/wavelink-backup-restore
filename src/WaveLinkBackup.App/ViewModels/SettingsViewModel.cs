@@ -60,7 +60,7 @@ public sealed class WhatGoesInRow(
     public bool Locked { get; } = locked;
 
     /// <summary>
-    /// Settable, because the two switchable tiers are switched HERE — this is the control the
+    /// Settable, because the two switchable tiers are switched HERE. This is the control the
     /// design puts in the row. A locked row's toggle is disabled in the view and its setter is
     /// refused here as well, so the rule survives a binding someone rewires later.
     /// </summary>
@@ -106,7 +106,7 @@ public sealed record ProportionSegment(string Name, long Bytes, double Fraction,
     ///
     /// 11-high-contrast.md: "The proportion bar in Settings loses its colour segments; label the
     /// segments instead." In high contrast every fill in the app is transparent, so the bar's four
-    /// bands become one undifferentiated track — the encoding is gone and nothing replaced it
+    /// bands become one undifferentiated track. The encoding is gone and nothing replaced it
     /// (audit §2.9b).
     /// </summary>
     public string Label => $"{Name.ToUpperInvariant()} · {Readable.Bytes(Bytes)}";
@@ -215,7 +215,7 @@ public sealed class WhatGoesInModel : ObservableObject
 ///
 /// A record rather than three more constructor parameters, and injected rather than reached for:
 /// one of the two lives in the registry and the other in the shell's own state file, and neither
-/// belongs to <see cref="BackupSettings"/> — settings.json describes itself in the dialog as "the
+/// belongs to <see cref="BackupSettings"/>: settings.json describes itself in the dialog as "the
 /// folder, the automatic-backup switch, how many to keep and which Wave Link you picked", which a
 /// window behaviour would make false.
 /// </summary>
@@ -230,7 +230,7 @@ public sealed record StartupSeam(
     Action<bool> WriteClosingHidesToTray);
 
 /// <summary>
-/// The HOW IT LOOKS section's seams, or null to hide the section — the same shape and the same
+/// The HOW IT LOOKS section's seams, or null to hide the section: the same shape and the same
 /// argument as <see cref="StartupSeam"/>.
 /// </summary>
 /// <param name="ReadIsHighContrast">
@@ -321,7 +321,7 @@ public sealed class SettingsViewModel : ObservableObject
     // ----------------------------------------------- how it looks
 
     /// <summary>
-    /// Whether to draw the section at all. False when nothing was injected to drive it — four
+    /// Whether to draw the section at all. False when nothing was injected to drive it: four
     /// buttons that repaint nothing are worse than no section, the same rule
     /// <see cref="HasStartupSection"/> follows.
     /// </summary>
@@ -329,7 +329,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>
     /// Which palette the user asked for. Commits on change like every other control on this
-    /// screen — there is no Save button — and then re-reads whether the app is now in high
+    /// screen, there is no Save button, and then re-reads whether the app is now in high
     /// contrast, because the dialog is looking at the answer while it changes.
     /// </summary>
     public ThemePreference Theme
@@ -353,7 +353,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>
     /// One bool per segment, because that is what a RadioButton binds to. Setting one to true
-    /// moves <see cref="Theme"/>, which raises all four — so the other three clear themselves
+    /// moves <see cref="Theme"/>, which raises all four, so the other three clear themselves
     /// through the binding rather than through the group name alone.
     ///
     /// The false case is deliberately ignored: WPF unchecks the outgoing segment as part of the
@@ -389,14 +389,14 @@ public sealed class SettingsViewModel : ObservableObject
     // ----------------------------------------------- when Windows starts (screens/12)
 
     /// <summary>
-    /// Whether to draw the section at all. False when nothing was injected to drive it — a
+    /// Whether to draw the section at all. False when nothing was injected to drive it: a
     /// section of two toggles that write nowhere is worse than no section.
     /// </summary>
     public bool HasStartupSection => startup is not null;
 
     /// <summary>
     /// "Start with Windows and sit in the tray." Reads the Run key, writes the Run key, and
-    /// re-reads after every write — <see cref="IAutostart.Enable"/> can refuse, and a toggle that
+    /// re-reads after every write: <see cref="IAutostart.Enable"/> can refuse, and a toggle that
     /// showed the value it was ASKED for rather than the one that took would lie about a veto.
     /// </summary>
     public bool StartWithWindows
@@ -467,7 +467,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>
     /// The UPDATES section's model, or null to hide the section (screens/12). Set by the caller
-    /// after Build, like <see cref="WhatGoesIn"/> — it needs an HTTP client and a release feed,
+    /// after Build, like <see cref="WhatGoesIn"/>. It needs an HTTP client and a release feed,
     /// neither of which a settings record knows about.
     /// </summary>
     public UpdateViewModel? Updates
@@ -485,7 +485,7 @@ public sealed class SettingsViewModel : ObservableObject
     public bool HasUpdatesSection => updates is { IsConfigured: true };
 
     /// <summary>
-    /// Whether the diagnostics have just been copied. Drives the button's confirmation — a copy
+    /// Whether the diagnostics have just been copied. Drives the button's confirmation. A copy
     /// that says nothing leaves the user pressing it again, which on a clipboard action is the one
     /// failure mode that costs them nothing to cause and everything to notice.
     /// </summary>
@@ -531,7 +531,7 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The keep-count row's title, which — like <see cref="IntervalLabel"/> — IS the value read
+    /// The keep-count row's title, which, like <see cref="IntervalLabel"/>, IS the value read
     /// back as a sentence: "Keep the last 30 automatic backups". The XAML carried the sentence
     /// with the number simply removed ("Keep the last automatic backups"), which reads as a
     /// half-finished string beside a stepper showing the number it left out.
@@ -652,7 +652,7 @@ public sealed class SettingsViewModel : ObservableObject
         : string.Empty;
 
     /// <summary>
-    /// Tier 3 — effect presets. Commits on change like every other control here; phase 6 built
+    /// Tier 3: effect presets. Commits on change like every other control here; phase 6 built
     /// the tier behind it, so the toggle moves and the next capture obeys it.
     /// </summary>
     public bool IncludePresets
@@ -665,7 +665,7 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Tier 4 — the plug-in files themselves. Off by default: ~40 MB, and no licence.</summary>
+    /// <summary>Tier 4: the plug-in files themselves. Off by default: ~40 MB, and no licence.</summary>
     public bool IncludePluginFiles
     {
         get => includePluginFiles;
@@ -768,7 +768,7 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>
     /// The design's full stats line: <c>N BACKUPS · X MB USED · Y GB FREE ON THIS DRIVE</c>.
     ///
-    /// It printed only the free figure until 0.6.1 — the count and the used bytes live on the
+    /// It printed only the free figure until 0.6.1: the count and the used bytes live on the
     /// shell, and the code's own comment said so while nothing plumbed them through (audit §2.9a).
     /// Each of the three omits itself when it cannot be read, so a drive whose free space is
     /// unknowable still prints the two figures we do have rather than the whole line vanishing.
@@ -823,7 +823,7 @@ public sealed class SettingsViewModel : ObservableObject
         RaiseNotABackupFolder();
     }
 
-    /// <summary>"Keep the current folder" — and every successful folder change.</summary>
+    /// <summary>"Keep the current folder", and every successful folder change.</summary>
     public void ClearNotABackupFolder()
     {
         if (notABackupFolderPath is null) return;

@@ -623,7 +623,7 @@ public partial class MainWindow : Window
     /// <c>Restore "Before restore"</c>, and renders that row selected below the strip "so the
     /// button and the row are visibly the same object". Until 0.6.1 the state drew none of it and
     /// <c>AcknowledgeReject</c> was called by nothing, so the bar was permanent for the life of
-    /// the process — the recovery path for the only failure that costs someone their mixer
+    /// the process: the recovery path for the only failure that costs someone their mixer
     /// (technical-debt.md §4.21 item 1).
     /// </summary>
     private void ShowRestoreOutcome(RestoreResultView view)
@@ -670,7 +670,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Opens the folder holding Wave Link's own log — the evidence for WHY the file was rejected,
+    /// Opens the folder holding Wave Link's own log: the evidence for WHY the file was rejected,
     /// and 03's reason for making this strip persist. The folder rather than the file: the newest
     /// log's name is Wave Link's business, and a folder that opens beats a path that might not.
     /// </summary>
@@ -695,7 +695,7 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Restores the "Before restore" copy the rejected restore took on its way in. It goes through
-    /// the same confirmation the list's own Restore does — this is still a restore, and 05's
+    /// the same confirmation the list's own Restore does. This is still a restore, and 05's
     /// pre-restore dialog variant exists for exactly this moment.
     /// </summary>
     private async Task RestoreRecoveryAsync(string snapshotId)

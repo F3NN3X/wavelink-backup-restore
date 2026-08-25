@@ -31,7 +31,7 @@ public sealed record UpdateInstall(bool Started, string? FailureDetail)
 ///
 /// What this deliberately does not do: ask for elevation. An install under
 /// <c>C:\Program Files</c> is not writable by the user, and the honest answer there is to say the
-/// update could not be written and offer the download — which is exactly the failed-update block
+/// update could not be written and offer the download, which is exactly the failed-update block
 /// screens/12 draws, with "Download it yourself" beside "Try again". Silently escalating to
 /// administrator to overwrite binaries is the shape of a thing users are right to distrust.
 /// </summary>
@@ -108,8 +108,8 @@ public sealed class UpdateInstaller
     /// <summary>
     /// Expand <paramref name="archivePath"/> beside the install and hand over to it.
     ///
-    /// Returns rather than throwing for every expected failure — a read-only install directory, a
-    /// corrupt archive, an antivirus holding a file — because each of them is a row the design
+    /// Returns rather than throwing for every expected failure. A read-only install directory, a
+    /// corrupt archive, an antivirus holding a file, because each of them is a row the design
     /// already draws.
     /// </summary>
     public UpdateInstall Begin(string archivePath, string installDirectory)
@@ -165,7 +165,7 @@ public sealed class UpdateInstaller
     /// the installed copy.
     ///
     /// Returns false when the swap could not be completed, having put the previous install back.
-    /// The caller (the staged process's entry point) then exits without starting anything — the
+    /// The caller (the staged process's entry point) then exits without starting anything. The
     /// old install is intact, and the user will find the app exactly as it was.
     /// </summary>
     public bool Apply(int previousProcessId, string installDirectory, TimeSpan timeout)
@@ -276,7 +276,7 @@ public sealed class UpdateInstaller
 
     /// <summary>
     /// Waits for the old process, and gives up rather than hanging. A process that will not exit
-    /// is a reason to abandon the update — the swap would fail on its locked files anyway, and
+    /// is a reason to abandon the update. The swap would fail on its locked files anyway, and
     /// the ordering above turns that into "nothing changed".
     /// </summary>
     private static void WaitForExit(int processId, TimeSpan timeout)

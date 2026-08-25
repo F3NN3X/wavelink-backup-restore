@@ -2,7 +2,7 @@ using WaveLinkBackup.Core.Results;
 
 namespace WaveLinkBackup.App.ViewModels;
 
-/// <summary>Where an error is shown. 06-errors.md, "Placement rule — scope decides".</summary>
+/// <summary>Where an error is shown. 06-errors.md, "Placement rule, scope decides".</summary>
 public enum ErrorPlacement
 {
     /// <summary>A standing fact about the machine, true until something changes (error 1).</summary>
@@ -14,13 +14,13 @@ public enum ErrorPlacement
     /// <summary>A decision is required before work can continue (2, 4, 8, 9).</summary>
     Dialog,
 
-    /// <summary>Nothing can be listed at all — the screen replaces the list (12).</summary>
+    /// <summary>Nothing can be listed at all, the screen replaces the list (12).</summary>
     ReplacesList,
 }
 
 /// <summary>
 /// How loud an error is. The weight rule: neutral unless the user's configuration is not whole.
-/// A missing *location* is neutral — nothing is broken and nothing is lost; a location is simply
+/// A missing *location* is neutral. Nothing is broken and nothing is lost; a location is simply
 /// missing. An error that means a write or restore did not produce a whole config is amber.
 /// </summary>
 public enum ErrorWeight
@@ -36,11 +36,11 @@ public enum ErrorWeight
 ///
 /// Copy here is the designed sentence/heading per error, taken verbatim from 06-errors.md. Where
 /// 06 prints a mono *meta* line (a path, a checksum, a PID) that value is machine-specific and
-/// arrives at render time — it is not hard-coded in the catalog, which keeps every string
+/// arrives at render time. It is not hard-coded in the catalog, which keeps every string
 /// assertable from a table.
 ///
 /// <b>Weight rule as 06 states it:</b> "Neutral if nothing happened. Amber only if the
-/// configuration — live or restorable — is not whole." The inline strips are ALL neutral fill
+/// configuration, live or restorable, is not whole." The inline strips are ALL neutral fill
 /// (they are refusals: nothing was written, nothing changed). Only the malformed-settings dialog
 /// (4) is amber, because there the LIVE configuration is the thing that is not whole.
 /// </summary>
@@ -55,79 +55,79 @@ public sealed record AppError(
     /// <summary>All thirteen, in the order the design numbers them.</summary>
     public static IReadOnlyList<AppError> All { get; } = new[]
     {
-        // 1 — Wave Link not found / settings file missing. A standing fact → status strip.
+        // 1: Wave Link not found / settings file missing. A standing fact → status strip.
         // The design renders this with an amber dot + text (--wl-warn) because the LIVE config
         // cannot be read at all, so it is not whole. (06 "Status strip (1)".)
         new AppError(1, ErrorPlacement.StatusStrip, ErrorWeight.Amber,
             "WAVE LINK NOT FOUND ON THIS COMPUTER",
             "Wave Link was not found on this computer, so there is nothing to back up yet."),
 
-        // 2 — Two Wave Link installations, none chosen. A decision is required → chooser dialog.
+        // 2: Two Wave Link installations, none chosen. A decision is required → chooser dialog.
         // Neutral: no config is damaged, a choice is simply needed. (06 "Dialogs §2".)
         new AppError(2, ErrorPlacement.Dialog, ErrorWeight.Neutral,
             "Two Wave Link installations",
             "Both have their own settings file. Pick the one you actually use — the other stays untouched."),
 
-        // 3 — Could not read the settings file (locked/unreadable). Consequence of a press → inline.
+        // 3: Could not read the settings file (locked/unreadable). Consequence of a press → inline.
         // All inline strips are neutral fill: nothing was written, nothing changed. (06 "Inline strips §3".)
         new AppError(3, ErrorPlacement.InlineStrip, ErrorWeight.Neutral,
             "Could not read the settings file",
             "Could not read the settings file, so nothing was backed up."),
 
-        // 4 — Malformed settings file. A decision is required (retry / restore last good) → dialog.
+        // 4: Malformed settings file. A decision is required (retry / restore last good) → dialog.
         // AMBER: the live configuration is the thing that is not whole. (06 "Dialogs §4".)
         new AppError(4, ErrorPlacement.Dialog, ErrorWeight.Amber,
             "Wave Link's settings file is malformed",
             "Nothing was backed up — copying a broken file would give you a broken backup. " +
             "Wave Link may be mid-write; try again in a moment."),
 
-        // 5 — Wave Link still running, so nothing was written. Consequence of a press → inline. Neutral fill.
+        // 5: Wave Link still running, so nothing was written. Consequence of a press → inline. Neutral fill.
         new AppError(5, ErrorPlacement.InlineStrip, ErrorWeight.Neutral,
             "Wave Link is still running",
             "Wave Link is still running, so nothing was written."),
 
-        // 6 — The settings file couldn't be replaced (access denied). Consequence of a press → inline. Neutral fill.
+        // 6: The settings file couldn't be replaced (access denied). Consequence of a press → inline. Neutral fill.
         new AppError(6, ErrorPlacement.InlineStrip, ErrorWeight.Neutral,
             "The settings file couldn't be replaced",
             "The settings file couldn't be replaced. Your old settings are still in place."),
 
-        // 7 — The backup's manifest can't be read. Consequence of a press → inline. Neutral fill.
+        // 7: The backup's manifest can't be read. Consequence of a press → inline. Neutral fill.
         new AppError(7, ErrorPlacement.InlineStrip, ErrorWeight.Neutral,
             "This backup's manifest can't be read",
             "This backup's manifest can't be read, so we can't tell what's inside it."),
 
-        // 8 — Made by a newer version of Wave Link Backup. A decision is required (update) → dialog.
+        // 8: Made by a newer version of Wave Link Backup. A decision is required (update) → dialog.
         // NEUTRAL: the backup itself is fine; this copy just doesn't understand the format yet.
-        // (06 "Dialogs §8".) No Restore button at all — it would not work.
+        // (06 "Dialogs §8".) No Restore button at all. It would not work.
         new AppError(8, ErrorPlacement.Dialog, ErrorWeight.Neutral,
             "This backup was made by a newer version",
             "It uses a format this copy doesn't understand yet. Update Wave Link Backup and it will " +
             "restore normally. The backup itself is fine."),
 
-        // 9 — That folder is not a Wave Link Backup. A decision is required (choose another / keep) → dialog.
+        // 9. That folder is not a Wave Link Backup. A decision is required (choose another / keep) → dialog.
         // Appears in Settings, in place, after "Change folder…". Neutral: nothing lost, a location is wrong.
         new AppError(9, ErrorPlacement.Dialog, ErrorWeight.Neutral,
             "That folder is not a Wave Link Backup",
             "That folder isn't a Wave Link Backup folder. It has files in it but no manifest, so nothing " +
             "in there can be listed or checked. Point at the folder that holds your backups, or start fresh in an empty one."),
 
-        // 10 — This backup is damaged and was not restored. Consequence of a press → inline. Neutral fill.
+        // 10. This backup is damaged and was not restored. Consequence of a press → inline. Neutral fill.
         new AppError(10, ErrorPlacement.InlineStrip, ErrorWeight.Neutral,
             "This backup is damaged",
             "This backup is damaged and was not restored. Your mixer hasn't changed."),
 
-        // 11 — No backup with that id was found. Consequence of a press → inline. Neutral fill.
+        // 11: No backup with that id was found. Consequence of a press → inline. Neutral fill.
         new AppError(11, ErrorPlacement.InlineStrip, ErrorWeight.Neutral,
             "No backup with that id was found",
             "No backup with that id was found. Pick another from the list."),
 
-        // 12 — The backup folder can't be used (missing/moved/unwritable). Nothing can be listed → replaces the list.
+        // 12: The backup folder can't be used (missing/moved/unwritable). Nothing can be listed → replaces the list.
         // Same screen as H's missing folder in 08-settings-persistence.md. Neutral: nothing broken, nothing lost.
         new AppError(12, ErrorPlacement.ReplacesList, ErrorWeight.Neutral,
             "The backup folder can't be used",
             "The backup folder is missing or cannot be used right now. Nothing is lost — point at a folder to continue."),
 
-        // 13 — Administrator rights declined for tier 4. Consequence of a press → inline. Neutral.
+        // 13: Administrator rights declined for tier 4. Consequence of a press → inline. Neutral.
         //
         // Neutral is where the weight rule earns its keep. Amber means the configuration - live or
         // restorable - is not whole; declining changed NOTHING. The plug-ins on this machine are
@@ -143,7 +143,7 @@ public sealed record AppError(
     /// <summary>
     /// Administrator rights were declined at the UAC prompt, so tier 4 was skipped. Named rather
     /// than looked up by number at the call site, because it is the one error with no
-    /// <see cref="CoreError"/> behind it — nothing in Core failed, and nothing in Core can know
+    /// <see cref="CoreError"/> behind it: nothing in Core failed, and nothing in Core can know
     /// what a person clicked.
     /// </summary>
     public static AppError ElevationDeclined => ByCode(13);
@@ -152,7 +152,7 @@ public sealed record AppError(
     public static AppError ByCode(int code) => All[code - 1];
 }
 
-/// <summary>The signals the shell already has when something goes wrong. All value types — pure.</summary>
+/// <summary>The signals the shell already has when something goes wrong. All value types, pure.</summary>
 public sealed record CoreSignal(
     /// <summary>A Core error, when an operation returned one (null for healthy / standing facts).</summary>
     CoreError? Error = null,
@@ -162,7 +162,7 @@ public sealed record CoreSignal(
     bool FolderUsable = true);
 
 /// <summary>
-/// The one place a Core signal becomes an <see cref="AppError"/> — or null when there is no error.
+/// The one place a Core signal becomes an <see cref="AppError"/>, or null when there is no error.
 /// Pure: in comes the signals the shell already holds, out goes the designed error (or nothing).
 /// This is what keeps "which of the twelve" from being re-decided in every view.
 /// </summary>
@@ -218,10 +218,10 @@ public static class AppErrorMapper
     /// <summary>
     /// The crash-report pointer for a failed restore (technical-debt.md §8.1a). 06-errors.md has no
     /// "something unexpected happened" surface, so the evidence lives in the redacted report and the
-    /// one place the app can still speak after an unexpected fault — the danger row — points at it.
+    /// one place the app can still speak after an unexpected fault, the danger row, points at it.
     /// The pointer is appended only when BOTH hold: the failure carries no designed inline-strip code
     /// (a designed error has its own surface, and a crash is not that error), and a report was written
-    /// this run. Null otherwise — the row stays exactly as it was before §8.1a.
+    /// this run. Null otherwise. The row stays exactly as it was before §8.1a.
     /// </summary>
     public static string? CrashReportPointer(string? failureMessage, CoreError? coreError, string? crashReportPath)
     {

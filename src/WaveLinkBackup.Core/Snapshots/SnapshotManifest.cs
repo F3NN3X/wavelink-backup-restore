@@ -68,7 +68,7 @@ public sealed record SnapshotManifest(
     public const string PluginManifestTier = "plugin-manifest";
 
     /// <summary>
-    /// Tier 3. Claimed only when at least one preset file was actually captured — the badge says
+    /// Tier 3. Claimed only when at least one preset file was actually captured. The badge says
     /// what is IN the snapshot, and a tier claimed over an empty capture is a badge that lies.
     /// </summary>
     public const string PresetsTier = "presets";

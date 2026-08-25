@@ -11,7 +11,7 @@ namespace WaveLinkBackup.Core.Abstractions;
 /// It does not: <see cref="LibraryImportAttribute"/> P/Invoke works from plain
 /// <c>net10.0</c>, and <c>GuardNoDesktopFramework</c> guards the ref pack, not P/Invoke.
 ///
-/// The alternative — implementing it in both shells — would duplicate the interop, and a
+/// The alternative, implementing it in both shells, would duplicate the interop, and a
 /// fourth project for one class is worse than either. Core already contains Windows-specific
 /// behaviour for the same reason: <c>WaveLinkProcess.LaunchByAppId</c> shells out to
 /// <c>explorer.exe</c> with an MSIX AppID. Core is Windows-only in behaviour (ADR-008) and
@@ -36,7 +36,7 @@ public sealed class RecycleBin : IRecycleBin
     /// <summary>
     /// Whether this path has a Recycle Bin at all.
     ///
-    /// UNC paths and non-fixed volumes do not, and the backup store is user-chosen — so a
+    /// UNC paths and non-fixed volumes do not, and the backup store is user-chosen, so a
     /// person keeping backups on a NAS is a normal case, not an edge one. Asking first is what
     /// lets the UI promise an undo only when it can keep the promise.
     /// </summary>
@@ -57,7 +57,7 @@ public sealed class RecycleBin : IRecycleBin
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
         {
-            // Cannot tell — assume not, so the caller says "permanent" rather than promising
+            // Cannot tell: assume not, so the caller says "permanent" rather than promising
             // an undo that may not exist. Failing toward the honest message.
             return false;
         }
