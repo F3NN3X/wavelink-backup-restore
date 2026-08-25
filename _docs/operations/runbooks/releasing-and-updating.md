@@ -273,6 +273,20 @@ prove *who* published the release, because whoever controls the release controls
 beside it. This is written on `UpdateRelease.Sha256` itself so it cannot be misread as a security
 guarantee.
 
+**Provenance is attested, and the app does not read it.** Since 2026-08-25 the release workflow
+signs a build provenance statement for both archives through Sigstore, binding each digest to this
+repository, the commit and the workflow run. A person deciding whether to run a download can check
+where it came from:
+
+```powershell
+gh attestation verify WaveLinkBackup-1.4.0-app-win-x64.zip --repo <owner>/<repo>
+```
+
+This is deliberately outside the updater. `UpdateDownloader` still requires a published checksum
+and still refuses an update without one, and adding an attestation check to it would mean shipping
+a verifier and a trust root into a tray app. Attestation answers the question a stranger has before
+they run the binary at all, which is not the question the updater is asking.
+
 ---
 
 ## 7 · Owed before this is used in anger
@@ -280,7 +294,7 @@ guarantee.
 | | What | Why |
 |---|---|---|
 | **1** | **Run the loop once, end to end** | Everything here is built and unit-tested; the download, the swap and the relaunch have only met fixtures and temp directories. Do the first release, install it over a real install, and record the result in this file. **Watch the runtime prerequisite in particular**: on a machine without the .NET 10 Desktop Runtime the app fails before managed code runs, so the first *fresh-machine* install is the one that will show what users actually see. |
-| **2** | **Code signing** | The gap §6 names. Signing is what turns "these are the bytes the release named" into "these are our bytes", and it is what would make elevating defensible. |
+| **2** | **Code signing** | The remaining half of the gap §6 names. Provenance attestation now answers "where did this come from" for anyone who runs `gh attestation verify`; signing is what answers it for Windows itself, at the SmartScreen prompt, without the user doing anything. It is also what would make elevating defensible. |
 | **3** | **Decide the pre-release rule** | Before a `-beta` tag ever exists, not after. |
 | **4** | **Set the feed variables** | §3. Until then the UPDATES section hides itself, which is correct but means nobody has exercised it. |
 

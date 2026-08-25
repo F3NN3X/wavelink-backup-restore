@@ -117,8 +117,22 @@ Grab the latest release from
 | `WaveLinkBackup-*-app-win-x64.zip` | The tray app. Extract and run. Needs the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0). |
 | `WaveLinkBackup-CLI-*-win-x64.zip` | The `wlbackup` CLI, a single file, framework-dependent or AOT. |
 
-Every release ships a `.sha256` sidecar for each archive. The download is under 8 MB rather than
-about 101 MB because the app does not carry the .NET runtime with it.
+The download is under 8 MB rather than about 101 MB because the app does not carry the .NET
+runtime with it.
+
+### Checking what you downloaded
+
+Every release ships a `.sha256` sidecar, which tells you the archive arrived intact. It cannot
+tell you where it came from, since the same pipeline produced both the file and the hash. For
+that, every archive carries a signed build provenance attestation naming the commit and the
+workflow run that produced it:
+
+```powershell
+gh attestation verify WaveLinkBackup-0.7.6-app-win-x64.zip --repo F3NN3X/wavelink-backup-restore
+```
+
+If you would rather build it yourself, the commands under [Building](#building) reproduce the
+release archives byte for byte.
 
 ---
 
@@ -158,8 +172,14 @@ dotnet publish src/WaveLinkBackup.Cli -c Release                      # ~0.2 MB 
 dotnet publish src/WaveLinkBackup.Cli -c Release -p:PublishAot=true   # ~3 MB native (needs MSVC)
 
 # App: the .NET 10 Desktop Runtime is a prerequisite, not a payload
-dotnet publish src/WaveLinkBackup.App -c Release
+dotnet publish src/WaveLinkBackup.App -c Release --runtime win-x64
 ```
+
+Those two publish commands produce the release archives' contents byte for byte, verified by
+publishing both ways and comparing every file. `--runtime win-x64` is load-bearing on the app and
+only there: `WaveLinkBackup.Cli.csproj` already pins that RID, `WaveLinkBackup.App.csproj` does
+not, and without the flag you get a RID-agnostic publish with an extra `runtimes/` tree and a
+different `deps.json`.
 
 The AOT build's link step calls `vswhere.exe` unqualified. If it fails with
 `MSB3073 ... exited with code 123`, add
