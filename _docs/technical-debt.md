@@ -41,18 +41,24 @@ human in the loop — is empty:** all three closed on 2026-08-22 (§8.1's crash 
 rule, and the by-eye checklist that Tier 2 depends on). What remains is a human with eyes, and a
 fact from outside this repo.
 
-**Tier 2 — closeable by a human with eyes, no code change.** One sitting, one machine, against
-[operations/design/screen-1-by-eye-checklist.md](operations/design/screen-1-by-eye-checklist.md).
-They share a setup — a real Wave Link install, a store with several snapshots, both light and
-high-contrast themes active — so splitting the sitting multiplies the cost of getting to that state.
+**Tier 2 — closeable by a human with eyes, no code change.** One look, one machine, against item 5
+of [operations/design/screen-1-by-eye-checklist.md](operations/design/screen-1-by-eye-checklist.md).
+It needs a real Wave Link install, a store with a five-input snapshot and a nine-plus-channel one,
+and both a light theme and a real high-contrast scheme active.
 
-| Order | Item | What closing looks like |
-|---|---|---|
-| 1 | **§8.2's own surfaces** | The four-segment theme control at 100% and 150% scaling; the details dialog in light and in a real high-contrast scheme; and that dialog's height on a rig with several long effect chains, where it hits its 720px cap and scrolls. Tick each, note any that read wrong |
-| 2 | **§8.6's new surfaces** — the INPUTS verdict and the details dialog's matrix | The verdict on a five-input row (check-circle, "Complete", `5 INPUTS · ALL NAMED`) and on a collapsed rig (triangle, "Only part of your setup", warn sub-line); the same cell at nine-plus channels, where the old strip read cramped; the matrix in light and real high-contrast — a dot exactly where each channel's routing line says it feeds. This is the 2026-08-22 sitting re-run against surfaces that did not exist when it happened |
-| 3 | **§8.4's alignment tail** — the header-to-row alignment after the scroll fix | The list's column header and the rows beneath it: do they line up with the inner ScrollViewer owning the scroll, now that the outer `ListScrollViewer` is gone? Audited as §1.1 of the design conformance pass, so a miss here is a regression against a known-good state. Must be done *after* the list has been scrolled, so it rides on the sitting rather than preceding it |
+Items 1–4 of that checklist are ticked: the 2026-08-22 sitting confirmed §4.15's frosting, §8.2's
+own three surfaces, §8.4's header-to-row alignment after the scroll fix, and §4.9's `WlDangerSoft`
+in a real high-contrast scheme. **Only item 5 is owed**, and it exists because that sitting's one
+finding — the INPUTS strip read cramped past nine cells — shipped as §8.6 the same day, replacing
+the surface the sitting had just checked.
 
-When all three are ticked, §8.2 closes for good.
+| What to look at | What closing looks like |
+|---|---|
+| **The INPUTS verdict** on a five-input row, and on a collapsed rig | Check-circle in the ok colour, "Complete", mono sub-line reading `5 INPUTS · ALL NAMED`; on the collapsed rig a warning triangle in warn, "Only part of your setup", `UNNAMED` in warn. The word stays full-strength either way — colour is never the only signal |
+| **The verdict at nine-plus channels**, where the old strip read cramped | The cell no longer prints a name per channel, so it should read as *less* crowded than the finding it replaced. This is the legibility fix confirmed on pixels rather than by inference |
+| **The details dialog's matrix** ("WHERE EACH INPUT IS HEARD") | One cell per mix column on each channel row; a dot exactly where that channel's routing line says it feeds; a channel in no mix shows all-empty cells. In light and again in real high-contrast — nothing clips, and the grid reads as the board it is |
+
+When item 5 is ticked, §8.2 closes for good and nothing in §8 remains but the entries.
 
 **Tier 3 — closeable only by a fact from outside this repo.** No commit and no amount of looking
 at this codebase closes these. They are listed last not because they are least important but
