@@ -20,7 +20,7 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of v0.7.5 plus unreleased work on `feat/update-available-notification` (2026-08-25).*
+*As of v0.7.6 (2026-08-25).*
 
 | Artifact | Count |
 |---|---|

@@ -21,9 +21,11 @@ heading here.
 
 ---
 
-## [Unreleased]
+## [0.7.6] - 2026-08-25
 
-**The app now tells you an update exists without being asked.** It checks at startup and once a day while running, rather than only when the Settings dialog happens to be opened, and says so on the status strip, in the tray menu, and once per version as a notification. The interval moves from the design's week to a day: weekly was right when a stale answer sat unseen inside a dialog, and stopped being right once the check began speaking up on its own.
+**The update path works, and the app tells you when there is one.** This release exists because the in-app update had never actually been run, and running it turned up three separate failures — each hidden behind the one before it. The app never mentioned an update existed, every update then failed its checksum, and the install after that silently did nothing. All three are fixed, and an available update is now said on the status strip, in the tray menu, and once per version as a notification.
+
+**If you are on 0.7.5 or earlier, updating from inside the app will still fail** — those builds carry the broken checksum pairing, and the fix only takes effect in the build doing the updating. Download this one from the releases page; updates from 0.7.6 onward work.
 
 ### Added
 
