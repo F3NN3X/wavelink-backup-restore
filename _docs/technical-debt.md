@@ -17,18 +17,21 @@ Be blunt. A debt list that flatters the project is useless.
 Phases 1–6 shipped `Core`, `Cli` and a WPF shell, and the debt-clearing passes of 2026-08-17
 through 2026-08-22 closed everything in §1, §4, §5, §6 and §7 that a commit can close, plus most
 of §8. Those entries moved out on 2026-08-25 with their reasoning intact, because a list of ticked
-boxes buries the four things still owed. Section numbers are unchanged in both files, so a
+boxes buries the few things still owed. Section numbers are unchanged in both files, so a
 reference to §4.18 from an ADR or a commit message still resolves.
+
+**§2.4 closed on 2026-08-25** and left with them: porting `WindowsAudioEndpointInspector` answered
+it, and the answer was no — classic `[ComImport]` does not survive trimming, in two distinct ways.
+Source-generated COM does. The evidence is in [the archive](archive/technical-debt-closed.md).
 
 ## What is actually left
 
-Four entries, and **none of them is a commit somebody has not written.**
+Three entries, and **none of them is a commit somebody has not written.**
 
 | | Why it cannot be closed here |
 |---|---|
 | **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link, written up in the entry. Not a defect — an unanswered question, and §7.5 already removed the prompt in the common case, so the answer may well be "leave it". **Status 2026-08-22: the user will run the experiment on the reference rig; it stays open until that run.** |
 | **§8.2** — the by-eye sittings owed by the §8.6 verdict and matrix | The 2026-08-22 sitting checked the *old* surfaces (the five-slot strip, the pre-matrix dialog) and closed what it saw; the verdict that replaced the strip and the matrix that joined the dialog have not been looked at on a machine yet. Nothing in the suite can assert that a layout looks right. |
-| **§2.4** — whether `[ComImport]` interop survives NativeAOT | There is still no `[ComImport]` in the codebase. `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. A re-open trigger, not an open task: re-run when endpoint inspection lands. The AOT publish itself already works. |
 | **§3** — the known-wrong list | Not owed work at all. Four choices made with eyes open, recorded so they are not "discovered" later and fixed by someone who does not know they were decided. It stays here permanently. |
 
 §5 also stays, in reduced form: the resolution narrative is archived, but the table of numbers that
@@ -66,59 +69,14 @@ Settings, and back afterwards.
 
 When item 5 is ticked, §8.2 closes for good and nothing in §8 remains but the entries.
 
-**Tier 3 — closeable only by a fact from outside this repo.** No commit and no amount of looking
-at this codebase closes these. They are listed last not because they are least important but
-because *nothing can be done until the external fact arrives* — so the only action available is to
-keep the cost of the answer being wrong at zero, which for both is already done.
+**Tier 3 — closeable only by a fact from outside this repo.** One item now: §2.4 left this tier on
+2026-08-25 when the inspector was ported and answered it. No commit and no amount of looking at
+this codebase closes what remains — it waits on something observed in the world, so the only action
+available is to keep the cost of the answer being wrong at zero, which is already done.
 
 | Item | The external fact it waits on | What to do in the meantime | Why the wait is acceptable |
 |---|---|---|---|
 | **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link: copy one on-channel plug-in to the user-level VST3 folder, rename the shared copy, restart, and see whether the channel still loads and whether `FilePath` was rewritten. The full protocol is in [audits/2026-08-20-plugin-resolution-and-elevation.md](audits/2026-08-20-plugin-resolution-and-elevation.md) | **The user will run it on the reference rig (status 2026-08-22).** Take a backup first (the experiment is reversible but not free). The answer also settles whether tier 2's drift check could key on `PluginId` rather than path, which is a second debt this one entry closes | §7.5 already removed the prompt in the common case, so the *recommendation* pending the answer is "probably do not build the fallback". The experiment is worth having regardless, but it is an hour of careful work on a live install, not a task to slot into a quiet afternoon |
-| **§2.4** — whether `[ComImport]` interop survives NativeAOT | A fact about a piece of code that does not exist yet: `WindowsAudioEndpointInspector` has not been ported, so the interop that prompted the doubt cannot be exercised. Re-run when endpoint inspection lands | Nothing. The AOT publish itself already works (3.2 MB binary, zero trim warnings), so the NativeAOT option stays open at no cost until the inspector arrives | This is a *re-open* trigger, not an open task: the entry says so, and the action is "when X lands, do Y". It is Tier 3 because X is outside this repo's current scope (post-1.0), and pretending it is ready to close would be flattery |
-
----
-
-## 2 · Unverified assumptions
-
-Things the design rests on that **nobody has checked**. Each one, if wrong, invalidates real
-work — so each has a cheap check attached and an owner phase.
-
-*2.1, 2.2 and 2.3 are answered — see [the archive](archive/technical-debt-closed.md).*
-
-### 2.4 Whether `[ComImport]` interop survives NativeAOT
-
-`WindowsAudioEndpointInspector` is ~80 lines of hand-declared Core Audio COM interfaces. AOT
-and `[ComImport]` need care. If it does not survive, the NativeAOT CLI option in §1.5
-evaporates and the answer there is forced.
-
-**Phase:** 7, but cheap to check earlier and worth doing before the §1.5 decision is framed.
-
-> **Partially answered 2026-08-16 (phase 4) — and the part that matters is still open.**
->
-> A NativeAOT publish of `wlbackup` **succeeds**, produces a **3.2 MB** binary (against 70.2 MB
-> self-contained), and that binary runs correctly against a real Wave Link install. The IL
-> compiler emitted **zero trim/AOT warnings**, so nothing in `Core` or `Cli` is
-> AOT-incompatible today.
->
-> **But this does not answer the question this entry asks.** `WindowsAudioEndpointInspector`
-> has not been ported — there is no `[ComImport]` in the codebase — so the interop that
-> prompted the doubt was never exercised. When endpoint inspection lands, re-run this and
-> expect it to be the interesting case.
->
-> **Build requirement worth knowing:** the AOT link step invokes `vswhere.exe` unqualified and
-> fails with a misleading `MSB3073 ... exited with code 123` if it is not on `PATH`, even
-> though the MSVC toolset is installed. Adding
-> `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer` to `PATH` fixes it. CI's
-> `windows-latest` image has this wired already.
-
-> **Related signal, 2026-08-16.** The phase-1 probe ran as a .NET 10 file-based app, which
-> defaults to trimming-friendly settings, and reflection-based `JsonSerializer` threw
-> `InvalidOperationException: Reflection-based serialization has been disabled`. That is not a
-> product bug — but it is the same constraint AOT imposes. **`Core` should avoid
-> reflection-based serialization regardless of the AOT decision**, using `JsonDocument`,
-> `JsonNode` and `Utf8JsonWriter` (all reflection-free) rather than
-> `JsonSerializer.Serialize<T>`. Doing that from the start keeps §1.5's NativeAOT option open
-> at no cost; discovering it in phase 7 would mean rewriting the manifest layer.
 
 ---
 

@@ -325,7 +325,13 @@ public sealed class CommandRunner(
                      settings,
                      live.IsSuccess ? live.Value : null,
                      Store(command).List(),
-                     clock.UtcNow.ToLocalTime()))
+                     clock.UtcNow.ToLocalTime(),
+                     userName: null,
+                     // Counts only, and never an id or a name - see the section in Diagnostics.
+                     // This is also the one caller that keeps WindowsAudioEndpointInspector
+                     // reachable from the CLI, which is what makes the AOT publish a real test of
+                     // technical-debt.md 2.4 rather than a test of dead-code elimination.
+                     endpoints: new WindowsAudioEndpointInspector().List()))
         {
             output.Write(line);
         }

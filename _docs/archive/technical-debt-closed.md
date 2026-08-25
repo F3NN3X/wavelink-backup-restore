@@ -1526,3 +1526,81 @@ The unverified-assumption list in §2 is unchanged in kind: the code made some o
 load-bearing rather than hypothetical.
 
 Be blunt. A debt list that flatters the project is useless.
+
+---
+
+## 2 · Unverified assumptions — **2.4 CLOSED 2026-08-25**
+
+> **§2.4 closed 2026-08-25 by porting the inspector, and the answer is "not the way upstream does
+> it".** `WindowsAudioEndpointInspector` now exists in `Core` and is reachable from the CLI through
+> `wlbackup diagnostics`, so the AOT publish is a real test rather than a test of dead-code
+> elimination. Three mechanisms were tried against `IsAotCompatible`:
+>
+> | Mechanism | Result |
+> |---|---|
+> | `Activator.CreateInstance(Type.GetTypeFromCLSID(clsid))` — upstream's activation | **IL2072, build error.** A CLSID resolved at runtime yields a `Type` the trimmer cannot prove has a parameterless constructor |
+> | Classic `[ComImport]` interfaces via a `CoCreateInstance` P/Invoke with `[MarshalAs(UnmanagedType.Interface)]` | **IL2050, build error.** Built-in COM marshalling cannot be verified after trimming — the interfaces and their members might be removed |
+> | `[GeneratedComInterface]`, blittable parameters only, pointers wrapped by hand through `StrategyBasedComWrappers` | **Works.** Builds clean, AOT-publishes with zero trim warnings, and enumerates 96 real endpoints at runtime from a 7.68 MB native binary |
+>
+> **So the literal question — "does `[ComImport]` survive NativeAOT" — answers no**, and the
+> useful question answers yes: COM interop is fine under AOT provided the marshalling is
+> source-generated rather than built-in. The cost is `AllowUnsafeBlocks` on `Core`, which
+> `RecycleBin` deliberately refused for its one `DllImport`. That refusal still stands on its own
+> terms — there, unsafe would have bought marshalling speed on a call that happens once a session.
+> Here it is not an optimisation but the price of compiling at all.
+>
+> **What landed with it.** Enumeration only: `IAudioEndpointInspector.List()`, and a diagnostics
+> section that reports counts by direction and state. Repointing a dead channel at a working device
+> is an *editing* feature and stays out of 1.0 ([post-1.0.md](../dev-phases/post-1.0.md)) — SPEC §3
+> warns that rewriting a device id means walking the whole tree and rewriting both the bare and
+> `id|suffix` forms.
+>
+> **The diagnostics section carries counts and nothing else**, which is not a style choice: an
+> endpoint id embeds a device serial (§3) and a friendly name is the hardware someone owns, and the
+> report exists to be safe to paste into a public tracker. Two tests assert that neither ever
+> reaches it.
+
+## 2 · Unverified assumptions
+
+Things the design rests on that **nobody has checked**. Each one, if wrong, invalidates real
+work — so each has a cheap check attached and an owner phase.
+
+*2.1, 2.2 and 2.3 are answered — see [the archive](archive/technical-debt-closed.md).*
+
+### 2.4 Whether `[ComImport]` interop survives NativeAOT
+
+`WindowsAudioEndpointInspector` is ~80 lines of hand-declared Core Audio COM interfaces. AOT
+and `[ComImport]` need care. If it does not survive, the NativeAOT CLI option in §1.5
+evaporates and the answer there is forced.
+
+**Phase:** 7, but cheap to check earlier and worth doing before the §1.5 decision is framed.
+
+> **Partially answered 2026-08-16 (phase 4) — and the part that matters is still open.**
+>
+> A NativeAOT publish of `wlbackup` **succeeds**, produces a **3.2 MB** binary (against 70.2 MB
+> self-contained), and that binary runs correctly against a real Wave Link install. The IL
+> compiler emitted **zero trim/AOT warnings**, so nothing in `Core` or `Cli` is
+> AOT-incompatible today.
+>
+> **But this does not answer the question this entry asks.** `WindowsAudioEndpointInspector`
+> has not been ported — there is no `[ComImport]` in the codebase — so the interop that
+> prompted the doubt was never exercised. When endpoint inspection lands, re-run this and
+> expect it to be the interesting case.
+>
+> **Build requirement worth knowing:** the AOT link step invokes `vswhere.exe` unqualified and
+> fails with a misleading `MSB3073 ... exited with code 123` if it is not on `PATH`, even
+> though the MSVC toolset is installed. Adding
+> `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer` to `PATH` fixes it. CI's
+> `windows-latest` image has this wired already.
+
+> **Related signal, 2026-08-16.** The phase-1 probe ran as a .NET 10 file-based app, which
+> defaults to trimming-friendly settings, and reflection-based `JsonSerializer` threw
+> `InvalidOperationException: Reflection-based serialization has been disabled`. That is not a
+> product bug — but it is the same constraint AOT imposes. **`Core` should avoid
+> reflection-based serialization regardless of the AOT decision**, using `JsonDocument`,
+> `JsonNode` and `Utf8JsonWriter` (all reflection-free) rather than
+> `JsonSerializer.Serialize<T>`. Doing that from the start keeps §1.5's NativeAOT option open
+> at no cost; discovering it in phase 7 would mean rewriting the manifest layer.
+
+---
+

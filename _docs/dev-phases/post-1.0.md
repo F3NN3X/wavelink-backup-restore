@@ -2,7 +2,7 @@
 title: "After 1.0"
 status: review
 created: 2026-08-19
-updated: 2026-08-19
+updated: 2026-08-25
 tags: [dev-phase, index]
 ---
 
@@ -52,8 +52,12 @@ means walking the whole tree and rewriting both the bare and `<deviceId>|<suffix
 handling a destination key that already exists.
 **Signal:** a user with a dead channel and a working device, which the health strip can already
 show them.
-**Note:** porting it is also what finally answers [technical-debt.md](../technical-debt.md) §2.4 —
-`[ComImport]` under NativeAOT — because there is no COM interop in the codebase today.
+**Note:** the *inspector half* landed on 2026-08-25 and closed
+[technical-debt.md](../technical-debt.md) §2.4. `WindowsAudioEndpointInspector` enumerates
+endpoints and `wlbackup diagnostics` reports counts by state; the AOT publish is clean and runs.
+**What remains out of 1.0 is the editing half** — pointing a dead channel at a working device —
+which is the part SPEC §3 warns about, and none of it was built. The inspector makes it cheaper to
+start, not started.
 
 **Restoring a plug-in somewhere other than where it came from.** Blocked on one measurement,
 not on appetite: whether Wave Link resolves a channel's plug-in by `PluginId` or by `FilePath`

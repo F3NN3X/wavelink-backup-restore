@@ -1,4 +1,5 @@
 using System.Text;
+using WaveLinkBackup.Core.Abstractions;
 using WaveLinkBackup.Core.Automation;
 using WaveLinkBackup.Core.Io;
 using WaveLinkBackup.Core.Snapshots;
@@ -36,8 +37,11 @@ public static class Diagnostics
         SettingsInspection? live,
         IReadOnlyList<Snapshot> snapshots,
         DateTimeOffset now,
-        string? userName = null) =>
-        string.Join(Environment.NewLine, Lines(appVersion, settings, live, snapshots, now, userName));
+        string? userName = null,
+        IReadOnlyList<AudioEndpoint>? endpoints = null) =>
+        string.Join(
+            Environment.NewLine,
+            Lines(appVersion, settings, live, snapshots, now, userName, endpoints));
 
     /// <summary>
     /// The report as lines. The shape the CLI wants — its output seam writes one line at a time —
@@ -49,7 +53,8 @@ public static class Diagnostics
         SettingsInspection? live,
         IReadOnlyList<Snapshot> snapshots,
         DateTimeOffset now,
-        string? userName = null)
+        string? userName = null,
+        IReadOnlyList<AudioEndpoint>? endpoints = null)
     {
         var user = userName ?? Redaction.CurrentUserName;
         var report = new StringBuilder();
@@ -99,6 +104,38 @@ public static class Diagnostics
             Line("  Plug-ins referenced", $"{live.Plugins.Count}");
         }
         report.AppendLine();
+
+        // COUNTS ONLY, and this is not a style choice. An endpoint id embeds a device serial
+        // (technical-debt.md 3) and a friendly name is the hardware a person owns; neither belongs
+        // in a file whose whole purpose is being safe to paste into a public tracker. How many
+        // capture endpoints are active, and how many are dead, is the fact a support question
+        // actually turns on - it is what separates "the input is gone" from "the input is fine".
+        if (endpoints is not null)
+        {
+            report.AppendLine("Audio endpoints");
+
+            if (endpoints.Count == 0)
+            {
+                report.AppendLine("  None reported. The audio service may not be running.");
+            }
+            else
+            {
+                foreach (var direction in new[] { EndpointDirection.Capture, EndpointDirection.Render })
+                {
+                    var inDirection = endpoints.Where(e => e.Direction == direction).ToArray();
+                    if (inDirection.Length == 0) continue;
+
+                    var byState = inDirection
+                        .GroupBy(e => e.State)
+                        .OrderBy(g => g.Key)
+                        .Select(g => $"{g.Count()} {g.Key.ToString().ToLowerInvariant()}");
+
+                    Line($"  {direction}", string.Join(", ", byState));
+                }
+            }
+
+            report.AppendLine();
+        }
 
         report.AppendLine("Backups");
         Line("  Count", $"{snapshots.Count}");
