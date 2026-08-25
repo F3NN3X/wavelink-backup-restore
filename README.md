@@ -123,15 +123,22 @@ runtime with it.
 ### Checking what you downloaded
 
 Every release ships a `.sha256` sidecar, which tells you the archive arrived intact. It cannot
-tell you where it came from, since the same pipeline produced both the file and the hash. For
-that, every archive carries a signed build provenance attestation naming the commit and the
-workflow run that produced it:
+tell you where it came from, because the same pipeline produced both the file and the hash, so
+anyone able to publish a release can publish a matching hash.
+
+Releases cut after v0.7.6 also carry a signed build provenance attestation. The signing
+certificate is issued to the workflow run itself and expires with it, so there is no key to steal:
+what it proves is that the archive came out of this repository's release workflow at a named
+commit.
 
 ```powershell
-gh attestation verify WaveLinkBackup-0.7.6-app-win-x64.zip --repo F3NN3X/wavelink-backup-restore
+gh attestation verify WaveLinkBackup-<version>-app-win-x64.zip --repo F3NN3X/wavelink-backup-restore
 ```
 
-If you would rather build it yourself, the commands under [Building](#building) reproduce the
+Needs the [GitHub CLI](https://cli.github.com/), signed in. v0.7.6 and earlier predate this and
+have checksums only.
+
+If you would rather not trust either, the commands under [Building](#building) reproduce the
 release archives byte for byte.
 
 ---

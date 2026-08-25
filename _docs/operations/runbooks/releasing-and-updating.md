@@ -273,9 +273,11 @@ prove *who* published the release, because whoever controls the release controls
 beside it. This is written on `UpdateRelease.Sha256` itself so it cannot be misread as a security
 guarantee.
 
-**Provenance is attested, and the app does not read it.** Since 2026-08-25 the release workflow
-signs a build provenance statement for both archives through Sigstore, binding each digest to this
-repository, the commit and the workflow run. A person deciding whether to run a download can check
+**Provenance is attested, and the app does not read it.** From the first release cut after v0.7.6,
+the workflow signs a build provenance statement for both archives through Sigstore, binding each
+digest to this repository, the commit and the workflow run. v0.7.6 and earlier were published
+before the step existed and have checksums only, so `gh attestation verify` against them reports
+no attestation found, which is correct rather than a failure. A person deciding whether to run a download can check
 where it came from:
 
 ```powershell
