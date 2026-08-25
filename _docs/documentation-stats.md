@@ -2,7 +2,7 @@
 title: "Documentation Stats"
 status: published
 created: 2026-08-16
-updated: 2026-08-24
+updated: 2026-08-25
 tags: [meta, stats]
 ---
 
@@ -56,6 +56,32 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### The debt list is split: what is owed, and what was paid (2026-08-25)
+
+**`technical-debt.md` went from 1,646 lines to 257.** Thirty-six of its thirty-nine numbered entries were closed,
+withdrawn or paid, and reading the file meant scrolling past all of them to find the four that are
+not. The closures moved to
+[archive/technical-debt-closed.md](archive/technical-debt-closed.md) verbatim — not summarised,
+because the reasoning that closed an entry is the part worth having later, and several read as the
+record of *why* a thing is the way it is rather than as a ticked box.
+
+- **What stayed is four entries and one table.** §7.6 (where a restored plug-in goes when its
+  folder is unwritable — one experiment on a live rig), §8.2 (the by-eye sitting the §8.6 verdict
+  and matrix are still owed), §2.4 (a re-open trigger for when `WindowsAudioEndpointInspector`
+  lands), and §3 (known-wrong deliberately, which is permanent by design and is not owed work).
+  §5's table of numbers-that-look-like-constants stayed as a standing hazard list; the audit that
+  closed it went to the archive.
+
+- **Section numbers are unchanged in both files.** Twenty-odd ADRs, audits and session notes cite
+  "§4.18" or "§8.5" in prose, and none of them uses an anchor link, so preserving the numbering
+  across the split keeps every one of those references resolving.
+
+- **The tier list was rewritten, and the original kept.** Tier 1 — closeable by a commit — is
+  empty, so the live file carries only the human-with-eyes sitting and the two Tier 3 items waiting
+  on facts from outside the repo. The original three-tier ordering is the archive's appendix,
+  because it records how the 2026-08-22 pass was sequenced and why each item sat where it did.
+
 
 ### v0.7.4 — a restore puts the service back, and the trash row finally refreshes (2026-08-24)
 
