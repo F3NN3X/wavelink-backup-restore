@@ -20,17 +20,18 @@ of §8. Those entries moved out on 2026-08-25 with their reasoning intact, becau
 boxes buries the few things still owed. Section numbers are unchanged in both files, so a
 reference to §4.18 from an ADR or a commit message still resolves.
 
-**§2.4 closed on 2026-08-25** and left with them: porting `WindowsAudioEndpointInspector` answered
-it, and the answer was no — classic `[ComImport]` does not survive trimming, in two distinct ways.
-Source-generated COM does. The evidence is in [the archive](archive/technical-debt-closed.md).
+**Two more closed on 2026-08-25.** §2.4 — porting `WindowsAudioEndpointInspector` answered it, and
+the answer was no: classic `[ComImport]` does not survive trimming, in two distinct ways, and
+source-generated COM does. §7.6 — the experiment ran on the reference rig, and Wave Link resolves a
+plug-in by `PluginId`, repairing `FilePath` behind it. Both evidence tables are in
+[the archive](archive/technical-debt-closed.md).
 
 ## What is actually left
 
-Three entries, and **none of them is a commit somebody has not written.**
+Two entries, and **only one of them is work.**
 
 | | Why it cannot be closed here |
 |---|---|
-| **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link, written up in the entry. Not a defect — an unanswered question, and §7.5 already removed the prompt in the common case, so the answer may well be "leave it". **Status 2026-08-22: the user will run the experiment on the reference rig; it stays open until that run.** |
 | **§8.2** — the by-eye sittings owed by the §8.6 verdict and matrix | The 2026-08-22 sitting checked the *old* surfaces (the five-slot strip, the pre-matrix dialog) and closed what it saw; the verdict that replaced the strip and the matrix that joined the dialog have not been looked at on a machine yet. Nothing in the suite can assert that a layout looks right. |
 | **§3** — the known-wrong list | Not owed work at all. Four choices made with eyes open, recorded so they are not "discovered" later and fixed by someone who does not know they were decided. It stays here permanently. |
 
@@ -69,13 +70,12 @@ Settings, and back afterwards.
 
 When item 5 is ticked, §8.2 closes for good and nothing in §8 remains but the entries.
 
-**Tier 3 — closeable only by a fact from outside this repo.** One item now: §2.4 left this tier on
-2026-08-25 when the inspector was ported and answered it. No commit and no amount of looking at
-this codebase closes what remains — it waits on something observed in the world, so the only action
-available is to keep the cost of the answer being wrong at zero, which is already done.
+**Tier 3 — closeable only by a fact from outside this repo — is now empty.** §2.4 left it on
+2026-08-25 when the inspector was ported; §7.6 left it the same day when the experiment ran. Both
+had sat there because nothing in this repo could answer them, which was true right up until
+somebody went and looked.
 
-| Item | The external fact it waits on | What to do in the meantime | Why the wait is acceptable |
-|---|---|---|---|
+---|---|---|---|
 | **§7.6** — where a restored plug-in should go when its own folder is unwritable | One reversible experiment on a live Wave Link: copy one on-channel plug-in to the user-level VST3 folder, rename the shared copy, restart, and see whether the channel still loads and whether `FilePath` was rewritten. The full protocol is in [audits/2026-08-20-plugin-resolution-and-elevation.md](audits/2026-08-20-plugin-resolution-and-elevation.md) | **The user will run it on the reference rig (status 2026-08-22).** Take a backup first (the experiment is reversible but not free). The answer also settles whether tier 2's drift check could key on `PluginId` rather than path, which is a second debt this one entry closes | §7.5 already removed the prompt in the common case, so the *recommendation* pending the answer is "probably do not build the fallback". The experiment is worth having regardless, but it is an hour of careful work on a live install, not a task to slot into a quiet afternoon |
 
 ---
@@ -105,71 +105,6 @@ because they carry history our first run will not have. We do not prune, rotate 
 a restore never puts them back — they are evidence, not payload. *(True since 0.6.0. It was stated
 here as settled fact from 2026-08-16, and the code did not do it until phase 6 §8 — found by the
 spec-coverage pass, which is the argument for having written one.)*
-
----
-
-## 7 · Design decisions that outdated shipped code
-
-The phase-5 design package (handoff part 2) closed the six gaps **and** made four behavioural
-decisions that contradicted code already written and tested. None of that was a mistake in either
-place: the code was built to the best spec available, and the design had since decided better.
-
-*7.1–7.5 all shipped — see [the archive](archive/technical-debt-closed.md). **§7.6 is not a
-defect** — it is a question §7.5 raised, with a reversible experiment attached and a
-recommendation that the answer may well be "leave it alone".*
-
-### 7.6 Where a restored plug-in should go when its own folder is unwritable — **OPEN, needs one experiment**
-
-**Not a defect. An unanswered question**, raised by §7.5 and recorded because answering it wrongly
-would break a channel silently — the failure mode [[vst3-backs-up-as-nothing]] and §4.18 both
-already cost this project a phase.
-
-**Full method, findings and the experiment protocol:**
-[audits/2026-08-20-plugin-resolution-and-elevation.md](audits/2026-08-20-plugin-resolution-and-elevation.md).
-Summarised here because that is where a debt belongs; the audit is where the commands are.
-
-**The question.** Tier 4 restores a `.vst3` to the absolute `FilePath` the settings recorded. When
-that folder refuses a write, the alternative is the user-level VST3 location
-(`%LOCALAPPDATA%\Programs\Common\VST3`), which needs no administrator. Whether that works turns on
-one thing nobody has verified: **does Wave Link resolve a channel's plug-in by `PluginId`, or by
-`FilePath`?**
-
-**What is measured** (this rig, 2026-08-20): Wave Link is JUCE-based; every third-party `PluginId`
-in `Settings.json` matches a cache `uniqueId` exactly, so a path-independent identity **exists**;
-the only configurable scan folder is VST2 and it is empty; and all 154 cached plug-ins are VST3 in
-the shared folder, so the user-level one could not be observed being scanned.
-
-**Why that is not enough.** The recorded paths all agree with the cache today, because nothing has
-moved — so the data **cannot distinguish** the two resolution strategies. That is the whole reason
-this is an entry rather than an implementation.
-
-**The experiment is scripted.** [`tools/plugin-resolution-experiment.ps1`](../tools/plugin-resolution-experiment.ps1)
-runs the reversible file surgery and records the verdict; `-Status` is read-only and safe to run
-now. What is still yours: take a backup, restart Wave Link, and look at the channel.
-
-**What closes it:** the experiment in the audit — copy one on-channel plug-in to the user folder,
-rename the shared copy, restart, see whether the channel still loads and whether `FilePath` was
-rewritten. Three outcomes, each with its consequence, tabulated there. Reversible; take a backup
-first.
-
-**Recommendation, pending the answer: probably do not build the fallback.** §7.5 already removes
-the prompt on any machine whose VST3 folder has been loosened, which is the common case and
-includes this one. What remains is one prompt, on an explicit opt-in, for writing to a folder every
-account shares — which is what UAC is for. A fallback destination trades that for a file somewhere
-other than where it came from, a possible duplicate at the old path, and the loss of a promise tier
-4 currently keeps.
-
-**The answer is worth having regardless**, because it also settles whether tier 2's drift check
-could key on `PluginId` rather than path — making "the plug-in moved" a state this app can
-describe instead of one indistinguishable from "the plug-in is gone" — and because it removes one
-of the two reasons [post-1.0.md](dev-phases/post-1.0.md) refuses portable backups.
-
-> **Status 2026-08-22 — user will run the experiment.** The check above is a live-install
-> procedure (copy, rename, restart, observe), which is the user's to perform on the reference rig
-> rather than something CI or a test can stand in for. It stays open until that run; nothing here
-> blocks shipping, and the recommendation — probably do not build the fallback — stands meanwhile.
-> When the experiment is done, close it with the observed outcome and its consequence from the
-> audit's table.
 
 ---
 

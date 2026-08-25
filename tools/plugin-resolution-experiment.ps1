@@ -155,8 +155,36 @@ function Save-Journal([object] $Journal) {
     $Journal | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $JournalPath -Encoding utf8
 }
 
+# The app process is called Elgato.WaveLink, NOT WaveLink. The name is already in Core -
+# WaveLinkProcess.ProcessNames - and this script originally guessed 'WaveLink' instead of reading
+# it. The guess cost a run: -Setup's "quit Wave Link first" guard never fired, so it renamed a
+# plug-in bundle underneath a live Wave Link that had been up for fourteen hours. Nothing broke,
+# but the experiment was void - the answer turns on Wave Link RESCANNING after the rename, and no
+# restart had happened. A guard that cannot fire is worse than no guard: it reads as a safety
+# check in the transcript.
+#
+# ONLY THE APP BLOCKS. Core's WaveLinkProcess lists WavelinkSEService alongside it, because a
+# RESTORE has to stop both - the service holds settings too. This script is not a restore. The
+# service is a Windows service that is up essentially all the time, so blocking on it would make
+# -Setup and -Undo refuse forever, and the file this experiment moves is a VST3 bundle held by the
+# app. The service is reported by -Status and ignored by the guards, deliberately.
+$WaveLinkAppProcessName = 'Elgato.WaveLink'
+$WaveLinkServiceProcessName = 'WavelinkSEService'
+
+function Get-RunningWaveLinkProcesses {
+    $found = @(
+        Get-Process -Name $WaveLinkAppProcessName -ErrorAction SilentlyContinue | Where-Object { $_ }
+    )
+
+    # `return $found` UNROLLS a one-element array back to the bare object, so with only
+    # WavelinkSEService up this handed back a Process rather than an array and every caller's
+    # .Count threw under Set-StrictMode. The leading comma wraps it so the array survives.
+    # Two processes hid this: it only misbehaves when exactly one of them is running.
+    return , $found
+}
+
 function Test-WaveLinkRunning {
-    return [bool] (Get-Process -Name 'WaveLink' -ErrorAction SilentlyContinue)
+    return (Get-RunningWaveLinkProcesses).Count -gt 0
 }
 
 function Write-Section([string] $Text) {
@@ -179,11 +207,17 @@ function Invoke-Status {
     Write-Host "  Settings.json    $settingsPath"
     Write-Host "  User VST3        $UserVst3"
     if (-not (Test-Path $UserVst3)) { Write-Host '                   (does not exist yet)' -ForegroundColor DarkGray }
-    if (Test-WaveLinkRunning) {
-        Write-Host '  Wave Link        running' -ForegroundColor Yellow
+    $running = Get-RunningWaveLinkProcesses
+    if ($running.Count -gt 0) {
+        $names = ($running | ForEach-Object ProcessName | Sort-Object -Unique) -join ', '
+        Write-Host "  Wave Link        RUNNING ($names)" -ForegroundColor Yellow
     } else {
-        Write-Host '  Wave Link        not running'
+        Write-Host "  Wave Link        not running (app process: $WaveLinkAppProcessName)"
     }
+
+    $service = @(Get-Process -Name $WaveLinkServiceProcessName -ErrorAction SilentlyContinue)
+    $serviceState = $service.Count -gt 0 ? 'running' : 'not running'
+    Write-Host "  Wave Link svc    $serviceState ($WaveLinkServiceProcessName) - not a blocker here"
 
     Write-Section "On-channel plug-ins ($($plugins.Count))"
     if ($plugins.Count -eq 0) {
@@ -228,8 +262,10 @@ function Invoke-Setup {
     }
 
     if (Test-WaveLinkRunning) {
-        throw ('Wave Link is running. Quit it first: it holds plug-in files open, and it ' +
-               'rewrites Settings.json on exit, which would race this script.')
+        $names = (Get-RunningWaveLinkProcesses | ForEach-Object ProcessName | Sort-Object -Unique) -join ', '
+        throw ("Wave Link is running ($names). Quit it first: it holds plug-in files open, it " +
+               'rewrites Settings.json on exit, and - the reason this experiment exists - the ' +
+               'answer turns on it RESCANNING after the rename, which only a restart does.')
     }
 
     $settingsPath = Get-SettingsPath
@@ -409,7 +445,8 @@ function Invoke-Undo {
     }
 
     if (Test-WaveLinkRunning) {
-        throw 'Wave Link is running. Quit it first, so the plug-in files are not held open.'
+        $names = (Get-RunningWaveLinkProcesses | ForEach-Object ProcessName | Sort-Object -Unique) -join ', '
+        throw "Wave Link is running ($names). Quit it first, so the plug-in files are not held open."
     }
 
     Write-Section 'Reversing'

@@ -43,6 +43,10 @@ heading here.
 
 - **`technical-debt.md` went from 1,646 lines to 249.** Thirty-six of its thirty-nine numbered entries were closed, and moved verbatim to [an archive](_docs/archive/technical-debt-closed.md) with section numbering preserved so existing references still resolve. §2.4 closed with this release's interop work; what remains is §7.6, §8.2 and the standing known-wrong list.
 
+### Answered
+
+- **Wave Link resolves a channel's plug-in by `PluginId`, not by `FilePath` — measured, not assumed.** The experiment behind [technical-debt.md](_docs/technical-debt.md) §7.6 ran on the reference rig: a plug-in was moved to the user-level VST3 folder and the shared copy renamed, and after a restart Wave Link found it, kept the channel intact, and **rewrote `FilePath`** to the new location. An untouched plug-in on the same channel was not rewritten, so this was the moved file being repaired rather than a blanket refresh. The user-level folder is therefore a *viable* fallback destination for tier 4 — and the standing recommendation not to build one is unchanged, because §7.5 already removed the prompt in the common case and viable is not the same as worth building. It also retires the audit's §2.4 caveat that the user-level folder could not be observed being scanned: it is scanned.
+
 ### Fixed
 
 - **An audio endpoint whose id cannot be read is dropped rather than reported blank.** `IMMDevice.GetId` failing produced an `AudioEndpoint` with an empty `Id`, which reads as a real device to every caller and matches nothing — the id is the only field a channel key matches on. The same path returned early without freeing the COM-allocated buffer, so a driver that allocated and then failed leaked it on every enumeration; the pointer is now freed unconditionally. `EndpointState`'s documentation was also wrong for two of its five values: `NotPresent` is a missing adapter and `Unplugged` is a present adapter with an empty socket, which are different things to tell a user diagnosing a lost channel.

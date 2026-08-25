@@ -1604,3 +1604,119 @@ evaporates and the answer there is forced.
 
 ---
 
+
+---
+
+## 7 · Design decisions that outdated shipped code — **§7.6 CLOSED 2026-08-25**
+
+> **§7.6 closed 2026-08-25. Wave Link resolves by `PluginId`, and repairs `FilePath` behind it.**
+> The experiment in [the audit](../audits/2026-08-20-plugin-resolution-and-elevation.md) §3 was
+> run on the reference rig with
+> [`tools/plugin-resolution-experiment.ps1`](../../tools/plugin-resolution-experiment.ps1).
+>
+> **Method.** `FabFilter Pro-L 2.vst3` was copied to `%LOCALAPPDATA%\Programs\Common\VST3\`, the
+> shared copy renamed to `.vst3.bak`, and Wave Link restarted — a real restart, which turned out
+> to matter more than expected (see the run note below).
+>
+> **Observed.**
+>
+> | | |
+> |---|---|
+> | Plug-in scan | Rescanned 13 seconds after restart and **found Pro-L 2 in the user-level folder**, carrying the same `uniqueId=45398b95` |
+> | The channel | All 11 effects still on Wave Mic 1, Pro-L 2 among them |
+> | `FilePath` | **Rewritten** to `%LOCALAPPDATA%\Programs\Common\VST3\FabFilter Pro-L 2.vst3` |
+> | `PluginId` | Unchanged — `45398b95` |
+> | Control | `Saturn 2`, untouched, still points at the shared folder — so the rewrite was about the moved file, not a blanket path refresh |
+>
+> **That is row 1 of the audit's outcome table: resolves by `PluginId`, then repairs the path. The
+> user-level folder IS a viable fallback destination for tier 4.**
+>
+> **It also settles §2.4 of the audit**, which recorded that all 154 cached plug-ins lived in the
+> shared folder so *"the user-level one could not be observed being scanned"*. It is scanned. That
+> was an unobserved corner, and it is now observed.
+>
+> **The recommendation does not change, and that is the point.** §7.5 already removed the prompt on
+> any machine whose VST3 folder has been loosened, which is this one and the common case. What
+> remains is one prompt, on an explicit opt-in, for writing to a folder every account shares —
+> which is what UAC is for. A fallback destination would trade that for a file somewhere other than
+> where it came from and a possible duplicate at the old path once the original folder becomes
+> writable again. **Viable is not the same as worth building**, and the entry's own recommendation —
+> probably do not build the fallback — stands now on a measurement instead of an assumption.
+>
+> **The second debt this closes:** tier 2's drift check can key on `PluginId` rather than path. "The
+> plug-in moved" is now a state this app could describe rather than one indistinguishable from "the
+> plug-in is gone". Not built; recorded in [post-1.0.md](../dev-phases/post-1.0.md) as newly
+> unblocked.
+>
+> **Run note, kept because it nearly produced a wrong answer.** The first attempt reported a result
+> without Wave Link having restarted at all. The script guarded on a process named `WaveLink`; the
+> real one is `Elgato.WaveLink`, so *"quit Wave Link first"* never fired and the rename happened
+> underneath an instance that had been up fourteen hours. Had the reading been trusted, it would
+> have shown `FilePath` unrewritten and produced row 2 — "the path is advisory" — which is the
+> wrong answer, arrived at confidently. The guard now reads the process name Core already holds.
+
+## 7 · Design decisions that outdated shipped code
+
+The phase-5 design package (handoff part 2) closed the six gaps **and** made four behavioural
+decisions that contradicted code already written and tested. None of that was a mistake in either
+place: the code was built to the best spec available, and the design had since decided better.
+
+*7.1–7.5 all shipped — see [the archive](archive/technical-debt-closed.md). **§7.6 is not a
+defect** — it is a question §7.5 raised, with a reversible experiment attached and a
+recommendation that the answer may well be "leave it alone".*
+
+### 7.6 Where a restored plug-in should go when its own folder is unwritable — **OPEN, needs one experiment**
+
+**Not a defect. An unanswered question**, raised by §7.5 and recorded because answering it wrongly
+would break a channel silently — the failure mode [[vst3-backs-up-as-nothing]] and §4.18 both
+already cost this project a phase.
+
+**Full method, findings and the experiment protocol:**
+[audits/2026-08-20-plugin-resolution-and-elevation.md](../audits/2026-08-20-plugin-resolution-and-elevation.md).
+Summarised here because that is where a debt belongs; the audit is where the commands are.
+
+**The question.** Tier 4 restores a `.vst3` to the absolute `FilePath` the settings recorded. When
+that folder refuses a write, the alternative is the user-level VST3 location
+(`%LOCALAPPDATA%\Programs\Common\VST3`), which needs no administrator. Whether that works turns on
+one thing nobody has verified: **does Wave Link resolve a channel's plug-in by `PluginId`, or by
+`FilePath`?**
+
+**What is measured** (this rig, 2026-08-20): Wave Link is JUCE-based; every third-party `PluginId`
+in `Settings.json` matches a cache `uniqueId` exactly, so a path-independent identity **exists**;
+the only configurable scan folder is VST2 and it is empty; and all 154 cached plug-ins are VST3 in
+the shared folder, so the user-level one could not be observed being scanned.
+
+**Why that is not enough.** The recorded paths all agree with the cache today, because nothing has
+moved — so the data **cannot distinguish** the two resolution strategies. That is the whole reason
+this is an entry rather than an implementation.
+
+**The experiment is scripted.** [`tools/plugin-resolution-experiment.ps1`](../tools/plugin-resolution-experiment.ps1)
+runs the reversible file surgery and records the verdict; `-Status` is read-only and safe to run
+now. What is still yours: take a backup, restart Wave Link, and look at the channel.
+
+**What closes it:** the experiment in the audit — copy one on-channel plug-in to the user folder,
+rename the shared copy, restart, see whether the channel still loads and whether `FilePath` was
+rewritten. Three outcomes, each with its consequence, tabulated there. Reversible; take a backup
+first.
+
+**Recommendation, pending the answer: probably do not build the fallback.** §7.5 already removes
+the prompt on any machine whose VST3 folder has been loosened, which is the common case and
+includes this one. What remains is one prompt, on an explicit opt-in, for writing to a folder every
+account shares — which is what UAC is for. A fallback destination trades that for a file somewhere
+other than where it came from, a possible duplicate at the old path, and the loss of a promise tier
+4 currently keeps.
+
+**The answer is worth having regardless**, because it also settles whether tier 2's drift check
+could key on `PluginId` rather than path — making "the plug-in moved" a state this app can
+describe instead of one indistinguishable from "the plug-in is gone" — and because it removes one
+of the two reasons [post-1.0.md](../dev-phases/post-1.0.md) refuses portable backups.
+
+> **Status 2026-08-22 — user will run the experiment.** The check above is a live-install
+> procedure (copy, rename, restart, observe), which is the user's to perform on the reference rig
+> rather than something CI or a test can stand in for. It stays open until that run; nothing here
+> blocks shipping, and the recommendation — probably do not build the fallback — stands meanwhile.
+> When the experiment is done, close it with the observed outcome and its consequence from the
+> audit's table.
+
+---
+
