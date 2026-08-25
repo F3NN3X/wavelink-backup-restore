@@ -21,6 +21,20 @@ heading here.
 
 ---
 
+## [Unreleased]
+
+**The app now tells you an update exists without being asked.** It checks at startup rather than only when the Settings dialog happens to be opened, and says so on the status strip, in the tray menu, and once per version as a notification.
+
+### Added
+
+- **An "update available" notice, in three places.** A fourth segment on the status strip (`· UPDATE 0.7.5 AVAILABLE`), a line at the top of the tray menu that opens Settings, and a tray notification that fires **once per version** — not once per check, and not once per launch. All three read one field, so they cannot disagree with each other. Nothing appears when you are up to date: the strip never says "UP TO DATE", and the menu line ships collapsed, because a line that is always there stops being read. See [ADR-018](_docs/decisions/ADR-018-a-third-notification-and-an-update-notice-on-the-strip.md).
+
+### Fixed
+
+- **The weekly update check now actually runs weekly.** It was wired to the Settings dialog's `Loaded` handler, so "check for updates on its own — weekly, on by default" meant "weekly, the next time you happen to open Settings". The setting said on, the interval was seven days, and the code matched both — the gap was entirely in where the check was attached. It now runs at startup, off the UI thread, honouring the same interval and the same setting. A feed that is down or rate-limiting stays silent rather than showing an alarming strip.
+
+---
+
 ## [0.7.5] - 2026-08-25
 
 **The debt list is empty of work, and the app can see the machine's audio devices.** `wlbackup diagnostics` now reports how many capture and playback endpoints exist and what state each is in — the fact that separates "this input is gone" from "this input is fine", which nothing in a settings file can answer. Dialogs no longer render see-through in a high-contrast scheme. And the two questions that could only be answered on a real rig were answered on one: Wave Link resolves a plug-in by identity rather than by path, and the last by-eye look is done.

@@ -285,6 +285,68 @@ public partial class App : Application
         if (!arguments.StartInTray) ShowMainWindow();
 
         RefreshTray();
+
+        // The check that makes "weekly, on by default" true. It used to run from the Settings
+        // dialog's Loaded handler, which meant a user who never opened Settings was never told a
+        // fix existed - the design's cadence, attached to a surface almost nobody visits.
+        _ = CheckForUpdateInBackground();
+    }
+
+    /// <summary>
+    /// The weekly update check, at startup, off the UI thread.
+    ///
+    /// <para>
+    /// Fire-and-forget on purpose: startup must not wait on a network call, and a failure here is
+    /// not the user's problem. Every outcome that is not "there is a newer release" leaves
+    /// <see cref="updateAvailableVersion"/> null, so a feed that is down or a GitHub that is
+    /// rate-limiting is silence rather than a scary strip.
+    /// </para>
+    ///
+    /// <para>
+    /// The found version lives in memory only. This app is meant to sit in the tray for weeks, so
+    /// in the ordinary case it is found once and shown until it is installed. Restarting inside
+    /// the weekly window does lose the notice until the next check is due - the alternative is a
+    /// new persisted settings field, and a check-on-every-launch would be a network call per
+    /// launch for a figure the design deliberately set to seven days. "Check now" in Settings is
+    /// always there.
+    /// </para>
+    /// </summary>
+    private async Task CheckForUpdateInBackground()
+    {
+        if (!settings.CheckForUpdates) return;
+
+        var source = ReleaseSource;
+        if (!source.IsConfigured) return;
+
+        var now = DateTimeOffset.Now;
+        if (settings.LastUpdateCheckUtc is { } last && now - last < UpdateViewModel.AutoCheckInterval)
+        {
+            return;
+        }
+
+        UpdateCheck check;
+        try
+        {
+            check = await new GitHubReleaseFeed(source, updateHttp)
+                .CheckAsync(ReleaseVersion.Current, CancellationToken.None)
+                .ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or IOException)
+        {
+            // Offline, blocked, or slow. Nothing to say, and nothing to log at the user.
+            return;
+        }
+
+        ApplySettings(settings with { LastUpdateCheckUtc = now });
+
+        if (check.Result != UpdateCheckResult.UpdateAvailable || check.Release is null) return;
+
+        updateAvailableVersion = ReleaseVersion.Display(check.Release.Version);
+
+        // The strip and the tray both read the field; these are what make them notice. The
+        // balloon rides on RefreshTray, so it fires exactly once per version via TrayNotifications.
+        RefreshShellFacts();
+        RefreshTray();
     }
 
     /// <summary>
@@ -491,6 +553,9 @@ public partial class App : Application
             // LastBackupHeader is deliberately absent: it is a readout, not an item.
             switch (item.Name)
             {
+                case "UpdateAvailableHeader":
+                    item.Click += (_, _) => { ShowMainWindow(); OpenSettings(); };
+                    break;
                 case "BackUpNow": item.Click += (_, _) => BackUpNow(); break;
                 case "OpenApp": item.Click += (_, _) => ShowMainWindow(); break;
                 case "OpenFolder": item.Click += (_, _) => OpenStoreFolder(); break;
@@ -1319,6 +1384,11 @@ public partial class App : Application
                 OpenSettings();
             },
             TrayNotificationKind.WaveLinkReset => ShowMainWindow,
+            TrayNotificationKind.UpdateAvailable => () =>
+            {
+                ShowMainWindow();
+                OpenSettings();
+            },
             _ => null,
         };
 
@@ -1329,6 +1399,16 @@ public partial class App : Application
 
     /// <summary>What clicking the most recent notification does. Null when there is nothing to do.</summary>
     private Action? pendingNotificationAction;
+
+    /// <summary>
+    /// The version a check found and this build does not have, display-formatted, or null.
+    ///
+    /// ONE field feeding three surfaces - the status strip, the tray menu line, and the balloon -
+    /// rather than each asking the feed itself. The check is a network call on a timer; three
+    /// callers would mean three answers that can disagree, and a strip that says one thing while
+    /// the menu says another is worse than either alone.
+    /// </summary>
+    private string? updateAvailableVersion;
 
     /// <summary>
     /// The second designed notification: Wave Link rejected a restored backup and reset the live
@@ -1409,6 +1489,18 @@ public partial class App : Application
         // refresh, which is every host tick, and fired at most once per episode - the decision and
         // the once-ness both live in TrayNotifications so they can be asserted from a table.
         Notify(notifications.NothingBackedUp(newest.TakenAt, DateTimeOffset.Now));
+
+        // The update line and the balloon read the SAME field the strip does, so the three can
+        // never disagree. TrayNotifications decides the once-ness; this just asks.
+        var update = Item("UpdateAvailableHeader");
+        update.Header = updateAvailableVersion is { Length: > 0 } available
+            ? $"UPDATE {available} AVAILABLE · INSTALL IN SETTINGS"
+            : "UPDATE AVAILABLE";
+        update.Visibility = updateAvailableVersion is { Length: > 0 }
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        Notify(notifications.UpdateAvailable(updateAvailableVersion));
 
         Item("LastBackupHeader").Header = Readout();
         Item("AutoBackup").IsChecked = host.AutoBackupEnabled;
@@ -1499,7 +1591,8 @@ public partial class App : Application
             StorePath: settings.StorePath,
             FreeBytes: fileSystem.GetAvailableFreeBytes(settings.StorePath),
             WaveLinkVersion: inspection.IsSuccess ? inspection.Value.Analysis.WaveLinkVersion : null,
-            LogsPath: inspection.IsSuccess ? inspection.Value.Location.LogsPath : null));
+            LogsPath: inspection.IsSuccess ? inspection.Value.Location.LogsPath : null,
+            UpdateAvailableVersion: updateAvailableVersion));
     }
 
     /// <summary>

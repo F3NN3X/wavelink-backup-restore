@@ -20,11 +20,11 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of v0.7.5 (2026-08-25).*
+*As of v0.7.5 plus unreleased work on `feat/update-available-notification` (2026-08-25).*
 
 | Artifact | Count |
 |---|---|
-| ADRs | 17 |
+| ADRs | 18 |
 | Gotchas | 31 |
 | Patterns | 5 |
 | Recipes | 2 |
@@ -33,7 +33,7 @@ Update this file **in the same commit** as the document it counts. See
 | Sessions | 27 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,621 passing** — Core 521 · CLI 100 · App 1,000 |
+| **Tests** | **1,635 passing** — Core 521 · CLI 100 · App 1,014 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -56,6 +56,32 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 ---
 
 ## Recent additions
+
+### The app says an update exists, without being asked (2026-08-25)
+
+**A gap that every setting denied.** The design says *"check for updates on its own — weekly, on by
+default"*; the code checked weekly and the setting was on. But the check ran from the Settings
+dialog's `Loaded` handler, so the real cadence was *"weekly, the next time you happen to open
+Settings"* — and Settings is a place people visit once, to pick a folder. Nothing looked wrong
+anywhere: the gap was entirely in *where the check was attached*.
+
+- **One ADR.** [[ADR-018]] — the check moves to startup, and an available update is said on the
+  status strip, in the tray menu, and once per version as a notification. Its *Alternatives
+  considered* carries six, including the two that look cheapest: leaving the check where it was
+  (cosmetic — the segment would stay blank) and checking on every launch (a network call per launch
+  for a figure the design set deliberately).
+
+- **It spends the design's "exactly two notifications" budget, and says so.** That rule is worth
+  reading precisely: *"A successful backup NEVER notifies. A safety net that congratulates itself
+  weekly gets muted."* It is about the app talking about itself doing its job — routine, repeating.
+  An update notice is rare, is about a version rather than a run, and fires once per version. The
+  guard the rule protects is untouched and still enforced by the type, with a test that says so.
+
+- **Tests: 1,621 → 1,635.** Thirteen for the notice and its cadence, one for the menu line shipping
+  collapsed. Two existing guards had to move: the tray-menu order test gained the new item, and the
+  template test stopped counting menu items — a hardcoded 10 had turned "no template failed to
+  apply" into an assertion about arithmetic.
+
 
 ### The debt list gets down to two, and the tools that get it there (2026-08-25)
 

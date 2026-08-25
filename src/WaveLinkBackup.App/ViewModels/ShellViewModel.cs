@@ -24,6 +24,14 @@ public enum StripTone
 /// <param name="SettingsLastSavedLocal">Null when the file could not be read at all.</param>
 /// <param name="WaveLinkInputs">How many inputs the live configuration has - the first-run found-line's "N INPUTS". Zero when the settings could not be read.</param>
 /// <param name="WaveLinkSettingsPath">The path to Wave Link's own Settings.json - Screen 4's mono line beneath the found-line. Null when discovery failed.</param>
+/// <param name="UpdateAvailableVersion">
+/// The version a check found and this build does not have, already display-formatted, or null when
+/// there is nothing to say - no check has run, the check failed, or this build is current.
+///
+/// **A fact, carried like every other fact on the strip.** It arrives here rather than the strip
+/// reading <see cref="ShellViewModel.Updates"/> directly, because the point of this record is that
+/// every string on the strip can be asserted from a table without standing up an update feed.
+/// </param>
 public sealed record ShellFacts(
     bool WaveLinkFound,
     bool WaveLinkRunning,
@@ -35,7 +43,8 @@ public sealed record ShellFacts(
     string StorePath,
     long? FreeBytes,
     string? WaveLinkVersion = null,
-    string? LogsPath = null);
+    string? LogsPath = null,
+    string? UpdateAvailableVersion = null);
 
 /// <summary>
 /// The status strip, the bottom bar, and what the four action buttons may do.
@@ -176,8 +185,10 @@ public sealed class ShellViewModel : ObservableObject
         get
         {
             // 06's status strip (1). Everything else on the strip is a fact about a
-            // configuration we could not read, so there is nothing else to say.
-            if (!facts.WaveLinkFound) return "WAVE LINK NOT FOUND ON THIS COMPUTER";
+            // configuration we could not read, so there is nothing else to say - except the
+            // update, which is a fact about THIS APP and is still true when Wave Link is gone.
+            // The rule that empties the rest of the line does not reach it.
+            if (!facts.WaveLinkFound) return WithUpdate("WAVE LINK NOT FOUND ON THIS COMPUTER");
 
             var running = facts.WaveLinkRunning ? "WAVE LINK RUNNING" : "WAVE LINK NOT RUNNING";
 
@@ -189,9 +200,23 @@ public sealed class ShellViewModel : ObservableObject
                 ? "BACKUP FOLDER UNAVAILABLE"
                 : $"AUTOMATIC BACKUP {(facts.AutoBackupEnabled ? "ON" : "OFF")}";
 
-            return $"{running} · {saved} · {last}";
+            return WithUpdate($"{running} · {saved} · {last}");
         }
     }
+
+    /// <summary>
+    /// The update segment, in the strip's own idiom rather than as a new surface. It goes LAST on
+    /// purpose: the facts before it are about the thing the user came here to protect, and an
+    /// update is about the tool.
+    ///
+    /// It appears only when there IS one - the strip never says "UP TO DATE", because a segment
+    /// that is always present stops being read, and then the one time it changes nobody notices.
+    /// That is the exact failure this notice exists to avoid.
+    /// </summary>
+    private string WithUpdate(string line) =>
+        facts.UpdateAvailableVersion is { Length: > 0 } version
+            ? $"{line} · UPDATE {version} AVAILABLE"
+            : line;
 
     public StripTone StatusTone =>
         !facts.WaveLinkFound ? StripTone.Warn
