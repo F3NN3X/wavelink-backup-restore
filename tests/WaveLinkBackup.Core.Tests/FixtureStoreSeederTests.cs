@@ -73,9 +73,33 @@ public sealed class FixtureStoreSeederTests : IDisposable
 
         using (process)
         {
-            output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
-            process.WaitForExit(milliseconds: 60_000);
-            return process.HasExited && process.ExitCode == 0;
+            // Read both pipes ASYNCHRONOUSLY, and start them before waiting.
+            //
+            // ReadToEnd() blocks until the pipe closes, which happens when the child exits - so
+            // reading first made the WaitForExit timeout below unreachable: a pwsh that hung
+            // (a prompt nothing answers, a lock it never gets) hung the whole test run instead.
+            // Reading stdout to the end before touching stderr is also the classic deadlock, if
+            // the child ever fills the stderr buffer while this side is still draining stdout.
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            var stderr = process.StandardError.ReadToEndAsync();
+
+            if (!process.WaitForExit(milliseconds: 60_000))
+            {
+                // Kill the tree, not just pwsh: the script is what would be wedged, and an
+                // orphaned child keeps the pipes open and this method waiting on them forever.
+                try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+
+                output = "seed-fixture-store.ps1 did not exit within 60s and was killed.";
+                return false;
+            }
+
+            // Only now are the pipes guaranteed closed, so these complete. The overload with a
+            // timeout does not wait for the readers; this second call does, which is what makes
+            // the output complete rather than truncated.
+            process.WaitForExit();
+
+            output = stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult();
+            return process.ExitCode == 0;
         }
     }
 

@@ -45,6 +45,39 @@ internal static class Wpf
 
     public static T Run<T>(Func<T> work) => Loop().Invoke(work);
 
+    /// <summary>
+    /// Runs the dispatcher until everything queued above <see cref="DispatcherPriority.SystemIdle"/>
+    /// has been processed - including work queued WHILE it drains. Call from inside
+    /// <see cref="Run{T}"/>, after <c>UpdateLayout</c>, before walking a visual tree.
+    ///
+    /// <para>
+    /// <b>This replaces <c>Dispatcher.Invoke(() => { }, somePriority)</c>, which is not a drain.</b>
+    /// That posts one marker and returns when the marker runs; anything the binding engine queues
+    /// while the queue is being processed lands behind it and is still pending when the caller
+    /// starts asserting. <see cref="Dispatcher.PushFrame"/> keeps the loop running instead, so a
+    /// callback that queues more work does not escape it.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>And the priority argument reads backwards.</b> <c>Invoke</c> at priority P returns once
+    /// everything HIGHER than P has run, so a LOWER priority drains MORE.
+    /// <c>SettingsDialogViewTests</c> moved its pump from <c>Background</c> (4) to <c>Input</c>
+    /// (5) to drain harder and did the opposite - which is why the flake its comment describes
+    /// came back on 2026-08-25, one run passing and one failing on the identical commit.
+    /// <c>SystemIdle</c> is the bottom of the queue, so nothing outranks it.
+    /// </para>
+    /// </summary>
+    public static void Drain()
+    {
+        var frame = new DispatcherFrame();
+
+        Dispatcher.CurrentDispatcher.BeginInvoke(
+            DispatcherPriority.SystemIdle,
+            new Action(() => frame.Continue = false));
+
+        Dispatcher.PushFrame(frame);
+    }
+
     private static Dispatcher Loop()
     {
         lock (Gate)

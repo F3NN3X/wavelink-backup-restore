@@ -106,6 +106,14 @@ half only a human can do, because the mechanical half is scripted.
   suite could assert it and nothing did: the dialog laid out, bound and closed correctly. Found by
   a person looking at a screen, which is item 5 of the by-eye checklist's whole argument.
 
+- **A review round, and a CI flake that was not this branch's.**
+  `SettingsDialogViewTests.The_two_plain_language_notes_render_their_lead_clauses` failed on one CI
+  run and passed on another at the identical commit — the flake its own comment already described
+  from v0.7.2. The mitigation had inverted the priority argument: `Dispatcher.Invoke` at priority P
+  returns once everything *higher* than P has run, so moving from `Background` to `Input` drained
+  less rather than more. `Wpf.Drain` pushes a frame at `SystemIdle` and keeps pumping, so work the
+  binding engine queues mid-drain does not escape it.
+
 - **Tests: 1,598 → 1,621**, in Core and App. Eight for the endpoint inspector and the redaction rules
   over its diagnostics section, five for the tool-script guard, four for the fixture seeder.
 

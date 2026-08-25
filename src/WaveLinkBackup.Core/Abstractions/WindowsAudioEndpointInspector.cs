@@ -159,7 +159,10 @@ public sealed partial class WindowsAudioEndpointInspector : IAudioEndpointInspec
 
             try
             {
-                found.Add(Describe(device, direction));
+                // Null means the endpoint would not give up its id, and an endpoint without one
+                // is not useful to any caller: the id is the only thing a channel key matches on.
+                // Dropping it beats returning a blank-id record that reads as a real device.
+                if (Describe(device, direction) is { } endpoint) found.Add(endpoint);
             }
             catch (COMException)
             {
@@ -171,9 +174,22 @@ public sealed partial class WindowsAudioEndpointInspector : IAudioEndpointInspec
         return found;
     }
 
-    private static AudioEndpoint Describe(IMMDevice device, EndpointDirection direction)
+    /// <summary>
+    /// Null when the endpoint will not give up its id. <see cref="Collect"/> drops those rather
+    /// than reporting a record whose only identifying field is blank.
+    /// </summary>
+    private static AudioEndpoint? Describe(IMMDevice device, EndpointDirection direction)
     {
-        var id = device.GetId(out var idPointer) < 0 ? "" : PtrToStringAndFree(idPointer);
+        var hr = device.GetId(out var idPointer);
+
+        // Free unconditionally, before the failure is checked. A failing GetId is documented to
+        // leave the out-parameter alone, but "documented" is not "true of every audio driver" -
+        // and the earlier form returned early on hr < 0 without freeing, so a driver that
+        // allocated and then failed leaked the buffer on every enumeration.
+        var id = PtrToStringAndFree(idPointer);
+
+        if (hr < 0 || id.Length == 0) return null;
+
         var state = device.GetState(out var raw) < 0 ? uint.MaxValue : raw;
 
         return new AudioEndpoint(id, ReadFriendlyName(device), direction, ToEndpointState(state));

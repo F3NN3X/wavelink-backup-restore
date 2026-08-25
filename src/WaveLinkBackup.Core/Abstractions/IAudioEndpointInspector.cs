@@ -1,21 +1,49 @@
 namespace WaveLinkBackup.Core.Abstractions;
 
-/// <summary>Whether a rendering or capture endpoint is usable right now.</summary>
+/// <summary>
+/// Whether a rendering or capture endpoint is usable right now.
+///
+/// <para>
+/// One-for-one with Core Audio's <c>DEVICE_STATE_*</c> flags, and the names are theirs. The two
+/// dead states are easy to swap and mean different things to someone diagnosing a lost channel:
+/// <see cref="NotPresent"/> is a missing adapter, <see cref="Unplugged"/> is a present adapter
+/// with nothing in the socket. Telling a user to check their cable is right for one and useless
+/// for the other.
+/// </para>
+/// </summary>
 public enum EndpointState
 {
-    /// <summary>Present and usable.</summary>
+    /// <summary>
+    /// <c>DEVICE_STATE_ACTIVE</c>. Present, enabled, and available to open a stream on.
+    /// </summary>
     Active,
 
-    /// <summary>The device exists but the user turned it off in Sound settings.</summary>
+    /// <summary>
+    /// <c>DEVICE_STATE_DISABLED</c>. The user disabled the endpoint in Windows' own sound
+    /// settings. The hardware is there; Windows has been told not to use it.
+    /// </summary>
     Disabled,
 
-    /// <summary>The driver is installed but the hardware is unplugged.</summary>
+    /// <summary>
+    /// <c>DEVICE_STATE_NOTPRESENT</c>. The audio ADAPTER behind the endpoint is gone - unplugged
+    /// from USB, removed, or disabled in Device Manager. Windows still remembers the endpoint,
+    /// which is why it can be enumerated at all.
+    /// </summary>
     NotPresent,
 
-    /// <summary>Present, but another application holds it exclusively.</summary>
+    /// <summary>
+    /// <c>DEVICE_STATE_UNPLUGGED</c>. The adapter is present and working, but jack-presence
+    /// detection says nothing is connected to the socket - a headphone jack with no headphones.
+    /// Not about exclusive-mode access, which is a property of opening a stream rather than a
+    /// device state.
+    /// </summary>
     Unplugged,
 
-    /// <summary>The state word was something this enum does not name.</summary>
+    /// <summary>
+    /// The state word was something this enum does not name, which means the
+    /// <c>DEVICE_STATE_*</c> constants have drifted from the SDK rather than that the device is
+    /// in an exotic state.
+    /// </summary>
     Unknown,
 }
 
@@ -67,6 +95,14 @@ public interface IAudioEndpointInspector
     /// a real state on a machine with no sound hardware and on some server SKUs. A caller asking
     /// "is this channel's device alive" gets "no" either way, and an exception here would take
     /// down a capture that has nothing to do with endpoints.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Every returned endpoint has a non-empty <see cref="AudioEndpoint.Id"/>.</b> The id is
+    /// the only field a channel key can match on, so an endpoint that will not surrender one is
+    /// dropped rather than reported blank - a blank-id record reads as a real device to every
+    /// caller and matches nothing. A missing <see cref="AudioEndpoint.FriendlyName"/> is not the
+    /// same and does not drop the endpoint: a nameless live device still answers the question.
     /// </para>
     /// </summary>
     IReadOnlyList<AudioEndpoint> List();
