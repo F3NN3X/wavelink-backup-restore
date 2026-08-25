@@ -25,7 +25,7 @@ Update this file **in the same commit** as the document it counts. See
 | Artifact | Count |
 |---|---|
 | ADRs | 17 |
-| Gotchas | 30 |
+| Gotchas | 31 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
@@ -33,7 +33,7 @@ Update this file **in the same commit** as the document it counts. See
 | Sessions | 27 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,615 passing** — Core 521 · CLI 100 · App 994 |
+| **Tests** | **1,621 passing** — Core 521 · CLI 100 · App 1,000 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -100,7 +100,13 @@ half only a human can do, because the mechanical half is scripted.
   — its *What did not work* section carries four dead ends, including the guard that fired on the
   next script written after it, and the tier list that disagreed with the checklist it pointed at.
 
-- **Tests: 1,598 → 1,615**, all in Core. Eight for the endpoint inspector and the redaction rules
+- **One more gotcha, from a real high-contrast scheme.**
+  [[dialogs-are-see-through-in-high-contrast]] — every dialog is a layered window, high contrast
+  made both its fills transparent, and the result was a hole with a border round it. Nothing in the
+  suite could assert it and nothing did: the dialog laid out, bound and closed correctly. Found by
+  a person looking at a screen, which is item 5 of the by-eye checklist's whole argument.
+
+- **Tests: 1,598 → 1,621**, in Core and App. Eight for the endpoint inspector and the redaction rules
   over its diagnostics section, five for the tool-script guard, four for the fixture seeder.
 
 

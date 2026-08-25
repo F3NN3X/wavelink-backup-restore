@@ -45,6 +45,8 @@ heading here.
 
 ### Fixed
 
+- **Dialogs are no longer see-through in a high-contrast scheme.** Every dialog is a layered window — `AllowsTransparency="True"`, `Background="Transparent"` — carrying a `WlScrim` fill with a `WlCard` card on top. High contrast set *both* to transparent: the scrim because a dialog is separated by a border rather than by dimming, and the card because of the theme's governing rule that every fill goes transparent. Together they left the window without a single opaque pixel, so the desktop showed through the dialog behind its own text. `WlCard` now resolves to `SystemColors.WindowColorKey` and is the one documented exception to that rule. Inside the main window this is visually identical to what it replaced; on a layered window it is the difference between a dialog and a hole. See [the gotcha](_docs/knowledge-base/gotchas/dialogs-are-see-through-in-high-contrast.md).
+
 - **`_docs/README.md` no longer describes the design export as if it were in the repository.** The folder is listed in `.git/info/exclude`, so the roughly 40 documents linking into it resolve only on a machine holding the export. Recorded rather than rewritten — those links cite the authority, and a citation to a document the reader may not hold is honest in a way a removed link is not.
 
 ---

@@ -6,7 +6,9 @@
       we do not get to mean anything with them: green-is-whole and amber-is-not are gone. This
       works because health was never encoded only in colour — it is encoded in shape.
 
-      Every fill goes transparent. Nothing here is a literal.
+      Every fill goes transparent, with ONE exception - WlCard, which backs the dialogs and the
+      tray menu, and those are layered windows with nothing opaque behind them. See its comment.
+      Nothing here is a literal.
 
       The keys are SystemColors.*ColorKey, not SystemColors.*Color: the latter is the Color
       VALUE, and a value used as a DynamicResource key never resolves — the brush would render
@@ -14,7 +16,25 @@
     -->
     <SolidColorBrush x:Key="WlBg"     Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="WlChrome" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
-    <SolidColorBrush x:Key="WlCard"   Color="Transparent" />
+    <!--
+      WlCard IS OPAQUE, and it is the one surface that has to be.
+
+      "Every fill goes transparent" is a rule about surfaces drawn ON something - a card inside
+      the main window sits on WlBg, so dropping its fill reveals WindowColor and the card is
+      still legible, separated by its border exactly as 11-high-contrast.md intends.
+
+      A dialog card is not that. Every dialog here is a layered window - WindowStyle=None,
+      AllowsTransparency=True, Background=Transparent - with WlScrim edge to edge and the card
+      centred on top. In high contrast WlScrim is transparent too (a dialog is separated by a
+      border, not by dimming), so a transparent WlCard leaves the dialog with NO opaque pixel
+      anywhere: the desktop shows through the card, behind its own text. The tray menu is the
+      same shape for the same reason - a popup is its own window.
+
+      So this key resolves to WindowColor rather than Transparent. Inside the main window that
+      is visually identical to transparent, because WlBg is WindowColor as well; on a layered
+      window it is the difference between a dialog and a hole.
+    -->
+    <SolidColorBrush x:Key="WlCard"   Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="WlRaised" Color="Transparent" />
     <SolidColorBrush x:Key="WlSunken" Color="Transparent" />
 
