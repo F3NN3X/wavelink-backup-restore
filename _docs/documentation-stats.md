@@ -33,7 +33,7 @@ Update this file **in the same commit** as the document it counts. See
 | Sessions | 28 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,663 passing** — Core 521 · CLI 100 · App 1,042 |
+| **Tests** | **1,668 passing** — Core 522 · CLI 100 · App 1,046 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -101,7 +101,7 @@ anywhere: the gap was entirely in *where the check was attached*.
   and is now the opposite of the shipped behaviour. The boundary is still the thing worth pinning,
   so it moved to the hour either side of the new one.
 
-- **Tests: 1,621 → 1,663.** The notice, its cadence and the daily interval; the checksum pairing
+- **Tests: 1,621 → 1,668.** The notice, its cadence and the daily interval; the checksum pairing
   against a real release's asset list; the swap breadcrumb; the About section's seam; one for the
   menu line shipping collapsed. Two existing guards moved: the tray-menu order test gained the
   new item, and the template test stopped counting menu items — a hardcoded 10 had turned "no

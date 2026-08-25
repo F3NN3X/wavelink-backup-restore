@@ -33,7 +33,7 @@ public sealed class UpdateNotificationTests
     [Fact]
     public void A_newer_version_notifies_again()
     {
-        // The check runs weekly forever. Being told about 0.7.5 must not silence 0.7.6.
+        // The check runs daily, forever. Being told about 0.7.5 must not silence 0.7.6.
         var notifications = new TrayNotifications();
 
         Assert.NotNull(notifications.UpdateAvailable("0.7.5"));

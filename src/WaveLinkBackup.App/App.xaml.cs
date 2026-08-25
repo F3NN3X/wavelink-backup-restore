@@ -314,14 +314,15 @@ public partial class App : Application
             Notify(TrayNotifications.UpdateFailed(failed));
         }
 
-        // The check that makes "weekly, on by default" true. It used to run from the Settings
+        // The check that makes "on its own, on by default" true. It used to run from the Settings
         // dialog's Loaded handler, which meant a user who never opened Settings was never told a
-        // fix existed - the design's cadence, attached to a surface almost nobody visits.
+        // fix existed - a cadence attached to a surface almost nobody visits. Daily now rather
+        // than the design's weekly; [[ADR-018]] carries why.
         _ = CheckForUpdateInBackground();
     }
 
     /// <summary>
-    /// The weekly update check, at startup, off the UI thread.
+    /// The automatic update check - at startup and daily thereafter, off the UI thread.
     ///
     /// <para>
     /// Fire-and-forget on purpose: startup must not wait on a network call, and a failure here is
@@ -333,10 +334,9 @@ public partial class App : Application
     /// <para>
     /// The found version lives in memory only. This app is meant to sit in the tray for weeks, so
     /// in the ordinary case it is found once and shown until it is installed. Restarting inside
-    /// the weekly window does lose the notice until the next check is due - the alternative is a
-    /// new persisted settings field, and a check-on-every-launch would be a network call per
-    /// launch for a figure the design deliberately set to seven days. "Check now" in Settings is
-    /// always there.
+    /// the daily window does lose the notice until the next check is due - the alternative is a
+    /// new persisted settings field for a one-day gap, and a check-on-every-launch would be a
+    /// network call per launch. "Check now" in Settings is always there.
     /// </para>
     /// </summary>
     private async Task CheckForUpdateInBackground()
@@ -366,23 +366,28 @@ public partial class App : Application
 
     private async Task RunUpdateCheck(UpdateSource source, DateTimeOffset now)
     {
-
-        UpdateCheck check;
         try
         {
-            check = await new GitHubReleaseFeed(source, updateHttp)
+            var check = await new GitHubReleaseFeed(source, updateHttp)
                 .CheckAsync(ReleaseVersion.Current, CancellationToken.None)
                 .ConfigureAwait(true);
+
+            RecordUpdateCheck(check);
         }
         catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or IOException)
         {
             // Offline, blocked, or slow. Nothing to say, and nothing to log at the user.
-            return;
         }
-
-        ApplySettings(settings with { LastUpdateCheckUtc = now });
-
-        RecordUpdateCheck(check);
+        finally
+        {
+            // THE ATTEMPT is what backs off, not the success. BackupSettings says so about this
+            // very field - "when the last check ran, successful or not... otherwise a machine that
+            // is offline for a fortnight re-checks on every tick" - and recording it only on
+            // success made that sentence false: the tick is every 15 seconds, so an offline or
+            // rate-limited machine would have retried roughly 5,700 times a day. The failure that
+            // most needs backing off is exactly the one that used to skip it.
+            ApplySettings(settings with { LastUpdateCheckUtc = now });
+        }
     }
 
     /// <summary>
