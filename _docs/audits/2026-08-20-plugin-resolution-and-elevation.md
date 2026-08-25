@@ -2,7 +2,7 @@
 title: "Audit: what a tier 4 restore actually needs, and how Wave Link finds a plug-in"
 status: published
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-08-25
 related_adrs: [ADR-011, ADR-006]
 tags: [audit, restore, plugins, security]
 ---
@@ -211,6 +211,23 @@ It also bears on two other things:
 ### The experiment
 
 Reversible, about ten minutes, and it must be run on a machine with Wave Link installed.
+
+**Scripted:** [`tools/plugin-resolution-experiment.ps1`](../../tools/plugin-resolution-experiment.ps1)
+does steps 2, 3, 6 and 7, and keeps the state in a journal outside the repo so `-Undo` works from a
+fresh shell, after a reboot, or a week later. The manual version below is not hard; it is just easy
+to get half-way through and lose track of which copy is the original. Steps 1, 4 and 5 are still
+yours — take the backup, restart Wave Link, look at the channel.
+
+```powershell
+.\tools\plugin-resolution-experiment.ps1 -Status   # read-only, safe any time
+.\tools\plugin-resolution-experiment.ps1 -Setup
+# restart Wave Link, let the scan finish, look at the channel, quit Wave Link
+.\tools\plugin-resolution-experiment.ps1 -Record -EffectLoaded   # or -EffectDropped
+.\tools\plugin-resolution-experiment.ps1 -Undo
+```
+
+`-Record` prints the outcome row from the table below and writes the verdict into the journal, so
+the answer survives the shell it was observed in.
 
 1. **Take a backup first.** The tool exists for this, and this is exactly the moment it is for.
 2. Copy one plug-in that is **on a channel** — `FabFilter Pro-L 2.vst3` is a good pick, it is on

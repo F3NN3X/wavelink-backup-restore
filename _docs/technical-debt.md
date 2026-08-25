@@ -179,6 +179,10 @@ the shared folder, so the user-level one could not be observed being scanned.
 moved — so the data **cannot distinguish** the two resolution strategies. That is the whole reason
 this is an entry rather than an implementation.
 
+**The experiment is scripted.** [`tools/plugin-resolution-experiment.ps1`](../tools/plugin-resolution-experiment.ps1)
+runs the reversible file surgery and records the verdict; `-Status` is read-only and safe to run
+now. What is still yours: take a backup, restart Wave Link, and look at the channel.
+
 **What closes it:** the experiment in the audit — copy one on-channel plug-in to the user folder,
 rename the shared copy, restart, see whether the channel still loads and whether `FilePath` was
 rewritten. Three outcomes, each with its consequence, tabulated there. Reversible; take a backup
