@@ -33,7 +33,7 @@ Update this file **in the same commit** as the document it counts. See
 | Sessions | 27 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,635 passing** — Core 521 · CLI 100 · App 1,014 |
+| **Tests** | **1,643 passing** — Core 521 · CLI 100 · App 1,022 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -77,10 +77,15 @@ anywhere: the gap was entirely in *where the check was attached*.
   An update notice is rare, is about a version rather than a run, and fires once per version. The
   guard the rule protects is untouched and still enforced by the type, with a test that says so.
 
-- **Tests: 1,621 → 1,635.** Thirteen for the notice and its cadence, one for the menu line shipping
-  collapsed. Two existing guards had to move: the tray-menu order test gained the new item, and the
-  template test stopped counting menu items — a hardcoded 10 had turned "no template failed to
-  apply" into an assertion about arithmetic.
+- **The interval moves from a week to a day**, and one existing test had to be rewritten rather than
+  deleted: it asserted a check is *not* due a day after the last one, which was correct for weekly
+  and is now the opposite of the shipped behaviour. The boundary is still the thing worth pinning,
+  so it moved to the hour either side of the new one.
+
+- **Tests: 1,621 → 1,643.** Twenty-one for the notice, its cadence and the daily interval; one for
+  the menu line shipping collapsed. Two existing guards moved: the tray-menu order test gained the
+  new item, and the template test stopped counting menu items — a hardcoded 10 had turned "no
+  template failed to apply" into an assertion about arithmetic.
 
 
 ### The debt list gets down to two, and the tools that get it there (2026-08-25)

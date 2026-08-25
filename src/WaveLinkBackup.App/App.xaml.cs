@@ -274,6 +274,12 @@ public partial class App : Application
             RefreshTray();
             RefreshShellFacts();
             shell.RefreshAutostart();
+
+            // Daily, while the app is running. The tick is every 15 seconds and this is a date
+            // comparison until the day is up, so the cost of asking here is nothing - and it is
+            // the only thing that makes the interval real for an app designed to sit in the tray
+            // for weeks without being restarted.
+            _ = CheckForUpdateInBackground();
         };
         timer.Start();
 
@@ -313,6 +319,7 @@ public partial class App : Application
     /// </summary>
     private async Task CheckForUpdateInBackground()
     {
+        if (updateCheckInFlight) return;
         if (!settings.CheckForUpdates) return;
 
         var source = ReleaseSource;
@@ -323,6 +330,20 @@ public partial class App : Application
         {
             return;
         }
+
+        updateCheckInFlight = true;
+        try
+        {
+            await RunUpdateCheck(source, now).ConfigureAwait(true);
+        }
+        finally
+        {
+            updateCheckInFlight = false;
+        }
+    }
+
+    private async Task RunUpdateCheck(UpdateSource source, DateTimeOffset now)
+    {
 
         UpdateCheck check;
         try
@@ -339,12 +360,34 @@ public partial class App : Application
 
         ApplySettings(settings with { LastUpdateCheckUtc = now });
 
-        if (check.Result != UpdateCheckResult.UpdateAvailable || check.Release is null) return;
+        RecordUpdateCheck(check);
+    }
 
-        updateAvailableVersion = ReleaseVersion.Display(check.Release.Version);
+    /// <summary>
+    /// What an update check MEANS for the three surfaces, wherever the check came from - the timer,
+    /// startup, the Settings dialog's own auto-check, or "Check now".
+    ///
+    /// <para>
+    /// One funnel on purpose. Before this, a check run from the Settings dialog updated that
+    /// dialog and nothing else, so a user could press "Check now", be told an update existed, close
+    /// the dialog, and find the strip still silent. Three surfaces reading one field is only
+    /// coherent if one place writes it.
+    /// </para>
+    /// </summary>
+    private void RecordUpdateCheck(UpdateCheck check)
+    {
+        var found = check.Result == UpdateCheckResult.UpdateAvailable && check.Release is not null
+            ? ReleaseVersion.Display(check.Release.Version)
+            : null;
 
-        // The strip and the tray both read the field; these are what make them notice. The
-        // balloon rides on RefreshTray, so it fires exactly once per version via TrayNotifications.
+        // Clearing matters as much as setting: a release withdrawn, or an update installed, must
+        // take the notice down rather than leave a version the user can no longer get.
+        if (found == updateAvailableVersion) return;
+
+        updateAvailableVersion = found;
+
+        // The strip and the tray both read the field; these are what make them notice. The balloon
+        // rides on RefreshTray, so it fires exactly once per version via TrayNotifications.
         RefreshShellFacts();
         RefreshTray();
     }
@@ -911,7 +954,15 @@ public partial class App : Application
         var feed = new GitHubReleaseFeed(source, updateHttp);
 
         return new UpdateViewModel(
-            check: ct => feed.CheckAsync(ReleaseVersion.Current, ct),
+            // Wrapped rather than passed straight through, so a check the SETTINGS DIALOG runs -
+            // its own auto-check, or "Check now" - lights the strip and the tray as well as the
+            // dialog. Otherwise the user is told twice and believed once.
+            check: async ct =>
+            {
+                var result = await feed.CheckAsync(ReleaseVersion.Current, ct).ConfigureAwait(true);
+                RecordUpdateCheck(result);
+                return result;
+            },
             install: (release, progress, ct) => InstallUpdateAsync(release, progress, ct),
             persist: (checkForUpdates, checkedAt) => ApplySettings(
                 settings with { CheckForUpdates = checkForUpdates, LastUpdateCheckUtc = checkedAt }),
@@ -1409,6 +1460,13 @@ public partial class App : Application
     /// the menu says another is worse than either alone.
     /// </summary>
     private string? updateAvailableVersion;
+
+    /// <summary>
+    /// Whether a check is in flight. The timer ticks every 15 seconds and a check is a network
+    /// call that can outlive several ticks - without this, a slow or hanging feed would stack a
+    /// new request on every tick until something gave out.
+    /// </summary>
+    private bool updateCheckInFlight;
 
     /// <summary>
     /// The second designed notification: Wave Link rejected a restored backup and reset the live

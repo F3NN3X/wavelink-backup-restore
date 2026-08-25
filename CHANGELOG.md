@@ -23,7 +23,7 @@ heading here.
 
 ## [Unreleased]
 
-**The app now tells you an update exists without being asked.** It checks at startup rather than only when the Settings dialog happens to be opened, and says so on the status strip, in the tray menu, and once per version as a notification.
+**The app now tells you an update exists without being asked.** It checks at startup and once a day while running, rather than only when the Settings dialog happens to be opened, and says so on the status strip, in the tray menu, and once per version as a notification. The interval moves from the design's week to a day: weekly was right when a stale answer sat unseen inside a dialog, and stopped being right once the check began speaking up on its own.
 
 ### Added
 
@@ -31,7 +31,9 @@ heading here.
 
 ### Fixed
 
-- **The weekly update check now actually runs weekly.** It was wired to the Settings dialog's `Loaded` handler, so "check for updates on its own — weekly, on by default" meant "weekly, the next time you happen to open Settings". The setting said on, the interval was seven days, and the code matched both — the gap was entirely in where the check was attached. It now runs at startup, off the UI thread, honouring the same interval and the same setting. A feed that is down or rate-limiting stays silent rather than showing an alarming strip.
+- **The automatic update check now actually runs on its own.** It was wired to the Settings dialog's `Loaded` handler, so "check for updates on its own — weekly, on by default" meant "weekly, the next time you happen to open Settings". The setting said on, the interval was seven days, and the code matched both — the gap was entirely in where the check was attached. It now runs at startup **and every 24 hours while the app is running**, off the UI thread, with a guard so a slow feed cannot stack a request on every tick. A feed that is down or rate-limiting stays silent rather than showing an alarming strip.
+
+- **A check run from the Settings dialog now lights the strip and the tray too.** Pressing *Check now*, being told an update existed, closing the dialog and finding the rest of the app silent was the old behaviour. Every check — timer, startup, dialog auto-check, or *Check now* — records its outcome in one place.
 
 ---
 
