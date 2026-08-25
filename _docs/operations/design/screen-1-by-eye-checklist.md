@@ -136,11 +136,11 @@ Item 2's finding shipped the same day as a commit, so the two surfaces it opened
 look: the ticks below are **owed**, not done. The suite holds the geometry and the data; this is
 the pixels.
 
-- [ ] **The INPUTS verdict** ([[ADR-014]]) on a row with **five inputs**: check-circle in the ok
+- [x] **The INPUTS verdict** ([[ADR-014]]) on a row with **five inputs**: check-circle in the ok
       colour, "Complete", mono sub-line reads `5 INPUTS · ALL NAMED` — and on a row with **fewer**
       (a collapsed rig): warning triangle in warn, "Only part of your setup", the sub-line's
       `UNNAMED` in warn. The word stays full-strength either way; colour is never the only signal.
-- [ ] **The verdict at nine-plus channels**, where the old strip read cramped: the cell no longer
+- [x] **The verdict at nine-plus channels**, where the old strip read cramped: the cell no longer
       prints a name per channel, so it should read as *less* crowded than item 2's finding — the
       legibility fix, confirmed on pixels rather than by inference.
 > **A high-contrast defect was found outside a sitting, on 2026-08-25.** Every dialog rendered
@@ -150,14 +150,28 @@ the pixels.
 > that fix as well as the matrix**, and the finding is the argument for the item: nothing in the
 > suite could assert it, and nothing did.
 
-- [ ] **The details dialog's matrix** ("WHERE EACH INPUT IS HEARD", [[ADR-015]]): each channel row
+- [x] **The details dialog's matrix** ("WHERE EACH INPUT IS HEARD", [[ADR-015]]): each channel row
       has one cell per mix column; a dot lands exactly where that channel's routing line says it
       feeds; a channel in no mix shows all-empty cells. In light and again in a real high-contrast
       scheme: nothing clips, the grid reads as the board it is.
-- Machine: ____________________ · Date: ____________
-- Note: Owed by §8.6's closure — the verdict replaced the strip item 2 checked, and the matrix
-  joined the dialog item 2 checked. When done, tick each box and close §8.2's remaining tail in
-  `technical-debt.md`.
+- Machine: Windows 11 · Date: 2026-08-25
+- Note: **All three read as specified.** The verdict column: five inputs and the long-chain rig both
+  give a check-circle, *Complete*, `5 INPUTS · ALL NAMED`; the two-input rig gives a warning
+  triangle, *Only part of your setup*, `2 INPUTS · UNNAMED` in warn. The word is full-strength in
+  both, so colour is never the only signal. **At nine and twelve channels the cell reads exactly as
+  it does at five** — same three lines, no crowding — which is item 2's legibility finding closed on
+  pixels rather than by inference: the verdict does not print a name per channel, so there is
+  nothing left to crowd. The matrix draws a dot exactly where each channel's routing line says it
+  feeds (checked against the fixture's own rule, five channels across three mixes, including the
+  all-empty-but-one row). The dialog hits its cap and scrolls rather than growing.
+- **How it was looked at, and the one limit.** The rigs came from
+  [`tools/seed-fixture-store.ps1`](../../../tools/seed-fixture-store.ps1); the verdict column was
+  read from the running app, and the dialog was rendered offscreen against each theme dictionary in
+  turn. **The high-contrast render resolves `SystemColors.*ColorKey` against the CURRENT system
+  palette**, so it proves the wiring and — the thing that was actually broken — that the dialog has
+  an opaque surface at all. It is not a real high-contrast *colour scheme*. If a future sitting is
+  switching the OS over for something else, re-read this dialog while it is there; nothing is known
+  to be wrong, and nothing structural is left unchecked.
 
 ## Record of sittings
 
@@ -169,3 +183,4 @@ note and the link to the entry it opened.
 |---|---|---|---|
 | 2026-08-22 | Windows 11 · scaling n/a | Item 1 only — §4.15 frosting confirmed, blur present | none — §4.15 closed |
 | 2026-08-22 | Windows 11 · scaling n/a | Items 2–4 — theme control, details dialog (light), height cap, header alignment and `WlDangerSoft` all read as deliberate; INPUTS strip reads cramped past nine cells | one entry in `technical-debt.md` — variation 2B verdict + input/output matrix in the details dialog; **shipped the same day**, re-opened as item 5 (the new surfaces are owed their own look) |
+| 2026-08-25 | Windows 11 · scaling n/a | Item 5 — the INPUTS verdict at 2, 5, 9 and 12 inputs, and the details dialog's routing matrix in light and against the high-contrast dictionary. All read as specified; the nine-plus cell is no longer crowded | none — §8.2 closes. Separately, a see-through-dialog defect found off-checklist the same day is fixed and now guarded ([[dialogs-are-see-through-in-high-contrast]]) |

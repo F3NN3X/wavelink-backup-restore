@@ -45,6 +45,8 @@ heading here.
 
 ### Answered
 
+- **The last by-eye look is done, and `technical-debt.md` now holds no work at all.** Item 5 of the by-eye checklist — the INPUTS verdict at two, five, nine and twelve inputs, and the details dialog's routing matrix — was worked against rigs written by `tools/seed-fixture-store.ps1`. All three read as specified, and the nine-plus cell is no longer crowded: the verdict prints no name per channel, so there is nothing left to crowd. That closes §8.2, and with §2.4 and §7.6 the debt list is down to two permanent sections, neither of which is owed a commit.
+
 - **Wave Link resolves a channel's plug-in by `PluginId`, not by `FilePath` — measured, not assumed.** The experiment behind [technical-debt.md](_docs/technical-debt.md) §7.6 ran on the reference rig: a plug-in was moved to the user-level VST3 folder and the shared copy renamed, and after a restart Wave Link found it, kept the channel intact, and **rewrote `FilePath`** to the new location. An untouched plug-in on the same channel was not rewritten, so this was the moved file being repaired rather than a blanket refresh. The user-level folder is therefore a *viable* fallback destination for tier 4 — and the standing recommendation not to build one is unchanged, because §7.5 already removed the prompt in the common case and viable is not the same as worth building. It also retires the audit's §2.4 caveat that the user-level folder could not be observed being scanned: it is scanned.
 
 ### Fixed

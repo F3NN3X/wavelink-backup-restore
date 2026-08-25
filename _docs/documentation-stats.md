@@ -106,6 +106,13 @@ half only a human can do, because the mechanical half is scripted.
   suite could assert it and nothing did: the dialog laid out, bound and closed correctly. Found by
   a person looking at a screen, which is item 5 of the by-eye checklist's whole argument.
 
+- **The debt list is empty of work.** §7.6 and §8.2 both closed on 2026-08-25, on the reference rig
+  rather than on paper. The experiment answered §7.6 — Wave Link resolves by `PluginId` and repairs
+  `FilePath` — and item 5 of the by-eye checklist closed §8.2. What remains in `technical-debt.md`
+  is §3 (known-wrong deliberately) and §5 (the hazard table), and neither is owed a commit. Both
+  runs found bugs in the tools that ran them, which is recorded in the entries rather than tidied
+  away.
+
 - **A review round, and a CI flake that was not this branch's.**
   `SettingsDialogViewTests.The_two_plain_language_notes_render_their_lead_clauses` failed on one CI
   run and passed on another at the identical commit — the flake its own comment already described

@@ -1720,3 +1720,64 @@ of the two reasons [post-1.0.md](../dev-phases/post-1.0.md) refuses portable bac
 
 ---
 
+
+---
+
+## 8 · Incurred 2026-08-20, building past the design package — **ALL CLOSED**
+
+> **§8.2 closed 2026-08-25.** Item 5 of
+> [the by-eye checklist](../operations/design/screen-1-by-eye-checklist.md) was worked against rigs
+> written by [`tools/seed-fixture-store.ps1`](../../tools/seed-fixture-store.ps1), and all three
+> looks read as specified.
+>
+> | Look | Result |
+> |---|---|
+> | The verdict on a five-input row | Check-circle, *Complete*, `5 INPUTS · ALL NAMED` |
+> | The verdict on a collapsed rig | Warning triangle, *Only part of your setup*, `2 INPUTS · UNNAMED` in warn — the word full-strength, so colour is never the only signal |
+> | The verdict at nine and twelve channels | **Reads exactly as it does at five.** Item 2's legibility finding is closed on pixels rather than by inference: the verdict prints no name per channel, so there is nothing left to crowd |
+> | The routing matrix | A dot exactly where each channel's routing line says it feeds, checked against the fixture's own rule — including the channel routed to one mix only |
+> | The dialog's height | Hits its cap and scrolls rather than growing |
+>
+> **One limit, recorded rather than papered over.** The high-contrast pass rendered against the
+> theme dictionary, which resolves `SystemColors.*ColorKey` against the current system palette. That
+> proves the wiring and — the thing that was actually broken — that the dialog has an opaque surface
+> at all. It is not a real high-contrast *colour scheme*. Nothing structural is left unchecked, and
+> the checklist says so at item 5 rather than claiming a tick it did not earn.
+>
+> **The sitting was not where the real defect came from, and that is the lesson.** Every dialog was
+> rendering *see-through* in a real high-contrast scheme, and had been since the theme dictionaries
+> were written — through a sitting on 2026-08-22 that ticked this very dialog in high contrast.
+> That tick answered the question it was asked (does it match the shape, does anything clip) and
+> both are true of a dialog with no background. See
+> [[dialogs-are-see-through-in-high-contrast]]. **A by-eye item is only as good as the question it
+> asks**, and a conformance question assumes the surface exists.
+
+## 8 · Incurred 2026-08-20, building past the design package
+
+Three surfaces now exist that the design package does not specify, and one hole the whole session
+walked through. Recorded here rather than in the audit, because the audit is a point-in-time
+reading of the app against the package and this is a standing cost.
+
+*8.1, 8.1a, 8.3, 8.4, 8.5 and 8.6 are all closed — see
+[the archive](archive/technical-debt-closed.md). What §8.6 left behind is pixels, not code, and it
+rides on §8.2 below.*
+
+### 8.2 Three surfaces have no design, and no by-eye check — **open, needs a human**
+
+| Surface | Built to | Package says |
+|---|---|---|
+| Settings → `HOW IT LOOKS`, the four theme segments ([[ADR-013]]) | The package's rules — section label, `WlBg` block, hairlines, the stepper's segment geometry, `WlToggle`'s own checked treatment | Nothing. The prototype draws a caption-bar sun icon; the README specifies a gear that opens Settings, and that is what ships |
+| The N-cell INPUTS strip ([[ADR-014]]) | The design's own five-cell strip, widened by arithmetic over a measured character width | *"Five equal flex cells"* — a rig of exactly five |
+| `What's in "…"`, the details dialog ([[ADR-015]]) | The settings dialog's shape and vocabulary, reused wholesale | Nothing. Four screens are designed and this is not one of them |
+
+**None of them is a new visual idea** — that was the constraint each was built under, and it is why
+they read as part of the app. But three surfaces now exist that no design pass has looked at, and
+the same is true of them as of §4.15: nothing in the suite can assert that a layout looks right.
+They belong on [the by-eye checklist](../operations/design/screen-1-by-eye-checklist.md), which is
+still owed a human.
+
+**Specifically unchecked by eye:** the four-segment control at 100% and 150% scaling; the strip at
+nine and at twelve cells, where the labels are four characters and three; the details dialog in
+light and in a real high-contrast scheme; and the dialog's height on a rig with several long effect
+chains, where it hits its 720px cap and scrolls.
+
