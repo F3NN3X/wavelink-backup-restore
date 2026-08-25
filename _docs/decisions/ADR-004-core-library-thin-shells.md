@@ -49,8 +49,9 @@ result. When a shell starts to hold logic, that logic belongs in Core.
 > **Measured 2026-08-25, and half of this ADR's original wording did not survive it.** It said
 > "both shells stay thin enough to be uninteresting". Core is about 6,000 lines of C#. The CLI is
 > about 840, so that half holds. The WPF app is about 11,200 lines of C# plus 6,500 of XAML, which
-> makes it nearly twice the size of the thing it is a shell over, and `App.xaml.cs` alone is 1,793
-> lines with 65 members.
+> makes it nearly twice the size of the thing it is a shell over. `App.xaml.cs` was 1,793 lines at
+> the time of that measurement and has since been split into five partial-class files, the largest
+> 669 lines.
 >
 > The decision this ADR records is still the right one and is still being kept: Core has no
 > reference to WPF, the seams survived, the watcher runs headless and the CLI still publishes
