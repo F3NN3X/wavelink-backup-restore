@@ -2,7 +2,7 @@
 title: "Wave Link Backup Documentation System"
 status: published
 created: 2026-08-16
-updated: 2026-08-20
+updated: 2026-08-25
 tags: [meta, documentation]
 ---
 
@@ -40,7 +40,7 @@ _docs/
 │   └── recipes/             # step-by-step guides
 ├── operations/
 │   ├── runbooks/            # operating a released system
-│   └── design/              # the design handoff (vendored export — see note below)
+│   └── design/              # the design handoff (vendored export, NOT COMMITTED — see note)
 │       ├── README.md        #   part 1: the four finished screens
 │       ├── CHANGES-SINCE-V1.md  # diff against the previous export — read first
 │       ├── screens/         #   part 2: 11 exported state-group specs + PNGs,
@@ -187,6 +187,23 @@ finished screens, `screens/` the only spec for the states they lack. Neither sup
 other. The prototype is a reference, **not production code, and must not be ported literally**.
 
 Keep this one folder with subdirectories rather than several tiny top-level folders.
+
+> **This folder is not in the repository, and that is deliberate.** `.git/info/exclude` carries
+> `_docs/operations/design/`, commented *"design export — worked on outside the repo, never
+> committed"*. The exclude file is machine-local, so the folder is absent from every clone and
+> from CI, and **roughly 40 documents link into it** — `screens/00-index.md`, `13-elevation.md`,
+> the tokens, the prototype. Those links resolve only on a machine that holds the export. They
+> are recorded rather than rewritten because the export is the authority they point at; a reader
+> without it should treat them as citations, not paths.
+>
+> **One file inside it *is* committed:** `screen-1-by-eye-checklist.md`, which was force-added
+> because it is authored here and is the record of which by-eye looks have happened. It is the
+> only one.
+>
+> **The risk this leaves.** `13-elevation.md` and `14-backup-timing.md` are, by the note below,
+> authored in this repo and unrecoverable from the design tool. Excluding them from git means the
+> provenance banner is the *only* thing protecting them, and a banner does not survive a lost
+> disk. Committing those two — the exception the note below already carves out — would close it.
 
 > **This folder is a vendored package and is exempt from the frontmatter rule below.** It
 > arrives as a drop-in export from Claude Design and gets replaced wholesale when the design
