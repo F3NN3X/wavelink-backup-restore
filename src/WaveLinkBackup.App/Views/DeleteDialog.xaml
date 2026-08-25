@@ -10,7 +10,7 @@
         Background="Transparent">
 
     <!--
-      Screen 5 - the delete confirmation, in its three variants (05-delete-dialogs.md).
+      Screen 5 - the delete confirmation, in its three variants (the delete-dialogs spec).
 
       The same borderless-modal shape as RestoreDialog: WlScrim fills this window edge to edge and
       the 480px WlCard card sits centred on top of it. WindowStyle=None rather than a custom

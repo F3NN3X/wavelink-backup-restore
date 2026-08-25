@@ -24,7 +24,7 @@
     <SolidColorBrush x:Key="WlLine"      Color="#C8CBD2" Opacity="0.12" />
     <SolidColorBrush x:Key="WlLine2"     Color="#C8CBD2" Opacity="0.24" />
     <SolidColorBrush x:Key="WlHover"     Color="#C8CBD2" Opacity="0.05" />
-    <!-- High contrast's hover outline (11-high-contrast.md: "Hover = 1px HotTrack outline, no
+    <!-- High contrast's hover outline (the high-contrast spec: "Hover = 1px HotTrack outline, no
          fill"). WlHover goes transparent there, so hover needs its own key. Here it is unused -
          Dark/Light hover is still WlHover's fill - but the guard that all three theme
          dictionaries share one key set requires it defined everywhere. -->

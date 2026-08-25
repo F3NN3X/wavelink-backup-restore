@@ -10,12 +10,12 @@ namespace WaveLinkBackup.App.Startup;
 /// hand-rolled parsing over a library).
 ///
 /// Flags apply to THIS RUN and are never written back
-/// (operations/design/screens/08-settings-persistence.md).
+/// (the settings-persistence spec).
 /// </summary>
 /// <param name="Error">Non-null when parsing failed. The shell shows it and exits.</param>
 /// <param name="RestoreSnapshotId">
 /// Set only by the elevated copy this app starts of ITSELF, to put tier 4's plug-in files back
-/// (operations/design/screens/13-elevation.md). Not a documented flag and not in any help text:
+/// (the elevation spec). Not a documented flag and not in any help text:
 /// it names one snapshot and means "do this restore and exit", which is not something a user has
 /// any reason to type.
 /// </param>

@@ -10,7 +10,7 @@ namespace WaveLinkBackup.Core.Automation;
 /// overrides this file for that one run and isn't saved" - is a claim about the CLI as much as
 /// the GUI. If this lived in the App project, `wlbackup list` would keep ignoring the folder
 /// chosen in the GUI, and that sentence would be false.
-/// See operations/design/screens/08-settings-persistence.md.
+/// See the settings-persistence spec.
 ///
 /// Write on change, never on exit.
 /// </summary>

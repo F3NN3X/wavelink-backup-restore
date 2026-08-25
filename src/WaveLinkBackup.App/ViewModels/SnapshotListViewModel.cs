@@ -180,7 +180,7 @@ public sealed class SnapshotListViewModel(
         ? "1 BACKUP IS HERE · SEARCH LOOKS AT NAMES ONLY"
         : $"{TotalCount} BACKUPS ARE HERE · SEARCH LOOKS AT NAMES ONLY";
 
-    // Error 12's full screen (08-settings-persistence.md "The folder is gone"). These are the
+    // Error 12's full screen (the settings-persistence spec "The folder is gone"). These are the
     // designed copy for the centred body; they render only when State == FolderMissing, and
     // every one of them is asserted from a table in MainWindowListStateTests.
 
@@ -292,7 +292,7 @@ public sealed class SnapshotListViewModel(
         });
 
     /// <summary>
-    /// The store half of two-stage delete (05-delete-dialogs.md): move the snapshot into
+    /// The store half of two-stage delete (the delete-dialogs spec): move the snapshot into
     /// <c>.trash</c> inside the backup folder - a plain directory move, nothing destroyed. On
     /// success the list re-reads, and because <see cref="SnapshotStore.List"/> skips the trash
     /// folder, the row vanishes from the list, the search index and every count/size readout in

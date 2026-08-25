@@ -61,7 +61,7 @@
                                Foreground="{DynamicResource WlText}" Margin="0,18,0,0" />
 
                     <!--
-                      3. Version-mismatch note (09-restore-dialog-additions.md): a quiet mono line,
+                      3. Version-mismatch note (the restore-dialog additions spec): a quiet mono line,
                       8px below the body and ABOVE the table. No fill, no icon, no border - the
                       lightest element on the screen. Collapses when null.
                     -->
@@ -224,7 +224,7 @@
                     </Border>
 
                     <!--
-                      6. The tier 4 opt-in (screens/13-elevation.md). Same row shape as the
+                      6. The tier 4 opt-in (the elevation spec). Same row shape as the
                       Settings dialog's WHEN TO BACK UP rows: WlBg fill, hairline, 8px radius,
                       toggle right. BELOW the amber block because it is a control rather than a
                       warning, and ABOVE the reassurance because the reassurance is about the whole

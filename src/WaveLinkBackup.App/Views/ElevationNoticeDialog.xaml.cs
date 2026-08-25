@@ -4,7 +4,7 @@ using WaveLinkBackup.App.Windows;
 namespace WaveLinkBackup.App.Views;
 
 /// <summary>
-/// The inform-then-elevate notice (screens/13-elevation.md). A borderless modal that explains WHY
+/// The inform-then-elevate notice (the elevation spec). A borderless modal that explains WHY
 /// Windows is about to ask for administrator rights before the elevated restore copy is launched -
 /// the UAC prompt stays the consent gate, but it no longer appears unexplained.
 ///
@@ -28,7 +28,7 @@ public partial class ElevationNoticeDialog : Window
 
         // Enter confirms only once the user has actually tabbed onto Continue - IsDefault would take
         // Enter from anywhere in the dialog, focus on Cancel included, which is exactly the trap the
-        // destructive buttons avoid (10-decisions section 6). Wired here rather than via IsDefault.
+        // destructive buttons avoid (the design decisions log, section 6). Wired here rather than via IsDefault.
         ContinueButton.KeyDown += (_, e) =>
         {
             if (e.Key != System.Windows.Input.Key.Enter) return;
@@ -44,7 +44,7 @@ public partial class ElevationNoticeDialog : Window
         Loaded += (_, _) => CancelButton.Focus();
     }
 
-    /// <summary>Escape cancels, matching the keyboard rule in 10-decisions (section 6).</summary>
+    /// <summary>Escape cancels, matching the keyboard rule in the design decisions log (section 6).</summary>
     protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == System.Windows.Input.Key.Escape)

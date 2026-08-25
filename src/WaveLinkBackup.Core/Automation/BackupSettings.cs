@@ -13,7 +13,7 @@ namespace WaveLinkBackup.Core.Automation;
 /// <param name="ChosenWaveLinkPath">
 /// Which installation to watch and restore into, when more than one exists. Null means "not
 /// chosen yet". Required by error 2: without storing the answer, the chooser asks again on
-/// every launch (screens/10-decisions.md 4).
+/// every launch (the design decisions log, item 4).
 /// </param>
 /// <param name="IncludePresets">
 /// Tier 3: the presets each effect saved under <c>%APPDATA%\&lt;Vendor&gt;\</c>. On by default:
@@ -35,7 +35,7 @@ namespace WaveLinkBackup.Core.Automation;
 /// the dialog said "at most one an hour" as though it were a fact about the world.
 /// </param>
 /// <param name="CheckForUpdates">
-/// Whether to look for a new version weekly. On by default, and it ONLY looks: screens/12: "It
+/// Whether to look for a new version weekly. On by default, and it ONLY looks: the tray and updates spec: "It
 /// never installs anything without you". It never installs, and that part is unchanged - but an
 /// available update IS now said out loud: on the status strip, in the tray menu, and once per
 /// version as a notification ([[ADR-018]]). This line used to promise the opposite. The switch
@@ -70,7 +70,7 @@ public sealed record BackupSettings(
     /// <summary>
     /// The ladder the Settings dialog's stepper moves through: 15 min to 24 h. A ladder rather than
     /// free-form minutes so every position is a number a person would actually choose, and so `−`
-    /// from the bottom cannot reach zero (operations/design/screens/14-backup-timing.md).
+    /// from the bottom cannot reach zero (the backup-timing spec).
     /// </summary>
     public static IReadOnlyList<int> IntervalLadder { get; } = [15, 30, 60, 120, 240, 720, 1440];
 

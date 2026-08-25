@@ -13,7 +13,7 @@ public sealed record PlanRow(string Label, string Now, string After, bool Change
 /// Answered here rather than left to the shell to work out, because the shell's only correct
 /// question is "is there anything to offer, and what does it cost". A dialog that offers to put
 /// plug-in files back when the snapshot holds none is offering a capability the restore is about
-/// to refuse (operations/design/screens/13-elevation.md).
+/// to refuse (the elevation spec).
 /// </summary>
 /// <param name="Count">How many plug-ins have their binary in this snapshot.</param>
 /// <param name="Bytes">What those binaries weigh, so the row can print an honest figure.</param>

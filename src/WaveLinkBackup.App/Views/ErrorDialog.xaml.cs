@@ -6,7 +6,7 @@ using WaveLinkBackup.App.ViewModels;
 namespace WaveLinkBackup.App.Views;
 
 /// <summary>
-/// The view for the three decision dialogs (06-errors.md "Dialogs"): error 2 (two installations,
+/// The view for the three decision dialogs (the errors spec "Dialogs"): error 2 (two installations,
 /// chooser), error 4 (malformed settings, amber) and error 8 (newer version). It renders an
 /// <see cref="ErrorDialogModel"/> and reports the user's decision back through <see cref="ShowDialog"/>
 /// - nothing here touches Core, does I/O, or decides anything the model has not already decided.
@@ -93,7 +93,7 @@ public partial class ErrorDialog : Window
         Loaded += (_, _) => SecondaryButton.Focus();
     }
 
-    /// <summary>Escape cancels, matching the keyboard rule in 10-decisions (section 6).</summary>
+    /// <summary>Escape cancels, matching the keyboard rule in the design decisions log (section 6).</summary>
     protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == System.Windows.Input.Key.Escape)

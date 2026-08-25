@@ -27,7 +27,7 @@ namespace WaveLinkBackup.Cli.Commands;
 /// <param name="settings">
 /// What settings.json says, with command-line flags layered on top per command. Flags win for
 /// this run only and are never written back
-/// (operations/design/screens/08-settings-persistence.md).
+/// (the settings-persistence spec).
 ///
 /// Optional so that tests which do not care about persistence get the old defaults.
 /// </param>

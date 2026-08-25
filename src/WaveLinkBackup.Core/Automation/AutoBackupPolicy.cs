@@ -17,7 +17,7 @@ public enum CaptureDecision
     /// <summary>
     /// The daily time has passed and nothing has been captured since. Take one whether or not the
     /// file changed - dedup decides whether it costs anything
-    /// (operations/design/screens/14-backup-timing.md).
+    /// (the backup-timing spec).
     /// </summary>
     Scheduled,
 }
@@ -30,7 +30,7 @@ public enum CaptureDecision
 /// rather than decoration. <see cref="MinimumInterval"/> in particular used to be a constant while
 /// the dialog said "at most one an hour" as though it were a fact about the world; it is a setting
 /// now, and the row's title is the value read back as a sentence so the two cannot drift
-/// (operations/design/screens/14-backup-timing.md).
+/// (the backup-timing spec).
 /// </summary>
 /// <param name="dailyAt">
 /// A wall-clock time to back up at each day, or null for "only when things change". Not a timer

@@ -10,7 +10,7 @@ public enum ElevationResult
     /// <summary>The elevated copy ran and reported success.</summary>
     Completed,
 
-    /// <summary>The user said no at the UAC prompt. Nothing was attempted (screens/13 §13).</summary>
+    /// <summary>The user said no at the UAC prompt. Nothing was attempted (the elevation spec, §13).</summary>
     Declined,
 
     /// <summary>It started and came back non-zero, or could not be started at all.</summary>
@@ -39,7 +39,7 @@ public interface IElevation
     /// Runs this same executable elevated with <paramref name="arguments"/> and waits for it.
     ///
     /// Blocking on purpose: the caller is showing the in-progress strip and has nothing to do until
-    /// the restore either happened or did not (screens/13, "The UAC prompt").
+    /// the restore either happened or did not (the elevation spec, "The UAC prompt").
     /// </summary>
     ElevationOutcome RunElevated(IReadOnlyList<string> arguments, CancellationToken ct);
 }

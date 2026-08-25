@@ -168,7 +168,7 @@ public sealed class FileSystem : IFileSystem
     /// <summary>
     /// GetDiskFreeSpaceEx rather than DriveInfo, which throws on UNC paths. Keeping backups on
     /// a NAS is supported. It is the reason deletion goes to .trash instead of the Recycle Bin
-    /// at all (screens/10-decisions.md 3), so a UNC store has to report free space like any
+    /// at all (the design decisions log, item 3), so a UNC store has to report free space like any
     /// other volume.
     ///
     /// Probes the first EXISTING ancestor of the path, because the store directory may not have

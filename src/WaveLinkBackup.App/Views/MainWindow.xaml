@@ -40,7 +40,7 @@
     <!--
       The key map (ShellCommands, ViewModels/ShellCommands.cs), five of the seven bound at the
       window: Refresh, Search, BackUpNow, Rename, Delete, Restore. ClearSearch is deliberately NOT
-      here - 10-decisions section 6 binds Escape only on the list and the search field (see
+      here - the design decisions log section 6 binds Escape only on the list and the search field (see
       SearchBox and the row list (GroupsHost) below), or a window-wide binding would swallow Escape
       in the dialogs a later session adds.
 
@@ -251,7 +251,7 @@
                                          AutomationProperties.Name="Search backups"
                                          VerticalAlignment="Center">
                                     <!-- Escape clears the search only from HERE, not the window
-                                         (10-decisions section 6) - see the comment on
+                                         (the design decisions log section 6) - see the comment on
                                          Window.CommandBindings above. -->
                                     <TextBox.CommandBindings>
                                         <CommandBinding Command="{x:Static vm:ShellCommands.ClearSearch}"
@@ -299,7 +299,7 @@
 
         <!--
           ================================================================================
-          Row 2 - the restore-outcome strip (03-restore-outcomes.md). One inline strip below
+          Row 2 - the restore-outcome strip (the restore-outcomes spec). One inline strip below
           the status strip, above the column header, full width. Four outcomes, each a distinct
           visual state and a distinct dismiss rule:
 
@@ -351,8 +351,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!--
-                  06-errors.md, "Inline strips - anatomy": "22px mono wl-muted error number ·
+                <!-- The errors spec, "Inline strips - anatomy": "22px mono wl-muted error number ·
                   11px hollow dot · sentence ... over mono meta ... · action · 26px dismiss ×".
 
                   The number is the first thing in the strip and the only place in the app that
@@ -576,8 +575,7 @@
                         </Button.Style>
                     </Button>
 
-                    <!--
-                      03-restore-outcomes.md §3's PRIMARY action, and the only one in the strip:
+                    <!-- The restore-outcomes spec §3's PRIMARY action, and the only one in the strip:
                       Restore "Before restore". It is the recovery path for the only failure that
                       costs someone their mixer, and until 0.6.1 the rejected strip named the way
                       back in prose and gave the user no way to take it (technical-debt.md §4.21).
@@ -620,7 +618,7 @@
 
         <!--
           ================================================================================
-          Row 2 - the BACKING-UP strip (04-in-progress.md, first half). The same slot as the two
+          Row 2 - the BACKING-UP strip (the in-progress spec, first half). The same slot as the two
           strips below and above it, and mutually exclusive with both: a capture and a restore
           never run at once, and the outcome strip only fills once one of them has finished.
 
@@ -702,7 +700,7 @@
 
         <!--
           ================================================================================
-          Row 2 - the restore IN-PROGRESS strip (04-in-progress.md). Same slot as the outcome
+          Row 2 - the restore IN-PROGRESS strip (the in-progress spec). Same slot as the outcome
           strip above: below the status strip, above the column header. The two are mutually
           exclusive by construction - this one shows while IsRestoring is true, the outcome one
           only once a restore has finished and fed Strip - so they never occupy the row at once.
@@ -971,7 +969,7 @@
 
                     <!--
                       The date header: same tracked role and tracking as the column header, and no
-                      rule under it ("no separator line"). README gives "padding 14-16px 20px 7px"
+                      rule under it ("no separator line"). README gives "padding the backup-timing spec 20px 7px"
                       - 14 top, 20 each side, 7 bottom.
 
                       GroupStyle rather than a header inside the item template, so the header is
@@ -1179,8 +1177,7 @@
                                    Foreground="{DynamicResource WlMuted}" />
                     </StackPanel>
 
-                    <!--
-                      06-errors.md, error 1, "First-run variant": the OTHER half of the line above.
+                    <!-- The errors spec, error 1, "First-run variant": the OTHER half of the line above.
                       When discovery found nothing there is no green found-line, and the design puts
                       an amber dot, the not-found sentence, the mono LOOKED IN line at 80%, and the
                       secondary button 10px below in its place.
@@ -1244,7 +1241,7 @@
             </Grid>
 
             <!--
-              FolderMissing: error 12's full screen (08-settings-persistence.md "The folder is
+              FolderMissing: error 12's full screen (the settings-persistence spec "The folder is
               gone"). It REPLACES the list entirely - no column header, no rows - and renders a
               centred body: an h2, the reason, the mono path, the last-seen line, and three
               actions. The status strip above (row 1) already says "BACKUP FOLDER UNAVAILABLE"

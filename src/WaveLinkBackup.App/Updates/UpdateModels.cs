@@ -2,7 +2,7 @@ namespace WaveLinkBackup.App.Updates;
 
 /// <summary>
 /// One release, as a feed describes it. Everything the design's available-update row prints
-/// (screens/12: <c>YOU HAVE 1.2.3 · RELEASED 12 AUG · 4.1 MB</c>) plus what it takes to fetch.
+/// (the tray and updates spec: <c>YOU HAVE 1.2.3 · RELEASED 12 AUG · 4.1 MB</c>) plus what it takes to fetch.
 /// </summary>
 /// <param name="Sha256">
 /// The published checksum of <see cref="DownloadUrl"/>, lowercase hex, or null when the release

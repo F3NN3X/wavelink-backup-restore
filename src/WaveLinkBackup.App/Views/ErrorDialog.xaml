@@ -10,7 +10,7 @@
         Background="Transparent">
 
     <!--
-      The three decision dialogs (06-errors.md "Dialogs"): error 2 (two installations, chooser),
+      The three decision dialogs (the errors spec "Dialogs"): error 2 (two installations, chooser),
       error 4 (malformed settings, amber) and error 8 (newer version). Same borderless-modal shape
       as DeleteDialog: WlScrim fills this window edge to edge and a centred WlCard card sits on top.
 

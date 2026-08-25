@@ -2,7 +2,7 @@ using WaveLinkBackup.Core.Results;
 
 namespace WaveLinkBackup.App.ViewModels;
 
-/// <summary>Where an error is shown. 06-errors.md, "Placement rule, scope decides".</summary>
+/// <summary>Where an error is shown. The errors spec, "Placement rule, scope decides".</summary>
 public enum ErrorPlacement
 {
     /// <summary>A standing fact about the machine, true until something changes (error 1).</summary>
@@ -31,10 +31,10 @@ public enum ErrorWeight
 
 /// <summary>
 /// The thirteen errors as data, so placement and weight are decided in ONE testable place rather
-/// than scattered across views (06-errors.md, and 13-elevation.md for the thirteenth). The catalog is the single source of truth for the
+/// than scattered across views (the errors spec, and the elevation spec for the thirteenth). The catalog is the single source of truth for the
 /// weight rule; a future edit that re-weights an error fails the catalog tests before it ships.
 ///
-/// Copy here is the designed sentence/heading per error, taken verbatim from 06-errors.md. Where
+/// Copy here is the designed sentence/heading per error, taken verbatim from the errors spec. Where
 /// 06 prints a mono *meta* line (a path, a checksum, a PID) that value is machine-specific and
 /// arrives at render time. It is not hard-coded in the catalog, which keeps every string
 /// assertable from a table.
@@ -122,7 +122,7 @@ public sealed record AppError(
             "No backup with that id was found. Pick another from the list."),
 
         // 12: The backup folder can't be used (missing/moved/unwritable). Nothing can be listed → replaces the list.
-        // Same screen as H's missing folder in 08-settings-persistence.md. Neutral: nothing broken, nothing lost.
+        // Same screen as H's missing folder in the settings-persistence spec. Neutral: nothing broken, nothing lost.
         new AppError(12, ErrorPlacement.ReplacesList, ErrorWeight.Neutral,
             "The backup folder can't be used",
             "The backup folder is missing or cannot be used right now. Nothing is lost — point at a folder to continue."),
@@ -134,7 +134,7 @@ public sealed record AppError(
         // exactly as they were, the backup still holds them, and the settings and presets went
         // back. It is a refusal, like every other neutral strip. Where a plug-in genuinely is
         // missing, the dialog's amber block already said so before the button was pressed.
-        // (13-elevation.md §13.)
+        // (the elevation spec, §13.)
         new AppError(13, ErrorPlacement.InlineStrip, ErrorWeight.Neutral,
             "The plug-in files were left alone",
             "The plug-in files were left alone. Your settings and presets were restored."),
@@ -216,7 +216,7 @@ public static class AppErrorMapper
     }
 
     /// <summary>
-    /// The crash-report pointer for a failed restore (technical-debt.md §8.1a). 06-errors.md has no
+    /// The crash-report pointer for a failed restore (technical-debt.md §8.1a). The errors spec has no
     /// "something unexpected happened" surface, so the evidence lives in the redacted report and the
     /// one place the app can still speak after an unexpected fault, the danger row, points at it.
     /// The pointer is appended only when BOTH hold: the failure carries no designed inline-strip code

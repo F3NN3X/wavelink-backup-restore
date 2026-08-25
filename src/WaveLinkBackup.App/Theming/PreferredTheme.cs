@@ -38,7 +38,7 @@ public sealed class PreferredTheme : ISystemTheme
 
     /// <summary>
     /// The EFFECTIVE answer, not Windows' own: the high-contrast rendering rules
-    /// (screens/11: no fills, shape-first health, disabled at full opacity) belong to the palette
+    /// (the high-contrast spec: no fills, shape-first health, disabled at full opacity) belong to the palette
     /// being drawn, not to the setting that usually turns it on. A user who picked High contrast
     /// here needs them exactly as much.
     /// </summary>

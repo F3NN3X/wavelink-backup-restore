@@ -3,7 +3,7 @@ using WaveLinkBackup.Core.Snapshots;
 namespace WaveLinkBackup.App.ViewModels;
 
 /// <summary>
-/// The backing-up half of 04-in-progress.md, which had no implementation of any kind: the restore
+/// The backing-up half of the in-progress spec, which had no implementation of any kind: the restore
 /// half shipped complete, four named stages, connectors, STEP n OF 4, and this one was a
 /// <c>BackupHost.IsCapturing</c> flag that only the tray icon read (technical-debt.md §4.21 item 2).
 ///

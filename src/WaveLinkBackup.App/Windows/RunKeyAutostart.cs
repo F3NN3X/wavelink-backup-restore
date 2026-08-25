@@ -2,7 +2,7 @@ namespace WaveLinkBackup.App.Windows;
 
 /// <summary>
 /// Autostart through HKCU\...\Run. Per-user, never per-machine, and never a scheduled task
-/// (screens/12-tray-autostart-update.md).
+/// (the tray and updates spec).
 ///
 /// The complication is that whether the entry actually runs is decided somewhere else. Task
 /// Manager's Startup tab does not delete the Run value. It writes an approval record under

@@ -21,7 +21,7 @@ public enum AppTheme
 public static class ThemeManager
 {
     /// <summary>
-    /// The 21 roles from screens/01-tokens-and-mapping.md, plus WlHotTrack (11-high-contrast.md's
+    /// The 21 roles from the tokens spec, plus WlHotTrack (the high-contrast spec's
     /// hover outline, added post-review). Named here so a missing key in one theme is a failing
     /// test rather than a control that renders wrong in light mode only.
     ///

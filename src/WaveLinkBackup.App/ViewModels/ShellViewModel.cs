@@ -64,7 +64,7 @@ public sealed class ShellViewModel : ObservableObject
     private AutostartState autostartState = AutostartState.Off;
 
     /// <param name="autostart">
-    /// The seam behind the WHEN WINDOWS STARTS rows (screens/12). Optional so the existing
+    /// The seam behind the WHEN WINDOWS STARTS rows (the tray and updates spec). Optional so the existing
     /// constructor keeps its shape for callers that do not surface autostart - the App passes
     /// the real RunKeyAutostart and drives RefreshAutostart on every tick.
     /// </param>
@@ -79,14 +79,14 @@ public sealed class ShellViewModel : ObservableObject
     public SnapshotListViewModel List { get; }
 
     /// <summary>
-    /// The inline restore-result strip (03-restore-outcomes.md), below the status strip and above
+    /// The inline restore-result strip (the restore-outcomes spec), below the status strip and above
     /// the column header. Hidden until a restore finishes; the window feeds it the outcome or the
     /// failure, and its own dismiss rules decide when it goes away.
     /// </summary>
     public RestoreOutcomeStrip Strip { get; }
 
     /// <summary>
-    /// The four-stage in-progress strip's state (04-in-progress.md). One instance for the window's
+    /// The four-stage in-progress strip's state (the in-progress spec). One instance for the window's
     /// life: a restore that begins calls <see cref="BeginRestore"/>, which swaps in a fresh model,
     /// and the orchestrator drives it via <see cref="RestoreProgressModel.Advance"/>. The view binds
     /// to this; nothing here reaches for the store or the process - Task 6's Restore command is
@@ -99,7 +99,7 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The backing-up strip's state (04-in-progress.md's first half). One instance for the
+    /// The backing-up strip's state (the in-progress spec's first half). One instance for the
     /// window's life, like <see cref="RestoreProgress"/>, and for the same reason: 04 says the
     /// strip is "replaced in place by the result line" and never reappear-flashes, which a model
     /// swapped out per capture would make hard to hold to.
@@ -177,7 +177,7 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>
     /// README: "WAVE LINK RUNNING · SETTINGS LAST SAVED 23:07 · AUTOMATIC BACKUP ON".
     ///
-    /// A missing folder REPLACES the third segment rather than joining it: 10-decisions section
+    /// A missing folder REPLACES the third segment rather than joining it: the design decisions log, section
     /// 6 says the automatic backup does nothing at all while the folder is gone, so printing
     /// "AUTOMATIC BACKUP ON" beside it would be the exact silent lie that rule forbids.
     /// </summary>
@@ -290,7 +290,7 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>
     /// Re-raise the status tone so a binding re-reads it. The window calls this when the restore
-    /// strip's TurnsStatusAmber flips: 03-restore-outcomes.md says a Rejected strip turns the
+    /// strip's TurnsStatusAmber flips: the restore-outcomes spec says a Rejected strip turns the
     /// status strip amber too, and that is an ADDITIONAL condition on top of StatusTone's own
     /// ShellFacts-derived value. The XAML ORs the two (the strip's TurnsStatusAmber DataTrigger
     /// overrides the dot fill), so the window only needs to tell the binding to re-evaluate -
@@ -367,7 +367,7 @@ public sealed class ShellViewModel : ObservableObject
     public bool CanBackUpNow => !isRestoring && !facts.FolderMissing;
 
     /// <summary>
-    /// The seam behind the WHEN WINDOWS STARTS rows (screens/12). Null for callers that do not
+    /// The seam behind the WHEN WINDOWS STARTS rows (the tray and updates spec). Null for callers that do not
     /// surface autostart; every property below degrades to "off and cannot be enabled" in that
     /// case, which is also exactly what a blocked entry renders as.
     /// </summary>
@@ -385,7 +385,7 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The veto rule (screens/12): a Task Manager-disabled entry reads OFF and cannot be switched
+    /// The veto rule (the tray and updates spec): a Task Manager-disabled entry reads OFF and cannot be switched
     /// on here. Task Manager wins; the note says so rather than fighting it. So "blocked" renders
     /// as unchecked AND disabled - the control is off, and the user is told why they cannot turn
     /// it on from this app.

@@ -7,7 +7,7 @@ public readonly record struct NameSegment(string Text, bool IsMatch);
 /// Filtering the list. PURE - it operates on an already-loaded list and touches no disk, so
 /// typing in the search field costs nothing and needs no debounce.
 ///
-/// Names ONLY. operations/design/screens/07-search.md: "Search looks at names only. Say so
+/// Names ONLY. The search spec: "Search looks at names only. Say so
 /// rather than implying full-text." The footer copy makes that promise to the user
 /// ("SEARCH LOOKS AT NAMES ONLY"), so widening this later would make the copy a lie.
 /// </summary>

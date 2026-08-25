@@ -3,7 +3,7 @@ using WaveLinkBackup.App.Updates;
 namespace WaveLinkBackup.App.ViewModels;
 
 /// <summary>
-/// Settings' <c>UPDATES</c> section (screens/12), which did not exist in any form: error 8's
+/// Settings' <c>UPDATES</c> section (the tray and updates spec), which did not exist in any form: error 8's
 /// *"Get the update"* button deep-linked to a section that was never built
 /// (technical-debt.md §4.21 item 5).
 ///
@@ -135,7 +135,7 @@ public sealed class UpdateViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The failed-update block's mono line, or null. NEUTRAL, not amber: screens/12: "a failed
+    /// The failed-update block's mono line, or null. NEUTRAL, not amber: the tray and updates spec: "a failed
     /// update leaves a working app, so nothing is un-whole."
     /// </summary>
     public string? Failure

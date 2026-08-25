@@ -9,7 +9,7 @@
         Background="Transparent">
 
     <!--
-      The empty-trash confirmation, in its single irreversible shape (08-settings-persistence.md).
+      The empty-trash confirmation, in its single irreversible shape (the settings-persistence spec).
 
       The same borderless-modal shape as DeleteDialog and RestoreDialog: WlScrim fills this window
       edge to edge and the 480px WlCard card sits centred on top of it. WindowStyle=None rather than

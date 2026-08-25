@@ -11,7 +11,7 @@ namespace WaveLinkBackup.Core.Snapshots;
 /// </summary>
 public static class SnapshotId
 {
-    /// <summary>e.g. <c>2026-08-15T2307-a3f81c</c>.</summary>
+    /// <summary>e.g. <c>2026-08-15T23the search spec</c>.</summary>
     public static string Create(DateTimeOffset createdUtc, string settingsSha256)
     {
         var stamp = createdUtc.ToUniversalTime().ToString("yyyy-MM-dd'T'HHmm");

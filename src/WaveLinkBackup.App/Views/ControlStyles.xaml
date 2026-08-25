@@ -100,7 +100,7 @@
     <!--
       Close differs from Minimise/Maximise: it fills WlDanger on hover in Dark and Light, matching
       every other window on Windows. High contrast cannot reuse WlDanger for that - HighContrast
-      .xaml deliberately maps WlDanger to WindowText, because 11-high-contrast.md says nothing in
+      .xaml deliberately maps WlDanger to WindowText, because the high-contrast spec says nothing in
       high contrast is red - so the hover goes through WlCaptionCloseHover instead: WlDanger's own
       colour in Dark and Light, Highlight in high contrast. That is what keeps this a DynamicResource
       swap, live on an HC toggle, rather than a trigger that has to ask SystemParameters itself.
@@ -312,8 +312,7 @@
                             <Setter Property="Opacity" Value="0.4" />
                         </Trigger>
 
-                        <!--
-                          11-high-contrast.md: "Hover = 1px HotTrack outline, no fill." WlHover
+                        <!-- The high-contrast spec: "Hover = 1px HotTrack outline, no fill." WlHover
                           resolves to Transparent in high contrast (HighContrast.xaml), so without
                           this a hovered button gives no feedback at all there. IsMouseOver is
                           expressed as a Binding (RelativeSource Self) rather than a plain Trigger
@@ -338,8 +337,7 @@
                             <Setter TargetName="Surface" Property="BorderThickness" Value="1" />
                         </MultiDataTrigger>
 
-                        <!--
-                          11-high-contrast.md: "40% opacity is illegal here - transparency is not a
+                        <!-- The high-contrast spec: "40% opacity is illegal here - transparency is not a
                           contrast guarantee. Disabled = GrayText for border and label at full
                           opacity, even though HC Black makes that bright green. Do not override it."
                           Declared after the plain IsEnabled=False trigger so it wins and restores
@@ -679,7 +677,7 @@
       High contrast: WlAccent maps to Highlight there (HighContrast.xaml), so the ON state already
       carries a guaranteed-contrast fill; the knob uses WlAccentInk (HighlightText) for the same
       reason WlFocusVisual switches to it on a Highlight-filled row. The OFF border steps up from
-      WlLine2 to WlHotTrack in HC because 11-high-contrast.md forbids relying on a low-opacity hairline
+      WlLine2 to WlHotTrack in HC because the high-contrast spec forbids relying on a low-opacity hairline
       alone to define an interactive control's boundary there.
     -->
     <Style x:Key="WlToggle" TargetType="CheckBox">
@@ -858,7 +856,7 @@
 
       Checked is WlAccent fill + WlAccentInk ink, which is WlToggle's own "on" treatment. That
       choice is what makes high contrast free: those two keys resolve to Highlight and
-      HighlightText there, which is exactly what screens/11 asks a selected thing to be. A WlCard
+      HighlightText there, which is exactly what the high-contrast spec asks a selected thing to be. A WlCard
       fill would have been invisible - WlCard is Transparent in high contrast.
     -->
     <Style x:Key="WlSegmentButton" TargetType="RadioButton">

@@ -9,7 +9,7 @@
         Background="Transparent">
 
     <!--
-      The inform-then-elevate notice (screens/13-elevation.md). Shown when a restore must close a
+      The inform-then-elevate notice (the elevation spec). Shown when a restore must close a
       running Wave Link that sits above this process's integrity level, so the graceful close and
       the kill both fail in place and an elevated copy has to do it instead.
 

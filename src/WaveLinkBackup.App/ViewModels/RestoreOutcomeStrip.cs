@@ -7,7 +7,7 @@ namespace WaveLinkBackup.App.ViewModels;
 /// <summary>
 /// The four things the restore strip can be showing, and nothing else.
 ///
-/// 03-restore-outcomes.md is authoritative: one inline strip below the status strip, above the
+/// The restore-outcomes spec is authoritative: one inline strip below the status strip, above the
 /// column header, full width. Every outcome maps to a distinct visual state and a distinct
 /// dismiss rule, and those rules are the whole point of the strip - a restore that cannot be
 /// confirmed must not look like one that can.
@@ -41,7 +41,7 @@ public enum RestoreStripKind
     Failed,
 
     /// <summary>
-    /// One of 06-errors.md's inline-strip errors (3, 5, 6, 7, 10, 11) - the consequence of
+    /// One of the errors spec's inline-strip errors (3, 5, 6, 7, 10, 11) - the consequence of
     /// something the user just pressed. All neutral fill: no left edge, no amber status. The
     /// strip carries the error number and the designed sentence; a machine-specific mono meta
     /// line (path, checksum, PID) rides along when the trigger has one.
@@ -55,7 +55,7 @@ public enum RestoreStripKind
 /// A thin read-only projection over Core's <see cref="RestoreOutcome"/> plus the failure case
 /// that outcome never carries (a failed restore returns a Result&lt;T&gt;.Fail, not an outcome).
 /// The dismiss rules live here, in one place, so the XAML binds to booleans and the tests can
-/// assert the exact 03-restore-outcomes.md behaviour without standing up a window.
+/// assert the exact the restore-outcomes spec behaviour without standing up a window.
 /// </summary>
 public sealed class RestoreOutcomeStrip : ObservableObject
 {
@@ -82,7 +82,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     public Action? OnAction { get; set; }
 
     /// <summary>
-    /// The accent button's action. Only the rejected strip has one: 03-restore-outcomes.md §3
+    /// The accent button's action. Only the rejected strip has one: the restore-outcomes spec, §3
     /// gives it a ghost "Show the log" AND a primary <c>Restore "Before restore"</c>, and the
     /// primary is the recovery path for the only failure that costs someone their mixer.
     /// </summary>
@@ -117,7 +117,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     public bool AutoDismisses => _autoDismisses;
 
     /// <summary>
-    /// Whether the close (X) button may be shown. Rejected is false: 03-restore-outcomes.md says
+    /// Whether the close (X) button may be shown. Rejected is false: the restore-outcomes spec says
     /// it is not dismissible until acted on, and acting means reading why, not hiding it.
     /// </summary>
     public bool Dismissible => _dismissible;
@@ -128,7 +128,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     public string ActionLabel { get => _actionLabel; private set => Set(ref _actionLabel, value); }
 
     /// <summary>
-    /// The 22px mono error number on the left of an inline-strip error (06-errors.md anatomy).
+    /// The 22px mono error number on the left of an inline-strip error (the errors spec anatomy).
     /// Zero when the strip is not showing an inline error.
     /// </summary>
     public int ErrorNumber { get => _errorNumber; private set => Set(ref _errorNumber, value); }
@@ -176,7 +176,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
         PrimaryActionLabel = string.Empty;
 
         // A null verdict means the log could not be read: the restore cannot be CONFIRMED, which
-        // 03-restore-outcomes.md treats as unconfirmed (neutral), never as a reject.
+        // The restore-outcomes spec treats as unconfirmed (neutral), never as a reject.
         if (outcome.Verdict is not { } verdict)
         {
             Kind = RestoreStripKind.SucceededUnconfirmed;
@@ -288,7 +288,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
                 break;
 
             case RestoreResult.Rejected:
-                // 03-restore-outcomes.md §3. The headline states what happened; the body names the
+                // The restore-outcomes spec, §3. The headline states what happened; the body names the
                 // way back, and the primary button IS that way back. Before this the state stated
                 // a problem, offered nothing, and could not be closed for the life of the process
                 // (technical-debt.md §4.21 item 1).
@@ -364,7 +364,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     }
 
     /// <summary>
-    /// Show the strip for one of 06-errors.md's inline-strip errors (3, 5, 6, 7, 10, 11) - the
+    /// Show the strip for one of the errors spec's inline-strip errors (3, 5, 6, 7, 10, 11) - the
     /// consequence of something the user just pressed. All neutral fill: no left edge, no amber
     /// status. The sentence comes from the catalog (the designed copy); <paramref name="monoMeta"/>
     /// is the machine-specific mono line (path, checksum, PID) that 06 prints under the sentence,

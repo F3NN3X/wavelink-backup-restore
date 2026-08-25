@@ -4,7 +4,7 @@ namespace WaveLinkBackup.App.ViewModels;
 
 /// <summary>
 /// Whether emptying the trash is recoverable. Decided per volume, not per app launch. The
-/// backup folder is user-chosen and may sit on a NAS or a stick. 08-settings-persistence.md.
+/// backup folder is user-chosen and may sit on a NAS or a stick. The settings-persistence spec.
 /// </summary>
 public enum VolumeKind
 {
@@ -110,7 +110,7 @@ public sealed record TrashRowModel(
 /// The bar is DETERMINATE because the numbers are real: <c>SnapshotStore.EmptyTrash</c> reports
 /// after each successful removal, so <see cref="Done"/> only ever moves forward and <see cref="Total"/>
 /// was known before the first removal. A spinner would be the worse version of the same lie a fake
-/// determinate bar is (04-in-progress.md's rule, applied to a smaller operation).
+/// determinate bar is (the in-progress spec's rule, applied to a smaller operation).
 /// </summary>
 public sealed record TrashEmptyProgress(
     int Done,

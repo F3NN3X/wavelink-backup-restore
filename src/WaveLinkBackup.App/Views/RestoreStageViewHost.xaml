@@ -4,7 +4,7 @@
              xmlns:views="clr-namespace:WaveLinkBackup.App.Views">
 
     <!--
-        One stage of the restore in-progress strip (04-in-progress.md). Three treatments, driven
+        One stage of the restore in-progress strip (the in-progress spec). Three treatments, driven
         by Stage.Status and applied in code-behind (OnStageChanged):
 
           done     14px check in WlOk + mono 500 11px ls .14em WlMuted

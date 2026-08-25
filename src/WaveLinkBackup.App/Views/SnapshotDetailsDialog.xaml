@@ -31,7 +31,7 @@
         <views:InverseBoolToVisibilityConverter x:Key="WhenFalse" />
 
         <!-- The board's one cell: a green checkmark where the channel feeds the mix, an empty ring
-             where it does not. Shape-first (screens/11) - high contrast keeps both shapes and
+             where it does not. Shape-first (the high-contrast spec) - high contrast keeps both shapes and
              the fill is WlOk, never the only signal because the row and column names sit beside it.
              Keyed rather than inline: an inline DataTemplate with DataType=bool would match its own
              bool item and re-enter itself forever (the OOM in XamlObjectWriter). The check is the

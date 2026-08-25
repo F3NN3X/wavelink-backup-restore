@@ -3,13 +3,13 @@ using WaveLinkBackup.Core.Snapshots;
 
 namespace WaveLinkBackup.App.ViewModels;
 
-/// <summary>Which of the three delete confirmations to show. 05-delete-dialogs.md.</summary>
+/// <summary>Which of the three delete confirmations to show. The delete-dialogs spec.</summary>
 public enum DeleteVariant
 {
     /// <summary>The ordinary case: other backups exist and this one is not a pre-restore copy.</summary>
     Normal,
 
-    /// <summary>Deleting the only backup. Neutral, NOT amber (10-decisions.md §2).</summary>
+    /// <summary>Deleting the only backup. Neutral, NOT amber (the design decisions log, §2).</summary>
     OnlyBackup,
 
     /// <summary>A pre-restore copy: the way back from a restore. No colour.</summary>

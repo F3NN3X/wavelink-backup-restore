@@ -9,7 +9,7 @@ namespace WaveLinkBackup.App.Views;
 /// <summary>
 /// The tray icon is GENERATED, not shipped as four .ico files.
 ///
-/// screens/11-high-contrast.md: "The tray icon follows the system icon contrast." A static icon
+/// The high-contrast spec: "The tray icon follows the system icon contrast." A static icon
 /// cannot do that. The taskbar's theme is the system's, which is not necessarily the app's, and
 /// in high contrast the colours are not ours at all. Drawing it means the glyph is always
 /// rendered against whatever the taskbar currently is.
@@ -25,7 +25,7 @@ public static class TrayIconRenderer
     /// ControlStyles.xaml's own note for the two mechanical differences from the .svg files.
     ///
     /// The four states compose a shield with one of four marks inside it, which is the design's
-    /// own construction (screens/12) rather than four whole Lucide icons, so the shield body is
+    /// own construction (the tray and updates spec) rather than four whole Lucide icons, so the shield body is
     /// lucide/shield-check's outline, and each mark is the glyph Lucide draws for that meaning.
     /// </summary>
     private const string ShieldPath =
@@ -160,7 +160,7 @@ public static class TrayIconRenderer
     /// Amber is the only colour the icon ever takes, and it means what it means everywhere else:
     /// something is not whole. In high contrast amber means nothing, so NEEDS YOU becomes
     /// WindowText and PAUSED becomes GrayText at FULL opacity: never the 55% used in the normal
-    /// themes, because transparency is not a contrast guarantee (screens/11).
+    /// themes, because transparency is not a contrast guarantee (the high-contrast spec).
     /// </summary>
     public static Color ColourFor(TrayStatus status, bool highContrast)
     {

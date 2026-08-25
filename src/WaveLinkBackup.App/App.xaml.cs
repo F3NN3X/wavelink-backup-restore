@@ -72,7 +72,7 @@ public partial class App : Application
     private bool shuttingDown;
 
     /// <summary>
-    /// Error 2 (06-errors.md) asks at most once per process. The chooser fires the first time a
+    /// Error 2 (the errors spec) asks at most once per process. The chooser fires the first time a
     /// tick finds more than one Wave Link installation and none has been chosen yet; after the user
     /// picks, cancels, or an install is later found uniquely, this stays set so the dialog never
     /// re-appears on every 15-second tick.
@@ -108,7 +108,7 @@ public partial class App : Application
 
     /// <summary>
     /// The Run-key seam, held because BOTH the shell view model and the Settings dialog's
-    /// WHEN WINDOWS STARTS section read it (screens/12).
+    /// WHEN WINDOWS STARTS section read it (the tray and updates spec).
     /// </summary>
     private IAutostart? autostart;
 
@@ -132,7 +132,7 @@ public partial class App : Application
     /// process sits above this one's integrity level (WavelinkSEService as System), which a
     /// non-elevated copy cannot even open a handle to. Read by MainWindow before it commits to an
     /// in-process restore, so it can tell the user WHY Windows will ask for rights instead of
-    /// letting the UAC prompt appear unexplained (screens/13-elevation.md). False when nothing is
+    /// letting the UAC prompt appear unexplained (the elevation spec). False when nothing is
     /// running or every running process is reachable - the common case, where no prompt appears.
     /// </summary>
     internal bool RestoreCloseRequiresElevation => waveLinkProcess?.CloseRequiresElevation ?? false;
@@ -185,7 +185,7 @@ public partial class App : Application
 
         // BEFORE the mutex, because this copy is not an instance of the app - it is one restore,
         // started elevated by the copy the user is looking at, and the mutex would make it exit
-        // without doing the thing it was started for (screens/13-elevation.md).
+        // without doing the thing it was started for (the elevation spec).
         if (arguments.IsHeadlessRestore)
         {
             var elevatedFileSystem = new FileSystem();
@@ -268,7 +268,7 @@ public partial class App : Application
         // Re-rendering on the change is the whole of technical-debt.md §4.8 minor 1's second half.
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
-        // Now that there is an icon to repaint, follow the OS. screens/11 requires high contrast
+        // Now that there is an icon to repaint, follow the OS. The high-contrast spec requires high contrast
         // to be reacted to at runtime rather than needing a restart, and the same is true of
         // dark/light and the accent. This first call is also what builds the menu.
         ThemeManager.Follow(systemTheme, OnThemeChanged);
@@ -486,7 +486,7 @@ public partial class App : Application
             ? live.Value.Location.LocalStatePath
             : SettingsLocator.SystemLocalAppData;
 
-        // The user's own timings (screens/14-backup-timing.md): the interval cap they chose, and
+        // The user's own timings (the backup-timing spec): the interval cap they chose, and
         // the daily copy if they switched one on. AutoBackupPolicy.Default is the pair of constants
         // these two settings replaced.
         var coordinator = new AutoBackupCoordinator(
@@ -500,7 +500,7 @@ public partial class App : Application
         // RefreshAsync - see MainWindow.xaml.cs.
         var list = new SnapshotListViewModel(store, new HealthProbe(store, fileSystem, clock), fileSystem, clock);
 
-        // The autostart seam (screens/12): the Run key for THIS executable. ProcessPath is null
+        // The autostart seam (the tray and updates spec): the Run key for THIS executable. ProcessPath is null
         // until the process has started, so it is resolved at composition time - by then
         // App.xaml.cs has run and Environment.ProcessPath points at the real exe.
         var runKeyAutostart = new RunKeyAutostart(
@@ -654,7 +654,7 @@ public partial class App : Application
         var result = service!.BackUpNow("Manual", progress: progress);
 
         // No message box here: MainWindow.BackUpNowAsync renders the failure as one of the twelve
-        // designed errors (06-errors.md) - inline strip for 3/5, message box otherwise. The tray
+        // designed errors (the errors spec) - inline strip for 3/5, message box otherwise. The tray
         // menu's own entry point discards this Result and needs no reporting of its own.
 
         RefreshTray();
@@ -705,7 +705,7 @@ public partial class App : Application
 
     /// <summary>
     /// Error 8's "Get the update": Settings, at UPDATES, with a check already running so the new
-    /// version's row is showing by the time the user looks at it (screens/12).
+    /// version's row is showing by the time the user looks at it (the tray and updates spec).
     ///
     /// The check is the ONLY thing started automatically here. Installing is still a press. "It
     /// never installs anything without you" holds on this path exactly as it does on every other.
@@ -879,7 +879,7 @@ public partial class App : Application
         // when our own settings file last recorded the choice (the moment the user picked).
         var whichLive = BuildWhichWaveLink(repo);
 
-        // WHEN WINDOWS STARTS (screens/12): the Run key and the shell's own close behaviour. Both
+        // WHEN WINDOWS STARTS (the tray and updates spec): the Run key and the shell's own close behaviour. Both
         // seams were built and tested phases ago with nothing bound to either of them
         // (technical-debt.md §4.21 item 4). Null when autostart is unavailable, which hides the
         // whole section rather than drawing two toggles that write nowhere.
@@ -948,7 +948,7 @@ public partial class App : Application
             vm.UsedBytes = snapshots.Sum(s => s.Manifest.TotalSizeBytes);
         }
 
-        // UPDATES (screens/12). Built here because it needs the release feed and the HTTP client,
+        // UPDATES (the tray and updates spec). Built here because it needs the release feed and the HTTP client,
         // and hidden entirely when no feed is configured - a "Check now" that cannot reach anything
         // is worse than no button.
         vm.Updates = BuildUpdateViewModel();
@@ -1079,8 +1079,8 @@ public partial class App : Application
     /// (it returns MultiplePackagesFound), so a successful inspect of the CHOSEN path proves exactly
     /// one install is present - which is exactly when there is nothing to choose and the section
     /// stays hidden. A failure with no candidate is "not installed" or "unreadable", also not this
-    /// section's business; only MultiplePackagesFound + a chosen path earns it (08-settings-
-    /// persistence.md: hide the whole section when only one installation exists).
+    /// section's business; only MultiplePackagesFound + a chosen path earns it
+    /// (the settings-persistence spec: hide the whole section when only one installation exists).
     /// </summary>
     private WhichWaveLinkModel? BuildWhichWaveLink(SettingsRepository repo)
     {
@@ -1159,7 +1159,7 @@ public partial class App : Application
 
         if (picker.ShowDialog(owner) != true) return;
 
-        // Error 9 (06-errors.md §9), raised in place rather than as a modal. A folder holding
+        // Error 9 (the errors spec, §9), raised in place rather than as a modal. A folder holding
         // files but no snapshot is almost always a mis-click - a Recordings folder, a project
         // directory - and pointing the store at it silently would hide every existing backup
         // behind an empty list. An EMPTY folder is fine: that is "start fresh in an empty one",
@@ -1573,7 +1573,7 @@ public partial class App : Application
 
         tray.ToolTipText = TrayState.Tooltip(host.Conditions, newest.TakenAt);
 
-        // The nine-day notice (screens/12, "Notifications - exactly two"). Checked on every tray
+        // The nine-day notice (the tray and updates spec, "Notifications - exactly two"). Checked on every tray
         // refresh, which is every host tick, and fired at most once per episode - the decision and
         // the once-ness both live in TrayNotifications so they can be asserted from a table.
         Notify(notifications.NothingBackedUp(newest.TakenAt, DateTimeOffset.Now));
@@ -1610,7 +1610,7 @@ public partial class App : Application
 
     /// <summary>
     /// The design's readout: a mono label plus what a machine produced.
-    /// screens/12: "LAST BACKUP (mono 10px label + TODAY 23:07 · 5 INPUTS)".
+    /// The tray and updates spec: "LAST BACKUP (mono 10px label + TODAY 23:07 · 5 INPUTS)".
     ///
     /// The day qualifier is not decoration: "23:07" alone is ambiguous the moment a backup is
     /// more than a day old, which for this app is the normal case.
@@ -1653,7 +1653,7 @@ public partial class App : Application
 
         if (shell is null || fileSystem is null) return;
 
-        // Error 2 (06-errors.md): more than one Wave Link installation and none chosen yet is a
+        // Error 2 (the errors spec): more than one Wave Link installation and none chosen yet is a
         // dialog, not a status-strip fact. It fires once per process - the chooser persists the
         // answer (or the user cancels), so it must never re-ask on every 15-second tick.
         if (!error2Prompted && settings.ChosenWaveLinkPath is null)
@@ -1685,12 +1685,12 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Error 2 (06-errors.md): the chooser. It fires only when a live inspection finds more than
+    /// Error 2 (the errors spec): the chooser. It fires only when a live inspection finds more than
     /// one Wave Link installation and none has been chosen yet, so it is the FIRST thing the user
     /// sees in that situation - before any backup or restore can act on the wrong install. The
     /// answer (or a cancel) marks <see cref="error2Prompted"/> so the dialog never re-asks; picking
     /// an install also persists it, which is what stops the chooser asking again on every launch
-    /// (10-decisions.md 4).
+    /// (the design decisions log, item 4).
     /// </summary>
     private void PromptForInstallationChoice()
     {

@@ -35,7 +35,7 @@ public enum RestoreResult
 /// <param name="FailureMessage">Present only on Failed: what went wrong, in the user's words.</param>
 /// <param name="CoreError">
 /// Present only on Failed: the typed Core error behind the failure. The window maps it to one of
-/// the twelve designed errors (06-errors.md) - a damaged backup renders as inline strip 10, an
+/// the twelve designed errors (the errors spec) - a damaged backup renders as inline strip 10, an
 /// unreadable manifest as 7 - which a plain message string cannot distinguish. Null on every
 /// non-Failed outcome and on a cancellation (which is not an expected failure).
 /// </param>
@@ -203,7 +203,7 @@ public sealed class RestoreService(
         // The log said names were applied and nothing failed to parse - confirmed.
         { Succeeded: true } => RestoreResult.Confirmed,
         // A verdict with neither a parse failure nor applied names: the write went through but the
-        // confirmation did not. Unconfirmed, never a reject (03-restore-outcomes.md).
+        // confirmation did not. Unconfirmed, never a reject (the restore-outcomes spec).
         _ => RestoreResult.Unconfirmed,
     };
 }

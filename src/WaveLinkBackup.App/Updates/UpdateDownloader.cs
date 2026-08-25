@@ -6,7 +6,7 @@ namespace WaveLinkBackup.App.Updates;
 /// <param name="Path">Where the verified archive landed, or null when it did not.</param>
 /// <param name="FailureDetail">
 /// The mono line under the failed-update block. Null on success. A failed download is NEUTRAL:
-/// screens/12: "a failed update leaves a working app, so nothing is un-whole."
+/// The tray and updates spec: "a failed update leaves a working app, so nothing is un-whole."
 /// </param>
 public sealed record UpdateDownload(string? Path, string? FailureDetail)
 {

@@ -50,7 +50,7 @@ public sealed class BackupService(
     /// only works if a row actually appears.
     /// </summary>
     /// <param name="progress">
-    /// Byte-level progress, for the shell's backing-up strip (04-in-progress.md). Only the manual
+    /// Byte-level progress, for the shell's backing-up strip (the in-progress spec). Only the manual
     /// path takes one: an automatic capture has no surface to report to.
     /// </param>
     public Result<Snapshot> BackUpNow(

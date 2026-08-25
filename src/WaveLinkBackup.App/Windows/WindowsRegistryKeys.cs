@@ -2,7 +2,7 @@ using Microsoft.Win32;
 
 namespace WaveLinkBackup.App.Windows;
 
-/// <summary>HKEY_CURRENT_USER only. Per-user, never per-machine (screens/12).</summary>
+/// <summary>HKEY_CURRENT_USER only. Per-user, never per-machine (the tray and updates spec).</summary>
 public sealed class WindowsRegistryKeys : IRegistryKeys
 {
     public string? GetString(string keyPath, string name)

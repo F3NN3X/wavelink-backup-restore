@@ -7,7 +7,7 @@ using WaveLinkBackup.App.ViewModels;
 namespace WaveLinkBackup.App.Views;
 
 /// <summary>
-/// Renders one stage of the restore in-progress strip (04-in-progress.md) with its three
+/// Renders one stage of the restore in-progress strip (the in-progress spec) with its three
 /// treatments, driven entirely by the bound <see cref="RestoreStageView"/>:
 ///
 ///   done     14px check in WlOk + mono 500 11px ls .14em WlMuted

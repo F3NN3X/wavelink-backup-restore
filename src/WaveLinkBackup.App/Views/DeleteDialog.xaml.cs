@@ -39,7 +39,7 @@ public partial class DeleteDialog : Window
         // IsDefault - see the note below.
         DeleteButton.Click += (_, _) => { DialogResult = true; };
 
-        // 10-decisions section 6: "Enter fires the primary button - except Delete and Restore,
+        // The design decisions log, section 6: "Enter fires the primary button - except Delete and Restore,
         // where focus starts on Cancel and the destructive button must be reached deliberately
         // (Tab or click)." IsDefault would break exactly that: a default button takes Enter from
         // ANYWHERE in the dialog, focus on Cancel included, so the app's most destructive key was
@@ -63,7 +63,7 @@ public partial class DeleteDialog : Window
         Loaded += (_, _) => CancelButton.Focus();
     }
 
-    /// <summary>Escape cancels, matching the keyboard rule in 10-decisions (section 6).</summary>
+    /// <summary>Escape cancels, matching the keyboard rule in the design decisions log (section 6).</summary>
     protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == System.Windows.Input.Key.Escape)

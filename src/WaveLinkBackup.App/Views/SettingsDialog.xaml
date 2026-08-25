@@ -179,8 +179,7 @@
                                 AutomationProperties.Name="Open the backup folder" />
                     </StackPanel>
 
-                    <!--
-                      06-errors.md §9, in place, right after "Change folder…" - which is where the
+                    <!-- The errors spec §9, in place, right after "Change folder…" - which is where the
                       design puts it, and the reason it is not a modal: it is a fact about the
                       button directly above it. Amber, because a store pointing at the wrong folder
                       means the user's backups are not reachable.
@@ -324,7 +323,7 @@
                         </Grid>
                     </Border>
 
-                    <!-- Row 2: how often, at most (screens/14-backup-timing.md). A cap on
+                    <!-- Row 2: how often, at most (the backup-timing spec). A cap on
                          change-driven backups, not a timer: nothing is written when nothing changes,
                          so lowering it does not make the app busier on a quiet machine. The title is
                          the VALUE READ BACK - bound, not fixed - so label and control cannot drift. -->
@@ -496,7 +495,7 @@
                                AutomationProperties.Name="What goes in a backup section" />
 
                     <!-- One bordered group, four rows on a 1fr/84px/52px grid (label+description,
-                         size, control), 12-14px x 16px padding, hairline between rows. The group is
+                         size, control), the tray and updates spec x 16px padding, hairline between rows. The group is
                          WlBg with a hairline border and 8px radius; each row's bottom hairline is the
                          divider (the last row carries none). Sizes are honest and right-aligned in mono. -->
                     <Border Background="{DynamicResource WlBg}"
@@ -594,8 +593,7 @@
                         </Grid>
                     </Border>
 
-                    <!--
-                      11-high-contrast.md: "The proportion bar in Settings loses its colour
+                    <!-- The high-contrast spec: "The proportion bar in Settings loses its colour
                       segments; label the segments instead."
 
                       In high contrast every fill in this app is transparent, so the bar above
@@ -668,7 +666,7 @@
 
                     <!-- The unbuilt-tier footnote is GONE, with phase 6 - the same removal the
                          NOT BUILT YET badge already got in this file's own Window.Resources.
-                         08-settings-persistence.md's "Unbuilt tiers" section describes a state
+                         the settings-persistence spec's "Unbuilt tiers" section describes a state
                          this app left: both switches move now, and a line telling the user they
                          cannot was the one sentence on this screen that was untrue. -->
 
@@ -727,7 +725,7 @@
 
                     <!--
                       ============ WHEN WINDOWS STARTS ============
-                      screens/12-tray-autostart-update.md. Two toggles and a note.
+                      the tray and updates spec. Two toggles and a note.
 
                       RunKeyAutostart, IAutostart, AutostartState, ToggleAutostart,
                       CanEnableAutostart, AutostartBlockedNote and ClosingHidesToTray were all
@@ -854,7 +852,7 @@
                                     <!-- Honest about the one case a person would otherwise read as
                                          a bug: Windows' own high-contrast scheme outranks whatever
                                          is picked here, because it is Windows saying the palette
-                                         is no longer ours (screens/11). -->
+                                         is no longer ours (the high-contrast spec). -->
                                     <TextBlock Text="Auto follows the light or dark setting in Windows. Turning on a high-contrast theme in Windows takes over from any choice made here."
                                                Style="{StaticResource WlSecondaryText}"
                                                Foreground="{DynamicResource WlMuted}" Margin="0,4,0,0"
@@ -903,7 +901,7 @@
 
                     <!--
                       ============ UPDATES ============
-                      screens/12-tray-autostart-update.md. Three rows: the state, the available
+                      the tray and updates spec. Three rows: the state, the available
                       update, and the weekly-check switch - plus the failed-update block.
 
                       It did not exist in any form, which meant error 8's "Get the update" button
@@ -1042,7 +1040,7 @@
                     <!-- ============ WHERE THESE SETTINGS LIVE ============ -->
                     <!-- Always visible: it is a fact about where the file is, not a choice. The mono
                          line carries the path and its own size; the second line keeps "a command-line
-                         flag overrides this for one run" honest (08-settings-persistence.md). -->
+                         flag overrides this for one run" honest (the settings-persistence spec). -->
                     <views:TrackedText Text="WHERE THESE SETTINGS LIVE" Tracking=".18"
                                Style="{StaticResource WlColumnHeaderTrackedText}"
                                Foreground="{DynamicResource WlMuted}" Margin="0,22,0,10"

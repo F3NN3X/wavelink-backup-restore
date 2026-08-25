@@ -121,7 +121,7 @@ public sealed class SnapshotRowViewModel : ObservableObject
 
     /// <summary>
     /// The same line in high contrast, where colour means nothing: a verdict WORD leads, and the
-    /// rest follows. 11-high-contrast, and no new column - it renders in the NAME cell exactly
+    /// rest follows. The high-contrast spec, and no new column - it renders in the NAME cell exactly
     /// where the meta line does.
     /// </summary>
     public string VerdictLine => health switch

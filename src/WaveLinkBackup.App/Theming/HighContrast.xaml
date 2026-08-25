@@ -21,7 +21,7 @@
 
       "Every fill goes transparent" is a rule about surfaces drawn ON something - a card inside
       the main window sits on WlBg, so dropping its fill reveals WindowColor and the card is
-      still legible, separated by its border exactly as 11-high-contrast.md intends.
+      still legible, separated by its border exactly as the high-contrast spec intends.
 
       A dialog card is not that. Every dialog here is a layered window - WindowStyle=None,
       AllowsTransparency=True, Background=Transparent - with WlScrim edge to edge and the card
@@ -46,7 +46,7 @@
     <SolidColorBrush x:Key="WlLine2"  Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="WlHover"  Color="Transparent" />
 
-    <!-- 11-high-contrast.md: "Hover = 1px HotTrack outline, no fill." WlHover goes transparent
+    <!-- The high-contrast spec: "Hover = 1px HotTrack outline, no fill." WlHover goes transparent
          above, so there is no other feedback left without this. -->
     <SolidColorBrush x:Key="WlHotTrack" Color="{DynamicResource {x:Static SystemColors.HotTrackColorKey}}" />
 
@@ -56,7 +56,7 @@
     <SolidColorBrush x:Key="WlAccentSoft" Color="Transparent" />
     <SolidColorBrush x:Key="WlAccentLine" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="WlDanger"     Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
-    <!-- No tint in high contrast - every fill goes transparent (11-high-contrast.md). The Failed
+    <!-- No tint in high contrast - every fill goes transparent (the high-contrast spec). The Failed
          strip separates by its border and glyph, not by a fill. -->
     <SolidColorBrush x:Key="WlDangerSoft" Color="Transparent" />
 
@@ -72,7 +72,7 @@
     <SolidColorBrush x:Key="WlTransparent" Color="Transparent" />
 
     <!-- The close caption button's hover fill. Highlight, not WlDanger's WindowText - nothing in
-         high contrast is red (11-high-contrast.md), and a close button still needs to visibly
+         high contrast is red (the high-contrast spec), and a close button still needs to visibly
          react on hover. -->
     <SolidColorBrush x:Key="WlCaptionCloseHover"
                       Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />

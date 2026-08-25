@@ -21,7 +21,7 @@ public partial class SettingsDialog : Window
 
     /// <summary>
     /// Open scrolled to UPDATES, with a check already running. Set by error 8's "Get the update"
-    /// (screens/12: it deep-links here "with the new version's row already showing").
+    /// (the tray and updates spec: it deep-links here "with the new version's row already showing").
     /// </summary>
     public bool ScrollToUpdates { get; init; }
 
@@ -85,7 +85,7 @@ public partial class SettingsDialog : Window
         CopyDiagnosticsButton.Click += (_, _) =>
             (Application.Current as App)?.CopyDiagnostics(model);
 
-        // Error 9's two actions, sitting in place under "Change folder…" (06-errors.md §9).
+        // Error 9's two actions, sitting in place under "Change folder…" (the errors spec, §9).
         // "Choose another…" is the same picker the row above uses; "Keep the current folder" only
         // clears the block - the store never moved, so there is nothing to undo.
         ChooseAnotherFolderButton.Click += (_, _) =>
@@ -113,7 +113,7 @@ public partial class SettingsDialog : Window
         // than trusting what it was constructed with.
         Loaded += (_, _) => model.RefreshAutostart();
 
-        // UPDATES (screens/12). The three actions that reach the network go through the view
+        // UPDATES (the tray and updates spec). The three actions that reach the network go through the view
         // model, which owns the busy flag and the failure line; the two that open a browser go
         // through App, which is where every other shell-out lives.
         CheckForUpdatesButton.Click += async (_, _) => await model.Updates!.CheckAsync(DateTimeOffset.Now);

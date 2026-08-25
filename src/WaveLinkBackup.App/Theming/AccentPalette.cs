@@ -13,7 +13,7 @@ public readonly record struct AccentBrush(string Key, Color Colour, double Opaci
 /// <summary>
 /// The accent enters the app HERE and nowhere else.
 ///
-/// 01-tokens-and-mapping.md: "When the user's accent is set, --wl-accent-soft = accent at 12%
+/// The tokens spec: "When the user's accent is set, --wl-accent-soft = accent at 12%
 /// (dark) / 7% (light) and --wl-accent-line = accent at 32% / 24%." Deriving rather than
 /// authoring is what keeps that true: four authored values would drift the first time one of
 /// them was edited.
@@ -31,7 +31,7 @@ public static class AccentPalette
     /// </summary>
     public static IReadOnlyList<AccentBrush> Derive(Color accent, AppTheme theme)
     {
-        // In high contrast the accent is gone: screens/11 replaces primary with Highlight and
+        // In high contrast the accent is gone: the high-contrast spec replaces primary with Highlight and
         // says nothing is red, so nothing needs protecting from a second red either.
         if (theme == AppTheme.HighContrast) return [];
 

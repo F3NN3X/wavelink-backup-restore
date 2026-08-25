@@ -7,7 +7,7 @@
 
       It used to sit on WlChrome behind a DWM Acrylic backdrop, and that was wrong twice over.
       WlChrome is specifically the "Windows 11 Mica caption/strip tint" role
-      (01-tokens-and-mapping.md) - a flat desaturated grey that only makes sense with a Mica
+      (the tokens spec) - a flat desaturated grey that only makes sense with a Mica
       surface behind it. With the backdrop not visibly landing, the menu read as neither native
       Windows nor this app: a grey box belonging to nothing.
 
@@ -129,7 +129,7 @@
                         <!--
                           Disabled is WlMuted, and in high contrast that key resolves to GrayText
                           at FULL opacity. 40% opacity is illegal there - transparency is not a
-                          contrast guarantee (screens/11) - which is why this recolours rather
+                          contrast guarantee (the high-contrast spec) - which is why this recolours rather
                           than dimming.
                         -->
                         <Trigger Property="IsEnabled" Value="False">
@@ -142,7 +142,7 @@
     </Style>
 
     <!--
-      "Back up now" is the default item. screens/12 gives it Rubik 500; WlStrong is what makes
+      "Back up now" is the default item. the tray and updates spec gives it Rubik 500; WlStrong is what makes
       that read as the default rather than as an accident of weight.
     -->
     <Style x:Key="WlTrayMenuDefaultItem" TargetType="MenuItem" BasedOn="{StaticResource WlTrayMenuItem}">

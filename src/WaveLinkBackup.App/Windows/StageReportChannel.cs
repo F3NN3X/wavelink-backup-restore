@@ -6,7 +6,7 @@ namespace WaveLinkBackup.App.Windows;
 /// <summary>
 /// The line-by-line channel by which the elevated restore copy tells the shell that started it what
 /// step it has just finished, so the in-progress strip advances live instead of sitting on "Closing
-/// Wave Link" until the whole restore is done (screens/13-elevation.md).
+/// Wave Link" until the whole restore is done (the elevation spec).
 ///
 /// A named pipe rather than redirected stdout: the child is started with <c>UseShellExecute</c> and
 /// the <c>runas</c> verb, and stream redirection is incompatible with that combination - it throws

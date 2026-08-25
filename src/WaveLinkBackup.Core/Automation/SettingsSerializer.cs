@@ -51,7 +51,7 @@ public static class SettingsSerializer
             if (settings.DailyBackupMinutes is { } daily) writer.WriteNumber("dailyBackupMinutes", daily);
             else writer.WriteNull("dailyBackupMinutes");
 
-            // The UPDATES section (screens/12). Additive again, and again with no schema bump: a
+            // The UPDATES section (the tray and updates spec). Additive again, and again with no schema bump: a
             // missing switch means the weekly check that is on by default, and a missing stamp
             // means one has never run - which is exactly what an older settings file describes.
             writer.WriteBoolean("checkForUpdates", settings.CheckForUpdates);

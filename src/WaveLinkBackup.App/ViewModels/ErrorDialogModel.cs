@@ -2,7 +2,7 @@ using WaveLinkBackup.Core.Results;
 
 namespace WaveLinkBackup.App.ViewModels;
 
-/// <summary>Which of the three decision dialogs to show. 06-errors.md "Dialogs".</summary>
+/// <summary>Which of the three decision dialogs to show. The errors spec "Dialogs".</summary>
 public enum ErrorDialogVariant
 {
     /// <summary>Error 2: two Wave Link installations, none chosen. Neutral, chooser.</summary>
@@ -95,11 +95,11 @@ public sealed record ErrorNoteBlock(string? Label, string Body, string? SecondLi
 /// <summary>
 /// The error dialog's entire content, computed BEFORE anything is shown: a pure projection in the
 /// same shape as <see cref="DeleteDialogModel"/> and <see cref="RestoreDialogModel"/>. In comes one
-/// of the three Core errors that 06-errors.md places in a dialog (2, 4, 8); out goes what the
+/// of the three Core errors that the errors spec places in a dialog (2, 4, 8); out goes what the
 /// dialog renders: title, body, weight, an optional note block, the error-2 chooser rows, and the
 /// footer buttons. No I/O, no WPF: the view binds to this and computes nothing.
 ///
-/// Copy is taken verbatim from 06-errors.md (the catalog's <see cref="AppError"/> already holds the
+/// Copy is taken verbatim from the errors spec (the catalog's <see cref="AppError"/> already holds the
 /// title/body; the block text and button labels live here because they are dialog-specific). The
 /// machine-specific mono values (a parse error, a schema version) arrive at render time from the
 /// Core error itself. They are never hard-coded.
@@ -147,7 +147,7 @@ public sealed record ErrorDialogModel(
         CoreError error, Func<string, ErrorInstallDetail?>? describe) => error switch
     {
         // 2: two installations. Neutral. The chooser lists what Core found; the user picks one.
-        // The answer must persist (08-settings-persistence.md). The caller reads ChosenPath after
+        // The answer must persist (the settings-persistence spec). The caller reads ChosenPath after
         // ShowDialog and writes it to settings, which is why the model exposes the selected option.
         MultiplePackagesFound { Candidates: var candidates } => new ErrorDialogModel(
             Title: AppError.ByCode(2).Title,

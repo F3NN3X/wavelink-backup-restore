@@ -9,7 +9,7 @@ public enum RestoreStage
     Checking = 3,
 }
 
-/// <summary>The three treatments a stage row can carry (04-in-progress.md).</summary>
+/// <summary>The three treatments a stage row can carry (the in-progress spec).</summary>
 public enum StageStatus
 {
     Pending,
@@ -26,7 +26,7 @@ public sealed record RestoreStageView(int Index, string Label, StageStatus Statu
 /// <summary>
 /// The restore in-progress strip's state: four named stages advancing left to right, no spinner.
 ///
-/// 04-in-progress.md is authoritative. Wave Link is closed during a restore, so the work is
+/// The in-progress spec is authoritative. Wave Link is closed during a restore, so the work is
 /// shown as four named steps rather than an abstract bar. A spinner would imply uncertainty
 /// that does not exist. This model owns the frontier; the view just renders each stage's
 /// status. The orchestrator drives it in order via <see cref="Advance"/>; anything out of order
@@ -35,7 +35,7 @@ public sealed record RestoreStageView(int Index, string Label, StageStatus Statu
 /// </summary>
 public sealed class RestoreProgressModel : ObservableObject
 {
-    /// <summary>The stage labels exactly as 04-in-progress.md prints them.</summary>
+    /// <summary>The stage labels exactly as the in-progress spec prints them.</summary>
     public static readonly string[] StageLabels =
     [
         "CLOSING WAVE LINK",
@@ -44,7 +44,7 @@ public sealed class RestoreProgressModel : ObservableObject
         "CHECKING",
     ];
 
-    /// <summary>The reassurance line under the stages, verbatim from 04-in-progress.md.</summary>
+    /// <summary>The reassurance line under the stages, verbatim from the in-progress spec.</summary>
     public const string ReassuranceText =
         "Your mixer is closed while this happens. Nothing is lost if it takes longer than you "
         + "expect — today's settings are already saved as “Before restore”.";

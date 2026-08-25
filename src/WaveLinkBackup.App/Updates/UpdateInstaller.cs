@@ -5,7 +5,7 @@ using System.IO.Compression;
 namespace WaveLinkBackup.App.Updates;
 
 /// <param name="FailureDetail">
-/// Null on success. Neutral copy, per screens/12: "a failed update leaves a working app, so
+/// Null on success. Neutral copy, per the tray and updates spec: "a failed update leaves a working app, so
 /// nothing is un-whole."
 /// </param>
 public sealed record UpdateInstall(bool Started, string? FailureDetail)
@@ -32,7 +32,7 @@ public sealed record UpdateInstall(bool Started, string? FailureDetail)
 /// What this deliberately does not do: ask for elevation. An install under
 /// <c>C:\Program Files</c> is not writable by the user, and the honest answer there is to say the
 /// update could not be written and offer the download, which is exactly the failed-update block
-/// screens/12 draws, with "Download it yourself" beside "Try again". Silently escalating to
+/// The tray and updates spec draws, with "Download it yourself" beside "Try again". Silently escalating to
 /// administrator to overwrite binaries is the shape of a thing users are right to distrust.
 /// </summary>
 public sealed class UpdateInstaller

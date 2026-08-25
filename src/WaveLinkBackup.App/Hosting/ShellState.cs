@@ -8,7 +8,7 @@ namespace WaveLinkBackup.App.Hosting;
 ///
 /// Separate from BackupSettings on purpose. settings.json describes itself in the Settings
 /// dialog as "the folder, the automatic-backup switch, how many to keep and which Wave Link
-/// you picked" (screens/08-settings-persistence.md) - a window rectangle in there would make
+/// you picked" (the settings-persistence spec) - a window rectangle in there would make
 /// that sentence false. And Core has no window to hide and no tray to hide it in (ADR-004).
 /// </summary>
 /// <param name="Theme">

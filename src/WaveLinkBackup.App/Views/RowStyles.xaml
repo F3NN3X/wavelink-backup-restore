@@ -130,8 +130,8 @@
     </DataTemplate>
 
     <!--
-      High contrast: 1px dashed instead of 2px (per-cell table, screens/11), and the 45% opacity
-      on the em dash becomes full opacity - "transparency is not a contrast guarantee" (screens/11
+      High contrast: 1px dashed instead of 2px (per-cell table, the high-contrast spec), and the 45% opacity
+      on the em dash becomes full opacity - "transparency is not a contrast guarantee" (the high-contrast spec
       "Disabled"). Colour itself needs no trigger - WlLine2 already resolves to WindowText there.
     -->
     <DataTemplate x:Key="WlSlotMissing">
@@ -212,7 +212,7 @@
       The damaged row's one deliberate break in the five-slot pattern (design section C / 02):
       ONE full-width dotted cell rather than five slots rendering nothing. Dotted, not dashed -
       the design's own vocabulary is solid = present, dashed = missing, dotted = unknowable, and
-      collapsing dotted into dashed would blur a distinction 11-high-contrast leans on. The dots
+      collapsing dotted into dashed would blur a distinction the high-contrast spec leans on. The dots
       come from a near-zero dash with a round cap, which is the standard WPF trick for a true dot
       rather than a short dash.
     -->
@@ -239,7 +239,7 @@
       The word is sentence-case Rubik (a person reads it as a sentence), the sub-line is tracked
       mono (a machine produced it) - README's one hard typography rule. Green when the rig has all
       five inputs, amber when it collapsed; colour is never the only signal because the glyph and
-      the word carry it (screens/11: shape-first). No opacity anywhere here - a verdict that fades
+      the word carry it (the high-contrast spec: shape-first). No opacity anywhere here - a verdict that fades
       to 45% would stop being a verdict.
     -->
     <DataTemplate x:Key="WlInputsVerdict">
@@ -268,7 +268,7 @@
     </DataTemplate>
 
     <!--
-      SUSPECT, amber end to end - 10-decisions section 1. Screen 1a and the component sheet drew
+      SUSPECT, amber end to end - the design decisions log section 1. Screen 1a and the component sheet drew
       this in accent-soft/accent, a red pill inside an amber row: the second red the rules forbid,
       and a health state dressed up as an action. Transparent fill, 1px WlWarn, WlWarn text, WlWarn
       icon - nothing in this block is ever WlAccent, and the guard test fails the build if it ever
@@ -574,7 +574,7 @@
 
                                 <!--
                                   Meta line in normal themes; in high contrast the text swaps to
-                                  VerdictLine and a 12px glyph leads it (screens/11: "a 12px glyph
+                                  VerdictLine and a 12px glyph leads it (the high-contrast spec: "a 12px glyph
                                   plus one word... rendered in the NAME cell... No new column").
                                 -->
                                 <!--
@@ -626,7 +626,7 @@
 
                               Damaged still breaks the pattern with WlContentsUnknown - "the row has
                               stopped being data" is a different claim from "the rig collapsed",
-                              and dotted stays reserved for unknowable (screens/11). Declared AFTER
+                              and dotted stays reserved for unknowable (the high-contrast spec). Declared AFTER
                               the verdict default so it wins, same order the damaged WHY-pill trigger
                               relies on.
 
@@ -930,8 +930,7 @@
                             -->
                         </DataTrigger>
 
-                        <!--
-                          11-high-contrast.md: "Hover = 1px HotTrack outline, no fill." WlHover
+                        <!-- The high-contrast spec: "Hover = 1px HotTrack outline, no fill." WlHover
                           resolves to Transparent in high contrast, so without this a hovered row
                           gives no feedback there at all - the plain IsMouseOver trigger above only
                           ever paints a fill. Declared after the plain "every row" high-contrast
@@ -991,11 +990,11 @@
                         <!--
                           High contrast + selected, declared LAST so it wins over EVERYTHING above,
                           including IsSuspect/IsDamaged: in high contrast, health does not tint the
-                          row at all (11-high-contrast.md: "Suspect and damaged no longer tint the
+                          row at all (the high-contrast spec: "Suspect and damaged no longer tint the
                           row; the verdict word does the work"), so there is no health tint left for
                           selection to out-rank or be out-ranked by. Selection alone decides the fill
                           in HC - full Highlight regardless of health - which is exactly "Selected =
-                          full Highlight fill with HighlightText throughout" (11-high-contrast.md).
+                          full Highlight fill with HighlightText throughout" (the high-contrast spec).
 
                           This must be LAST, not first: an earlier attempt placed it right after the
                           plain IsSelected trigger, before IsSuspect/IsDamaged, on the theory that
@@ -1016,7 +1015,7 @@
                           (lines 30-31), so this reuses the same theme keys rather than adding a
                           second set of colour triggers.
 
-                          "...throughout" (11-high-contrast.md) means MetaText and VerdictGlyph too -
+                          "...throughout" (the high-contrast spec) means MetaText and VerdictGlyph too -
                           they ARE the verdict word this whole HC scheme leans on once the row tint is
                           gone, and both are named elements in THIS ControlTemplate scope, unlike the
                           nested pills/badges/name-segments living in their own DataTemplate scopes
@@ -1044,7 +1043,7 @@
                               up). Without these two, the backup's own time and date - the other
                               thing identifying the row besides its name - stayed WindowText on a
                               Highlight fill, which on HC White (WindowText near-black, Highlight a
-                              dark purple per 11-high-contrast.md's own illustrative table) reads as
+                              dark purple per the high-contrast spec's own illustrative table) reads as
                               near-black text on dark purple.
                             -->
                         </MultiDataTrigger>

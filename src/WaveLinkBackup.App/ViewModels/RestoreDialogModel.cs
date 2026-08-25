@@ -41,7 +41,7 @@ public sealed record RestoreDialogRow(string Label, string NowValue, string Afte
 /// switched off. Install it and restore again to get it back."). Null renders the lead alone.
 /// </param>
 /// <param name="PluginFiles">
-/// The tier 4 opt-in row (operations/design/screens/13-elevation.md), or null when this snapshot
+/// The tier 4 opt-in row (the elevation spec), or null when this snapshot
 /// holds no plug-in binaries and the row is absent. Absent rather than disabled: a control that
 /// can do nothing reads as a capability the restore is refusing.
 /// </param>
@@ -128,7 +128,7 @@ public sealed record RestoreDialogModel(
             rows.Add(new RestoreDialogRow("Mixes", nowMixes, afterMixes, nowMixes != afterMixes));
         }
 
-        // 09-restore-dialog-additions.md: a quiet mono line under the body, above the table. Present
+        // The restore-dialog additions spec: a quiet mono line under the body, above the table. Present
         // only when the versions differ; Core already wrote the sentence (RestorePlanner).
         //
         // Plug-in version drift joins it here rather than getting a surface of its own. It is the
@@ -164,7 +164,7 @@ public sealed record RestoreDialogModel(
 
 /// <summary>
 /// The restore dialog's one control: *Also put the plug-in files back*
-/// (operations/design/screens/13-elevation.md).
+/// (the elevation spec).
 ///
 /// Off every time, and never remembered. It is deliberately not wired to the Settings dialog's
 /// *The effect plug-ins themselves* switch either: that one decides what goes INTO a backup, and

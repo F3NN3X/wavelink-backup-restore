@@ -13,9 +13,9 @@ namespace WaveLinkBackup.App.Windows;
 ///
 ///   UISettings.ColorValuesChanged      the accent, and dark/light
 ///   UISettings.GetColorValue           the accent itself, and the background to judge dark/light
-///   SystemEvents.UserPreferenceChanged high contrast going on or off (screens/11 names this)
+///   SystemEvents.UserPreferenceChanged high contrast going on or off (the high-contrast spec names this)
 ///
-/// screens/11 is explicit that high contrast must be reacted to at runtime and not require a
+/// The high-contrast spec is explicit that high contrast must be reacted to at runtime and not require a
 /// restart, which is why SystemEvents is here and not just a startup read.
 /// </summary>
 public sealed class UiSettingsTheme : ISystemTheme

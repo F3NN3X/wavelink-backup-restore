@@ -8,7 +8,7 @@ namespace WaveLinkBackup.Core.Snapshots;
 /// <summary>
 /// How far a <see cref="SnapshotStore.Write"/> has got, in bytes it has actually written.
 ///
-/// Measured, not staged. 04-in-progress.md asks the backing-up strip for a DETERMINATE bar,
+/// Measured, not staged. The in-progress spec asks the backing-up strip for a DETERMINATE bar,
 /// and a determinate bar over invented stages is a worse lie than a spinner, which the design
 /// bans for exactly that reason. <see cref="TotalBytes"/> is known before the first write because
 /// the payload names its sources and their sizes.

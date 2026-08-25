@@ -104,7 +104,7 @@ public sealed record ProportionSegment(string Name, long Bytes, double Fraction,
     /// <summary>
     /// The segment named and sized, for Windows high contrast: <c>YOUR SETUP · 470 KB</c>.
     ///
-    /// 11-high-contrast.md: "The proportion bar in Settings loses its colour segments; label the
+    /// The high-contrast spec: "The proportion bar in Settings loses its colour segments; label the
     /// segments instead." In high contrast every fill in the app is transparent, so the bar's four
     /// bands become one undifferentiated track. The encoding is gone and nothing replaced it
     /// (audit §2.9b).
@@ -211,7 +211,7 @@ public sealed class WhatGoesInModel : ObservableObject
 }
 
 /// <summary>
-/// The two seams behind Settings' <c>WHEN WINDOWS STARTS</c> section (screens/12).
+/// The two seams behind Settings' <c>WHEN WINDOWS STARTS</c> section (the tray and updates spec).
 ///
 /// A record rather than three more constructor parameters, and injected rather than reached for:
 /// one of the two lives in the registry and the other in the shell's own state file, and neither
@@ -386,7 +386,7 @@ public sealed class SettingsViewModel : ObservableObject
         set { if (value) Theme = ThemePreference.HighContrast; }
     }
 
-    // ----------------------------------------------- when Windows starts (screens/12)
+    // ----------------------------------------------- when Windows starts (the tray and updates spec)
 
     /// <summary>
     /// Whether to draw the section at all. False when nothing was injected to drive it: a
@@ -466,7 +466,7 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The UPDATES section's model, or null to hide the section (screens/12). Set by the caller
+    /// The UPDATES section's model, or null to hide the section (the tray and updates spec). Set by the caller
     /// after Build, like <see cref="WhatGoesIn"/>. It needs an HTTP client and a release feed,
     /// neither of which a settings record knows about.
     /// </summary>
@@ -541,7 +541,7 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Move the keep-count stepper by one. The − / + buttons call this and nothing else.</summary>
     public void StepKeepCount(int direction) => AutoBackupKeepCount = autoBackupKeepCount + direction;
 
-    // ---------------------------------------------------------------- how often (screens/14)
+    // ---------------------------------------------------------------- how often (the backup-timing spec)
 
     /// <summary>
     /// The cap between two automatic backups, in minutes. Snapped to the ladder rather than
@@ -596,7 +596,7 @@ public sealed class SettingsViewModel : ObservableObject
     private static int Snap(int minutes) =>
         BackupSettings.IntervalLadder.MinBy(rung => Math.Abs(rung - minutes));
 
-    // ----------------------------------------------------------- and at a set time (screens/14)
+    // ----------------------------------------------------------- and at a set time (the backup-timing spec)
 
     /// <summary>
     /// Whether a daily backup is taken as well. Switching it on starts at 03:00; switching it off
@@ -787,7 +787,7 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
-    // ------------------------------------------------- error 9, in place (06-errors.md §9)
+    // ------------------------------------------------- error 9, in place (the errors spec, §9)
 
     private string? notABackupFolderPath;
     private int notABackupFolderFileCount;

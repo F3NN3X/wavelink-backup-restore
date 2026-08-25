@@ -3,7 +3,7 @@ using WaveLinkBackup.Core.Results;
 
 namespace WaveLinkBackup.App.Hosting;
 
-/// <summary>The four icon states from screens/12-tray-autostart-update.md.</summary>
+/// <summary>The four icon states from the tray and updates spec.</summary>
 public enum TrayStatus
 {
     /// <summary>shield + check, --wl-text.</summary>

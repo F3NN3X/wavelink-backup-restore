@@ -29,7 +29,7 @@ public partial class MainWindow : Window
 
     /// <param name="elevation">
     /// How the window asks Windows for administrator rights, for the one restore that can need
-    /// them (screens/13-elevation.md). A seam because no test can answer a UAC prompt, and a
+    /// them (the elevation spec). A seam because no test can answer a UAC prompt, and a
     /// restore path only a human can exercise is one nobody exercises.
     /// </param>
     public MainWindow(
@@ -183,7 +183,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Error 12's three actions (08-settings-persistence.md "The folder is gone"). The window
+    /// Error 12's three actions (the settings-persistence spec "The folder is gone"). The window
     /// reaches the App through Application.Current - the same seam BackUpNowAsync and OnClosing
     /// already use - so a bare test harness (no App) simply no-ops rather than exploding on the
     /// cast. Each handler does exactly one thing: point the store at a new folder, or re-probe
@@ -227,7 +227,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The inline restore-result strip (03-restore-outcomes.md). Two things live here that do
+    /// The inline restore-result strip (the restore-outcomes spec). Two things live here that do
     /// not belong in the view model:
     ///
     ///   1. Auto-dismiss. SucceededConfirmed clears itself after RestoreOutcomeStrip.AutoDismissAfter.
@@ -287,7 +287,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The delete flow, end to end (05-delete-dialogs.md): build the confirmation's model from
+    /// The delete flow, end to end (the delete-dialogs spec): build the confirmation's model from
     /// the selected snapshot and the total count, show the 480px dialog, and on confirm move the
     /// snapshot into <c>.trash</c> via the list. Cancel or Escape leaves everything untouched; a
     /// failed move surfaces the store's reason rather than pretending it landed. Focus returns to
@@ -320,7 +320,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The restore flow, end to end (09-restore-dialog-additions.md + 04-in-progress.md):
+    /// The restore flow, end to end (the restore-dialog additions spec + the in-progress spec):
     ///   1. Re-inspect live settings and build the read-only plan for the selected snapshot.
     ///   2. Show the confirmation dialog; a cancel or Escape leaves everything untouched.
     ///   3. On confirm, run the restore off-thread while the four-stage strip advances, then map
@@ -341,7 +341,7 @@ public partial class MainWindow : Window
         var liveResult = inspectLive();
         if (!liveResult.IsSuccess)
         {
-            // 06-errors.md: an unreadable settings file (3) at the moment of the press is an
+            // The errors spec: an unreadable settings file (3) at the moment of the press is an
             // inline strip, not a message box. The catalog decides placement; only inline forwards.
             if (TryShowInlineError(liveResult.Error)) return;
 
@@ -385,7 +385,7 @@ public partial class MainWindow : Window
 
         // The tier 4 opt-in. Off unless the user moved it in the dialog just now, and never
         // remembered - the Settings dialog's plug-in-files switch decides what goes INTO a backup
-        // and is deliberately not read here (screens/13-elevation.md).
+        // and is deliberately not read here (the elevation spec).
         var wantsPlugins = model.PluginFiles?.Enabled == true;
 
         // Elevate ONLY when the destinations actually refuse this process a write. The plan
@@ -435,7 +435,7 @@ public partial class MainWindow : Window
     /// The restore the shell cannot do itself: tier 4 writes into
     /// `C:\Program Files\Common Files\VST3`, which needs administrator rights this process does
     /// not have and cannot acquire in place. A second, elevated copy of this same executable does
-    /// the whole restore and exits with a code (screens/13-elevation.md).
+    /// the whole restore and exits with a code (the elevation spec).
     ///
     /// The in-progress strip runs throughout, already at "Closing Wave Link". The restore has begun
     /// as far as the user is concerned, and a separate "waiting for permission" state would be a
@@ -501,7 +501,7 @@ public partial class MainWindow : Window
                 // The elevated copy verified from the log and we cannot see its verdict from here,
                 // so this reports the honest one: the write went through, this process did not
                 // confirm it. Never Confirmed - claiming a confirmation nobody read would be the
-                // exact dishonesty 03-restore-outcomes.md exists to prevent.
+                // exact dishonesty the restore-outcomes spec exists to prevent.
                 shell.Strip.ShowResult(RestoreResult.Unconfirmed);
                 break;
 
@@ -619,7 +619,7 @@ public partial class MainWindow : Window
     /// <summary>
     /// The finished result, with the rejected state's recovery wired to something.
     ///
-    /// 03-restore-outcomes.md §3 gives a rejected restore a ghost "Show the log" and a primary
+    /// The restore-outcomes spec, §3 gives a rejected restore a ghost "Show the log" and a primary
     /// <c>Restore "Before restore"</c>, and renders that row selected below the strip "so the
     /// button and the row are visibly the same object". Until 0.6.1 the state drew none of it and
     /// <c>AcknowledgeReject</c> was called by nothing, so the bar was permanent for the life of
@@ -647,7 +647,7 @@ public partial class MainWindow : Window
 
         shell.Strip.ShowResult(view.Result, recovery, RejectionMeta(view));
 
-        // screens/12's second notification. The strip below is the full account; this is what
+        // The tray and updates spec's second notification. The strip below is the full account; this is what
         // reaches somebody whose window is behind Wave Link's, which after a restore it usually is.
         (Application.Current as App)?.NotifyWaveLinkReset();
 
@@ -705,7 +705,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 06-errors.md: the live-settings errors that surface at the moment of a press are inline
+    /// The errors spec: the live-settings errors that surface at the moment of a press are inline
     /// strips (3, 5) - "the consequence of something the user just pressed" - all neutral fill.
     /// This is the ONE place a typed CoreError becomes the strip it renders as; the catalog decides
     /// placement and weight, so this only forwards when the design says inline. Returns true when
@@ -724,7 +724,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 06-errors.md "Dialogs": the three errors the design places in a dialog (2 two installations,
+    /// The errors spec "Dialogs": the three errors the design places in a dialog (2 two installations,
     /// 4 malformed settings, 8 newer version) are shown here instead of the old message box. The
     /// catalog decides placement; this only forwards when it says Dialog, building the model from
     /// the typed CoreError itself so the machine-specific mono values (a parse position, a schema
@@ -760,7 +760,7 @@ public partial class MainWindow : Window
         // branch never runs there.
         if (Application.Current is not App app) return;
 
-        // 04-in-progress.md's backing-up strip. Up before the first byte is measured and down
+        // The in-progress spec's backing-up strip. Up before the first byte is measured and down
         // only once the outcome takes its place, so the strip is "replaced in place by the result
         // line" rather than flashing out and back (technical-debt.md §4.21 item 2).
         shell.BackupProgress.Begin();
@@ -784,7 +784,7 @@ public partial class MainWindow : Window
 
         if (!result.IsSuccess)
         {
-            // 06-errors.md: a failed "Back up now" is the consequence of the press, so its
+            // The errors spec: a failed "Back up now" is the consequence of the press, so its
             // live-settings errors (3 unreadable, 5 still running) render as inline strips.
             // AppErrorMapper decides placement; only inline forwards here.
             if (TryShowInlineError(result.Error)) return;

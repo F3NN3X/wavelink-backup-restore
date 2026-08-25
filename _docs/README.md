@@ -137,6 +137,26 @@ state-group specs in `screens/` plus two written here, and a self-contained HTML
 the four finished screens and `screens/` the only spec for the states they lack; neither
 supersedes the other. The prototype is a reference and must not be ported literally.
 
+Source comments cite these specs by topic rather than by number, so renumbering the export cannot
+strand a comment and a reader without the export still learns which spec ruled. This is the only
+place the two are mapped.
+
+| Cited in source as | File in the export |
+|---|---|
+| the tokens spec | `screens/01-tokens-and-mapping.md` |
+| the restore-outcomes spec | `screens/03-restore-outcomes.md` |
+| the in-progress spec | `screens/04-in-progress.md` |
+| the delete-dialogs spec | `screens/05-delete-dialogs.md` |
+| the errors spec | `screens/06-errors.md` |
+| the search spec | `screens/07-search.md` |
+| the settings-persistence spec | `screens/08-settings-persistence.md` |
+| the restore-dialog additions spec | `screens/09-restore-dialog-additions.md` |
+| the design decisions log | `screens/10-decisions.md` |
+| the high-contrast spec | `screens/11-high-contrast.md` |
+| the tray and updates spec | `screens/12-tray-autostart-update.md` |
+| the elevation spec | `screens/13-elevation.md` |
+| the backup-timing spec | `screens/14-backup-timing.md` |
+
 > **This folder is not in the repository, and that is deliberate.** `.git/info/exclude` carries
 > `_docs/operations/design/`, commented *"design export, worked on outside the repo, never
 > committed"*. The exclude file is machine-local, so the folder is absent from every clone and
