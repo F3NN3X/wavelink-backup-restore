@@ -16,6 +16,9 @@ public enum TrayNotificationKind
     /// for why this is not the third notice the design forbids, and [[ADR-018]] for the decision.
     /// </summary>
     UpdateAvailable,
+
+    /// <summary>An update was downloaded and verified, but could not replace the old install.</summary>
+    UpdateFailed,
 }
 
 /// <param name="ActionLabel">
@@ -96,6 +99,22 @@ public sealed class TrayNotifications
             "The backup folder can't be used. Wave Link's own copies cover about three days.",
             "Choose a folder…");
     }
+
+    /// <summary>
+    /// The update that did not go in, said once on the launch after it happened.
+    ///
+    /// Not rate-limited, for the same reason <see cref="WaveLinkReset"/> is not: it can only
+    /// follow an install the user just asked for, so it cannot repeat on its own - and the file it
+    /// comes from is deleted as it is read.
+    /// </summary>
+    public static TrayNotification? UpdateFailed(string? detail) =>
+        string.IsNullOrWhiteSpace(detail)
+            ? null
+            : new TrayNotification(
+                TrayNotificationKind.UpdateFailed,
+                "The update didn't install.",
+                detail,
+                "Open Settings to try again…");
 
     /// <summary>
     /// A newer release exists, or null - no check has run, the check failed, this build is

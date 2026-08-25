@@ -28,9 +28,25 @@ public sealed record HelpDialogModel(
     /// (technical-debt.md §5): it is a fact about a DEPLOYMENT, and absent means null, which hides
     /// the link entirely rather than pointing at nothing.
     /// </summary>
-    public static HelpDialogModel Build() => new(
+    public static HelpDialogModel Build() => Build(AboutDialogModel.Build());
+
+    /// <param name="about">
+    /// Where the About section's facts come from - the name, version, licence and affiliation
+    /// lines. Composed FROM the about model rather than restated here, because two copies of a
+    /// version number are two copies that can disagree, and the one in the About dialog is already
+    /// read from the assembly so it cannot drift from the release tag.
+    /// </param>
+    public static HelpDialogModel Build(AboutDialogModel about) => new(
         "How this app works",
         [
+            // FIRST, and it is the standard shape: what this is, which version, whose licence, and
+            // the affiliation line. Someone opening Help to find out what the app even is should
+            // not have to close it and open About instead.
+            new($"About {about.AppName}",
+                $"{about.AppName} {about.Version} · {about.LicenceLine}" + Separator
+                + about.Description + Separator
+                + about.AffiliationLine),
+
             new("What gets backed up",
                 "Wave Link keeps its entire setup - every channel, routing assignment and effect " +
                 "chain - in one settings file. This app copies that file into the backup folder. " +
@@ -56,6 +72,12 @@ public sealed record HelpDialogModel(
         ],
         "Documentation",
         ReleaseLink("WLBACKUP_REPO_URL"));
+
+    /// <summary>
+    /// A blank line between paragraphs. The body is one bound string in a wrapping TextBlock, so
+    /// the paragraph break has to be in the text - there is no rich content here, deliberately.
+    /// </summary>
+    private static string Separator => Environment.NewLine + Environment.NewLine;
 
     private static string? ReleaseLink(string variable)
     {

@@ -161,6 +161,19 @@ public partial class App : Application
             var swapped = installer.Apply(
                 arguments.ApplyUpdateForProcessId!.Value, target, TimeSpan.FromSeconds(30));
 
+            // A failed swap has nowhere to report to: the window the user was looking at belonged
+            // to the process that has already exited. Leaving a breadcrumb beside settings.json is
+            // what stops "the update did nothing" being a silent, unexplained no-op - the next
+            // launch reads it and says so.
+            if (!swapped)
+            {
+                UpdateInstaller.RecordFailure(
+                    SettingsRepository.DefaultDirectory,
+                    "The new version couldn't replace the old one - something still had the app's "
+                        + "folder open. Nothing changed, and your backups are untouched.",
+                    DateTimeOffset.Now);
+            }
+
             // Relaunch either way: on success the new install, on failure the old one that was put
             // back. The one thing this must never do is leave the user with nothing running.
             UpdateInstaller.Relaunch(
@@ -291,6 +304,15 @@ public partial class App : Application
         if (!arguments.StartInTray) ShowMainWindow();
 
         RefreshTray();
+
+        // A swap that failed last time. Read once - it is news exactly once - and said on the
+        // strip, which is the surface already carrying facts about this app's state.
+        if (UpdateInstaller.TakeFailure(SettingsRepository.DefaultDirectory) is { } failed)
+        {
+            updateFailureNotice = failed;
+            RefreshShellFacts();
+            Notify(TrayNotifications.UpdateFailed(failed));
+        }
 
         // The check that makes "weekly, on by default" true. It used to run from the Settings
         // dialog's Loaded handler, which meant a user who never opened Settings was never told a
@@ -1435,7 +1457,7 @@ public partial class App : Application
                 OpenSettings();
             },
             TrayNotificationKind.WaveLinkReset => ShowMainWindow,
-            TrayNotificationKind.UpdateAvailable => () =>
+            TrayNotificationKind.UpdateAvailable or TrayNotificationKind.UpdateFailed => () =>
             {
                 ShowMainWindow();
                 OpenSettings();
@@ -1467,6 +1489,9 @@ public partial class App : Application
     /// new request on every tick until something gave out.
     /// </summary>
     private bool updateCheckInFlight;
+
+    /// <summary>Why the last update did not go in, said once on the next launch.</summary>
+    private string? updateFailureNotice;
 
     /// <summary>
     /// The second designed notification: Wave Link rejected a restored backup and reset the live
@@ -1650,7 +1675,8 @@ public partial class App : Application
             FreeBytes: fileSystem.GetAvailableFreeBytes(settings.StorePath),
             WaveLinkVersion: inspection.IsSuccess ? inspection.Value.Analysis.WaveLinkVersion : null,
             LogsPath: inspection.IsSuccess ? inspection.Value.Location.LogsPath : null,
-            UpdateAvailableVersion: updateAvailableVersion));
+            UpdateAvailableVersion: updateAvailableVersion,
+            UpdateFailureNotice: updateFailureNotice));
     }
 
     /// <summary>

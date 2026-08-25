@@ -43,6 +43,65 @@ public sealed class UpdateInstaller
     /// <summary>Where the previous install is kept while the new one goes in.</summary>
     public const string PreviousSuffix = ".previous";
 
+    /// <summary>
+    /// The breadcrumb a failed swap leaves, beside <c>settings.json</c> - NOT in the install
+    /// directory, which is the thing being renamed.
+    ///
+    /// <para>
+    /// A swap runs in the staged process, after the process the user was looking at has already
+    /// exited. There is no window left to report into and no log: when it failed, the old version
+    /// simply came back and nothing anywhere said why. That is the worst failure this program can
+    /// have - it did nothing, successfully, and told nobody. The next launch reads this file and
+    /// says so, the same shape as the crash report §8.1 writes.
+    /// </para>
+    /// </summary>
+    public const string FailureFileName = "update-failed.txt";
+
+    /// <summary>
+    /// Records why a swap failed, where the next launch will find it. Best-effort by design: this
+    /// runs while something is already going wrong, and a second failure here must not make it
+    /// worse.
+    /// </summary>
+    public static void RecordFailure(string stateDirectory, string detail, DateTimeOffset now)
+    {
+        try
+        {
+            Directory.CreateDirectory(stateDirectory);
+            File.WriteAllText(
+                Path.Combine(stateDirectory, FailureFileName),
+                $"{now:u}{Environment.NewLine}{detail}{Environment.NewLine}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Nothing to say, and nowhere left to say it.
+        }
+    }
+
+    /// <summary>The recorded failure, or null. Reading it CLEARS it - it is news exactly once.</summary>
+    public static string? TakeFailure(string stateDirectory)
+    {
+        var path = Path.Combine(stateDirectory, FailureFileName);
+
+        try
+        {
+            if (!File.Exists(path)) return null;
+
+            var text = File.ReadAllText(path);
+            File.Delete(path);
+
+            var detail = text
+                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Skip(1)
+                .FirstOrDefault();
+
+            return string.IsNullOrWhiteSpace(detail) ? null : detail;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Where a new version is expanded before it takes over.</summary>
     public const string StagingSuffix = ".staged";
 
@@ -123,18 +182,17 @@ public sealed class UpdateInstaller
             // Move, not delete. Between these two lines the install directory does not exist, and
             // that is the only unsafe instant in the whole operation - it is a directory rename,
             // which NTFS does atomically, and the previous copy is one rename from being restored.
-            if (Directory.Exists(installDirectory)) Directory.Move(installDirectory, previous);
-
-            try
+            if (Directory.Exists(installDirectory) && !TryMove(installDirectory, previous))
             {
-                Directory.Move(staging, installDirectory);
+                return false;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+
+            if (!TryMove(staging, installDirectory))
             {
                 // Put it back. A failure here must not leave the user with no app at all.
                 if (!Directory.Exists(installDirectory) && Directory.Exists(previous))
                 {
-                    Directory.Move(previous, installDirectory);
+                    TryMove(previous, installDirectory);
                 }
 
                 return false;
@@ -170,6 +228,49 @@ public sealed class UpdateInstaller
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
         {
             return false;
+        }
+    }
+
+    /// <summary>How long the swap keeps trying before giving up. Ten attempts, 250ms apart.</summary>
+    internal static readonly TimeSpan SwapPatience = TimeSpan.FromMilliseconds(2500);
+
+    private const int SwapAttempts = 10;
+
+    /// <summary>
+    /// A directory rename, retried.
+    ///
+    /// <para>
+    /// <b>One attempt was not enough, and the failure looked like nothing happening at all.</b> The
+    /// old process exiting does not mean Windows has finished with the directory: an image section
+    /// for a just-terminated executable, a shell extension that has the folder open, and above all
+    /// a virus scanner reading eight megabytes of freshly-extracted DLLs will each hold it for a
+    /// moment. <see cref="WaitForExit"/> waits for the PROCESS, which is a different thing from
+    /// waiting for its files.
+    /// </para>
+    ///
+    /// <para>
+    /// The observed failure was exactly this shape: download, verify and stage all succeeded, the
+    /// swap did not, and the user got the old version back with nothing said. Two and a half
+    /// seconds of patience costs a user who is already restarting their app nothing, and it is the
+    /// difference between an update that works and one that silently does not.
+    /// </para>
+    /// </summary>
+    private static bool TryMove(string from, string to)
+    {
+        var delay = SwapPatience / SwapAttempts;
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                Directory.Move(from, to);
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt >= SwapAttempts) return false;
+                Thread.Sleep(delay);
+            }
         }
     }
 

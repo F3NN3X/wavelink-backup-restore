@@ -44,7 +44,8 @@ public sealed record ShellFacts(
     long? FreeBytes,
     string? WaveLinkVersion = null,
     string? LogsPath = null,
-    string? UpdateAvailableVersion = null);
+    string? UpdateAvailableVersion = null,
+    string? UpdateFailureNotice = null);
 
 /// <summary>
 /// The status strip, the bottom bar, and what the four action buttons may do.
@@ -213,10 +214,20 @@ public sealed class ShellViewModel : ObservableObject
     /// that is always present stops being read, and then the one time it changes nobody notices.
     /// That is the exact failure this notice exists to avoid.
     /// </summary>
-    private string WithUpdate(string line) =>
-        facts.UpdateAvailableVersion is { Length: > 0 } version
+    private string WithUpdate(string line)
+    {
+        // A failed update outranks an available one: it is the thing the user just tried to do,
+        // and telling them a version is available when it has just refused to install reads as
+        // the app not knowing what happened.
+        if (facts.UpdateFailureNotice is { Length: > 0 })
+        {
+            return $"{line} · UPDATE DIDN'T INSTALL";
+        }
+
+        return facts.UpdateAvailableVersion is { Length: > 0 } version
             ? $"{line} · UPDATE {version} AVAILABLE"
             : line;
+    }
 
     public StripTone StatusTone =>
         !facts.WaveLinkFound ? StripTone.Warn
