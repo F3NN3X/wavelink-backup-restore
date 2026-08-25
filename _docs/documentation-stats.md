@@ -25,12 +25,12 @@ Update this file **in the same commit** as the document it counts. See
 | Artifact | Count |
 |---|---|
 | ADRs | 18 |
-| Gotchas | 31 |
+| Gotchas | 33 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
 | Audits | 3 (6 + 15 + 4 findings, one open question) |
-| Sessions | 27 |
+| Sessions | 28 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
 | **Tests** | **1,663 passing** — Core 521 · CLI 100 · App 1,042 |
@@ -77,13 +77,33 @@ anywhere: the gap was entirely in *where the check was attached*.
   An update notice is rare, is about a version rather than a run, and fires once per version. The
   guard the rule protects is untouched and still enforced by the type, with a test that says so.
 
+- **Two gotchas, and neither was findable until the one before it was fixed.**
+  [[every-update-fails-its-checksum]] — the feed paired the app's archive with the CLI's digest,
+  and had since 0.7.2 split the CLI into its own artifact. Its "how to avoid it" is the useful
+  half: every payload in `UpdateFeedTests` carried one archive and one `.sha256`, and with one of
+  each, "take any asset ending .sha256" and "take the right one" are the same test.
+  [[the-update-installs-nothing-and-says-nothing]] — one attempt at the directory swap, and a
+  failure path with thorough error handling and nowhere to report to. The handling was not
+  missing; the destination was.
+
+- **One session.**
+  [the-update-path-meets-a-real-release](sessions/2026-08-25-the-update-path-meets-a-real-release.md)
+  — three separate update bugs, each hidden behind the one before it. Its *What did not work*
+  carries the verification script that reported a false mismatch, and why reading the code was
+  never going to find the swap bug.
+
+- **Help gained a standard About section**, composed from `AboutDialogModel` rather than restating
+  it. A test builds Help from an invented about model and asserts the section moves with it, so a
+  revert to hard-coded copy fails rather than rots.
+
 - **The interval moves from a week to a day**, and one existing test had to be rewritten rather than
   deleted: it asserted a check is *not* due a day after the last one, which was correct for weekly
   and is now the opposite of the shipped behaviour. The boundary is still the thing worth pinning,
   so it moved to the hour either side of the new one.
 
-- **Tests: 1,621 → 1,643.** Twenty-one for the notice, its cadence and the daily interval; one for
-  the menu line shipping collapsed. Two existing guards moved: the tray-menu order test gained the
+- **Tests: 1,621 → 1,663.** The notice, its cadence and the daily interval; the checksum pairing
+  against a real release's asset list; the swap breadcrumb; the About section's seam; one for the
+  menu line shipping collapsed. Two existing guards moved: the tray-menu order test gained the
   new item, and the template test stopped counting menu items — a hardcoded 10 had turned "no
   template failed to apply" into an assertion about arithmetic.
 
@@ -1277,6 +1297,21 @@ The documentation system, seeded from `SPEC.md` and the design handoff. No appli
 
 Topics spanning several artifacts. A single-file topic is discoverable by search and does not
 belong here.
+
+### Updating the app, and three ways it did nothing
+
+The first real update this project attempted failed three times over, each failure hidden behind
+the one before it. Read together before touching the update path.
+
+| Artifact | Contribution |
+|---|---|
+| [[ADR-012]] | Check-only updates with a staged swap — the design the rest of this rests on |
+| [[ADR-018]] | Where the app says an update exists, and the check cadence that makes it true |
+| [[every-update-fails-its-checksum]] | The archive verified against another artifact's digest, and why CI could not catch it |
+| [[the-update-installs-nothing-and-says-nothing]] | A swap with one attempt, and careful error handling with nowhere to report to |
+| [the-update-path-meets-a-real-release](sessions/2026-08-25-the-update-path-meets-a-real-release.md) | The order they were found in, and why that order was forced |
+
+---
 
 ### Interop under NativeAOT, and the guards that only cover one language
 
