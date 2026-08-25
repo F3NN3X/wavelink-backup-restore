@@ -25,6 +25,8 @@
   <ItemGroup>
     <AssemblyMetadata Include="CoreSourceRoot"
                       Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../src/WaveLinkBackup.Core'))" />
+    <AssemblyMetadata Include="ToolsSourceRoot"
+                      Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../tools'))" />
   </ItemGroup>
 
 </Project>

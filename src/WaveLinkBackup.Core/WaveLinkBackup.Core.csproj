@@ -24,6 +24,14 @@
     <UseWindowsForms>false</UseWindowsForms>
     <!-- Keeps NativeAOT open for the CLI (technical-debt.md 2.4). -->
     <IsAotCompatible>true</IsAotCompatible>
+    <!--
+      Required by [GeneratedComInterface], which is the ONLY COM mechanism that survives the
+      line above - see WindowsAudioEndpointInspector for the two that do not (IL2072 and
+      IL2050, both build errors here). RecycleBin refused unsafe for its one DllImport and
+      that refusal still stands: there it would have bought marshalling speed. Here it is not
+      an optimisation but the price of compiling at all.
+    -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
 

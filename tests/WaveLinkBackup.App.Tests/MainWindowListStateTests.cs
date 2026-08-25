@@ -94,7 +94,7 @@ public sealed class MainWindowListStateTests
     /// binding-driven Setters - to run first.
     /// </summary>
     private static void PumpPendingBindings(MainWindow window) =>
-        window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+        Wpf.Drain();
 
     [Fact]
     public void Loaded_shows_the_list_and_the_column_header()

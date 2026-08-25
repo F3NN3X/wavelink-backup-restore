@@ -2,7 +2,7 @@
 title: "After 1.0"
 status: review
 created: 2026-08-19
-updated: 2026-08-19
+updated: 2026-08-25
 tags: [dev-phase, index]
 ---
 
@@ -52,16 +52,29 @@ means walking the whole tree and rewriting both the bare and `<deviceId>|<suffix
 handling a destination key that already exists.
 **Signal:** a user with a dead channel and a working device, which the health strip can already
 show them.
-**Note:** porting it is also what finally answers [technical-debt.md](../technical-debt.md) §2.4 —
-`[ComImport]` under NativeAOT — because there is no COM interop in the codebase today.
+**Note:** the *inspector half* landed on 2026-08-25 and closed
+[technical-debt.md](../technical-debt.md) §2.4. `WindowsAudioEndpointInspector` enumerates
+endpoints and `wlbackup diagnostics` reports counts by state; the AOT publish is clean and runs.
+**What remains out of 1.0 is the editing half** — pointing a dead channel at a working device —
+which is the part SPEC §3 warns about, and none of it was built. The inspector makes it cheaper to
+start, not started.
 
-**Restoring a plug-in somewhere other than where it came from.** Blocked on one measurement,
-not on appetite: whether Wave Link resolves a channel's plug-in by `PluginId` or by `FilePath`
+**Restoring a plug-in somewhere other than where it came from.** **Unblocked 2026-08-25 — and the
+recommendation is still "do not build it".** The experiment ran: Wave Link resolves by `PluginId`
+and rewrites `FilePath` to wherever the plug-in actually is, so the user-level VST3 folder *is* a
+viable fallback. Viable is not the same as worth building — §7.5 already removed the prompt on any
+machine whose VST3 folder has been loosened, and what remains is one prompt on an explicit opt-in
+for writing to a folder every account shares. What the answer *does* unblock is the second item
+below. The original framing follows.
+
+**~~Blocked on one measurement,~~** not on appetite: whether Wave Link resolves a channel's plug-in by `PluginId` or by `FilePath`
 ([technical-debt.md](../technical-debt.md) §7.6, and
 [the audit](../audits/2026-08-20-plugin-resolution-and-elevation.md) for the experiment). If it is
 `PluginId`, an unwritable plug-in folder could fall back to the user-level VST3 location and never
 need administrator rights — and *"the plug-in moved"* becomes a state tier 2 can describe rather
-than one indistinguishable from *"the plug-in is gone"*. It would also remove one of the two
+than one indistinguishable from *"the plug-in is gone"*. **It is `PluginId` (measured 2026-08-25),
+so that second half is now buildable whenever tier 2's drift check is worth revisiting** — it is the
+more useful of the two, and it needs no fallback destination to be worth having. It would also remove one of the two
 reasons portable backups are refused above; the other, device serials in endpoint IDs, would
 remain.
 **Signal:** the experiment being run, plus a user who cannot write their own VST3 folder. The

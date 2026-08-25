@@ -21,6 +21,44 @@ heading here.
 
 ---
 
+## [0.7.5] - 2026-08-25
+
+**The debt list is empty of work, and the app can see the machine's audio devices.** `wlbackup diagnostics` now reports how many capture and playback endpoints exist and what state each is in — the fact that separates "this input is gone" from "this input is fine", which nothing in a settings file can answer. Dialogs no longer render see-through in a high-contrast scheme. And the two questions that could only be answered on a real rig were answered on one: Wave Link resolves a plug-in by identity rather than by path, and the last by-eye look is done.
+
+### Added
+
+- **The audio endpoint inspector.** `IAudioEndpointInspector` and `WindowsAudioEndpointInspector` enumerate the machine's capture and playback endpoints through Core Audio, with each one's state — active, disabled, not present, unplugged. Read-only: pointing a dead channel at a working device is an editing feature and stays out of 1.0, because rewriting a device id means walking the whole settings tree and rewriting both the bare and `<deviceId>|<suffix>` forms (SPEC §3). See [ADR-017](_docs/decisions/ADR-017-source-generated-com-and-unsafe-on-core.md).
+
+- **`wlbackup diagnostics` reports endpoint counts.** A new *Audio endpoints* section, grouped by direction and state. **Counts only, never an id or a device name** — an endpoint id embeds a hardware serial and a friendly name is the hardware someone owns, and this report exists to be safe to paste into a public issue tracker. Two tests assert neither ever reaches it.
+
+- **`tools/plugin-resolution-experiment.ps1`** runs the reversible experiment that answers whether Wave Link resolves a plug-in by `PluginId` or by `FilePath` ([technical-debt.md](_docs/technical-debt.md) §7.6). The state lives in a journal outside the repository, so `-Undo` works from a fresh shell, after a reboot, or a week later; the original file is renamed rather than deleted, and the copy is made before the rename so a failure part-way leaves the install untouched.
+
+- **`tools/seed-fixture-store.ps1`** writes a throwaway snapshot store holding the five rigs the by-eye checklist needs — five named inputs, a collapsed two-input rig, nine channels, twelve, and one with long effect chains. It refuses to write inside the real store. The snapshots are for looking at, not restoring: the endpoint ids are invented.
+
+### Changed
+
+- **COM interop in `Core` is source-generated, and `Core` now builds with `AllowUnsafeBlocks`.** Classic `[ComImport]` does not survive trim analysis — upstream's `Type.GetTypeFromCLSID` activation is IL2072, and built-in COM marshalling is IL2050, both build errors under the `IsAotCompatible` setting the CLI's NativeAOT option depends on. `[GeneratedComInterface]` does survive, and requires the unsafe flag. This reverses a refusal `RecycleBin` documented deliberately; the reasoning for both is in [ADR-017](_docs/decisions/ADR-017-source-generated-com-and-unsafe-on-core.md) and [the gotcha](_docs/knowledge-base/gotchas/com-interop-stops-compiling-the-moment-the-project-is-aot-compatible.md).
+
+- **The share-mode source guard covers `tools/*.ps1`.** `SourceGuardTests` has enforced reading Wave Link's files with `FileShare.ReadWrite | FileShare.Delete` since phase 1 and only ever scanned `*.cs`; the first PowerShell tool written against a live install repeated the exact mistake and failed on its first run. `ToolScriptGuardTests` extends the rule, in both directions — the banned spelling, and the requirement that any script *reading* `Settings.json` names a share mode.
+
+- **`technical-debt.md` went from 1,646 lines to 249.** Thirty-six of its thirty-nine numbered entries were closed, and moved verbatim to [an archive](_docs/archive/technical-debt-closed.md) with section numbering preserved so existing references still resolve. §2.4 closed with this release's interop work; what remains is §7.6, §8.2 and the standing known-wrong list.
+
+### Answered
+
+- **The last by-eye look is done, and `technical-debt.md` now holds no work at all.** Item 5 of the by-eye checklist — the INPUTS verdict at two, five, nine and twelve inputs, and the details dialog's routing matrix — was worked against rigs written by `tools/seed-fixture-store.ps1`. All three read as specified, and the nine-plus cell is no longer crowded: the verdict prints no name per channel, so there is nothing left to crowd. That closes §8.2, and with §2.4 and §7.6 the debt list is down to two permanent sections, neither of which is owed a commit.
+
+- **Wave Link resolves a channel's plug-in by `PluginId`, not by `FilePath` — measured, not assumed.** The experiment behind [technical-debt.md](_docs/technical-debt.md) §7.6 ran on the reference rig: a plug-in was moved to the user-level VST3 folder and the shared copy renamed, and after a restart Wave Link found it, kept the channel intact, and **rewrote `FilePath`** to the new location. An untouched plug-in on the same channel was not rewritten, so this was the moved file being repaired rather than a blanket refresh. The user-level folder is therefore a *viable* fallback destination for tier 4 — and the standing recommendation not to build one is unchanged, because §7.5 already removed the prompt in the common case and viable is not the same as worth building. It also retires the audit's §2.4 caveat that the user-level folder could not be observed being scanned: it is scanned.
+
+### Fixed
+
+- **An audio endpoint whose id cannot be read is dropped rather than reported blank.** `IMMDevice.GetId` failing produced an `AudioEndpoint` with an empty `Id`, which reads as a real device to every caller and matches nothing — the id is the only field a channel key matches on. The same path returned early without freeing the COM-allocated buffer, so a driver that allocated and then failed leaked it on every enumeration; the pointer is now freed unconditionally. `EndpointState`'s documentation was also wrong for two of its five values: `NotPresent` is a missing adapter and `Unplugged` is a present adapter with an empty socket, which are different things to tell a user diagnosing a lost channel.
+
+- **Dialogs are no longer see-through in a high-contrast scheme.** Every dialog is a layered window — `AllowsTransparency="True"`, `Background="Transparent"` — carrying a `WlScrim` fill with a `WlCard` card on top. High contrast set *both* to transparent: the scrim because a dialog is separated by a border rather than by dimming, and the card because of the theme's governing rule that every fill goes transparent. Together they left the window without a single opaque pixel, so the desktop showed through the dialog behind its own text. `WlCard` now resolves to `SystemColors.WindowColorKey` and is the one documented exception to that rule. Inside the main window this is visually identical to what it replaced; on a layered window it is the difference between a dialog and a hole. See [the gotcha](_docs/knowledge-base/gotchas/dialogs-are-see-through-in-high-contrast.md).
+
+- **`_docs/README.md` no longer describes the design export as if it were in the repository.** The folder is listed in `.git/info/exclude`, so the roughly 40 documents linking into it resolve only on a machine holding the export. Recorded rather than rewritten — those links cite the authority, and a citation to a document the reader may not hold is honest in a way a removed link is not.
+
+---
+
 ## [0.7.4] - 2026-08-24
 
 **A restore now puts the service back before it relaunches, and emptying the trash shows where it is.** A restore that closes Wave Link's processes used to leave its background service down, so the relaunched app came up against a missing `WavelinkSEService` and showed its own "Start Service / Exit App" box. That no longer happens on the elevated path where most restores run — and the trash-empty action, which could freeze the window while a full store was cleared, now reports its progress as it goes.

@@ -76,18 +76,19 @@ public sealed class SettingsDialogViewTests
         // reads it cannot have produced a width during the first measure.
         dialog.UpdateLayout();
 
-        // Pump the dispatcher so any binding operations still queued on this thread run to
-        // completion before the assertion enumerates the tree. On a loaded CI runner the two
-        // synchronous UpdateLayout passes can finish before a Run's OneWay binding has resolved,
-        // leaving TextBlock.Text empty for one frame - the exact flake this test hit on run 2 of
-        // the v0.7.2 CI pair (passed run 1, failed run 2, identical code). A local box resolves
-        // the binding inside UpdateLayout and never sees it; a runner under load does not.
-        // Input priority drains everything queued at Input or above - including the pending
-        // binding resolution - whereas Background would only drain work at Background or lower
-        // and let the bindings race ahead of the assertion (the failed first attempt).
-        System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
-            () => { },
-            System.Windows.Threading.DispatcherPriority.Input);
+        // Drain the dispatcher so any binding still queued on this thread has resolved before the
+        // assertion walks the tree. On a loaded CI runner the two synchronous UpdateLayout passes
+        // can finish before a Run's OneWay binding has, leaving TextBlock.Text empty for a frame;
+        // a local box resolves it inside UpdateLayout and never sees the gap.
+        //
+        // This used to be a single Invoke at Input priority, and the reasoning in its comment was
+        // inverted - Invoke at priority P returns once everything HIGHER than P has run, so Input
+        // (5) drains LESS than the Background (4) it replaced, not more. It also posts one marker
+        // rather than running the loop, so anything the binding engine queues mid-drain lands
+        // behind the marker and is still pending at assertion time. The flake duly came back on
+        // 2026-08-25: one run green, one red, identical commit. Wpf.Drain pushes a frame at
+        // SystemIdle instead, which is the bottom of the queue and keeps pumping.
+        Wpf.Drain();
 
         try
         {

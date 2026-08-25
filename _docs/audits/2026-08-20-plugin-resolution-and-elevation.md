@@ -2,7 +2,7 @@
 title: "Audit: what a tier 4 restore actually needs, and how Wave Link finds a plug-in"
 status: published
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-08-25
 related_adrs: [ADR-011, ADR-006]
 tags: [audit, restore, plugins, security]
 ---
@@ -185,9 +185,32 @@ outside the shared VST3 folder: 0
 it; nothing here proves it does. The logs confirm a VST3 scan runs
 (`VST3 Plugin Scan Started`) but never name the search paths.
 
+> **Retired 2026-08-25 by §3's run.** The folder was created, a plug-in put in it, and Wave Link
+> restarted: it appeared in `KnownPlugins.cache` thirteen seconds later with its `uniqueId` intact.
+> **The user-level folder is scanned.** The heading above is left as written because the reasoning
+> it records — consistency is not measurement — is the reason the experiment was worth running.
+
 ---
 
-## 3 · The open question, and how to answer it
+## 3 · The open question — **ANSWERED 2026-08-25**
+
+> **Wave Link resolves by `PluginId`, and repairs `FilePath` behind it.** Run on this rig with
+> [`tools/plugin-resolution-experiment.ps1`](../../tools/plugin-resolution-experiment.ps1):
+> Pro-L 2 copied to the user-level VST3 folder, the shared copy renamed, Wave Link restarted.
+>
+> - The scan found it in the user folder 13 seconds after restart, same `uniqueId=45398b95`.
+> - All 11 effects stayed on Wave Mic 1, Pro-L 2 among them.
+> - `FilePath` was **rewritten** to the user-level path. `Saturn 2`, untouched, was not — so this
+>   was the moved file being repaired, not a blanket refresh.
+>
+> **Row 1 of the outcome table below: the user folder is a viable fallback destination.** It also
+> retires §2.4's caveat that the user-level folder "could not be observed being scanned" — it is
+> scanned.
+>
+> **The recommendation in §3.4 stands unchanged**, and now rests on a measurement: viable is not
+> the same as worth building. Tracked as technical-debt.md §7.6, now closed.
+
+### The original entry, and how it was answered
 
 **Does Wave Link resolve a channel's plug-in by `PluginId`, or by `FilePath`?**
 
@@ -211,6 +234,23 @@ It also bears on two other things:
 ### The experiment
 
 Reversible, about ten minutes, and it must be run on a machine with Wave Link installed.
+
+**Scripted:** [`tools/plugin-resolution-experiment.ps1`](../../tools/plugin-resolution-experiment.ps1)
+does steps 2, 3, 6 and 7, and keeps the state in a journal outside the repo so `-Undo` works from a
+fresh shell, after a reboot, or a week later. The manual version below is not hard; it is just easy
+to get half-way through and lose track of which copy is the original. Steps 1, 4 and 5 are still
+yours — take the backup, restart Wave Link, look at the channel.
+
+```powershell
+.\tools\plugin-resolution-experiment.ps1 -Status   # read-only, safe any time
+.\tools\plugin-resolution-experiment.ps1 -Setup
+# restart Wave Link, let the scan finish, look at the channel, quit Wave Link
+.\tools\plugin-resolution-experiment.ps1 -Record -EffectLoaded   # or -EffectDropped
+.\tools\plugin-resolution-experiment.ps1 -Undo
+```
+
+`-Record` prints the outcome row from the table below and writes the verdict into the journal, so
+the answer survives the shell it was observed in.
 
 1. **Take a backup first.** The tool exists for this, and this is exactly the moment it is for.
 2. Copy one plug-in that is **on a channel** — `FabFilter Pro-L 2.vst3` is a good pick, it is on

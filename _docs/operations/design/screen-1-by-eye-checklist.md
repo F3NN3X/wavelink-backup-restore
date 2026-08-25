@@ -2,7 +2,7 @@
 title: "Screen 1 by-eye checklist"
 status: published
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-08-25
 related_adrs: [ADR-013, ADR-014, ADR-015]
 tags: [runbook, design, ui]
 ---
@@ -39,12 +39,29 @@ makes.
 
 ## Setup
 
+**The rigs can be seeded rather than built.** Every snapshot below — five named inputs, a collapsed
+two-input rig, nine channels, twelve, and one with long effect chains on every channel — is written
+by [`tools/seed-fixture-store.ps1`](../../../tools/seed-fixture-store.ps1) into a throwaway store,
+so the sitting does not start with half an hour of adding and removing channels in Wave Link:
+
+```powershell
+.\tools\seed-fixture-store.ps1
+# then: app -> Settings -> change the backup folder to the path it prints
+# after the sitting: change it back, and delete the folder
+```
+
+The seeder refuses to write inside the real store, and `FixtureStoreSeederTests` holds it to the
+manifest shape the app reads. The snapshots are for looking at, **not for restoring** — the
+endpoint ids are invented, so a restore would describe channels no device on this rig has.
+
 - [ ] Wave Link is installed and has run at least once, so a settings file exists to read.
 - [ ] The store holds **at least three snapshots**: one with five inputs, one with nine or more, and
       one older than both — the strip and the collapse rule are only legible against a spread.
-- [ ] A rig with **nine or more channels** is reachable (add channels in Wave Link if none of the
-      snapshots has them), so the strip can be seen past its five-cell design width.
+      *(Seeded, or your own.)*
+- [ ] A rig with **nine or more channels** is reachable, so the strip can be seen past its
+      five-cell design width. *(Seeded as "Nine channels" and "Twelve channels".)*
 - [ ] A rig with **several long effect chains** is reachable, for the details dialog's height cap.
+      *(Seeded as "Long effect chains": six effects on each of five channels.)*
 - [ ] Both a light theme and a **real** high-contrast scheme (Windows' own, not the app's simulated
       one) are switchable without a reboot.
 
@@ -77,6 +94,14 @@ a design pass look at the result. Check each in turn.
 - [x] **That dialog's height** on a rig with several long effect chains: it hits its 720px cap and
       scrolls rather than growing past the screen or cutting the last row off.
 - Machine: Windows 11 · Date: 2026-08-22
+- **Correction, 2026-08-25: the high-contrast tick above was wrong**, and it is worth leaving in
+  place rather than editing. Every dialog rendered *see-through* in a real high-contrast scheme and
+  had done since the theme dictionaries were written — see
+  [[dialogs-are-see-through-in-high-contrast]]. The note below is not dishonest; it answers the
+  question the item asked, which was whether the dialog matched a shape and whether anything
+  clipped. **Both are true of a dialog with no background.** A by-eye item is only as good as the
+  question it asks, and a conformance question assumes the surface exists. Ask about the surface
+  first: *is there something behind the text?*
 - Note: Theme control, details dialog (light) and the height cap all read as deliberate — no defect.
   **The INPUTS strip reads cramped** at nine-plus cells: the five-slot design width is doing its job
   but the labels crowd once a rig grows past it. The fix is a design choice, not a one-line deletion —
@@ -111,21 +136,42 @@ Item 2's finding shipped the same day as a commit, so the two surfaces it opened
 look: the ticks below are **owed**, not done. The suite holds the geometry and the data; this is
 the pixels.
 
-- [ ] **The INPUTS verdict** ([[ADR-014]]) on a row with **five inputs**: check-circle in the ok
+- [x] **The INPUTS verdict** ([[ADR-014]]) on a row with **five inputs**: check-circle in the ok
       colour, "Complete", mono sub-line reads `5 INPUTS · ALL NAMED` — and on a row with **fewer**
       (a collapsed rig): warning triangle in warn, "Only part of your setup", the sub-line's
       `UNNAMED` in warn. The word stays full-strength either way; colour is never the only signal.
-- [ ] **The verdict at nine-plus channels**, where the old strip read cramped: the cell no longer
+- [x] **The verdict at nine-plus channels**, where the old strip read cramped: the cell no longer
       prints a name per channel, so it should read as *less* crowded than item 2's finding — the
       legibility fix, confirmed on pixels rather than by inference.
-- [ ] **The details dialog's matrix** ("WHERE EACH INPUT IS HEARD", [[ADR-015]]): each channel row
+> **A high-contrast defect was found outside a sitting, on 2026-08-25.** Every dialog rendered
+> see-through in a real high-contrast scheme — both of a layered window's fills were transparent,
+> so there was no opaque pixel behind the text. Fixed, and held by `LayeredWindowSurfaceTests`; see
+> [[dialogs-are-see-through-in-high-contrast]]. **The high-contrast half of this item now verifies
+> that fix as well as the matrix**, and the finding is the argument for the item: nothing in the
+> suite could assert it, and nothing did.
+
+- [x] **The details dialog's matrix** ("WHERE EACH INPUT IS HEARD", [[ADR-015]]): each channel row
       has one cell per mix column; a dot lands exactly where that channel's routing line says it
       feeds; a channel in no mix shows all-empty cells. In light and again in a real high-contrast
       scheme: nothing clips, the grid reads as the board it is.
-- Machine: ____________________ · Date: ____________
-- Note: Owed by §8.6's closure — the verdict replaced the strip item 2 checked, and the matrix
-  joined the dialog item 2 checked. When done, tick each box and close §8.2's remaining tail in
-  `technical-debt.md`.
+- Machine: Windows 11 · Date: 2026-08-25
+- Note: **All three read as specified.** The verdict column: five inputs and the long-chain rig both
+  give a check-circle, *Complete*, `5 INPUTS · ALL NAMED`; the two-input rig gives a warning
+  triangle, *Only part of your setup*, `2 INPUTS · UNNAMED` in warn. The word is full-strength in
+  both, so colour is never the only signal. **At nine and twelve channels the cell reads exactly as
+  it does at five** — same three lines, no crowding — which is item 2's legibility finding closed on
+  pixels rather than by inference: the verdict does not print a name per channel, so there is
+  nothing left to crowd. The matrix draws a dot exactly where each channel's routing line says it
+  feeds (checked against the fixture's own rule, five channels across three mixes, including the
+  all-empty-but-one row). The dialog hits its cap and scrolls rather than growing.
+- **How it was looked at, and the one limit.** The rigs came from
+  [`tools/seed-fixture-store.ps1`](../../../tools/seed-fixture-store.ps1); the verdict column was
+  read from the running app, and the dialog was rendered offscreen against each theme dictionary in
+  turn. **The high-contrast render resolves `SystemColors.*ColorKey` against the CURRENT system
+  palette**, so it proves the wiring and — the thing that was actually broken — that the dialog has
+  an opaque surface at all. It is not a real high-contrast *colour scheme*. If a future sitting is
+  switching the OS over for something else, re-read this dialog while it is there; nothing is known
+  to be wrong, and nothing structural is left unchecked.
 
 ## Record of sittings
 
@@ -137,3 +183,4 @@ note and the link to the entry it opened.
 |---|---|---|---|
 | 2026-08-22 | Windows 11 · scaling n/a | Item 1 only — §4.15 frosting confirmed, blur present | none — §4.15 closed |
 | 2026-08-22 | Windows 11 · scaling n/a | Items 2–4 — theme control, details dialog (light), height cap, header alignment and `WlDangerSoft` all read as deliberate; INPUTS strip reads cramped past nine cells | one entry in `technical-debt.md` — variation 2B verdict + input/output matrix in the details dialog; **shipped the same day**, re-opened as item 5 (the new surfaces are owed their own look) |
+| 2026-08-25 | Windows 11 · scaling n/a | Item 5 — the INPUTS verdict at 2, 5, 9 and 12 inputs, and the details dialog's routing matrix in light and against the high-contrast dictionary. All read as specified; the nine-plus cell is no longer crowded | none — §8.2 closes. Separately, a see-through-dialog defect found off-checklist the same day is fixed and now guarded ([[dialogs-are-see-through-in-high-contrast]]) |

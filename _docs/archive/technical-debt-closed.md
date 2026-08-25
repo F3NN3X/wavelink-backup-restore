@@ -1526,3 +1526,258 @@ The unverified-assumption list in §2 is unchanged in kind: the code made some o
 load-bearing rather than hypothetical.
 
 Be blunt. A debt list that flatters the project is useless.
+
+---
+
+## 2 · Unverified assumptions — **2.4 CLOSED 2026-08-25**
+
+> **§2.4 closed 2026-08-25 by porting the inspector, and the answer is "not the way upstream does
+> it".** `WindowsAudioEndpointInspector` now exists in `Core` and is reachable from the CLI through
+> `wlbackup diagnostics`, so the AOT publish is a real test rather than a test of dead-code
+> elimination. Three mechanisms were tried against `IsAotCompatible`:
+>
+> | Mechanism | Result |
+> |---|---|
+> | `Activator.CreateInstance(Type.GetTypeFromCLSID(clsid))` — upstream's activation | **IL2072, build error.** A CLSID resolved at runtime yields a `Type` the trimmer cannot prove has a parameterless constructor |
+> | Classic `[ComImport]` interfaces via a `CoCreateInstance` P/Invoke with `[MarshalAs(UnmanagedType.Interface)]` | **IL2050, build error.** Built-in COM marshalling cannot be verified after trimming — the interfaces and their members might be removed |
+> | `[GeneratedComInterface]`, blittable parameters only, pointers wrapped by hand through `StrategyBasedComWrappers` | **Works.** Builds clean, AOT-publishes with zero trim warnings, and enumerates 96 real endpoints at runtime from a 7.68 MB native binary |
+>
+> **So the literal question — "does `[ComImport]` survive NativeAOT" — answers no**, and the
+> useful question answers yes: COM interop is fine under AOT provided the marshalling is
+> source-generated rather than built-in. The cost is `AllowUnsafeBlocks` on `Core`, which
+> `RecycleBin` deliberately refused for its one `DllImport`. That refusal still stands on its own
+> terms — there, unsafe would have bought marshalling speed on a call that happens once a session.
+> Here it is not an optimisation but the price of compiling at all.
+>
+> **What landed with it.** Enumeration only: `IAudioEndpointInspector.List()`, and a diagnostics
+> section that reports counts by direction and state. Repointing a dead channel at a working device
+> is an *editing* feature and stays out of 1.0 ([post-1.0.md](../dev-phases/post-1.0.md)) — SPEC §3
+> warns that rewriting a device id means walking the whole tree and rewriting both the bare and
+> `id|suffix` forms.
+>
+> **The diagnostics section carries counts and nothing else**, which is not a style choice: an
+> endpoint id embeds a device serial (§3) and a friendly name is the hardware someone owns, and the
+> report exists to be safe to paste into a public tracker. Two tests assert that neither ever
+> reaches it.
+
+## 2 · Unverified assumptions
+
+Things the design rests on that **nobody has checked**. Each one, if wrong, invalidates real
+work — so each has a cheap check attached and an owner phase.
+
+*2.1, 2.2 and 2.3 are answered — see [the archive](archive/technical-debt-closed.md).*
+
+### 2.4 Whether `[ComImport]` interop survives NativeAOT
+
+`WindowsAudioEndpointInspector` is ~80 lines of hand-declared Core Audio COM interfaces. AOT
+and `[ComImport]` need care. If it does not survive, the NativeAOT CLI option in §1.5
+evaporates and the answer there is forced.
+
+**Phase:** 7, but cheap to check earlier and worth doing before the §1.5 decision is framed.
+
+> **Partially answered 2026-08-16 (phase 4) — and the part that matters is still open.**
+>
+> A NativeAOT publish of `wlbackup` **succeeds**, produces a **3.2 MB** binary (against 70.2 MB
+> self-contained), and that binary runs correctly against a real Wave Link install. The IL
+> compiler emitted **zero trim/AOT warnings**, so nothing in `Core` or `Cli` is
+> AOT-incompatible today.
+>
+> **But this does not answer the question this entry asks.** `WindowsAudioEndpointInspector`
+> has not been ported — there is no `[ComImport]` in the codebase — so the interop that
+> prompted the doubt was never exercised. When endpoint inspection lands, re-run this and
+> expect it to be the interesting case.
+>
+> **Build requirement worth knowing:** the AOT link step invokes `vswhere.exe` unqualified and
+> fails with a misleading `MSB3073 ... exited with code 123` if it is not on `PATH`, even
+> though the MSVC toolset is installed. Adding
+> `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer` to `PATH` fixes it. CI's
+> `windows-latest` image has this wired already.
+
+> **Related signal, 2026-08-16.** The phase-1 probe ran as a .NET 10 file-based app, which
+> defaults to trimming-friendly settings, and reflection-based `JsonSerializer` threw
+> `InvalidOperationException: Reflection-based serialization has been disabled`. That is not a
+> product bug — but it is the same constraint AOT imposes. **`Core` should avoid
+> reflection-based serialization regardless of the AOT decision**, using `JsonDocument`,
+> `JsonNode` and `Utf8JsonWriter` (all reflection-free) rather than
+> `JsonSerializer.Serialize<T>`. Doing that from the start keeps §1.5's NativeAOT option open
+> at no cost; discovering it in phase 7 would mean rewriting the manifest layer.
+
+---
+
+
+---
+
+## 7 · Design decisions that outdated shipped code — **§7.6 CLOSED 2026-08-25**
+
+> **§7.6 closed 2026-08-25. Wave Link resolves by `PluginId`, and repairs `FilePath` behind it.**
+> The experiment in [the audit](../audits/2026-08-20-plugin-resolution-and-elevation.md) §3 was
+> run on the reference rig with
+> [`tools/plugin-resolution-experiment.ps1`](../../tools/plugin-resolution-experiment.ps1).
+>
+> **Method.** `FabFilter Pro-L 2.vst3` was copied to `%LOCALAPPDATA%\Programs\Common\VST3\`, the
+> shared copy renamed to `.vst3.bak`, and Wave Link restarted — a real restart, which turned out
+> to matter more than expected (see the run note below).
+>
+> **Observed.**
+>
+> | | |
+> |---|---|
+> | Plug-in scan | Rescanned 13 seconds after restart and **found Pro-L 2 in the user-level folder**, carrying the same `uniqueId=45398b95` |
+> | The channel | All 11 effects still on Wave Mic 1, Pro-L 2 among them |
+> | `FilePath` | **Rewritten** to `%LOCALAPPDATA%\Programs\Common\VST3\FabFilter Pro-L 2.vst3` |
+> | `PluginId` | Unchanged — `45398b95` |
+> | Control | `Saturn 2`, untouched, still points at the shared folder — so the rewrite was about the moved file, not a blanket path refresh |
+>
+> **That is row 1 of the audit's outcome table: resolves by `PluginId`, then repairs the path. The
+> user-level folder IS a viable fallback destination for tier 4.**
+>
+> **It also settles §2.4 of the audit**, which recorded that all 154 cached plug-ins lived in the
+> shared folder so *"the user-level one could not be observed being scanned"*. It is scanned. That
+> was an unobserved corner, and it is now observed.
+>
+> **The recommendation does not change, and that is the point.** §7.5 already removed the prompt on
+> any machine whose VST3 folder has been loosened, which is this one and the common case. What
+> remains is one prompt, on an explicit opt-in, for writing to a folder every account shares —
+> which is what UAC is for. A fallback destination would trade that for a file somewhere other than
+> where it came from and a possible duplicate at the old path once the original folder becomes
+> writable again. **Viable is not the same as worth building**, and the entry's own recommendation —
+> probably do not build the fallback — stands now on a measurement instead of an assumption.
+>
+> **The second debt this closes:** tier 2's drift check can key on `PluginId` rather than path. "The
+> plug-in moved" is now a state this app could describe rather than one indistinguishable from "the
+> plug-in is gone". Not built; recorded in [post-1.0.md](../dev-phases/post-1.0.md) as newly
+> unblocked.
+>
+> **Run note, kept because it nearly produced a wrong answer.** The first attempt reported a result
+> without Wave Link having restarted at all. The script guarded on a process named `WaveLink`; the
+> real one is `Elgato.WaveLink`, so *"quit Wave Link first"* never fired and the rename happened
+> underneath an instance that had been up fourteen hours. Had the reading been trusted, it would
+> have shown `FilePath` unrewritten and produced row 2 — "the path is advisory" — which is the
+> wrong answer, arrived at confidently. The guard now reads the process name Core already holds.
+
+## 7 · Design decisions that outdated shipped code
+
+The phase-5 design package (handoff part 2) closed the six gaps **and** made four behavioural
+decisions that contradicted code already written and tested. None of that was a mistake in either
+place: the code was built to the best spec available, and the design had since decided better.
+
+*7.1–7.5 all shipped — see [the archive](archive/technical-debt-closed.md). **§7.6 is not a
+defect** — it is a question §7.5 raised, with a reversible experiment attached and a
+recommendation that the answer may well be "leave it alone".*
+
+### 7.6 Where a restored plug-in should go when its own folder is unwritable — **OPEN, needs one experiment**
+
+**Not a defect. An unanswered question**, raised by §7.5 and recorded because answering it wrongly
+would break a channel silently — the failure mode [[vst3-backs-up-as-nothing]] and §4.18 both
+already cost this project a phase.
+
+**Full method, findings and the experiment protocol:**
+[audits/2026-08-20-plugin-resolution-and-elevation.md](../audits/2026-08-20-plugin-resolution-and-elevation.md).
+Summarised here because that is where a debt belongs; the audit is where the commands are.
+
+**The question.** Tier 4 restores a `.vst3` to the absolute `FilePath` the settings recorded. When
+that folder refuses a write, the alternative is the user-level VST3 location
+(`%LOCALAPPDATA%\Programs\Common\VST3`), which needs no administrator. Whether that works turns on
+one thing nobody has verified: **does Wave Link resolve a channel's plug-in by `PluginId`, or by
+`FilePath`?**
+
+**What is measured** (this rig, 2026-08-20): Wave Link is JUCE-based; every third-party `PluginId`
+in `Settings.json` matches a cache `uniqueId` exactly, so a path-independent identity **exists**;
+the only configurable scan folder is VST2 and it is empty; and all 154 cached plug-ins are VST3 in
+the shared folder, so the user-level one could not be observed being scanned.
+
+**Why that is not enough.** The recorded paths all agree with the cache today, because nothing has
+moved — so the data **cannot distinguish** the two resolution strategies. That is the whole reason
+this is an entry rather than an implementation.
+
+**The experiment is scripted.** [`tools/plugin-resolution-experiment.ps1`](../tools/plugin-resolution-experiment.ps1)
+runs the reversible file surgery and records the verdict; `-Status` is read-only and safe to run
+now. What is still yours: take a backup, restart Wave Link, and look at the channel.
+
+**What closes it:** the experiment in the audit — copy one on-channel plug-in to the user folder,
+rename the shared copy, restart, see whether the channel still loads and whether `FilePath` was
+rewritten. Three outcomes, each with its consequence, tabulated there. Reversible; take a backup
+first.
+
+**Recommendation, pending the answer: probably do not build the fallback.** §7.5 already removes
+the prompt on any machine whose VST3 folder has been loosened, which is the common case and
+includes this one. What remains is one prompt, on an explicit opt-in, for writing to a folder every
+account shares — which is what UAC is for. A fallback destination trades that for a file somewhere
+other than where it came from, a possible duplicate at the old path, and the loss of a promise tier
+4 currently keeps.
+
+**The answer is worth having regardless**, because it also settles whether tier 2's drift check
+could key on `PluginId` rather than path — making "the plug-in moved" a state this app can
+describe instead of one indistinguishable from "the plug-in is gone" — and because it removes one
+of the two reasons [post-1.0.md](../dev-phases/post-1.0.md) refuses portable backups.
+
+> **Status 2026-08-22 — user will run the experiment.** The check above is a live-install
+> procedure (copy, rename, restart, observe), which is the user's to perform on the reference rig
+> rather than something CI or a test can stand in for. It stays open until that run; nothing here
+> blocks shipping, and the recommendation — probably do not build the fallback — stands meanwhile.
+> When the experiment is done, close it with the observed outcome and its consequence from the
+> audit's table.
+
+---
+
+
+---
+
+## 8 · Incurred 2026-08-20, building past the design package — **ALL CLOSED**
+
+> **§8.2 closed 2026-08-25.** Item 5 of
+> [the by-eye checklist](../operations/design/screen-1-by-eye-checklist.md) was worked against rigs
+> written by [`tools/seed-fixture-store.ps1`](../../tools/seed-fixture-store.ps1), and all three
+> looks read as specified.
+>
+> | Look | Result |
+> |---|---|
+> | The verdict on a five-input row | Check-circle, *Complete*, `5 INPUTS · ALL NAMED` |
+> | The verdict on a collapsed rig | Warning triangle, *Only part of your setup*, `2 INPUTS · UNNAMED` in warn — the word full-strength, so colour is never the only signal |
+> | The verdict at nine and twelve channels | **Reads exactly as it does at five.** Item 2's legibility finding is closed on pixels rather than by inference: the verdict prints no name per channel, so there is nothing left to crowd |
+> | The routing matrix | A dot exactly where each channel's routing line says it feeds, checked against the fixture's own rule — including the channel routed to one mix only |
+> | The dialog's height | Hits its cap and scrolls rather than growing |
+>
+> **One limit, recorded rather than papered over.** The high-contrast pass rendered against the
+> theme dictionary, which resolves `SystemColors.*ColorKey` against the current system palette. That
+> proves the wiring and — the thing that was actually broken — that the dialog has an opaque surface
+> at all. It is not a real high-contrast *colour scheme*. Nothing structural is left unchecked, and
+> the checklist says so at item 5 rather than claiming a tick it did not earn.
+>
+> **The sitting was not where the real defect came from, and that is the lesson.** Every dialog was
+> rendering *see-through* in a real high-contrast scheme, and had been since the theme dictionaries
+> were written — through a sitting on 2026-08-22 that ticked this very dialog in high contrast.
+> That tick answered the question it was asked (does it match the shape, does anything clip) and
+> both are true of a dialog with no background. See
+> [[dialogs-are-see-through-in-high-contrast]]. **A by-eye item is only as good as the question it
+> asks**, and a conformance question assumes the surface exists.
+
+## 8 · Incurred 2026-08-20, building past the design package
+
+Three surfaces now exist that the design package does not specify, and one hole the whole session
+walked through. Recorded here rather than in the audit, because the audit is a point-in-time
+reading of the app against the package and this is a standing cost.
+
+*8.1, 8.1a, 8.3, 8.4, 8.5 and 8.6 are all closed — see
+[the archive](archive/technical-debt-closed.md). What §8.6 left behind is pixels, not code, and it
+rides on §8.2 below.*
+
+### 8.2 Three surfaces have no design, and no by-eye check — **open, needs a human**
+
+| Surface | Built to | Package says |
+|---|---|---|
+| Settings → `HOW IT LOOKS`, the four theme segments ([[ADR-013]]) | The package's rules — section label, `WlBg` block, hairlines, the stepper's segment geometry, `WlToggle`'s own checked treatment | Nothing. The prototype draws a caption-bar sun icon; the README specifies a gear that opens Settings, and that is what ships |
+| The N-cell INPUTS strip ([[ADR-014]]) | The design's own five-cell strip, widened by arithmetic over a measured character width | *"Five equal flex cells"* — a rig of exactly five |
+| `What's in "…"`, the details dialog ([[ADR-015]]) | The settings dialog's shape and vocabulary, reused wholesale | Nothing. Four screens are designed and this is not one of them |
+
+**None of them is a new visual idea** — that was the constraint each was built under, and it is why
+they read as part of the app. But three surfaces now exist that no design pass has looked at, and
+the same is true of them as of §4.15: nothing in the suite can assert that a layout looks right.
+They belong on [the by-eye checklist](../operations/design/screen-1-by-eye-checklist.md), which is
+still owed a human.
+
+**Specifically unchecked by eye:** the four-segment control at 100% and 150% scaling; the strip at
+nine and at twelve cells, where the labels are four characters and three; the details dialog in
+light and in a real high-contrast scheme; and the dialog's height on a rig with several long effect
+chains, where it hits its 720px cap and scrolls.
+
