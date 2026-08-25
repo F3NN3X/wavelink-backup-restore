@@ -57,6 +57,33 @@ Core — the ratio the seam interfaces were inherited for ([[ADR-004]]).
 
 ## Recent additions
 
+### The debt list gets down to two, and the tools that get it there (2026-08-25)
+
+**Three of the four open entries were worked in one branch,
+`debt/close-remaining`.** §2.4 closed outright; §7.6 and §8.2 are now blocked on nothing but the
+half only a human can do, because the mechanical half is scripted.
+
+- **§2.4 closed, and the answer was no.** Porting `WindowsAudioEndpointInspector` is what let the
+  question be asked at all. Classic `[ComImport]` fails trimming two different ways — IL2072 for
+  upstream's `Type.GetTypeFromCLSID` activation, IL2050 for built-in COM marshalling — and
+  `[GeneratedComInterface]` works: clean AOT publish, and 96 real endpoints enumerated by the
+  native binary. Enumeration only; the editing half stays post-1.0. The evidence table is in
+  [the archive](archive/technical-debt-closed.md).
+
+- **Two developer tools, and a guard over them.**
+  [`tools/plugin-resolution-experiment.ps1`](../tools/plugin-resolution-experiment.ps1) runs §7.6's
+  reversible file surgery and records the verdict where it survives the shell;
+  [`tools/seed-fixture-store.ps1`](../tools/seed-fixture-store.ps1) writes the five rigs §8.2's
+  checklist item 5 needs, so the sitting starts at the looking. `ToolScriptGuardTests` extends the
+  share-mode rule to `tools/*.ps1` — the first script repeated the exact mistake
+  `SourceGuardTests` has caught in C# since phase 1, because that guard only ever scanned `*.cs`.
+
+- **The design export is recorded as absent.** `.git/info/exclude` carries
+  `_docs/operations/design/`, so the ~40 documents linking into it resolve on one machine and
+  nowhere else. [README.md](README.md) now says so, and names the risk that leaves: two files in
+  there are authored in this repo and protected only by a provenance banner.
+
+
 ### The debt list is split: what is owed, and what was paid (2026-08-25)
 
 **`technical-debt.md` went from 1,646 lines to 257.** Thirty-six of its thirty-nine numbered entries were closed,
