@@ -25,6 +25,8 @@ heading here.
 
 ### Changed
 
+- **README was rewritten again, this time for its language rather than its punctuation.** The bold label on nearly every feature bullet is gone from about a third of them, so the emphasis marks the lines that earn it instead of every line equally. "Trash, not delete" and "There is no setting that would create an upload, because none exists" were clipped or circular and now say the thing plainly. `framework-dependent` appeared six times, once as the same sentence twice over, and now appears where it is load-bearing. The privacy paragraph's line wrapping was repaired after an earlier edit ran two lines together.
+
 - **The prose across the living documentation was rewritten to read plainly.** Em dashes are gone from README, the changelog, the specification, the glossary, the index, the ADRs, the gotchas, the patterns, the recipes and the runbook, replaced by the full stops, commas and colons the sentences wanted. Dated records are deliberately untouched: the closed-debt archive promises in its own header that entries are kept verbatim, and session notes, audits and plans are accounts of what happened on a day rather than living prose. Quotations keep their original punctuation throughout, because rewriting a quotation misquotes it.
 
 ### Fixed
