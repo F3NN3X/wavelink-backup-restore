@@ -20,20 +20,20 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of v0.7.4 (2026-08-24).*
+*As of v0.7.4 plus unreleased work on `debt/close-remaining` (2026-08-25).*
 
 | Artifact | Count |
 |---|---|
-| ADRs | 16 |
-| Gotchas | 29 |
+| ADRs | 17 |
+| Gotchas | 30 |
 | Patterns | 5 |
 | Recipes | 2 |
 | Runbooks | 1 |
 | Audits | 3 (6 + 15 + 4 findings, one open question) |
-| Sessions | 26 |
+| Sessions | 27 |
 | Plans | 14 |
 | Dev-phase documents | 11 (of 8 phases; phases 6 and 7 detailed, plus the index, spec-coverage and post-1.0) |
-| **Tests** | **1,598 passing** — Core 504 · CLI 100 · App 994 |
+| **Tests** | **1,615 passing** — Core 521 · CLI 100 · App 994 |
 
 > The tally sat at *"as of 0.5.1"* through the whole of 0.6.0 and was corrected on 2026-08-19.
 > The trigger table in [README.md](README.md) says to update this file in the same commit as the
@@ -82,6 +82,26 @@ half only a human can do, because the mechanical half is scripted.
   `_docs/operations/design/`, so the ~40 documents linking into it resolve on one machine and
   nowhere else. [README.md](README.md) now says so, and names the risk that leaves: two files in
   there are authored in this repo and protected only by a provenance banner.
+
+- **One ADR.** [[ADR-017]] — COM interop is source-generated, and `Core` gets `AllowUnsafeBlocks`.
+  Its *Alternatives considered* is the useful half: dropping `IsAotCompatible`, suppressing IL2050,
+  hand-rolling vtable calls through function pointers, and putting the inspector in the shells —
+  each with the reason it lost. It also reverses a refusal `RecycleBin` documented deliberately,
+  and says why that refusal still stands where it was written.
+
+- **One gotcha.** [[com-interop-stops-compiling-the-moment-the-project-is-aot-compatible]] — the
+  same code that builds in a console app is two different build errors in an AOT-compatible
+  library. Its "plausible explanation" section names the expensive wrong turn: suppressing the
+  warning, which silently revokes NativeAOT for the whole solution and converts a build error into
+  a crash on a user's machine.
+
+- **One session.**
+  [splitting-the-debt-list-and-closing-what-was-left](sessions/2026-08-25-splitting-the-debt-list-and-closing-what-was-left.md)
+  — its *What did not work* section carries four dead ends, including the guard that fired on the
+  next script written after it, and the tier list that disagreed with the checklist it pointed at.
+
+- **Tests: 1,598 → 1,615**, all in Core. Eight for the endpoint inspector and the redaction rules
+  over its diagnostics section, five for the tool-script guard, four for the fixture seeder.
 
 
 ### The debt list is split: what is owed, and what was paid (2026-08-25)
@@ -1205,6 +1225,22 @@ The documentation system, seeded from `SPEC.md` and the design handoff. No appli
 
 Topics spanning several artifacts. A single-file topic is discoverable by search and does not
 belong here.
+
+### Interop under NativeAOT, and the guards that only cover one language
+
+The first COM in this codebase, and two lessons that arrived with it: what survives trim analysis,
+and what happens when a rule is enforced in one language and the second one shows up. Read together
+before adding interop or a tool in a new language.
+
+| Artifact | Contribution |
+|---|---|
+| [[ADR-017]] | The decision, its four rejected alternatives, and why `AllowUnsafeBlocks` on `Core` is a different trade from the one `RecycleBin` refused |
+| [[com-interop-stops-compiling-the-moment-the-project-is-aot-compatible]] | IL2072 and IL2050, why neither is suppressible, and the three things that make `[GeneratedComInterface]` work |
+| [technical-debt.md](technical-debt.md) §2.4, in [the archive](archive/technical-debt-closed.md) | The question, open since phase 4, and the evidence table that closed it |
+| [[capture-fails-while-wave-link-is-running]] | The rule `SourceGuardTests` has enforced in C# since phase 1 — and that `ToolScriptGuardTests` had to extend to PowerShell after a tool repeated it exactly |
+| [splitting-the-debt-list…](sessions/2026-08-25-splitting-the-debt-list-and-closing-what-was-left.md) | The two failed porting attempts in order, and why the second looks like the fix for the first |
+
+---
 
 ### WPF views, and why they need their own tests
 

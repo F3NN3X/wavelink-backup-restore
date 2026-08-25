@@ -21,6 +21,34 @@ heading here.
 
 ---
 
+## [Unreleased]
+
+**Wave Link Backup can now see the machine's audio devices, and two developer tools take the manual half out of the last two open questions.** `wlbackup diagnostics` reports how many capture and playback endpoints exist and what state each is in — the fact that separates "this input is gone" from "this input is fine", which nothing in a settings file can answer. Nothing user-facing changed in the app.
+
+### Added
+
+- **The audio endpoint inspector.** `IAudioEndpointInspector` and `WindowsAudioEndpointInspector` enumerate the machine's capture and playback endpoints through Core Audio, with each one's state — active, disabled, not present, unplugged. Read-only: pointing a dead channel at a working device is an editing feature and stays out of 1.0, because rewriting a device id means walking the whole settings tree and rewriting both the bare and `<deviceId>|<suffix>` forms (SPEC §3). See [ADR-017](_docs/decisions/ADR-017-source-generated-com-and-unsafe-on-core.md).
+
+- **`wlbackup diagnostics` reports endpoint counts.** A new *Audio endpoints* section, grouped by direction and state. **Counts only, never an id or a device name** — an endpoint id embeds a hardware serial and a friendly name is the hardware someone owns, and this report exists to be safe to paste into a public issue tracker. Two tests assert neither ever reaches it.
+
+- **`tools/plugin-resolution-experiment.ps1`** runs the reversible experiment that answers whether Wave Link resolves a plug-in by `PluginId` or by `FilePath` ([technical-debt.md](_docs/technical-debt.md) §7.6). The state lives in a journal outside the repository, so `-Undo` works from a fresh shell, after a reboot, or a week later; the original file is renamed rather than deleted, and the copy is made before the rename so a failure part-way leaves the install untouched.
+
+- **`tools/seed-fixture-store.ps1`** writes a throwaway snapshot store holding the five rigs the by-eye checklist needs — five named inputs, a collapsed two-input rig, nine channels, twelve, and one with long effect chains. It refuses to write inside the real store. The snapshots are for looking at, not restoring: the endpoint ids are invented.
+
+### Changed
+
+- **COM interop in `Core` is source-generated, and `Core` now builds with `AllowUnsafeBlocks`.** Classic `[ComImport]` does not survive trim analysis — upstream's `Type.GetTypeFromCLSID` activation is IL2072, and built-in COM marshalling is IL2050, both build errors under the `IsAotCompatible` setting the CLI's NativeAOT option depends on. `[GeneratedComInterface]` does survive, and requires the unsafe flag. This reverses a refusal `RecycleBin` documented deliberately; the reasoning for both is in [ADR-017](_docs/decisions/ADR-017-source-generated-com-and-unsafe-on-core.md) and [the gotcha](_docs/knowledge-base/gotchas/com-interop-stops-compiling-the-moment-the-project-is-aot-compatible.md).
+
+- **The share-mode source guard covers `tools/*.ps1`.** `SourceGuardTests` has enforced reading Wave Link's files with `FileShare.ReadWrite | FileShare.Delete` since phase 1 and only ever scanned `*.cs`; the first PowerShell tool written against a live install repeated the exact mistake and failed on its first run. `ToolScriptGuardTests` extends the rule, in both directions — the banned spelling, and the requirement that any script *reading* `Settings.json` names a share mode.
+
+- **`technical-debt.md` went from 1,646 lines to 249.** Thirty-six of its thirty-nine numbered entries were closed, and moved verbatim to [an archive](_docs/archive/technical-debt-closed.md) with section numbering preserved so existing references still resolve. §2.4 closed with this release's interop work; what remains is §7.6, §8.2 and the standing known-wrong list.
+
+### Fixed
+
+- **`_docs/README.md` no longer describes the design export as if it were in the repository.** The folder is listed in `.git/info/exclude`, so the roughly 40 documents linking into it resolve only on a machine holding the export. Recorded rather than rewritten — those links cite the authority, and a citation to a document the reader may not hold is honest in a way a removed link is not.
+
+---
+
 ## [0.7.4] - 2026-08-24
 
 **A restore now puts the service back before it relaunches, and emptying the trash shows where it is.** A restore that closes Wave Link's processes used to leave its background service down, so the relaunched app came up against a missing `WavelinkSEService` and showed its own "Start Service / Exit App" box. That no longer happens on the elevated path where most restores run — and the trash-empty action, which could freeze the window while a full store was cleared, now reports its progress as it goes.
