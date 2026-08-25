@@ -75,4 +75,3 @@ because *half* of Core is analysis and that half is where silent corruption woul
 
 - [[ADR-004]]: the Core/shell split this sits inside
 - [[every-snapshot-differs-with-no-real-change]]: the bug this shape makes unrepresentable
-- [Phase 1 design](../../plans/2026-08-16-phase-1-core-design.md) §1

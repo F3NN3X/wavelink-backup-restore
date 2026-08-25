@@ -9,9 +9,7 @@ tags: [dev-phase]
 # Phase 1 — Core: discovery, validation, safe write
 
 **Status:** ✅ **Complete — 2026-08-16.** 93 tests green, 81.2% line / 81.8% branch coverage,
-Release build clean. See the
-[session note](../sessions/2026-08-16-phase-1-core-build.md) and the
-[design, with its as-built delta](../plans/2026-08-16-phase-1-core-design.md).
+Release build clean.
 
 **Entry criteria:** phase 0 complete — the solution builds, upstream's tests pass unchanged.
 **Exit criteria:** a settings file can be discovered, validated, fingerprinted and atomically
@@ -57,9 +55,8 @@ premise.
 
 ### 1 · ~~Settle the `JsonNode.Parse` question~~ — **DONE 2026-08-16**
 
-Answered by probe before this phase started; see
-[the session note](../sessions/2026-08-16-phase-1-probe.md). The question was mis-framed —
-behaviour depends on the kind of duplicate:
+Answered by a probe before this phase started. The question was mis-framed: behaviour depends
+on the kind of duplicate.
 
 | Input | `JsonDocument` | `JsonNode.Parse` |
 |---|---|---|

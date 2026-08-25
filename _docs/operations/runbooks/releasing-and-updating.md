@@ -49,8 +49,8 @@ runs, so there is no in-app surface to offer a friendly "install the runtime" pr
 the stock .NET error dialog with a link. That is the accepted trade: the archive drops from ~101 MB
 to ~7.6 MB because the runtime ships nowhere at all, and the README names the prerequisite.
 
-`.github/workflows/release.yml` produces exactly this, which is the point of it existing, the
-shape is CI's responsibility rather than something a person remembers on release day.
+`.github/workflows/release.yml` produces exactly this shape, so it is CI's responsibility rather
+than something a person has to remember on release day.
 
 ---
 
@@ -83,7 +83,6 @@ That is the whole procedure. The workflow triggers on `push: tags: v*` and:
 ### Before you tag
 
 - [ ] `CHANGELOG.md` has a section for this version.
-- [ ] `documentation-stats.md`'s **Recent additions** has a block for it.
 - [ ] The tag is on the commit you mean. A tag is cheap to delete and expensive to have wrong,
       because the updater trusts the newest release absolutely.
 

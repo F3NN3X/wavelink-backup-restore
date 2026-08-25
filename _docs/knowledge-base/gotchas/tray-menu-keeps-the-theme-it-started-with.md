@@ -88,4 +88,3 @@ this and a silent regression.
 
 - `src/WaveLinkBackup.App/App.xaml.cs`, `RebuildTrayMenu`, `OnThemeChanged`
 - [patterns/named-method-seams.md](../patterns/named-method-seams.md)
-- [2026-08-17-phase-5-plan-3-theme-following.md](../../plans/2026-08-17-phase-5-plan-3-theme-following.md), Outcome

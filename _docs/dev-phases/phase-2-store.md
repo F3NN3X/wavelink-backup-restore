@@ -11,8 +11,6 @@ tags: [dev-phase]
 
 **Status:** ✅ **Complete — 2026-08-16.** 186 tests green, 83.0% line / 81.2% branch.
 [technical-debt.md](../technical-debt.md) §1.1 — the critical inherited defect — is closed.
-See the [session note](../sessions/2026-08-16-phase-2-store-build.md) and the
-[design, with its as-built delta](../plans/2026-08-16-phase-2-store-design.md).
 
 **Entry criteria:** phase 1 complete. ✅ 2026-08-16.
 **Exit criteria:** a snapshot can be written, listed, renamed, restored and deleted; every
@@ -167,6 +165,5 @@ as in phase 1, chase the risk rather than the number.
 ## References
 
 - [[ADR-003]] — the store shape and why the fork's model had to go
-- [Phase 2 design](../plans/2026-08-16-phase-2-store-design.md) — the detailed design
 - `SPEC.md` §4, §7·1, §10 · [technical-debt.md](../technical-debt.md) §1.1
 - [[restore-a-settings-file-safely]] · [[newest-backup-is-the-broken-one]]

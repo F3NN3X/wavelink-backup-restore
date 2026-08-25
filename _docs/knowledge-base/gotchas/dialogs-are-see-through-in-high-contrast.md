@@ -96,10 +96,10 @@ version of the guard read that prose as markup and flagged the main window. Same
 `SourceGuardTests` and `ToolScriptGuardTests`, **a source scan that does not strip comments is
 scanning the documentation too.**
 
-**The wider lesson, and it cuts both ways.** Nothing in the suite could assert this, and nothing
-did: the dialog laid out correctly, bound correctly and closed correctly. It was found by a person
-looking at a screen in a scheme they had switched to on purpose, which is the argument for
-[the by-eye checklist](../../operations/design/screen-1-by-eye-checklist.md).
+Nothing in the suite could assert this, and nothing did. The dialog laid out correctly, bound
+correctly and closed correctly. A person found it by looking at a screen in a scheme they had
+switched to on purpose, which is what
+[the by-eye checklist](../../operations/design/screen-1-by-eye-checklist.md) is for.
 
 **But the checklist had already looked, and missed it.** `WlCard` has been transparent in high
 contrast since the theme dictionaries were first written (commit `eb726dc`), and item 2 of the

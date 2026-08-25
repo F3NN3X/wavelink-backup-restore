@@ -269,7 +269,7 @@ the dialog copy from "gone for good" to naming the Recycle Bin — because the o
 
 **This is the expensive one, and not for the obvious reason.** `SHFileOperation` is Win32
 interop. `WaveLinkBackup.Core` deliberately targets **`net10.0`, not `net10.0-windows`**
-([phase 1](../plans/2026-08-16-phase-1-core-design.md) *as built*, enforced by the
+(phase 1 *as built*, enforced by the
 `GuardNoDesktopFramework` MSBuild guard). Adding shell interop to `Core` either changes that
 target or needs the call to live in a shell.
 
@@ -1565,7 +1565,7 @@ Be blunt. A debt list that flatters the project is useless.
 Things the design rests on that **nobody has checked**. Each one, if wrong, invalidates real
 work — so each has a cheap check attached and an owner phase.
 
-*2.1, 2.2 and 2.3 are answered — see [the archive](archive/technical-debt-closed.md).*
+*2.1, 2.2 and 2.3 are answered below.*
 
 ### 2.4 Whether `[ComImport]` interop survives NativeAOT
 
@@ -1661,7 +1661,7 @@ The phase-5 design package (handoff part 2) closed the six gaps **and** made fou
 decisions that contradicted code already written and tested. None of that was a mistake in either
 place: the code was built to the best spec available, and the design had since decided better.
 
-*7.1–7.5 all shipped — see [the archive](archive/technical-debt-closed.md). **§7.6 is not a
+*7.1–7.5 all shipped, below. **§7.6 is not a
 defect** — it is a question §7.5 raised, with a reversible experiment attached and a
 recommendation that the answer may well be "leave it alone".*
 
@@ -1690,7 +1690,7 @@ the shared folder, so the user-level one could not be observed being scanned.
 moved — so the data **cannot distinguish** the two resolution strategies. That is the whole reason
 this is an entry rather than an implementation.
 
-**The experiment is scripted.** [`tools/plugin-resolution-experiment.ps1`](../tools/plugin-resolution-experiment.ps1)
+**The experiment is scripted.** [`tools/plugin-resolution-experiment.ps1`](../../tools/plugin-resolution-experiment.ps1)
 runs the reversible file surgery and records the verdict; `-Status` is read-only and safe to run
 now. What is still yours: take a backup, restart Wave Link, and look at the channel.
 
@@ -1759,7 +1759,7 @@ walked through. Recorded here rather than in the audit, because the audit is a p
 reading of the app against the package and this is a standing cost.
 
 *8.1, 8.1a, 8.3, 8.4, 8.5 and 8.6 are all closed — see
-[the archive](archive/technical-debt-closed.md). What §8.6 left behind is pixels, not code, and it
+below. What §8.6 left behind is pixels, not code, and it
 rides on §8.2 below.*
 
 ### 8.2 Three surfaces have no design, and no by-eye check — **open, needs a human**

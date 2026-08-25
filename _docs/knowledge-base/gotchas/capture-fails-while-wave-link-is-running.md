@@ -97,7 +97,6 @@ and it is a different failure from the one above.
 
 ## References
 
-- Discovered during the phase-1 probe; see
-  [session 2026-08-16, phase-1 probe](../../sessions/2026-08-16-phase-1-probe.md)
+- Discovered during the phase-1 probe, 2026-08-16
 - [[ADR-007]] · [[restored-settings-revert-seconds-later]] ·
   [[every-snapshot-differs-with-no-real-change]]

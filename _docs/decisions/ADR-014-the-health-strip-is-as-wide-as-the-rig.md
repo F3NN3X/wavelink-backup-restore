@@ -85,8 +85,8 @@ channels in 300px. The answer then is probably a per-row overflow, not a narrowe
 derived one, one character of the slot-label face, measured at 6.24px and rounded up to 6.25. It
 cannot be re-derived at run time without measuring per row, which this ADR rules out. The guard test
 (`RowTemplateTests.The_label_budget_is_what_actually_fits_a_cell`) holds the budget in both
-directions, it fits, one more character does not, so the debt is not a bug but a *risk*: an
-unmeasured font fallback. **Nothing ships that changes the mono face, the 9.5px label size, or the
+directions: it fits, and one more character does not. The debt is a risk rather than a bug, and
+the risk is an unmeasured font fallback. **Nothing ships that changes the mono face, the 9.5px label size, or the
 .06em tracking without re-running that measurement in the same commit.** If the bundled font is ever
 replaced, the re-measurement is part of the replacement, not a follow-up.
 

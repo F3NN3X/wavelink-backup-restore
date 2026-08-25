@@ -9,7 +9,7 @@ tags: [dev-phase]
 
 # Phase 4 — CLI shell
 
-**Status:** ✅ **Complete — 2026-08-16.** 308 tests green (228 Core, 80 CLI). NativeAOT verified at **3.2 MB**. See the [session note](../sessions/2026-08-16-phase-4-cli-build.md).
+**Status:** ✅ **Complete — 2026-08-16.** 308 tests green (228 Core, 80 CLI). NativeAOT verified at **3.2 MB**.
 **Entry criteria:** phase 3 complete. ✅ 2026-08-16.
 **Exit criteria:** every Core capability is reachable from the command line, the CLI is the
 integration-test driver for phases 2–3, and `dotnet publish` produces a single executable that

@@ -90,4 +90,4 @@ advisory, and the scrim guarantees a dimmed owner regardless. See `AcrylicDialog
 - `src/WaveLinkBackup.App/Windows/DialogOverlay.cs` · `AcrylicDialogBackdrop.cs`
 - [the-window-never-opens-and-nothing-says-why.md](the-window-never-opens-and-nothing-says-why.md),
 the other class of dialog failure found in the same audit
-- [2026-08-19-design-audit-and-ui-fixes.md](../../sessions/2026-08-19-design-audit-and-ui-fixes.md)
+- The 0.5.1 design audit, 2026-08-19

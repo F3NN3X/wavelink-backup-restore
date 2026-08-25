@@ -16,9 +16,7 @@ own detailed file.
 > until 2026-08-19. With phases 0–5 shipped and phase 6 half built, phase 7 can be written
 > against what exists rather than against assumptions, so it was.
 >
-> **What is still deliberately not written** is the per-section *build* plan: phase 5 wrote one
-> `plans/` document per plan, immediately before building it, and phases 6 and 7 should do the
-> same. The phase files below carry the decisions; a build plan carries the code.
+> The phase files below carry the decisions rather than the code.
 
 Three companion documents finish the picture:
 
@@ -40,7 +38,7 @@ right.
 |---|---|---|---|
 | **0** | Foundation | ✅ Complete | [phase-0-foundation.md](phase-0-foundation.md) |
 | **1** | Core: discovery, validation, safe write | ✅ Complete — 93 tests, 81.2% | [phase-1-core.md](phase-1-core.md) |
-| **2** | Snapshot store | ✅ Complete — 186 tests, 83.0% | [phase-2-store.md](phase-2-store.md) · [design](../plans/2026-08-16-phase-2-store-design.md) |
+| **2** | Snapshot store | ✅ Complete — 186 tests, 83.0% | [phase-2-store.md](phase-2-store.md) |
 | **3** | Automation: watcher, dedup, retention | ✅ Complete — 235 tests, 84.9% | [phase-3-automation.md](phase-3-automation.md) |
 | **4** | CLI shell | ✅ Complete — 308 tests, AOT 3.2 MB | [phase-4-cli.md](phase-4-cli.md) |
 | **5** | WPF shell | ✅ Complete — 964 tests, all ten plans landed | [phase-5-wpf.md](phase-5-wpf.md) |
@@ -81,9 +79,8 @@ tests through the seam interfaces.
 
 ## Phase 2 — Snapshot store
 
-**Depends on:** phase 1. ✅ **Planned in detail** —
-[phase-2-store.md](phase-2-store.md) and
-[the design](../plans/2026-08-16-phase-2-store-design.md).
+**Depends on:** phase 1. ✅ **Planned in detail** in
+[phase-2-store.md](phase-2-store.md).
 
 The store from [[ADR-003]]: snapshots outside `LocalState`, identity in `manifest.json`,
 machine-generated directory names, free-text display names. Restore reads from it. The

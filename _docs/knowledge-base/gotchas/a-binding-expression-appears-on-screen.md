@@ -83,4 +83,4 @@ containing `{Binding`, the rendered string, not the source spelling.
 
 - `src/WaveLinkBackup.App/Views/SettingsDialog.xaml`, the two plain-language notes
 - [the-window-never-opens-and-nothing-says-why.md](the-window-never-opens-and-nothing-says-why.md)
-- [2026-08-19-design-audit-and-ui-fixes.md](../../sessions/2026-08-19-design-audit-and-ui-fixes.md)
+- The 0.5.1 design audit, 2026-08-19

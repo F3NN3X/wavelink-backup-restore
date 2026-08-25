@@ -96,4 +96,4 @@ fail is not a guard.
 - [a-binding-expression-appears-on-screen.md](a-binding-expression-appears-on-screen.md), the
   same file, a different XAML rule, and a symptom you *can* see
 - [a-dialog-opens-as-a-black-rectangle.md](a-dialog-opens-as-a-black-rectangle.md)
-- [2026-08-19-design-audit-and-ui-fixes.md](../../sessions/2026-08-19-design-audit-and-ui-fixes.md)
+- The 0.5.1 design audit, 2026-08-19

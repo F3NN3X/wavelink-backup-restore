@@ -13,13 +13,13 @@ build** — no project here appears in `WaveLinkBackup.slnx`, and nothing in `sr
 it.
 
 `WaveLinkBackup.Core` was written by **porting behaviour** from this code into the shape
-described in [the phase-1 design](../../_docs/plans/2026-08-16-phase-1-core-design.md). Keeping
+described in [[ADR-004]]. Keeping
 the original beside the port is what makes the port auditable: anyone can diff the behaviour
 claims against the source they came from, and the MIT attribution points at something concrete
 rather than a URL that may move.
 
-Intake was chosen as a vendored snapshot with **no shared git history** — see
-[[ADR-002]] and the session note for 2026-08-16. Future upstream fixes are hand-ported.
+Intake was chosen as a vendored snapshot with **no shared git history**; see
+[[ADR-002]]. Future upstream fixes are hand-ported.
 
 ## Baseline
 

@@ -19,36 +19,13 @@ every surface in both HC schemes. **964 tests green.** The exit criteria are met
 and every state group match the handoff in both themes *and* high contrast, the tray shell works,
 and no Core logic has leaked into the shell. **next: phase 6 (plugin tiers).**
 
-**One surface was added after the phase closed** (2026-08-22): plan 11, the Help and About
-dialogs — the two information surfaces the handoff never specified, reached from the tray menu
-and a "?" in the caption bar. Static content behind a model record, no design screen to match,
-so it is recorded as an addition rather than a phase item:
-[plan 11](../plans/2026-08-22-phase-5-plan-11-help-and-about.md).
+**One surface was added after the phase closed** (2026-08-22): the Help and About dialogs, the
+two information surfaces the handoff never specified, reached from the tray menu and a "?" in the
+caption bar. Static content behind a model record, with no design screen to match, so it is
+recorded as an addition rather than a phase item.
 **Entry criteria:** phase 4 complete. ✅ 2026-08-16.
 **Exit criteria:** the four designed screens match the handoff in **both themes**, the six
 undesigned surfaces are designed and built, and no Core logic has leaked into the shell.
-
-### Execution plans for the remaining surfaces — 2026-08-18
-
-The backup list (part 4) is built and committed. The rest of the phase is now broken into six
-dated execution plans under [`plans/`](../plans/), each following part 4's task format (pure
-model → tests → view → wiring → keyboard/SR → guards + full verification):
-
-| Plan | Surface | Design source |
-|---|---|---|
-| [plan-5](../plans/2026-08-18-phase-5-plan-5-the-restore-flow.md) | Real restore flow: confirmation dialog, four-stage in-progress strip, wire `RestoreOrchestrator`, feed the outcome strip | `screens/04-in-progress.md`, `09` |
-| [plan-6](../plans/2026-08-18-phase-5-plan-6-delete-rename-trash.md) | In-place rename, three-variant two-stage delete, empty-trash row + per-volume detection | `screens/05-delete-dialogs.md`, `08` |
-| [plan-7](../plans/2026-08-18-phase-5-plan-7-errors-and-first-run.md) | The twelve errors in their four placements (weight rule), error 9/12 full screen, first-run/empty state | `screens/06-errors.md`, `08`, README Screen 4 |
-| [plan-8](../plans/2026-08-18-phase-5-plan-8-settings-dialog.md) | Settings dialog: in-place commit (no Save button), atomic persistence, WHICH WAVE LINK + WHERE THESE SETTINGS LIVE, unbuilt tiers | README Screen 3, `screens/08` |
-| [plan-9](../plans/2026-08-18-phase-5-plan-9-the-tray-shell.md) | The tray shell: app icon (tray **and** window), second-launch activation, autostart toggle with the Task Manager veto, live-host icon states, hide-on-close + context menu | `screens/12-tray-autostart-update.md` |
-| [plan-10](../plans/2026-08-18-phase-5-plan-10-high-contrast.md) | High contrast: verification pass over the existing third theme, pin the runtime swap, guard "no hard-coded colour", HC contract for plans 5–8 surfaces, both-schemes sweep | `screens/11-high-contrast.md` |
-
-**Every surface in the phase is now planned.** Nothing remains to be broken into a dated plan;
-what is left is execution, in the order above. Two notes on shape: plan 9 *extends* code that
-already exists (single-instance, hide-on-close, context menu, icon states, autostart) rather
-than rebuilding it, and plan 10 is a verification + gap-filling pass because high contrast is
-substantially built and tested already — the residual work is pinning the runtime swap, guarding
-the no-hard-coded-colour rule, and recording the HC contract plans 5–8 must sign.
 
 ## Why this phase exists
 

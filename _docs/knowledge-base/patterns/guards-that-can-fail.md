@@ -94,4 +94,3 @@ their obvious code is rejected, so the error message must say *why*, not just *n
 ## References
 
 - [[ADR-004]] · [[capture-fails-while-wave-link-is-running]]
-- [Phase 1 design](../../plans/2026-08-16-phase-1-core-design.md) §5

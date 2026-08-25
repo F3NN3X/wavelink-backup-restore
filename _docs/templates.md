@@ -8,17 +8,17 @@ tags: [meta, templates]
 
 # Document Templates
 
-Copy the matching block, fill it in, and update `documentation-stats.md` in the same commit.
+Copy the matching block and fill it in.
 
 The headings are the questions that turned out to matter. Deleting one because you have
 nothing to say for it is usually the moment you discover you have not finished thinking.
-If a heading genuinely does not apply, write "n/a" and why — that is information too.
+If a heading genuinely does not apply, write "n/a" and why. That is information too.
 
 ---
 
 ## ADR
 
-**File:** `decisions/ADR-0NN-short-slug.md` — numbered in the order written, never renumbered.
+**File:** `decisions/ADR-0NN-short-slug.md`, numbered in the order written, never renumbered.
 
 ````markdown
 ---
@@ -73,8 +73,8 @@ turns out not to be.
 
 **File:** `knowledge-base/gotchas/symptom-phrased-as-a-symptom.md`
 
-**Title by the symptom.** The next person will be describing the surface, not the cause —
-they do not know the cause yet, which is why they are searching.
+**Title by the symptom.** The next person will be describing the surface rather than the cause.
+They do not know the cause yet, which is why they are searching.
 
 ````markdown
 ---
@@ -88,7 +88,7 @@ tags: [gotcha, area]
 
 # Symptom, phrased the way you would describe it to someone
 
-**Provenance:** Observed | Read, not reproduced | Assumed — and the date and source.
+**Provenance:** Observed | Read, not reproduced | Assumed, plus the date and source.
 Not optional in this project. See `README.md` for why.
 
 ## Symptom
@@ -101,8 +101,8 @@ What is really happening.
 
 ## The plausible explanation, and why it is wrong
 
-The thing you will try first. Say why it is not that, or it gets tried again — and that
-retry is most of the cost of the bug.
+The thing you will try first. Say why it is not that, or it gets tried again, and that retry is
+most of the cost of the bug.
 
 ## Fix
 
@@ -124,9 +124,8 @@ The guard, test or design choice that makes it impossible rather than merely kno
 **File:** `knowledge-base/patterns/pattern-name.md`
 
 **Only proven patterns.** Extract from code that ships, never from an intention. Name the
-actual callers — a pattern with no callers is a theory, and belongs in an ADR or the spec.
+actual callers. A pattern with no callers is a theory, and belongs in an ADR or the spec.
 
-`knowledge-base/patterns/` does not exist yet; create it when the first pattern is real.
 
 ````markdown
 ---
@@ -145,7 +144,7 @@ The recurring situation.
 
 ## Solution
 
-The shape, with a minimal working example from the codebase — real code, not pseudocode.
+The shape, with a minimal working example from the codebase. Real code, not pseudocode.
 
 ## Callers
 
@@ -175,7 +174,7 @@ The boundary. A pattern without one gets applied everywhere and stops meaning an
 **File:** `operations/runbooks/verb-the-system.md`
 
 **A runbook is not a recipe.** A recipe is a task whose order is load-bearing; a runbook is a
-*system* — the procedure, the contract it has to satisfy, and what to do when it does not. If
+*system*: the procedure, the contract it has to satisfy, and what to do when it does not. If
 there is nothing to put in the symptom table, write a recipe instead.
 
 **State provenance at the top.** A runbook often describes something that has not run in anger
@@ -201,7 +200,7 @@ One sentence on what loop this describes, and why its halves belong in one docum
 
 ## 1 · The contract
 
-What has to be true for this to work at all — the shape, the names, the invariants. Put it first:
+What has to be true for this to work at all: the shape, the names, the invariants. Put it first,
 everything below is only correct if this is.
 
 ## 2 · The procedure
@@ -254,14 +253,14 @@ tags: [recipe, area]
 ## Steps
 
 1. **Step.** What to do.
-   > **Why this order:** only where the order is load-bearing. Where it is not, say nothing —
-   > an unexplained warning on every step trains people to skip all of them.
+   > **Why this order:** only where the order is load-bearing. Where it is not, say nothing. An
+   > unexplained warning on every step trains people to skip all of them.
 
 2. **Step.** …
 
 ## Verifying it worked
 
-How you know — from evidence, not from the thing looking right. In this project that
+How you know, from evidence rather than from the thing looking right. In this project that
 distinction is load-bearing: a UI that looks correct can be a freshly generated default.
 
 ## If it goes wrong
@@ -275,54 +274,6 @@ The rollback, and the state you land in.
 
 ---
 
-## Session note
-
-**File:** `sessions/YYYY-MM-DD-short-slug.md` — two sessions on one date are distinguished by
-slug, never by a suffix number.
-
-````markdown
----
-title: "Session: What Happened"
-status: published
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
-tags: [session, area]
----
-
-# Session: What Happened
-
-**Date:** YYYY-MM-DD
-
-## Goal
-
-What we set out to do.
-
-## What happened
-
-The narrative, briefly. Where a decision was made, link the ADR rather than re-arguing it.
-
-## Decisions made
-
-| Decision | Recorded in |
-|---|---|
-| … | [[ADR-00N]] |
-
-## What did not work
-
-The dead ends. This is often the most valuable section — it is the part that is nowhere in
-the diff, and the reason someone repeats the attempt six months later.
-
-## Open questions
-
-What is still unresolved, and what would settle it.
-
-## Next
-
-The immediately next thing, concretely enough to start from cold.
-````
-
----
-
 ## Dev phase
 
 **File:** `dev-phases/phase-N-short-slug.md`
@@ -332,14 +283,14 @@ unbuilt produces fiction.
 
 ````markdown
 ---
-title: "Phase N — Name"
+title: "Phase N: Name"
 status: draft | review | published
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 tags: [dev-phase]
 ---
 
-# Phase N — Name
+# Phase N: Name
 
 **Status:** Not started | In progress | Complete
 **Entry criteria:** what must be true to begin.
@@ -355,7 +306,7 @@ What it unblocks.
 
 - …
 
-### Out — and where it went instead
+### Out, and where it went instead
 
 - … → phase M
 

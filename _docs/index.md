@@ -2,100 +2,63 @@
 title: "Wave Link Backup: Documentation Index"
 status: published
 created: 2026-08-16
-updated: 2026-08-22
+updated: 2026-08-25
 tags: [meta, index]
 ---
 
 # Wave Link Backup, Documentation Index
 
-**Start here.**
+Wave Link Backup snapshots and restores Elgato Wave Link's mixer configuration. Wave Link keeps
+about three days of its own rolling copies, so a configuration that breaks over a long weekend is
+already gone by the time anyone notices. This app is the safety net.
 
-Wave Link Backup snapshots and restores Elgato Wave Link's mixer configuration. Wave Link
-keeps about **three days** of its own rolling copies; a configuration that breaks over a long
-weekend is unrecoverable by the time anyone notices. This app is the safety net: configured
-once, then ignored until the day it saves someone's rig.
-
-The whole payload is **one 43 KB JSON file**, and the entire backup set is about **470 KB**,
-small enough to keep one snapshot per distinct content hash, indefinitely, forever.
+The whole payload is one 43 KB JSON file and a typical backup set is about 470 KB, which is small
+enough to keep one snapshot per distinct content hash indefinitely.
 
 ---
 
-## The three documents that matter most
+## Start here
 
 | Document | What it is |
 |---|---|
-| **[SPEC.md](SPEC.md)** | The build specification. Where the settings live, what's inside them, the restore sequence, the validation traps, the VST3 tiering. **The authority on what to build.** Read its Provenance section before treating any number as a constant. |
-| **[operations/design/README.md](operations/design/README.md)** | The visual and interaction design, part 1, tokens, the four finished screens. Copy. High fidelity: colours, type, spacing and wording are final. Part 2 is [screens/](operations/design/screens/00-index.md); read [CHANGES-SINCE-V1.md](operations/design/CHANGES-SINCE-V1.md) first. |
-| **[dev-phases/README.md](dev-phases/README.md)** | What is left to build, phase by phase, with entry and exit criteria. Every phase is now detailed, and [spec-coverage.md](dev-phases/spec-coverage.md) maps each `SPEC.md` requirement to where it stands. |
+| [SPEC.md](SPEC.md) | The build specification. Where the settings live, what's inside them, the restore sequence, the validation traps, the VST3 tiering. The authority on what to build. Read its Provenance section before treating any number as a constant. |
+| [dev-phases/README.md](dev-phases/README.md) | What is built and what is left, phase by phase, with entry and exit criteria. [spec-coverage.md](dev-phases/spec-coverage.md) maps each `SPEC.md` requirement to where it stands. |
+| [technical-debt.md](technical-debt.md) | What is known-wrong on purpose, and which numbers will bite you if you hard-code them. |
 
-Everything else in this folder explains *why*, records *what bit us*, or tracks *what
-happened*. See [README.md](README.md) for how the system is organised and how to add to it.
+Everything else here explains why something is the way it is, or records what bit us.
+[README.md](README.md) covers how the folder is organised and how to add to it.
+
+> Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it. Three of its
+> claims were measured against a live install on 2026-08-16 and did not survive. The important
+> one is the JSON encoder recommendation in §5 and §7·2, which is inverted and would cause the
+> problem it describes. The spec body is left unedited on purpose.
 
 ---
 
 ## Current state
 
-**Phases 0, 6 are complete. Phase 7 (release) is next, and 1.0 is gated on the privacy work
-rather than on features.**
+v0.7.6. Both shells work. `wlbackup` backs up, lists, restores, renames, deletes, verifies,
+prunes, empties the trash and watches; the WPF tray app does the same through a window with the
+designed screens, the twelve errors, the settings dialog and high contrast. The CLI publishes as
+a 3.2 MB NativeAOT binary, verified against a real install.
 
-**There is a working program with a window.** `wlbackup` backs up, lists, restores, renames,
-deletes, verifies, prunes, empties the trash and watches from the CLI; the WPF shell does the
-same from a tray app with a window, the four designed screens, the twelve errors, the settings
-dialog, and high contrast, all built and tested. **1,207 tests** (Core 423, CLI 97, App 687).
-Published as a **3.2 MB NativeAOT binary**, verified against a real install.
+The three founding problems are solved. Snapshots survive an MSIX package reset
+([[ADR-003]]), backups happen without anyone remembering to take them ([[ADR-007]]), and there is
+something to run ([[ADR-004]]).
 
-**All three founding problems are solved.** Snapshots survive an MSIX package reset
-([[ADR-003]]), backups happen on their own ([[ADR-007]]), and there is something to run,
-now a window as well as a CLI ([[ADR-004]]).
+All four VST3 tiers capture and restore. Tier 3 reads two preset roots ([[ADR-010]]) after the
+first run against a real vendor folder turned up an interface default and a MIDI map where 172
+presets should have been; a snapshot went from 61 preset files to 491. Tier 4 restore reaches the
+shell once elevation has a designed surface ([[ADR-011]]).
 
-**Phase 5 closed 2026-08-19.** All ten plans landed: the backup list, the real restore flow,
-delete/rename/trash, the twelve errors and first-run state, the settings dialog, the tray shell,
-and high contrast as a fully verified third theme. The four Core changes in
-[technical-debt.md](technical-debt.md) §7, two-stage delete via `.trash`, lazy verification
-during pruning, a watcher that no longer queues, and Windows-convention keyboard/focus, are all
-shipped.
-
-**0.5.1 audited the shell against that design and fixed what it found.** Including a restore
-dialog that could not open at all, dialogs that rendered on a black background, binding
-expressions printed as text, selection that was per date group, and a proportion bar that had
-never drawn. Every one lived in a view no test had ever constructed, which is the finding rather
-than the list: see [the session note](sessions/2026-08-19-design-audit-and-ui-fixes.md) and the
-four gotchas it produced. Motion and the missing-plug-in warning
-([technical-debt.md](technical-debt.md) §4.12, 4.13) closed with it.
-
-**Phase 6 closed 2026-08-19, and the two things it deferred closed with it.** All four tiers
-capture and restore. Tier 3 was then run against a real vendor folder for the first time and
-found to be capturing the wrong files, an interface default and a MIDI map where 172 presets
-should have been, so it reads **two roots** now ([[ADR-010]]), and a snapshot went from 61
-preset files to 491. Tier 4 restore reached the shell once elevation had a designed surface
-([[ADR-011]]). Automatic backups gained a settable interval and an optional daily time.
-
-**The design is complete** (package v5): thirteen state-group specs, nothing undesigned. Two
-further specs, elevation and backup timing, were written in this repo rather than exported;
-see [README.md](README.md) → *operations/* for why that is a last resort and how they survive a
-re-export.
-**It is a tray app with a window**, not the reverse, `screens/12` is explicit, and that framing
-lands scope the original four screens did not carry.
-
-| | |
-|---|---|
-| What shipped | [Phase 5](dev-phases/phase-5-wpf.md) · [CHANGELOG](../CHANGELOG.md) |
-| What is next | [Release](dev-phases/phase-7-release.md), the privacy gate first |
-| Did we build the spec | [spec-coverage.md](dev-phases/spec-coverage.md), every `SPEC.md` requirement, line by line |
-| What is refused or deferred | [post-1.0.md](dev-phases/post-1.0.md) |
-| How Core is shaped | [Phase 1](plans/2026-08-16-phase-1-core-design.md) · [Phase 2](plans/2026-08-16-phase-2-store-design.md) designs |
-
-> **Read the Corrections block at the top of [SPEC.md](SPEC.md) before relying on it.** Three
-> of its claims were measured against a live install on 2026-08-16 and did not survive, most
-> importantly the JSON encoder recommendation in §5 and §7·2, which is **inverted** and would
-> cause the problem it describes. The spec body is left deliberately unedited.
+Release is the remaining phase, and 1.0 is gated on the privacy work rather than on features.
+[CHANGELOG.md](../CHANGELOG.md) has the version-by-version history.
 
 ---
 
 ## Decisions
 
-The shape of the project in fifteen records. Read `ADR-001` and `ADR-002` first, the rest
-follow from them.
+Eighteen records. Read ADR-001 and ADR-002 first; the rest follow from them.
 
 | ADR | Decision |
 |---|---|
@@ -114,17 +77,16 @@ follow from them.
 | [ADR-013](decisions/ADR-013-a-theme-preference-behind-the-system-theme-seam.md) | A theme preference. Auto, Dark, Light, High contrast, behind the existing system-theme seam |
 | [ADR-014](decisions/ADR-014-the-health-strip-is-as-wide-as-the-rig.md) | The health strip is as wide as the rig, and collapse is a drop against the previous snapshot |
 | [ADR-015](decisions/ADR-015-the-details-view-reads-the-backup-itself.md) | The details view reads the backup's own settings file, on demand |
+| [ADR-016](decisions/ADR-016-a-restore-brings-the-service-back-before-it-relaunches.md) | A restore brings the service back before it relaunches |
+| [ADR-017](decisions/ADR-017-source-generated-com-and-unsafe-on-core.md) | COM interop is source-generated, and Core gets `AllowUnsafeBlocks` |
+| [ADR-018](decisions/ADR-018-a-third-notification-and-an-update-notice-on-the-strip.md) | A third notification, and an update notice on the strip |
 
 ---
 
 ## Gotchas
 
-Twenty-seven ways this goes wrong. Titled by symptom, because that is what you will be searching
-for at the time, you do not know the cause yet, which is why you are searching.
-
-Grouped by where they bite. **The whole table is here on purpose**: it listed ten of sixteen
-between 0.5.1 and 0.6.0, which made it look complete and quietly hid the six the design audit
-produced.
+Thirty-three ways this goes wrong, titled by symptom. You do not know the cause when you go
+looking, which is why you are looking.
 
 ### Capture and restore
 
@@ -145,18 +107,18 @@ produced.
 
 ### The shell
 
-Four of these came out of the 0.5.1 design audit, the first three below, plus the selection one,
-and the finding was the group rather than any member: every one lived in a view no test had
-ever constructed. The two tray entries were hit while building phase 5, and the settings one two
-phases later, by the same gap.
+Several of these came out of the 0.5.1 design audit, and the group matters more than any member:
+every one lived in a view no test had ever constructed.
 
 | Symptom | Gotcha |
 |---|---|
 | The window never opens and nothing says why | [the-window-never-opens-and-nothing-says-why.md](knowledge-base/gotchas/the-window-never-opens-and-nothing-says-why.md) |
 | A dialog opens as a black rectangle | [a-dialog-opens-as-a-black-rectangle.md](knowledge-base/gotchas/a-dialog-opens-as-a-black-rectangle.md) |
+| Dialogs are see-through in high contrast | [dialogs-are-see-through-in-high-contrast.md](knowledge-base/gotchas/dialogs-are-see-through-in-high-contrast.md) |
 | A binding expression appears on screen | [a-binding-expression-appears-on-screen.md](knowledge-base/gotchas/a-binding-expression-appears-on-screen.md) |
 | Three backups look selected at once | [three-backups-look-selected-at-once.md](knowledge-base/gotchas/three-backups-look-selected-at-once.md) |
 | A control in the Settings dialog moves and nothing happens | [a-settings-control-moves-and-nothing-happens.md](knowledge-base/gotchas/a-settings-control-moves-and-nothing-happens.md) |
+| The row shows stale data after you update it | [the-row-shows-stale-data-after-you-update-it.md](knowledge-base/gotchas/the-row-shows-stale-data-after-you-update-it.md) |
 | The tray icon refuses every image you draw | [the-tray-icon-refuses-every-image-you-draw.md](knowledge-base/gotchas/the-tray-icon-refuses-every-image-you-draw.md) |
 | The tray menu keeps the theme it started with | [tray-menu-keeps-the-theme-it-started-with.md](knowledge-base/gotchas/tray-menu-keeps-the-theme-it-started-with.md) |
 | An accelerator shows as a literal underscore | [an-accelerator-shows-as-a-literal-underscore.md](knowledge-base/gotchas/an-accelerator-shows-as-a-literal-underscore.md) |
@@ -165,36 +127,17 @@ phases later, by the same gap.
 | Every older backup turns amber after adding a channel | [every-older-backup-turns-amber-after-adding-a-channel.md](knowledge-base/gotchas/every-older-backup-turns-amber-after-adding-a-channel.md) |
 | The list will not scroll with the wheel | [the-list-will-not-scroll-with-the-wheel.md](knowledge-base/gotchas/the-list-will-not-scroll-with-the-wheel.md) |
 | Scrolling the list selects a row | [scrolling-the-list-selects-a-row.md](knowledge-base/gotchas/scrolling-the-list-selects-a-row.md) |
+| The app dies before the window with a culture error | [the-app-dies-before-the-window-with-a-culture-error.md](knowledge-base/gotchas/the-app-dies-before-the-window-with-a-culture-error.md) |
 
-### The suite, and the seams under it
-
-Both found while clearing the debt list, and both are the same shape: the production code was
-right and the *test environment* was not, which is the direction it is easy to look in last.
+### Builds, updates and the suite
 
 | Symptom | Gotcha |
 |---|---|
+| COM interop stops compiling the moment the project is AOT-compatible | [com-interop-stops-compiling-the-moment-the-project-is-aot-compatible.md](knowledge-base/gotchas/com-interop-stops-compiling-the-moment-the-project-is-aot-compatible.md) |
+| Every update fails its checksum | [every-update-fails-its-checksum.md](knowledge-base/gotchas/every-update-fails-its-checksum.md) |
+| The update installs nothing and says nothing | [the-update-installs-nothing-and-says-nothing.md](knowledge-base/gotchas/the-update-installs-nothing-and-says-nothing.md) |
 | A progress report never arrives in a test | [a-progress-report-never-arrives-in-a-test.md](knowledge-base/gotchas/a-progress-report-never-arrives-in-a-test.md) |
 | The serializer that never throws, throws | [the-serializer-that-never-throws-throws.md](knowledge-base/gotchas/the-serializer-that-never-throws-throws.md) |
-
----
-
-## Runbooks
-
-Things done *to* a running system. This folder's trigger, *"there is a running system to operate,
-realistically the first release"*, fired on 2026-08-20, when the release pipeline and the
-in-app updater were built.
-
-| Runbook | When |
-|---|---|
-| [Releasing a version, and how the app updates itself](operations/runbooks/releasing-and-updating.md) | Cutting a release, and every question about how the app finds one. One document, because a release in the wrong shape is invisible to the updater. |
-
----
-
-## Recipes
-
-| Recipe | When |
-|---|---|
-| [Restore a settings file safely](knowledge-base/recipes/restore-a-settings-file-safely.md) | Every restore. The order is load-bearing at every step. |
 
 ---
 
@@ -210,58 +153,28 @@ Extracted from shipped code, each naming its real callers.
 | [guards-that-can-fail.md](knowledge-base/patterns/guards-that-can-fail.md) | A guard that silently never matches |
 | [decisions-as-pure-functions.md](knowledge-base/patterns/decisions-as-pure-functions.md) | A conditional rule that is wrong in the one branch nobody exercised |
 
-## Plans
+## Recipes and runbooks
 
-| Plan | Status |
+| Document | When |
 |---|---|
-| [Phase 1 Core. Design](plans/2026-08-16-phase-1-core-design.md) | **Implemented**, the shape of `WaveLinkBackup.Core`, with an *as built* delta |
-| [Phase 2 Snapshot Store. Design](plans/2026-08-16-phase-2-store-design.md) | **Implemented**, store layout, manifest, the guard, the restore sequence |
+| [Restore a settings file safely](knowledge-base/recipes/restore-a-settings-file-safely.md) | Every restore. The order is load-bearing at every step. |
+| [Publish the NativeAOT binary](knowledge-base/recipes/publish-the-native-aot-binary.md) | Cutting the CLI release artifact. |
+| [Releasing a version, and how the app updates itself](operations/runbooks/releasing-and-updating.md) | Cutting a release, and every question about how the app finds one. One document, because a release in the wrong shape is invisible to the updater. |
+| [Screen 1 by-eye checklist](operations/design/screen-1-by-eye-checklist.md) | Checking the things only a human looking at the window can check. |
 
 ## Audits
 
 | Audit | Subject |
 |---|---|
-| [2026-08-15, voltybat/WaveLinkSettingsUtility](audits/2026-08-15-voltybat-wavelinksettingsutility.md) | The upstream we are forking: what to take, what to fix first |
-| [2026-08-19, the app against the design package](audits/2026-08-19-design-conformance.md) | Every screen read against `operations/design/`: one structural layout defect, six smaller fixes, eight designed surfaces never drawn |
-| [2026-08-20, plug-in resolution and elevation](audits/2026-08-20-plugin-resolution-and-elevation.md) | The app was asking for administrator rights it already had. **Carries an open question and the experiment that answers it**. Read this before touching tier 4 restore |
-
----
-
-## Sessions
-
-| Date | Session |
-|---|---|
-| 2026-08-22 | [Help and About dialogs, and the gear that was not changed](sessions/2026-08-22-help-and-about-dialogs.md) |
-| 2026-08-20 | [A theme choice, a crash, and what's in a backup](sessions/2026-08-20-theme-choice-a-crash-and-the-details-view.md) |
-| 2026-08-20 | [Asking for administrator rights only when the write needs them](sessions/2026-08-20-elevation-only-when-needed.md) |
-| 2026-08-20 | [Clearing the technical-debt list](sessions/2026-08-20-clearing-the-technical-debt.md) |
-| 2026-08-19 | [The two things phase 6 deferred, and a settable backup schedule](sessions/2026-08-19-preset-roots-elevation-and-timing.md) |
-| 2026-08-19 | [Phase 6, all four tiers capture and restore](sessions/2026-08-19-phase-6-tiers-complete.md) |
-| 2026-08-19 | [Phase 6, plug-in discovery](sessions/2026-08-19-phase-6-plugin-discovery.md) |
-| 2026-08-19 | [The design audit, and the UI fixes it produced](sessions/2026-08-19-design-audit-and-ui-fixes.md) |
-| 2026-08-19 | [Phase 5, the settings dialog](sessions/2026-08-19-phase-5-settings-dialog.md) |
-| 2026-08-19 | [Phase 5, high contrast](sessions/2026-08-19-phase-5-high-contrast.md) |
-| 2026-08-19 | [Phase 5, the tray shell](sessions/2026-08-19-phase-5-tray-shell.md) |
-| 2026-08-19 | [The phase 5 audit](sessions/2026-08-19-phase-5-audit.md) |
-| 2026-08-18 | [Phase 5, the restore outcome strip](sessions/2026-08-18-phase-5-restore-outcome-strip.md) |
-| 2026-08-17 | [Phase 5, the tray shell and theme following](sessions/2026-08-17-phase-5-tray-shell-and-theme-following.md) |
-| 2026-08-17 | [Phase 5, Core foundations](sessions/2026-08-17-phase-5-core-foundations.md) |
-| 2026-08-17 | [Phase 5 part 1, the Core changes, and a design that answered back](sessions/2026-08-17-phase-5-core-changes.md) |
-| 2026-08-17 | [Design integration, and deciding what phase 5 actually is](sessions/2026-08-17-design-integration-and-phase-5-scope.md) |
-| 2026-08-16 | [Phase 4. Core gets a caller, and AOT lands at 3.2 MB](sessions/2026-08-16-phase-4-cli-build.md) |
-| 2026-08-16 | [Phase 3, it now backs up on its own](sessions/2026-08-16-phase-3-automation-build.md) |
-| 2026-08-16 | [Phase 2, the critical inherited defect is fixed](sessions/2026-08-16-phase-2-store-build.md) |
-| 2026-08-16 | [Phase 1. Core built, 93 tests green](sessions/2026-08-16-phase-1-core-build.md) |
-| 2026-08-16 | [Phase-1 probe, three documented decisions overturned](sessions/2026-08-16-phase-1-probe.md) |
-| 2026-08-16 | [Documentation scaffold](sessions/2026-08-16-documentation-scaffold.md) |
+| [2026-08-15, voltybat/WaveLinkSettingsUtility](audits/2026-08-15-voltybat-wavelinksettingsutility.md) | The upstream we forked: what to take, what to fix first |
+| [2026-08-19, the app against the design package](audits/2026-08-19-design-conformance.md) | Every screen read against the design: one structural layout defect, six smaller fixes, eight designed surfaces never drawn |
+| [2026-08-20, plug-in resolution and elevation](audits/2026-08-20-plugin-resolution-and-elevation.md) | The app was asking for administrator rights it already had. Read this before touching tier 4 restore. |
 
 ---
 
 ## The rest
 
-- [glossary.md](glossary.md), the words this project uses precisely. "Backup" alone means
-  three different things; start here if a document reads oddly.
-- [technical-debt.md](technical-debt.md), inherited defects and unverified assumptions.
-- [documentation-stats.md](documentation-stats.md), the tally and the cross-reference index.
+- [glossary.md](glossary.md). The words this project uses precisely. "Backup" alone means three
+  different things, so start here if a document reads oddly.
 - [templates.md](templates.md). Copy from here when adding a document.
-- [archive/](archive/), superseded documents.
+- [archive/](archive/). Closed technical debt, kept with its reasoning intact.

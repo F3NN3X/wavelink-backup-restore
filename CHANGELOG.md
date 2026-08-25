@@ -15,15 +15,21 @@ The version in `Directory.Build.props` is the source of truth and matches the ne
 heading here.
 
 > **This is the engineering changelog**, what shipped, per version, broad enough to become
-> release notes. The documentation ecosystem has its own delta log in
-> [`_docs/documentation-stats.md`](_docs/documentation-stats.md) → *Recent additions*. Same
-> commit is fine; don't write the same entry in both.
+> release notes.
 
 ---
 
 ## [Unreleased]
 
 ### Changed
+
+- **The documentation is about half its former size, and the parts that carried evidence all survived.** `plans/`, `sessions/` and `documentation-stats.md` are gone. Fifteen execution plans and twenty-eight session notes were process artifacts for work that had already shipped, and the stats file was a 97 KB changelog about the other documents; between them they accounted for 570 KB of a 1.28 MB folder. What they recorded that was load-bearing already lives in the ADRs, the gotchas and the phase files, which is where someone would look for it. Every inbound link was rewritten rather than left dangling, and `git log` still has all of it.
+
+- **README is organised for a stranger rather than a maintainer.** The eight-row table of internal documents is one link to `_docs/index.md`. The privacy warning and the list of things this will not do now sit near the top instead of below the build instructions, since they are the two sections a new reader most needs. Section headings say what the section is about. The test count is gone from the README and the docs index: it went stale on most commits and invited a question about test quality that a number cannot answer.
+
+- **`_docs/index.md` no longer disagrees with the repository.** It claimed fifteen ADRs against eighteen on disk, twenty-seven gotchas against thirty-three, and a test count three hundred behind. The narrative log of what closed when has gone to `CHANGELOG.md`, where that belongs.
+
+- **`technical-debt.md` says the honest thing once.** "A debt list that flatters the project is useless" appeared twice in the same document, having been copied out of `_docs/README.md`, and the section narrating how the tiers had emptied was process written about process. Every open entry, every known-wrong decision and the whole hazard table are unchanged.
 
 - **README was rewritten again, this time for its language rather than its punctuation.** The bold label on nearly every feature bullet is gone from about a third of them, so the emphasis marks the lines that earn it instead of every line equally. "Trash, not delete" and "There is no setting that would create an upload, because none exists" were clipped or circular and now say the thing plainly. `framework-dependent` appeared six times, once as the same sentence twice over, and now appears where it is load-bearing. The privacy paragraph's line wrapping was repaired after an earlier edit ran two lines together.
 
@@ -823,8 +829,7 @@ application yet, the CLI and WPF shells are stubs that exist to prove the refere
 
 Documentation only. A probe against a live Wave Link install answered one open question and
 invalidated two documented decisions; corrections were applied at source rather than noted and
-worked around. See
-[`_docs/sessions/2026-08-16-phase-1-probe.md`](_docs/sessions/2026-08-16-phase-1-probe.md).
+worked around.
 
 ## [0.0.1], 2026-08-16
 

@@ -53,15 +53,13 @@ establishes the baseline that later phases must not regress.
 The `_docs/` system, seeded from `SPEC.md` and the design handoff: 8 ADRs, 8 gotchas, 1
 recipe, 1 audit, this roadmap. The design handoff moved to `operations/design/`.
 
-See the [session note](../sessions/2026-08-16-documentation-scaffold.md).
 
 ### Repository
 
 - [x] `.gitignore` — build output, IDE files, packaging artifacts, and the project-specific
       rules refusing real settings files, VST3 binaries and the backup store.
 - [x] Root `README.md` — **Windows-only above the fold** ([[ADR-008]]), upstream attribution.
-- [x] `CHANGELOG.md` — engineering changelog, distinct in voice from
-      [documentation-stats.md](../documentation-stats.md).
+- [x] `CHANGELOG.md` — the engineering changelog.
 - [x] `LICENSE` — MIT, carrying upstream's copyright line verbatim
       (`Copyright (c) 2026 WaveLinkSettingsUtility contributors`, fetched from their LICENSE
       rather than reconstructed) alongside ours, plus an Attribution section naming which

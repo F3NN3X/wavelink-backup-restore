@@ -97,4 +97,4 @@ absence, because re-adding one reintroduces both faults.
 
 - `src/WaveLinkBackup.App/Views/GroupSelection.cs`
 - `src/WaveLinkBackup.App/Views/RowStyles.xaml`, `WlRowTemplate`
-- [2026-08-19-design-audit-and-ui-fixes.md](../../sessions/2026-08-19-design-audit-and-ui-fixes.md)
+- The 0.5.1 design audit, 2026-08-19

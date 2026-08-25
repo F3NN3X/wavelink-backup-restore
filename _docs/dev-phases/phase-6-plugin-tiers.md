@@ -10,9 +10,8 @@ tags: [dev-phase]
 # Phase 6 — Plugin tiers
 
 **Status:** ✅ **Complete 2026-08-19** — all eight sections, shipped as **0.6.0** with **1,146
-tests** (Core 399, CLI 97, App 650) and a clean Release build. §1–§2 landed first
-([session note](../sessions/2026-08-19-phase-6-plugin-discovery.md)); §3–§8 followed in one pass
-([session note](../sessions/2026-08-19-phase-6-tiers-complete.md)).
+tests** (Core 399, CLI 97, App 650) and a clean Release build. §1–§2 landed first; §3–§8
+followed in one pass.
 **Entry criteria:** phase 5 complete. ✅ 2026-08-19. The store, the restore flow and the shell
 exist; tier 1 (settings) captures and restores end to end.
 **Exit criteria:** all four tiers from [[ADR-006]] capture and restore; a `.vst3` **bundle** is
