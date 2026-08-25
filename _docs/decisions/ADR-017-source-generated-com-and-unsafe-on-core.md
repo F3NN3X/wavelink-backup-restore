@@ -85,6 +85,6 @@ Core ever needs to stop being AOT-compatible for an unrelated reason, at which p
 - `SPEC.md` §7 (endpoint inspection) · §11
 - [technical-debt.md](../technical-debt.md) §2.4, and the evidence table in
   [the closed-entry archive](../archive/technical-debt-closed.md)
-- [[ADR-004]]. Core is a headless library behind thin shells
+- [[ADR-004]]. Core is a headless library behind its shells
 - [[ADR-008]]: Windows-only scope
 - [[com-interop-stops-compiling-the-moment-the-project-is-aot-compatible]]

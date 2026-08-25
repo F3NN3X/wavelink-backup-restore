@@ -211,16 +211,6 @@ public sealed class WhatGoesInModel : ObservableObject
 }
 
 /// <summary>
-/// The settings dialog's data model. There is no Save button: every control commits on change,
-/// so each settable property writes through to the settings file immediately (atomic, via
-/// <see cref="SettingsRepository"/>). That is the whole of persistence here - read once at
-/// construction, write on every change, never on exit.
-///
-/// The tier toggles (<see cref="IncludePresets"/>, <see cref="IncludePluginFiles"/>) commit like
-/// everything else here. They were locked and unmovable until phase 6 built the tiers behind
-/// them; a toggle that writes a setting nothing reads is worse than one that is visibly off.
-/// </summary>
-/// <summary>
 /// The two seams behind Settings' <c>WHEN WINDOWS STARTS</c> section (screens/12).
 ///
 /// A record rather than three more constructor parameters, and injected rather than reached for:
@@ -255,6 +245,16 @@ public sealed record AppearanceSeam(
     Action<ThemePreference> Write,
     Func<bool> ReadIsHighContrast);
 
+/// <summary>
+/// The settings dialog's data model. There is no Save button: every control commits on change,
+/// so each settable property writes through to the settings file immediately (atomic, via
+/// <see cref="SettingsRepository"/>). That is the whole of persistence here - read once at
+/// construction, write on every change, never on exit.
+///
+/// The tier toggles (<see cref="IncludePresets"/>, <see cref="IncludePluginFiles"/>) commit like
+/// everything else here. They were locked and unmovable until phase 6 built the tiers behind
+/// them; a toggle that writes a setting nothing reads is worse than one that is visibly off.
+/// </summary>
 public sealed class SettingsViewModel : ObservableObject
 {
     private const int MinKeepCount = 1;
@@ -759,12 +759,6 @@ public sealed class SettingsViewModel : ObservableObject
     /// </summary>
     public long? FreeSpaceBytes { get; set; }
 
-    /// <summary>
-    /// The free-space figure as the mono stats line prints it: "118 GB FREE". Empty when the
-    /// figure cannot be read - the XAML then collapses the whole line rather than print a number
-    /// that is not there. Formatted here (not in the view) so the view stays a pure binding and
-    /// the format is unit-testable without a window.
-    /// </summary>
     /// <summary>How many backups the store holds. Set by the caller, which owns the store.</summary>
     public int BackupCount { get; set; }
 

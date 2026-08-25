@@ -1,12 +1,12 @@
 ---
-title: "ADR-004: A headless core library with thin WPF and CLI shells"
+title: "ADR-004: A headless core library with WPF and CLI shells"
 status: accepted
 created: 2026-08-16
 updated: 2026-08-16
 tags: [decision, architecture]
 ---
 
-# ADR-004: A headless core library with thin WPF and CLI shells
+# ADR-004: A headless core library with WPF and CLI shells
 
 **Status:** Accepted
 **Date:** 2026-08-16
@@ -34,8 +34,8 @@ Three projects from the first commit:
 
 ```
 WaveLinkBackup.Core      ← class library. Headless, testable, no UI references.
-WaveLinkBackup.Cli       ← thin shell. Argument parsing → Core.
-WaveLinkBackup.App       ← thin shell. WPF, MVVM → Core.
+WaveLinkBackup.Cli       ← shell. Argument parsing → Core.
+WaveLinkBackup.App       ← shell. WPF, MVVM → Core.
 WaveLinkBackup.Core.Tests
 ```
 
@@ -43,8 +43,21 @@ WaveLinkBackup.Core.Tests
 hashing and dedup, the watcher, process lifecycle, atomic write, tier capture, endpoint
 inspection. It has no reference to WPF or to any console API.
 
-**Both shells stay thin enough to be uninteresting.** A shell translates input into a Core
-call and renders the result. When a shell starts to hold logic, that logic belongs in Core.
+**Neither shell holds backup logic.** A shell translates input into a Core call and renders the
+result. When a shell starts to hold logic, that logic belongs in Core.
+
+> **Measured 2026-08-25, and half of this ADR's original wording did not survive it.** It said
+> "both shells stay thin enough to be uninteresting". Core is about 6,000 lines of C#. The CLI is
+> about 840, so that half holds. The WPF app is about 11,200 lines of C# plus 6,500 of XAML, which
+> makes it nearly twice the size of the thing it is a shell over, and `App.xaml.cs` alone is 1,793
+> lines with 65 members.
+>
+> The decision this ADR records is still the right one and is still being kept: Core has no
+> reference to WPF, the seams survived, the watcher runs headless and the CLI still publishes
+> under NativeAOT. What was wrong was the prediction about size. A window needs themes, dialogs,
+> view models, a tray host and an update path, and none of that is backup logic that leaked
+> outward. "Thin" was the wrong word for presentation code; "does not hold backup logic" is the
+> claim that was actually worth making, and it is the one that can be checked.
 
 ## Alternatives considered
 

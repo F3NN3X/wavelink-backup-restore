@@ -106,7 +106,7 @@ only applied on the next launch is a control that appears not to work.
 
 - [technical-debt.md](../../technical-debt.md) §4.20, both defects, with the phases they
   survived
-- [[ADR-004]]: core library, thin shells: the shell owning the live settings record is what
+- [[ADR-004]]: the headless core: the shell owning the live settings record is what
   makes it the shell's job to re-apply them
 - [[a-dialog-opens-as-a-black-rectangle]]: the same gap, one layer down
 - [[a-binding-expression-appears-on-screen]]: the other failure a real layout pass catches

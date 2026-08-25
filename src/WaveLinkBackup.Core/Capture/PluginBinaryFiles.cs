@@ -5,8 +5,8 @@ using WaveLinkBackup.Core.Snapshots;
 namespace WaveLinkBackup.Core.Capture;
 
 /// <param name="Found">
-/// False when the path resolved to nothing, or to something that is there but empty. **A capture
-/// that produced zero bytes is a failure, not a success** — that is the bug this tier exists to
+/// False when the path resolved to nothing, or to something that is there but empty. A capture
+/// that produced zero bytes is a failure, not a success — that is the bug this tier exists to
 /// catch, because a zero-byte "success" looks identical to a working backup until the day it is
 /// restored.
 /// </param>
@@ -37,7 +37,7 @@ public readonly record struct BinaryIdentity(string? Sha256, long SizeBytes, Dat
 /// Tier 4: the `.vst3` files themselves. The phase's defining risk
 /// ([[vst3-backs-up-as-nothing]]).
 ///
-/// **A `.vst3` may be a directory.** All six plugins on the reference machine are single files, so
+/// A `.vst3` may be a directory. All six plugins on the reference machine are single files, so
 /// the author's own setup can never exercise the bundle path — which is exactly why the directory
 /// test comes FIRST and why a synthetic bundle fixture is a hard exit criterion rather than a
 /// nice-to-have.
@@ -93,7 +93,7 @@ public sealed class PluginBinaryFiles(IFileSystem fileSystem)
         Discover(plugin, new HashSet<string>(StringComparer.OrdinalIgnoreCase)).Bytes;
 
     /// <summary>
-    /// The binary's SHA-256 as it stands right now, for tier 2's record of it — **not** an
+    /// The binary's SHA-256 as it stands right now, for tier 2's record of it — not an
     /// integrity claim about the snapshot. The binary lives outside the snapshot and a plugin
     /// update between capture and restore is a legitimate thing to happen; this is evidence for
     /// the drift check, which is why <c>SnapshotGuard</c> never verifies it.
@@ -102,7 +102,7 @@ public sealed class PluginBinaryFiles(IFileSystem fileSystem)
     /// network volume that is not mounted, a binary locked by its own installer. Tier 2 is always
     /// on, so none of those may throw.
     ///
-    /// A **bundle hashes to null**: what identifies a bundle is its whole tree, and recording the
+    /// A bundle hashes to null: what identifies a bundle is its whole tree, and recording the
     /// hash of nothing would be worse than recording that we have none.
     /// </summary>
     public string? HashOf(string filePath) => HashOf(filePath, previous: null).Sha256;
@@ -111,7 +111,7 @@ public sealed class PluginBinaryFiles(IFileSystem fileSystem)
     /// The same, but reusing <paramref name="previous"/>'s hash when the binary has not been
     /// touched since that entry was written — same path, same length, same last-write time.
     ///
-    /// **This is a cache with an invalidation rule**, and it exists because tier 2 is always on:
+    /// This is a cache with an invalidation rule, and it exists because tier 2 is always on:
     /// every automatic capture the watcher fires used to read every referenced binary in full,
     /// ~40 MB on the reference rig, for a value that changes only when the user updates a plug-in
     /// (technical-debt.md §4.16). <see cref="PluginManifestEntry.BinaryMatches"/> is deliberately

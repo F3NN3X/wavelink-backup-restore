@@ -12,7 +12,7 @@ namespace WaveLinkBackup.Core.Snapshots;
 /// NativeAOT for the CLI, and the source-scan guard fails the build if anyone reaches for the
 /// shortcut (technical-debt.md 2.4).
 ///
-/// **Where it differs from <see cref="ManifestSerializer"/> is <see cref="Read"/>.** The
+/// Where it differs from <see cref="ManifestSerializer"/> is <see cref="Read"/>. The
 /// manifest is what makes a directory a snapshot, so a manifest that cannot be understood is
 /// a failure. plugins.json is a description of what the settings referenced; tier 2 is always
 /// on and cannot be switched off (ADR-006), so a file that cannot be understood must degrade

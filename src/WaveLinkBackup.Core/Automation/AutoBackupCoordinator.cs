@@ -8,7 +8,7 @@ namespace WaveLinkBackup.Core.Automation;
 /// distinguishes a change-driven capture from the daily one after the fact.
 /// </param>
 /// <param name="Error">
-/// Non-null when a capture was due and failed. **This is what the shell shows.** The tray's
+/// Non-null when a capture was due and failed. This is what the shell shows. The tray's
 /// NEEDS YOU state and the status strip's folder-unavailable variant both read it; without it
 /// the tray has a state it cannot enter, and a failing watcher is invisible.
 ///

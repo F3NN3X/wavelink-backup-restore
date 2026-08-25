@@ -19,13 +19,13 @@ public sealed record UpdateDownload(string? Path, string? FailureDetail)
 /// Fetches a release archive and refuses to hand it back unless its bytes match the checksum the
 /// release published.
 ///
-/// **Refusing is the point.** An update that installs whatever arrived replaces a working program
+/// Refusing is the point. An update that installs whatever arrived replaces a working program
 /// with an unknown one, and this is the single most dangerous thing this app does — it is the only
 /// code path that overwrites its own binaries. So: an update with no published checksum is
 /// refused, a mismatch is refused, and a partial file is deleted rather than left where a later
 /// run might find it.
 ///
-/// **What the checksum does and does not prove** is spelt out on <see cref="UpdateRelease.Sha256"/>:
+/// What the checksum does and does not prove is spelt out on <see cref="UpdateRelease.Sha256"/>:
 /// integrity, not authenticity. Signing is what would give the second, and it is owed before this
 /// app is distributed to anyone.
 /// </summary>

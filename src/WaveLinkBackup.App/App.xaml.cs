@@ -704,11 +704,6 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Internal so MainWindow's own gear button can open the same dialog. Builds a fresh view-model
-    /// each time (the file may have changed while the window was closed) and shows it modally over
-    /// the main window when one is open, otherwise as a standalone modal.
-    /// </summary>
-    /// <summary>
     /// Error 8's "Get the update": Settings, at UPDATES, with a check already running so the new
     /// version's row is showing by the time the user looks at it (screens/12).
     ///
@@ -717,6 +712,11 @@ public partial class App : Application
     /// </summary>
     internal void OpenSettingsAtUpdates() => OpenSettings(scrollToUpdates: true);
 
+    /// <summary>
+    /// Internal so MainWindow's own gear button can open the same dialog. Builds a fresh view-model
+    /// each time (the file may have changed while the window was closed) and shows it modally over
+    /// the main window when one is open, otherwise as a standalone modal.
+    /// </summary>
     internal void OpenSettings() => OpenSettings(scrollToUpdates: false);
 
     /// <summary>
@@ -1003,7 +1003,7 @@ public partial class App : Application
     /// point this process is on its way out and has nothing left to report — or the mono line for
     /// the failed-update block.
     ///
-    /// **The shutdown is deliberate and complete.** The staged copy cannot rename a directory this
+    /// The shutdown is deliberate and complete. The staged copy cannot rename a directory this
     /// process holds a handle on, so the watcher, the tray and the store all have to go first, and
     /// a last backup is taken on the way out exactly as a Quit would.
     /// </summary>
@@ -1032,11 +1032,6 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// What one backup would cost on this machine, per tier. Zero for every tier when Wave Link
-    /// cannot be inspected — the dialog then prints dashes rather than a guess, which is the same
-    /// answer the bottom bar gives when it cannot read free space.
-    /// </summary>
-    /// <summary>
     /// What every capture puts in a snapshot beyond the settings file, read against the settings
     /// as they stand at that moment. Shared by the manual button, the watcher and the pre-restore
     /// snapshot, so all three produce the same shape of backup.
@@ -1061,6 +1056,11 @@ public partial class App : Application
         return newest is null ? null : new SnapshotPluginReader(fileSystem).Read(newest);
     }
 
+    /// <summary>
+    /// What one backup would cost on this machine, per tier. Zero for every tier when Wave Link
+    /// cannot be inspected — the dialog then prints dashes rather than a guess, which is the same
+    /// answer the bottom bar gives when it cannot read free space.
+    /// </summary>
     private CaptureEstimate MeasureTiers()
     {
         if (fileSystem is null) return CaptureEstimate.Nothing;
@@ -1267,7 +1267,7 @@ public partial class App : Application
     /// "Copy diagnostics" (technical-debt.md §6): everything the app knows about itself, redacted,
     /// on the clipboard.
     ///
-    /// **On the clipboard and nowhere else.** There is no upload here and no setting that would
+    /// On the clipboard and nowhere else. There is no upload here and no setting that would
     /// create one — the whole point is to give the user something safe to paste, not to collect
     /// anything. <see cref="Diagnostics.Report"/> runs every field through
     /// <see cref="Redaction"/>, so the promise printed beside the button is kept by construction
@@ -1376,7 +1376,7 @@ public partial class App : Application
     /// Error 1's "Choose the settings file…" — the escape hatch for a Wave Link discovery cannot
     /// find.
     ///
-    /// This is the only route a **non-MSIX install** has into the app at all
+    /// This is the only route a non-MSIX install has into the app at all
     /// (technical-debt.md §2.2): <c>SettingsLocator.Locate(explicitSettingsPath)</c> bypasses
     /// discovery entirely, so an explicit path makes the program useful on a machine where every
     /// automatic answer is "not found". Persisted, so it is asked once.
@@ -1442,7 +1442,7 @@ public partial class App : Application
     /// <summary>
     /// Show one, with its action wired.
     ///
-    /// **Its action is the whole notification, not a button.** The design draws each notice with a
+    /// Its action is the whole notification, not a button. The design draws each notice with a
     /// labelled action; a classic tray balloon has no buttons, and Windows renders one as a toast
     /// that drops them. Real toast buttons need an AppUserModelID and a Start-menu shortcut - an
     /// installer concern this app does not have yet. So the label is stated in the body and

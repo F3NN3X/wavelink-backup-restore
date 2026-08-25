@@ -95,7 +95,7 @@ public sealed record PluginManifestEntry(
     /// Whether this entry's <see cref="Sha256"/> can be reused for a binary that measures
     /// <paramref name="sizeBytes"/> and was last written at <paramref name="lastWriteUtc"/>.
     ///
-    /// **Conservative in every direction.** No hash, no recorded size or no recorded time means
+    /// Conservative in every direction. No hash, no recorded size or no recorded time means
     /// no — an entry from a snapshot written before schema 3 has none of them, and the honest
     /// answer for it is to hash. This is a cache with an invalidation rule, so it says yes only
     /// when all three agree.

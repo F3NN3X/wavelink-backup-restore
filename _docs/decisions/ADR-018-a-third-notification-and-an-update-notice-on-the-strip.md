@@ -107,6 +107,6 @@ this becomes the local version to retire, the same rule `screens/13` and `14` al
 ## References
 
 - `screens/12`, the tray menu, "Notifications — exactly two", and "weekly, on by default"
-- [[ADR-004]]. Core is headless behind thin shells; the shells own presentation
+- [[ADR-004]]. Core is headless; the shells own presentation
 - [[ADR-012]]: check-only updates with a staged swap
 - `src/WaveLinkBackup.App/Hosting/TrayNotifications.cs`, the decision as a pure function

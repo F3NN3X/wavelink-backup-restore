@@ -87,4 +87,4 @@ versioning problems are already solved, and it would narrow the privilege window
 - [`screens/13-elevation.md`](../operations/design/screens/13-elevation.md), the designed
   surface, written before the code
 - [[ADR-006]]: the four tiers, and why only tier 4 needs this
-- [[ADR-004]]: core library, thin shells: the reason the surface was designed first
+- [[ADR-004]]: the headless core, and why the surface was designed first

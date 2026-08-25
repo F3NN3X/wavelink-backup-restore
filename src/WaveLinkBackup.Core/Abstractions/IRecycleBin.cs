@@ -18,7 +18,7 @@ namespace WaveLinkBackup.Core.Abstractions;
 public interface IRecycleBin
 {
     /// <summary>
-    /// Whether the Recycle Bin covers this path. **False is normal, not an error** — network
+    /// Whether the Recycle Bin covers this path. False is normal, not an error — network
     /// shares and many removable volumes have no Recycle Bin, and the backup store is
     /// user-chosen. Callers must ask before promising the user an undo.
     /// </summary>

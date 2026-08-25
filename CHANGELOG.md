@@ -23,6 +23,10 @@ heading here.
 
 ### Changed
 
+- **The shells are no longer described as thin, because one of them measurably is not.** ADR-004 predicted that "both shells stay thin enough to be uninteresting". Measured: Core is about 6,000 lines of C#, the CLI about 840, and the WPF app about 11,200 plus 6,500 of XAML, which makes it nearly twice the size of the thing it shells. The decision ADR-004 records is unchanged and still kept, since Core has no reference to WPF, the seams held, the watcher runs headless and the CLI still publishes under NativeAOT. What was wrong was the size prediction, and the ADR now says so with the numbers. README describes the split the same way.
+
+- **Markdown emphasis is out of the XML doc comments.** Seventy-eight `**bold**` spans were sitting inside `///` blocks, where they are not markup at all: IntelliSense prints the asterisks literally and nothing else renders them. The sentences read the same without them.
+
 - **The documentation is about half its former size, and the parts that carried evidence all survived.** `plans/`, `sessions/` and `documentation-stats.md` are gone. Fifteen execution plans and twenty-eight session notes were process artifacts for work that had already shipped, and the stats file was a 97 KB changelog about the other documents; between them they accounted for 570 KB of a 1.28 MB folder. What they recorded that was load-bearing already lives in the ADRs, the gotchas and the phase files, which is where someone would look for it. Every inbound link was rewritten rather than left dangling, and `git log` still has all of it.
 
 - **README is organised for a stranger rather than a maintainer.** The eight-row table of internal documents is one link to `_docs/index.md`. The privacy warning and the list of things this will not do now sit near the top instead of below the build instructions, since they are the two sections a new reader most needs. Section headings say what the section is about. The test count is gone from the README and the docs index: it went stale on most commits and invited a question about test quality that a number cannot answer.
@@ -34,6 +38,8 @@ heading here.
 - **README was rewritten again, this time for its language rather than its punctuation.** The bold label on nearly every feature bullet is gone from about a third of them, so the emphasis marks the lines that earn it instead of every line equally. "Trash, not delete" and "There is no setting that would create an upload, because none exists" were clipped or circular and now say the thing plainly. `framework-dependent` appeared six times, once as the same sentence twice over, and now appears where it is load-bearing. The privacy paragraph's line wrapping was repaired after an earlier edit ran two lines together.
 
 ### Fixed
+
+- **Nine XML doc summaries were documenting the wrong member.** Each site had two `<summary>` blocks stacked with no declaration between them, so the first one had come loose from whatever it was written for and the compiler attached it to the next thing down. `Snapshot`'s summary sat on `SnapshotWriteProgress`; `Plan`'s sat on `BinaryPayload`; `Watch`'s sat on `Diagnostics`; the `SettingsViewModel` class summary sat on a record. All are reattached. Two were deleted instead: one was `FreeSpaceText`'s pre-0.6.1 description, superseded by the summary directly below it, and one documented Home/End key handling in `MainWindow.xaml.cs` that was deliberately removed when the list became a single `ListBox` — `MainWindowTemplateTests` asserts that code is gone, so the comment had been contradicting a guard test.
 
 - **README's `#privacy` link now goes somewhere.** The heading had grown a subtitle, so the slug no longer matched the anchor in the nav bar and the link silently did nothing.
 

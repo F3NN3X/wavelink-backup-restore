@@ -306,10 +306,6 @@ public sealed class CommandRunner(
     }
 
     /// <summary>
-    /// The first production caller of <see cref="AutoBackupCoordinator.Tick"/>. Three phases
-    /// of automation have never run outside a test until this verb.
-    /// </summary>
-    /// <summary>
     /// The redacted self-description (technical-debt.md §6). It prints; it never sends.
     ///
     /// A live inspection that FAILS is not a failure of this verb — "Wave Link could not be read"
@@ -339,6 +335,10 @@ public sealed class CommandRunner(
         return ExitCode.Success;
     }
 
+    /// <summary>
+    /// The first production caller of <see cref="AutoBackupCoordinator.Tick"/>. Three phases
+    /// of automation have never run outside a test until this verb.
+    /// </summary>
     private int Watch(ParsedCommand command)
     {
         var live = Inspector().Inspect(command.SettingsPath);

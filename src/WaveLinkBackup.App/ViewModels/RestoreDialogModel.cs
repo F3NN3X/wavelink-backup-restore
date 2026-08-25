@@ -166,7 +166,7 @@ public sealed record RestoreDialogModel(
 /// The restore dialog's one control: *Also put the plug-in files back*
 /// (operations/design/screens/13-elevation.md).
 ///
-/// **Off every time, and never remembered.** It is deliberately not wired to the Settings dialog's
+/// Off every time, and never remembered. It is deliberately not wired to the Settings dialog's
 /// *The effect plug-ins themselves* switch either: that one decides what goes INTO a backup, and
 /// reading it here would silently turn "I keep the binaries" into "prompt me for administrator
 /// rights on every restore".
@@ -186,7 +186,7 @@ public sealed class PluginFilesRow(PluginBinaryPayload payload) : ObservableObje
         + "every account shares. Everything else restores without it.";
 
     /// <summary>
-    /// When it does not. **This is not a rare case**: several audio plug-in installers grant
+    /// When it does not. This is not a rare case: several audio plug-in installers grant
     /// Everyone full control of the shared VST3 folder so their own updates need no administrator,
     /// and on such a machine nothing here needs a prompt. Promising one anyway would be the
     /// dialog lying about what the button does.

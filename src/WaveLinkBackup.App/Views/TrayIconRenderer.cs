@@ -48,19 +48,10 @@ public static class TrayIconRenderer
     private const string SlashPath = "M8.5 15.5 15.5 8.5";
 
     /// <summary>
-    /// Produces a System.Drawing.Icon rather than an ImageSource, and TaskbarIcon.Icon is set
-    /// rather than TaskbarIcon.IconSource.
-    ///
-    /// IconSource is the obvious property and it cannot work here: H.NotifyIcon converts one by
-    /// calling new Uri(source.ToString()), so it only accepts images that CAME FROM a URI. A
-    /// generated glyph has no URI, and no amount of wrapping gives it one. Both failures are
-    /// runtime-only — the compiler is happy either way — so this was found by launching the app.
-    /// </summary>
-    /// <summary>
     /// The pixel size to render at for a given DPI, from the 16px logical size Windows asks the
     /// notification area for.
     ///
-    /// **Snapped to the sizes an .ico is normally cut at** — 16, 20, 24, 32, 48, 64 — rather than
+    /// Snapped to the sizes an .ico is normally cut at — 16, 20, 24, 32, 48, 64 — rather than
     /// scaled continuously. The shell rescales whatever it is given, and a bitmap at 38px scaled
     /// to 40 is blurrier than one at 48 scaled down. The fixed 32 this replaced was right at 100%
     /// and 150% and soft above (technical-debt.md §4.8 minor 1).
@@ -79,6 +70,15 @@ public static class TrayIconRenderer
         return 64;
     }
 
+    /// <summary>
+    /// Produces a System.Drawing.Icon rather than an ImageSource, and TaskbarIcon.Icon is set
+    /// rather than TaskbarIcon.IconSource.
+    ///
+    /// IconSource is the obvious property and it cannot work here: H.NotifyIcon converts one by
+    /// calling new Uri(source.ToString()), so it only accepts images that CAME FROM a URI. A
+    /// generated glyph has no URI, and no amount of wrapping gives it one. Both failures are
+    /// runtime-only — the compiler is happy either way — so this was found by launching the app.
+    /// </summary>
     public static System.Drawing.Icon Render(TrayStatus status, Color colour, int pixelSize = 32)
     {
         var pen = new Pen(new SolidColorBrush(colour), 1.75)

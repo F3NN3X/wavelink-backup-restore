@@ -8,11 +8,11 @@ namespace WaveLinkBackup.Core.Capture;
 /// it backs up.
 ///
 /// [[ADR-006]] defines tier 1 as *"`Settings.json` + Wave Link's own backup copies, ~470 KB"* and
-/// `SPEC.md` §1 marks both directories **BACK UP**. They are worth the bytes because they carry
+/// `SPEC.md` §1 marks both directories BACK UP. They are worth the bytes because they carry
 /// history our first run cannot have: the rolling `AutoBackup` copies reach back about three days,
 /// and the irregular `.bak` atomic-save artifacts reach back months.
 ///
-/// **We copy them and never manage them.** No pruning, no rotation, nothing written back on
+/// We copy them and never manage them. No pruning, no rotation, nothing written back on
 /// restore. They are Wave Link's files in Wave Link's directory
 /// (technical-debt.md §3) - here they are evidence, not payload.
 /// </summary>

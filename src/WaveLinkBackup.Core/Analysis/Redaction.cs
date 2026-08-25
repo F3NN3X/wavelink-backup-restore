@@ -6,7 +6,7 @@ namespace WaveLinkBackup.Core.Analysis;
 /// Removes the two things in this app's data that identify a PERSON or their HARDWARE, so a
 /// diagnostic can be pasted into a public issue tracker.
 ///
-/// **The threat is not an attacker, it is helpfulness.** Users attach whatever the app gives them
+/// The threat is not an attacker, it is helpfulness. Users attach whatever the app gives them
 /// to a bug report, and they will not think about it — by the time anyone does, it is in a public
 /// tracker with a permanent URL. So the rule here is that a redactor is only useful if it is the
 /// ONLY way diagnostics leave the app, and if it fails closed: an ID this cannot parse is masked
@@ -14,10 +14,10 @@ namespace WaveLinkBackup.Core.Analysis;
 ///
 /// Two things, named by SPEC.md §11's privacy note and technical-debt.md §6:
 ///
-///   1. **Hardware serial numbers**, inside Core Audio endpoint IDs. `InputSettings` is keyed by
+///   1. Hardware serial numbers, inside Core Audio endpoint IDs. `InputSettings` is keyed by
 ///      them, and the leading segment IS the device's serial:
 ///      <c>BS33J1A05009\PCM_IN_01_C_00_SD1</c>.
-///   2. **The Windows username**, inside every absolute path the app records — settings paths,
+///   2. The Windows username, inside every absolute path the app records — settings paths,
 ///      plug-in paths, the store path, the log path.
 ///
 /// PURE, and in Core, because the CLI and the shell must not each grow their own version of a
@@ -80,7 +80,7 @@ public static partial class Redaction
     /// Every input name, endpoint ID and path in one go — for a diagnostic that quotes a settings
     /// file's structure without quoting the file.
     ///
-    /// **Input names are NOT redacted.** "Wave Mic 1", "Voice", "Browser" are what the user calls
+    /// Input names are NOT redacted. "Wave Mic 1", "Voice", "Browser" are what the user calls
     /// their own channels; they are the subject of nearly every support question, and they name a
     /// setup rather than a person. If someone has put their own name in a channel label, that is a
     /// thing they typed and can see.

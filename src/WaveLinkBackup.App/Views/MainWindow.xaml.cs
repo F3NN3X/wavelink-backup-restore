@@ -888,21 +888,6 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Each date group is its own ListBox (Task 10b), so native Home/End only reach that GROUP's
-    /// own first/last row - WPF has no concept of "the next Selector down" to fall through to.
-    /// The map (README/7.4) asks for Home/End to reach the list's first/last row overall, so this
-    /// closes that gap with the smallest fix that does not touch the ListBox structure Task 10
-    /// fought to get right: on Home/End, move List.Selected directly to the first/last row of the
-    /// first/last GROUP, then focus that row's own generated container once layout has caught up
-    /// with the new selection (BeginInvoke at Input priority - the container does not exist yet on
-    /// the same tick a virtualizing panel is asked to realise it).
-    ///
-    /// ↑/↓ are NOT handled here - they already move the selection natively within one group's own
-    /// ListBox (Task 10b), and stopping at a group boundary is the one gap this task's brief
-    /// explicitly says is fine to leave for Task 12's by-eye pass to confirm, rather than
-    /// restructure the list to close.
-    /// </summary>
-    /// <summary>
     /// Puts keyboard focus on a row's container. One lookup, not a walk: the list is a single
     /// ListBox now, so the row either has a container in it or has not been realised yet.
     /// </summary>

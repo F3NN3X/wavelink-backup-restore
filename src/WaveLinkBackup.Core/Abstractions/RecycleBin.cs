@@ -36,7 +36,7 @@ public sealed class RecycleBin : IRecycleBin
     /// <summary>
     /// Whether this path has a Recycle Bin at all.
     ///
-    /// **UNC paths and non-fixed volumes do not**, and the backup store is user-chosen — so a
+    /// UNC paths and non-fixed volumes do not, and the backup store is user-chosen — so a
     /// person keeping backups on a NAS is a normal case, not an edge one. Asking first is what
     /// lets the UI promise an undo only when it can keep the promise.
     /// </summary>

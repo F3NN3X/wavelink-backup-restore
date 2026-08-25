@@ -22,7 +22,7 @@ public enum ErrorDialogVariant
 /// <param name="IsRunning">
 /// Whether this is the installation Wave Link is currently running from.
 ///
-/// **An approximation, and a documented one.** Windows offers no mapping from a running MSIX
+/// An approximation, and a documented one. Windows offers no mapping from a running MSIX
 /// process back to the package instance it came from, so the caller decides this by asking which
 /// candidate's settings file was written most recently while Wave Link is up. That is the same
 /// evidence a person would use, and it is wrong only in the case where two installations were both

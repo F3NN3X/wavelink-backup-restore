@@ -43,14 +43,14 @@ public sealed record PresetDiscovery(IReadOnlyList<PresetSourceFolder> Sources, 
 /// Tier 3: the presets a plugin saved — the user's own irreplaceable work, and the only tier whose
 /// contents cannot be re-downloaded from anyone.
 ///
-/// **This is a heuristic and [[ADR-006]] says so.** Vendors agree on nothing, and the first version
+/// This is a heuristic and [[ADR-006]] says so. Vendors agree on nothing, and the first version
 /// of this class looked in one place only: <c>%APPDATA%\&lt;Vendor&gt;\</c>. Run against a real rig
 /// (technical-debt.md §4.18) that turned out to capture the wrong thing quietly — for FabFilter it
 /// found three files (an interface default, a MIDI map, a preset cache) while the 172 <c>.ffp</c>
 /// presets the Settings dialog promises sat in <c>Documents\FabFilter\Presets\Pro-Q 4\</c>, and for
 /// Supertone Clear it captured two crash reports and called them presets.
 ///
-/// So it now reads **both roots**, records which folders it read, and refuses to capture files that
+/// So it now reads both roots, records which folders it read, and refuses to capture files that
 /// are plainly not presets. A heuristic whose result cannot be inspected is a heuristic nobody can
 /// improve; one that cannot be checked against a real machine is one nobody knows is wrong.
 /// </summary>
@@ -198,7 +198,7 @@ public sealed class PresetFiles(IFileSystem fileSystem, string appDataPath, stri
     /// What tier 3 would cost, per plugin, without reading anything.
     ///
     /// Two plugins from one vendor that both fall back to the same folder each report its size here
-    /// and are stored **once**. The estimate is therefore an upper bound, which is the safe
+    /// and are stored once. The estimate is therefore an upper bound, which is the safe
     /// direction for a figure the Settings dialog prints before the user opts in.
     /// </summary>
     public long Measure(ResolvedPlugin plugin) => Discover(plugin).Bytes;

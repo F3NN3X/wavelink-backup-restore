@@ -28,7 +28,7 @@ public enum StripTone
 /// The version a check found and this build does not have, already display-formatted, or null when
 /// there is nothing to say - no check has run, the check failed, or this build is current.
 ///
-/// **A fact, carried like every other fact on the strip.** It arrives here rather than the strip
+/// A fact, carried like every other fact on the strip. It arrives here rather than the strip
 /// reading <see cref="ShellViewModel.Updates"/> directly, because the point of this record is that
 /// every string on the strip can be asserted from a table without standing up an update feed.
 /// </param>

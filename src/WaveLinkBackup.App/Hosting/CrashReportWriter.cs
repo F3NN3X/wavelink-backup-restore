@@ -18,7 +18,7 @@ namespace WaveLinkBackup.App.Hosting;
 /// runtime) beside the exception, so a pasted report answers "which build, on what machine" before
 /// anyone asks.
 ///
-/// **The stack goes through <see cref="Redaction"/>.** A stack trace names absolute paths —
+/// The stack goes through <see cref="Redaction"/>. A stack trace names absolute paths —
 /// <c>C:\Users\joran\AppData\Local\…</c> — and this file is the thing a user pastes into a public
 /// tracker when they attach anything at all. Redaction strips the username and any endpoint serial
 /// the way "copy diagnostics" does, so the report is safe to share by construction rather than by

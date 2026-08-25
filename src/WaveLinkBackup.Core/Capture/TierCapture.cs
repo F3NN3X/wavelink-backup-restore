@@ -68,7 +68,7 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, stri
     /// <summary>
     /// Everything a snapshot should carry beyond `Settings.json`, with the toggles applied.
     ///
-    /// **Nothing here can fail a capture.** Tier 1's extras and tier 3 are best effort per file;
+    /// Nothing here can fail a capture. Tier 1's extras and tier 3 are best effort per file;
     /// tier 4 is all-or-nothing but its failure costs only tier 4. The settings file is the
     /// product, and no plugin, preset or stale copy of Wave Link's own is worth losing it over.
     /// </summary>
@@ -190,7 +190,7 @@ public sealed class TierCapture(IFileSystem fileSystem, string appDataPath, stri
     }
 
     /// <summary>
-    /// What a capture taken right now would cost, per tier, **ignoring the toggles** — the
+    /// What a capture taken right now would cost, per tier, ignoring the toggles — the
     /// Settings dialog has to price a tier that is switched off, because pricing it is how the
     /// user decides.
     /// </summary>

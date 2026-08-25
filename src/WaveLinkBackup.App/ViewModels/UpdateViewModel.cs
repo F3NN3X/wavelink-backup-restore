@@ -7,7 +7,7 @@ namespace WaveLinkBackup.App.ViewModels;
 /// *"Get the update"* button deep-linked to a section that was never built
 /// (technical-debt.md §4.21 item 5).
 ///
-/// **The design's hardest rule is a rule about restraint, and it is structural here.** "An
+/// The design's hardest rule is a rule about restraint, and it is structural here. "An
 /// available update is NEVER a notification, a badge or a banner", and "It never installs anything
 /// without you." So: this model can be asked to check, and it can be asked to install, and it does
 /// neither on its own. <see cref="ShouldAutoCheck"/> is the one thing that happens unprompted, and
@@ -16,7 +16,7 @@ namespace WaveLinkBackup.App.ViewModels;
 public sealed class UpdateViewModel : ObservableObject
 {
     /// <summary>
-    /// **Daily**, where the design says weekly — "Check for updates on its own — weekly, on by
+    /// Daily, where the design says weekly — "Check for updates on its own — weekly, on by
     /// default." [[ADR-018]] carries the change and the reason.
     ///
     /// The short version: weekly was the right number when the check only ever ran on the way into
@@ -168,8 +168,8 @@ public sealed class UpdateViewModel : ObservableObject
     /// <summary>
     /// Whether the daily check is due.
     ///
-    /// **This used to say "it only looks - an available update is never a notification, a badge or
-    /// a banner", and that is no longer true.** [[ADR-018]] added exactly that: the strip, a tray
+    /// This used to say "it only looks - an available update is never a notification, a badge or
+    /// a banner", and that is no longer true. [[ADR-018]] added exactly that: the strip, a tray
     /// menu line, and one notification per version. What the sentence was protecting still holds -
     /// the check never INSTALLS anything, and nothing here acts without a press.
     /// </summary>

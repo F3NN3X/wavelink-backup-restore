@@ -29,8 +29,8 @@ namespace WaveLinkBackup.Core.Automation;
 /// switch implies a meaningful choice, and there isn't one.
 /// </param>
 /// <param name="AutoBackupIntervalMinutes">
-/// How close together two automatic backups may be. A **cap on change-driven backups, not a
-/// timer** - nothing is written when nothing changes, so lowering it does not make the app busier
+/// How close together two automatic backups may be. A cap on change-driven backups, not a
+/// timer - nothing is written when nothing changes, so lowering it does not make the app busier
 /// on a quiet machine. Sixty was a constant until the Settings dialog got a control for it, while
 /// the dialog said "at most one an hour" as though it were a fact about the world.
 /// </param>

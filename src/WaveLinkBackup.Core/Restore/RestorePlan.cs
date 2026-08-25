@@ -19,7 +19,7 @@ public sealed record PlanRow(string Label, string Now, string After, bool Change
 /// <param name="Bytes">What those binaries weigh, so the row can print an honest figure.</param>
 /// <param name="NeedsElevation">
 /// Whether any destination directory refuses a write from this process as it is currently
-/// running — **measured, not inferred from the path**.
+/// running — measured, not inferred from the path.
 ///
 /// It is false more often than the path suggests. `C:\Program Files\Common Files\VST3` is
 /// read-only for Users under Windows' default ACL, but several audio plug-in installers grant

@@ -16,7 +16,7 @@ public interface IUpdateFeed
 /// <summary>
 /// GitHub's <c>releases/latest</c>, read with <see cref="JsonDocument"/>.
 ///
-/// **Nothing here throws.** A failed check is one of the four designed outcomes, not an error the
+/// Nothing here throws. A failed check is one of the four designed outcomes, not an error the
 /// app has to handle: no network, a rate limit, a repository that has published no release yet and
 /// a feed whose shape changed all arrive as <see cref="UpdateCheckResult.CheckFailed"/> with a
 /// mono line saying which.

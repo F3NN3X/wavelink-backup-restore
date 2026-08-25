@@ -8,7 +8,7 @@ namespace WaveLinkBackup.App.Updates;
 /// The published checksum of <see cref="DownloadUrl"/>, lowercase hex, or null when the release
 /// did not publish one.
 ///
-/// **This is integrity, not authenticity.** It proves the bytes that arrived are the bytes the
+/// This is integrity, not authenticity. It proves the bytes that arrived are the bytes the
 /// release names — which catches a truncated download, a corrupted mirror and a tampered
 /// transport. It does NOT prove who published the release, because whoever controls the release
 /// controls the checksum beside it. Only code signing answers that, and this app is not signed

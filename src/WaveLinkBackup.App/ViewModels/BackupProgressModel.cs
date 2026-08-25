@@ -7,7 +7,7 @@ namespace WaveLinkBackup.App.ViewModels;
 /// half shipped complete — four named stages, connectors, STEP n OF 4 — and this one was a
 /// <c>BackupHost.IsCapturing</c> flag that only the tray icon read (technical-debt.md §4.21 item 2).
 ///
-/// **The bar is determinate because the numbers are real.** The design bans a spinner ("a spinner
+/// The bar is determinate because the numbers are real. The design bans a spinner ("a spinner
 /// implies uncertainty that does not exist here"), which makes an invented determinate bar the
 /// worse version of the same lie. <see cref="SnapshotWriteProgress"/> reports bytes actually on
 /// disk against a total the payload knew before the first write.

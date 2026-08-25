@@ -5,11 +5,10 @@ using WaveLinkBackup.Core.Results;
 
 namespace WaveLinkBackup.Core.Snapshots;
 
-/// <summary>A snapshot in the store: its manifest, and where it lives.</summary>
 /// <summary>
 /// How far a <see cref="SnapshotStore.Write"/> has got, in bytes it has actually written.
 ///
-/// **Measured, not staged.** 04-in-progress.md asks the backing-up strip for a DETERMINATE bar,
+/// Measured, not staged. 04-in-progress.md asks the backing-up strip for a DETERMINATE bar,
 /// and a determinate bar over invented stages is a worse lie than a spinner — which the design
 /// bans for exactly that reason. <see cref="TotalBytes"/> is known before the first write because
 /// the payload names its sources and their sizes.
@@ -21,6 +20,7 @@ public readonly record struct SnapshotWriteProgress(long WrittenBytes, long Tota
     public double Fraction => TotalBytes <= 0 ? 1 : Math.Clamp((double)WrittenBytes / TotalBytes, 0, 1);
 }
 
+/// <summary>A snapshot in the store: its manifest, and where it lives.</summary>
 public sealed record Snapshot(string Id, string Directory, SnapshotManifest Manifest)
 {
     public string SettingsPath => Path.Combine(Directory, SnapshotManifest.SettingsFileName);
@@ -67,7 +67,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     /// <summary>
     /// Writes a snapshot from settings bytes that have already been analysed.
     ///
-    /// **This method knows nothing about tiers.** It writes the settings file, then whatever the
+    /// This method knows nothing about tiers. It writes the settings file, then whatever the
     /// payload carries, hashing and sizing every one of them into the manifest identically -
     /// which is what lets <see cref="SnapshotGuard"/> verify a four-tier snapshot with the code it
     /// already had for a one-tier one.
@@ -297,7 +297,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     }
 
     /// <summary>
-    /// Moves a snapshot into the trash. **Nothing is destroyed here.**
+    /// Moves a snapshot into the trash. Nothing is destroyed here.
     ///
     /// A plain directory move: no interop, no rename, no re-hashing. The id already carries a
     /// timestamp and a content hash, and identity lives in the manifest ([[ADR-003]]), so the
@@ -340,7 +340,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     /// caller because the store already owns the filesystem, and threading one into every
     /// consumer just to build a guard would be dependency for its own sake.
     ///
-    /// **Not called by <see cref="List"/>** — that would rehash the whole store on every
+    /// Not called by <see cref="List"/> — that would rehash the whole store on every
     /// window open. Callers verify what they are about to act on.
     /// </summary>
     public Result<SnapshotManifest> Verify(Snapshot snapshot) =>
@@ -358,7 +358,7 @@ public sealed class SnapshotStore(IFileSystem fileSystem, IClock clock, string s
     }
 
     /// <summary>
-    /// Whether emptying will be recoverable. **Ask before promising an undo** — the answer is
+    /// Whether emptying will be recoverable. Ask before promising an undo — the answer is
     /// false on network shares and many removable volumes, and the store is user-chosen.
     /// </summary>
     public bool TrashGoesToRecycleBin(IRecycleBin recycleBin) => recycleBin.IsAvailableFor(TrashPath);

@@ -14,7 +14,7 @@ namespace WaveLinkBackup.App.Windows;
 /// on a well-known name derived from the restore id, which works across the UAC boundary because
 /// both run as the same local user on the same machine.
 ///
-/// **The whole channel is best-effort.** Progress is a cosmetic nicety layered over a restore whose
+/// The whole channel is best-effort. Progress is a cosmetic nicety layered over a restore whose
 /// verdict is carried by the exit code; nothing in this class may ever throw into the restore path,
 /// and a child that cannot reach the pipe (an older build, a timing race) simply reports nothing and
 /// the strip stays at "Closing Wave Link" - which is still true.

@@ -1,7 +1,7 @@
 namespace WaveLinkBackup.App.Hosting;
 
 /// <summary>
-/// Which notification this is. **Two are the design's; the third is ours, and ADR-018 argues it.**
+/// Which notification this is. Two are the design's; the third is ours, and ADR-018 argues it.
 /// </summary>
 public enum TrayNotificationKind
 {
@@ -33,13 +33,13 @@ public sealed record TrayNotification(
 /// same reason: a decision this consequential should be assertable from a table rather than
 /// inferred from whichever code path happened to reach the tray.
 ///
-/// **The design allows exactly two notifications, and forbids the obvious third.** "A successful
+/// The design allows exactly two notifications, and forbids the obvious third. "A successful
 /// backup NEVER notifies. A safety net that congratulates itself weekly gets muted, and then it is
 /// not a safety net." Nothing here can produce a success notice, because nothing here takes a
 /// success as an input. That guard is unchanged and still enforced by the type: no method takes a
 /// completed backup.
 ///
-/// **There is now a third notification, and it is not the one that rule forbids.** The rule is
+/// There is now a third notification, and it is not the one that rule forbids. The rule is
 /// about the app talking about ITSELF DOING ITS JOB - routine, repeating, and therefore muted.
 /// <see cref="UpdateAvailable"/> is none of those: it is rare, it is about a version rather than a
 /// run, and it fires once per version rather than once per check. Before it existed, the ONLY

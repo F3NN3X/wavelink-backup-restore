@@ -101,7 +101,7 @@ public sealed class BackupService(
     /// pre-restore snapshots are never touched - the rule lives in
     /// <see cref="SnapshotRetention"/> and is consulted, never re-derived.
     ///
-    /// **Verifies each candidate before deleting it, and refuses any that fail.** A corrupted
+    /// Verifies each candidate before deleting it, and refuses any that fail. A corrupted
     /// backup must never push a good one out.
     ///
     /// This verifies only the CONDEMNED, which is what keeps it cheap: pruning a 30-deep store

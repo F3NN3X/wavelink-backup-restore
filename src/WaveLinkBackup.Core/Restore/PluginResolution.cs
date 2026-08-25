@@ -11,8 +11,8 @@ public enum PluginPresence
     Installed,
 
     /// <summary>
-    /// Not at its recorded path and not in the scanner cache. **This is the failure tier 2 exists
-    /// to make visible**: restore the settings and that channel loads with the effect switched
+    /// Not at its recorded path and not in the scanner cache. This is the failure tier 2 exists
+    /// to make visible: restore the settings and that channel loads with the effect switched
     /// off, looking like an incomplete backup rather than a missing plugin.
     /// </summary>
     Missing,
@@ -177,7 +177,7 @@ public sealed class PluginResolution(IFileSystem fileSystem)
     }
 
     /// <summary>
-    /// **Drift is only claimed when both versions are known.** An unknown version on either side
+    /// Drift is only claimed when both versions are known. An unknown version on either side
     /// is reported as unknown rather than as a change, because a warning that fires on every
     /// restore is a warning nobody reads by the third time.
     /// </summary>

@@ -148,10 +148,6 @@ public sealed class RestoreOrchestrator(
     }
 
     /// <summary>
-    /// What <see cref="Restore"/> would do. Cheap, read-only, and safe to call while Wave
-    /// Link runs - this is what the confirmation dialog shows.
-    /// </summary>
-    /// <summary>
     /// The plug-ins whose binaries this snapshot holds, and what they weigh. Zero for every
     /// snapshot taken with tier 4 off, which is the default and therefore the common case.
     /// </summary>
@@ -179,7 +175,7 @@ public sealed class RestoreOrchestrator(
     /// <see cref="PluginBinaryPayload.NeedsElevation"/> for why the inference is wrong often
     /// enough to matter.
     ///
-    /// **Any, not all.** Elevation is one prompt for the whole restore, so a single unwritable
+    /// Any, not all. Elevation is one prompt for the whole restore, so a single unwritable
     /// destination needs it; there is no partial answer that helps.
     ///
     /// A plug-in with no recorded <c>FilePath</c> counts as needing it. That is the conservative
@@ -198,6 +194,10 @@ public sealed class RestoreOrchestrator(
             return string.IsNullOrEmpty(parent) || !fileSystem.CanWriteDirectory(parent);
         });
 
+    /// <summary>
+    /// What <see cref="Restore"/> would do. Cheap, read-only, and safe to call while Wave
+    /// Link runs - this is what the confirmation dialog shows.
+    /// </summary>
     public Result<RestorePlan> Plan(string snapshotId, SettingsInspection live)
     {
         var found = store.Get(snapshotId);

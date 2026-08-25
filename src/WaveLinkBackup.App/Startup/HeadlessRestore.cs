@@ -53,11 +53,11 @@ public static class RestoreExitCode
 /// for a thing it does rarely, the shell starts a second copy of itself with `--restore &lt;id&gt;
 /// --with-plugins`, Windows draws its own consent dialog, and this runs.
 ///
-/// **No window, no tray, no watcher, no single-instance mutex.** This process is one operation,
+/// No window, no tray, no watcher, no single-instance mutex. This process is one operation,
 /// not a second instance; see <see cref="ShellArguments.IsHeadlessRestore"/> for why the mutex in
 /// particular has to be skipped.
 ///
-/// **It takes the pre-restore snapshot itself**, because it is the process doing the write. That
+/// It takes the pre-restore snapshot itself, because it is the process doing the write. That
 /// is what makes a declined UAC prompt cost nothing: at the moment Windows asks, this process does
 /// not exist yet and nothing has been touched.
 /// </summary>

@@ -5,7 +5,7 @@ namespace WaveLinkBackup.Core.Snapshots;
 /// <summary>
 /// A file the capture decided to take, and where it goes inside the snapshot.
 ///
-/// **A reference, not the bytes.** It used to carry a <c>byte[]</c>, which put every preset and
+/// A reference, not the bytes. It used to carry a <c>byte[]</c>, which put every preset and
 /// every plug-in binary on the heap at once — ~40 MB on the reference rig, and unbounded on a rig
 /// with a sample-library instrument on a channel (technical-debt.md §4.19). The store copies from
 /// <see cref="Path"/> through <see cref="Abstractions.IFileSystem.CopyFile"/>, which streams and
@@ -23,10 +23,10 @@ public sealed record CapturedFile(string RelativePath, string Path, long SizeByt
 /// Everything a capture gathered beyond `Settings.json` itself: the tier 2 manifest, the bytes of
 /// tiers 1-extra, 3 and 4, and the tier names those bytes earn.
 ///
-/// **Null and empty mean different things**, and the restore warning depends on the difference. A
+/// Null and empty mean different things, and the restore warning depends on the difference. A
 /// payload - even an entirely empty one - means a capture looked: it writes `plugins.json`, claims
 /// the `plugin-manifest` tier, and a restore reading it can say "nothing is missing" and be
-/// believed. **No payload means nobody looked**, which is every snapshot written before phase 6
+/// believed. No payload means nobody looked, which is every snapshot written before phase 6
 /// and every caller that never wired a <see cref="Capture.TierCapture"/>.
 /// </summary>
 public sealed record SnapshotPayload(

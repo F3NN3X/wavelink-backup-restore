@@ -18,18 +18,18 @@ public sealed record UpdateInstall(bool Started, string? FailureDetail)
 /// <summary>
 /// Replacing a running program with a newer copy of itself.
 ///
-/// **A process cannot overwrite its own executable while it is running**, so this is necessarily
+/// A process cannot overwrite its own executable while it is running, so this is necessarily
 /// two-stage: the archive is expanded to a staging folder, then the app relaunches ITSELF from
 /// that folder with <c>--apply-update</c> and exits. The staged copy waits for the old process to
 /// go, swaps the directories, and starts the installed copy again. The design's row is called
 /// "Install and restart" because that is literally what has to happen.
 ///
-/// **The ordering is chosen so that every interruption leaves something that runs.** The previous
+/// The ordering is chosen so that every interruption leaves something that runs. The previous
 /// install is MOVED aside rather than deleted, and it is only removed once the new one is in
 /// place; a failure after the move puts it straight back. There is no window in which neither
 /// exists.
 ///
-/// **What this deliberately does not do:** ask for elevation. An install under
+/// What this deliberately does not do: ask for elevation. An install under
 /// <c>C:\Program Files</c> is not writable by the user, and the honest answer there is to say the
 /// update could not be written and offer the download — which is exactly the failed-update block
 /// screens/12 draws, with "Download it yourself" beside "Try again". Silently escalating to

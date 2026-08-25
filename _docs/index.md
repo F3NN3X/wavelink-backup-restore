@@ -65,7 +65,7 @@ Eighteen records. Read ADR-001 and ADR-002 first; the rest follow from them.
 | [ADR-001](decisions/ADR-001-csharp-over-rust.md) | C# / .NET over Rust |
 | [ADR-002](decisions/ADR-002-fork-wavelinksettingsutility.md) | Fork `voltybat/WaveLinkSettingsUtility` rather than write fresh |
 | [ADR-003](decisions/ADR-003-backup-store-outside-localstate.md) | The backup store lives outside `LocalState`, identified by manifest |
-| [ADR-004](decisions/ADR-004-core-library-thin-shells.md) | A headless core library with thin WPF and CLI shells |
+| [ADR-004](decisions/ADR-004-core-library-thin-shells.md) | A headless core library with WPF and CLI shells |
 | [ADR-005](decisions/ADR-005-wpf-for-the-gui.md) | WPF over WinUI 3, Avalonia and WinForms |
 | [ADR-006](decisions/ADR-006-vst3-four-tier-capture.md) | Four independently switchable VST3 tiers; capture what is referenced, not what is installed |
 | [ADR-007](decisions/ADR-007-hash-dedup-and-file-watching.md) | Content-hash dedup and a file watcher, not a schedule |

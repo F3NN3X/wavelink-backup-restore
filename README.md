@@ -171,8 +171,10 @@ settings.
 
 ## Architecture
 
-C# on .NET 10. A headless core library with two thin shells, which keeps the backup logic
-testable and lets it run without a window.
+C# on .NET 10. A headless core library that neither shell can reach around, which keeps the
+backup logic testable and lets it run without a window. The CLI really is a thin wrapper, about
+840 lines. The WPF app is not: at roughly 11,000 lines of C# and 6,500 of XAML it is larger than
+Core, because a window costs more than a verb.
 
 ```
 src/WaveLinkBackup.Core     class library, and everything that can be pure is

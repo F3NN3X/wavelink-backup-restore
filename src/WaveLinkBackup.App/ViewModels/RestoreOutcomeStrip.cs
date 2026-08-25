@@ -156,7 +156,7 @@ public sealed class RestoreOutcomeStrip : ObservableObject
     /// The snapshot the rejected strip's primary button restores — the "Before restore" copy taken
     /// moments earlier. Null on every other kind, and on a rejection with no such copy.
     ///
-    /// 03 renders that row **selected** immediately below the strip, "so the button and the row
+    /// 03 renders that row selected immediately below the strip, "so the button and the row
     /// are visibly the same object". The window reads this to make the selection.
     /// </summary>
     public string? RecoverySnapshotId

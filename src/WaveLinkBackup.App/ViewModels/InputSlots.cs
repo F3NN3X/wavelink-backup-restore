@@ -37,7 +37,7 @@ public readonly record struct SlotLayout(int SlotCount, int PreviousInputCount);
 /// The health strip: "equal flex cells, 4px apart, always in the same order and the same place,
 /// so a gap breaks the pattern of the whole column before any text is read."
 ///
-/// **It was five cells, always.** Five is one user's rig (technical-debt section 5) and the design
+/// It was five cells, always. Five is one user's rig (technical-debt section 5) and the design
 /// says so itself; a nine-channel rig had its last four channels silently dropped from the row.
 /// The strip is now as wide as the widest configuration in the store, never narrower than five -
 /// so the design's layout is exactly preserved on the rig it was drawn for, and a bigger rig is

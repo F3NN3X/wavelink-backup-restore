@@ -104,7 +104,7 @@ deliberately not in 1.0).
 
 | Requirement | Status | Where |
 |---|---|---|
-| C# / .NET 10, core library + thin shells, NativeAOT kept open for the CLI | ✅ | [[ADR-001]], [[ADR-004]]; a source-scan guard fails the build on reflection-based JSON |
+| C# / .NET 10, headless core library behind its shells, NativeAOT kept open for the CLI | ✅ | [[ADR-001]], [[ADR-004]]; a source-scan guard fails the build on reflection-based JSON |
 
 ## §9 · VST3 tiers
 

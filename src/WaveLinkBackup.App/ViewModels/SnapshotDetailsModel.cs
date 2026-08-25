@@ -52,7 +52,7 @@ public sealed record MixRow(string Name, string OutputLine, bool IsMuted);
 /// "What's in this backup" - the whole configuration a snapshot holds, read from the snapshot's
 /// own settings file rather than from its manifest.
 ///
-/// **The manifest was not extended to carry any of this.** It records what the LIST needs on every
+/// The manifest was not extended to carry any of this. It records what the LIST needs on every
 /// row - counts, names, tiers - and it is written once and read forever, so adding a channel-by-
 /// channel structure to it would answer this question only for backups taken after the change and
 /// leave every existing one blank. Reading the settings file on demand answers it for every

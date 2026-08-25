@@ -9,17 +9,17 @@ namespace WaveLinkBackup.Core.Analysis;
 /// <summary>
 /// What the app knows about itself, in a form that can be pasted into a public issue tracker.
 ///
-/// **This exists because the alternative is a user attaching their settings file**, which carries
+/// This exists because the alternative is a user attaching their settings file, which carries
 /// hardware serial numbers and their Windows username, into a tracker with a permanent URL
 /// (SPEC.md §11, technical-debt.md §6). Giving them something better to paste is the only version
 /// of this that works — telling people not to attach things does not.
 ///
 /// Two rules, and they are the whole design:
 ///
-///   1. **Everything goes through <see cref="Redaction"/>.** Not "paths do" — everything, including
+///   1. Everything goes through <see cref="Redaction"/>. Not "paths do" — everything, including
 ///      strings this composes itself, because the next field somebody adds will be composed the
 ///      same way and will not think about it.
-///   2. **Nothing is ever sent anywhere.** This returns a string. The caller puts it on the
+///   2. Nothing is ever sent anywhere. This returns a string. The caller puts it on the
 ///      clipboard. There is no upload, no telemetry and no opt-in that would create one.
 ///
 /// It quotes STRUCTURE, never content: how many inputs, what they are called, which tiers a

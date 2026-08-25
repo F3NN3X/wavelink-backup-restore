@@ -44,12 +44,12 @@ public sealed record TierRestoreResult(
 /// <summary>
 /// Putting tiers 3 and 4 back.
 ///
-/// **Never fails a restore.** By the time this runs the settings file — the product — is already
+/// Never fails a restore. By the time this runs the settings file — the product — is already
 /// written; a preset that cannot be copied or a Program Files directory that refuses a write must
 /// be reported, not rolled back over. The result says what was skipped and whether elevation was
 /// the reason, and the caller decides how loudly to say so.
 ///
-/// **Tier 4 is the only thing here that can need administrator rights.** Tiers 1–3 write to
+/// Tier 4 is the only thing here that can need administrator rights. Tiers 1–3 write to
 /// LocalState and <c>%APPDATA%</c>, both of which the user owns, so an ordinary account restores
 /// everything that matters without a UAC prompt ([[ADR-006]]).
 /// </summary>
