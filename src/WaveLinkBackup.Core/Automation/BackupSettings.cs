@@ -36,9 +36,11 @@ namespace WaveLinkBackup.Core.Automation;
 /// </param>
 /// <param name="CheckForUpdates">
 /// Whether to look for a new version weekly. On by default, and it ONLY looks — screens/12: "It
-/// never installs anything without you", and an available update is never a notification, a badge
-/// or a banner. The switch exists because looking is still a network request the user may not
-/// want made.
+/// never installs anything without you". It never installs, and that part is unchanged - but an
+/// available update IS now said out loud: on the status strip, in the tray menu, and once per
+/// version as a notification ([[ADR-018]]). This line used to promise the opposite. The switch
+/// exists because looking is still a network request the user may not want made, and turning it
+/// off stops the request rather than merely silencing the answer.
 /// </param>
 /// <param name="LastUpdateCheckUtc">
 /// When the last check ran, successful or not. Recording a FAILED look too is deliberate:

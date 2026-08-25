@@ -21,6 +21,32 @@ heading here.
 
 ---
 
+## [0.7.6] - 2026-08-25
+
+**The update path works, and the app tells you when there is one.** This release exists because the in-app update had never actually been run, and running it turned up three separate failures — each hidden behind the one before it. The app never mentioned an update existed, every update then failed its checksum, and the install after that silently did nothing. All three are fixed, and an available update is now said on the status strip, in the tray menu, and once per version as a notification.
+
+**If you are on 0.7.5 or earlier, updating from inside the app will still fail** — those builds carry the broken checksum pairing, and the fix only takes effect in the build doing the updating. Download this one from the releases page; updates from 0.7.6 onward work.
+
+### Added
+
+- **Help opens with an About section.** The app's name, version, licence and the not-affiliated line, at the top of *How this app works* — so someone opening Help to find out what the app even is does not have to close it and open About instead. Composed from the same model the About dialog uses rather than restated, because two copies of a version number are two copies that can disagree.
+
+- **An "update available" notice, in three places.** A fourth segment on the status strip (`· UPDATE 0.7.5 AVAILABLE`), a line at the top of the tray menu that opens Settings, and a tray notification that fires **once per version** — not once per check, and not once per launch. All three read one field, so they cannot disagree with each other. Nothing appears when you are up to date: the strip never says "UP TO DATE", and the menu line ships collapsed, because a line that is always there stops being read. See [ADR-018](_docs/decisions/ADR-018-a-third-notification-and-an-update-notice-on-the-strip.md).
+
+### Fixed
+
+- **A failed update check now backs off like a successful one.** The automatic check moved onto the timer tick, which runs every 15 seconds, and the timestamp that makes it wait a day was written only after the feed answered. A machine that was offline, behind a blocking proxy, or rate-limited by GitHub therefore recorded no attempt and re-tried on every tick — roughly 5,700 times a day. The attempt is now recorded on the way out whether it succeeded or not, which is what `BackupSettings` has always said this field is for.
+
+- **An update that downloaded and verified could still fail to install, silently.** The final step renames the install directory aside and moves the new version into place, and it made exactly one attempt. A process exiting is not the same as Windows finishing with its files — an image section for the just-closed app, a shell extension, or a virus scanner reading eight megabytes of freshly-extracted DLLs will each hold the folder for a moment. When the rename lost that race the old version came back and **nothing anywhere said why**: the swap runs in the staged process, after the window the user was looking at has already gone. The swap is now patient (ten attempts over two and a half seconds), and a failure that survives that leaves a note beside `settings.json` which the next launch reads once — on the status strip as `UPDATE DIDN'T INSTALL`, and as a notification. Your backups are never involved either way.
+
+- **Updating from inside the app failed its checksum every time, and has since 0.7.2.** The release feed took *any* asset whose name ended `.sha256` as the checksum for the archive it was downloading, keeping the last one it saw. That was correct while a release carried one archive — and silently wrong from 0.7.2, when the CLI was split into its own artifact. A release has carried two archives and two checksums ever since, so the app downloaded `…app-win-x64.zip` and verified it against `…CLI-…zip.sha256`. It failed as a checksum error, which reads exactly like a corrupted download, so the only symptom pointed away from the cause. The download and its digest are now matched **by name**, and the order GitHub returns assets in no longer decides the answer. A checksum that belongs to something else is treated as no checksum at all rather than used anyway.
+
+- **The automatic update check now actually runs on its own.** It was wired to the Settings dialog's `Loaded` handler, so "check for updates on its own — weekly, on by default" meant "weekly, the next time you happen to open Settings". The setting said on, the interval was seven days, and the code matched both — the gap was entirely in where the check was attached. It now runs at startup **and every 24 hours while the app is running**, off the UI thread, with a guard so a slow feed cannot stack a request on every tick. A feed that is down or rate-limiting stays silent rather than showing an alarming strip.
+
+- **A check run from the Settings dialog now lights the strip and the tray too.** Pressing *Check now*, being told an update existed, closing the dialog and finding the rest of the app silent was the old behaviour. Every check — timer, startup, dialog auto-check, or *Check now* — records its outcome in one place.
+
+---
+
 ## [0.7.5] - 2026-08-25
 
 **The debt list is empty of work, and the app can see the machine's audio devices.** `wlbackup diagnostics` now reports how many capture and playback endpoints exist and what state each is in — the fact that separates "this input is gone" from "this input is fine", which nothing in a settings file can answer. Dialogs no longer render see-through in a high-contrast scheme. And the two questions that could only be answered on a real rig were answered on one: Wave Link resolves a plug-in by identity rather than by path, and the last by-eye look is done.

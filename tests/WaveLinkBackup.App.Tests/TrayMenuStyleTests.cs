@@ -30,6 +30,12 @@ public sealed class TrayMenuStyleTests
     /// The order is the design's (screens/12) and it is not arbitrary: "Back up now" is the
     /// default item and sits first, and Quit sits last and alone under a rule because it stops
     /// the backups.
+    ///
+    /// <para>
+    /// <c>UpdateAvailableHeader</c> is the one addition past the package, and it is FIRST -
+    /// see [[ADR-018]]. It ships collapsed, so for a user who is up to date the menu is exactly
+    /// the designed list; the next test is what holds that.
+    /// </para>
     /// </summary>
     [Fact]
     public void The_menu_is_the_designed_items_in_the_designed_order()
@@ -41,6 +47,7 @@ public sealed class TrayMenuStyleTests
 
         Assert.Equal(
         [
+            "UpdateAvailableHeader",
             "LastBackupHeader",
             "-",
             "BackUpNow", "OpenApp", "OpenFolder",
@@ -49,6 +56,39 @@ public sealed class TrayMenuStyleTests
             "-",
             "Help", "About", "OpenSettings", "Quit",
         ], names);
+    }
+
+    /// <summary>
+    /// The addition earns its place by being invisible until it has something to say. A menu that
+    /// grows a permanent line for a state almost nobody is in is the same failure as a status
+    /// strip that always says "UP TO DATE".
+    /// </summary>
+    [Fact]
+    public void The_update_line_ships_collapsed_so_an_up_to_date_menu_is_the_designed_one()
+    {
+        var (visibility, visibleNames) = Wpf.Run(() =>
+        {
+            var menu = LoadMenu();
+            var item = menu.Items.OfType<FrameworkElement>().Single(i => i.Name == "UpdateAvailableHeader");
+
+            return (item.Visibility, menu.Items
+                .OfType<FrameworkElement>()
+                .Where(i => i.Visibility == Visibility.Visible)
+                .Select(i => i is Separator ? "-" : i.Name)
+                .ToList());
+        });
+
+        Assert.Equal(Visibility.Collapsed, visibility);
+        Assert.Equal(
+        [
+            "LastBackupHeader",
+            "-",
+            "BackUpNow", "OpenApp", "OpenFolder",
+            "-",
+            "AutoBackup", "PauseResume",
+            "-",
+            "Help", "About", "OpenSettings", "Quit",
+        ], visibleNames);
     }
 
     /// <summary>
@@ -149,7 +189,7 @@ public sealed class TrayMenuStyleTests
     [Fact]
     public void Every_template_in_the_menu_instantiates()
     {
-        var applied = Wpf.Run(() =>
+        var (total, templated) = Wpf.Run(() =>
         {
             ThemeManager.Apply(AppTheme.Dark);
 
@@ -157,13 +197,18 @@ public sealed class TrayMenuStyleTests
             menu.IsOpen = true;      // realises the popup, and with it every template
             menu.UpdateLayout();
 
-            var items = menu.Items.OfType<MenuItem>().Count(i => i.Template is not null);
+            var items = menu.Items.OfType<MenuItem>().ToList();
+            var result = (items.Count, items.Count(i => i.Template is not null));
 
             menu.IsOpen = false;
-            return items;
+            return result;
         });
 
-        Assert.Equal(10, applied);
+        // EVERY item, rather than a hardcoded count of them. The count was 10, and adding one
+        // menu item turned a real assertion ("no template failed to apply") into a failure about
+        // arithmetic. The property under test never was the number.
+        Assert.Equal(total, templated);
+        Assert.True(total >= 10, $"The menu lost items: {total} left.");
     }
 
     /// <summary>

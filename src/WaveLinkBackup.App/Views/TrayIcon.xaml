@@ -17,6 +17,19 @@
             <Style TargetType="Separator" BasedOn="{StaticResource WlTrayMenuSeparator}" />
         </ContextMenu.Resources>
 
+        <!--
+          The update readout. ABOVE the last-backup line and collapsed unless there is one, so the
+          menu is unchanged for the overwhelmingly common case of being up to date - the same rule
+          the status strip follows, and for the same reason: a line that is always there stops
+          being read. Its Header and Visibility are both rewritten on every tray refresh.
+
+          An item rather than a readout, unlike the line below it: this one DOES something (opens
+          Settings, where the install lives). It keeps the readout's mono styling so it still reads
+          as a statement of fact rather than as a command.
+        -->
+        <MenuItem x:Name="UpdateAvailableHeader" Header="UPDATE AVAILABLE"
+                  Style="{StaticResource WlTrayMenuReadout}" Visibility="Collapsed" />
+
         <!-- A readout, not an item. Its Header is rewritten on every tray refresh. -->
         <MenuItem x:Name="LastBackupHeader" Header="LAST BACKUP"
                   Style="{StaticResource WlTrayMenuReadout}" IsEnabled="False" />

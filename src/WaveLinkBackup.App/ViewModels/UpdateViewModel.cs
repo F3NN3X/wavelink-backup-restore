@@ -16,9 +16,17 @@ namespace WaveLinkBackup.App.ViewModels;
 public sealed class UpdateViewModel : ObservableObject
 {
     /// <summary>
-    /// Weekly, as the design says — "Check for updates on its own — weekly, on by default."
+    /// **Daily**, where the design says weekly — "Check for updates on its own — weekly, on by
+    /// default." [[ADR-018]] carries the change and the reason.
+    ///
+    /// The short version: weekly was the right number when the check only ever ran on the way into
+    /// the Settings dialog, because that is a rare and deliberate visit and a stale answer there is
+    /// cheap. Now that the check runs on its own and SAYS something when it finds one, the interval
+    /// is how long a shipped fix can sit unmentioned in front of someone using the app - and a week
+    /// is too long for that. It is still cheap: one conditional request against a release feed, on
+    /// an app that is meant to run for weeks.
     /// </summary>
-    public static readonly TimeSpan AutoCheckInterval = TimeSpan.FromDays(7);
+    public static readonly TimeSpan AutoCheckInterval = TimeSpan.FromHours(24);
 
     private readonly Func<CancellationToken, Task<UpdateCheck>> check;
     private readonly Func<UpdateRelease, IProgress<double>, CancellationToken, Task<string?>> install;
@@ -158,8 +166,12 @@ public sealed class UpdateViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Whether the weekly check is due. The ONE thing that happens without a press, and it only
-    /// looks — an available update is never a notification, a badge or a banner.
+    /// Whether the daily check is due.
+    ///
+    /// **This used to say "it only looks - an available update is never a notification, a badge or
+    /// a banner", and that is no longer true.** [[ADR-018]] added exactly that: the strip, a tray
+    /// menu line, and one notification per version. What the sentence was protecting still holds -
+    /// the check never INSTALLS anything, and nothing here acts without a press.
     /// </summary>
     public bool ShouldAutoCheck(DateTimeOffset now) =>
         IsConfigured && autoCheck && (lastCheckedAt is not { } last || now - last >= AutoCheckInterval);

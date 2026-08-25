@@ -103,16 +103,26 @@ public sealed class UpdateViewModelTests
         Assert.True(new Harness().Build().ShouldAutoCheck(Now));
     }
 
+    /// <summary>
+    /// **This pair encoded the WEEKLY interval and was correct when written.** ADR-018 moved the
+    /// interval to a day, so the first of them now asserts the opposite of the shipped behaviour.
+    /// Rewritten rather than deleted: the boundary is still the thing worth pinning, and the two
+    /// cases either side of it are still the useful ones.
+    ///
+    /// Weekly was right while the check only ran on the way into the Settings dialog - a rare,
+    /// deliberate visit where a stale answer costs nothing. It stopped being right when the check
+    /// began running on its own and saying something when it found one.
+    /// </summary>
     [Fact]
-    public void A_check_is_not_due_the_day_after_the_last_one()
+    public void A_check_is_not_due_an_hour_after_the_last_one()
     {
-        Assert.False(new Harness().Build(lastChecked: Now.AddDays(-1)).ShouldAutoCheck(Now));
+        Assert.False(new Harness().Build(lastChecked: Now.AddHours(-1)).ShouldAutoCheck(Now));
     }
 
     [Fact]
-    public void A_check_is_due_a_week_after_the_last_one()
+    public void A_check_is_due_a_day_after_the_last_one()
     {
-        Assert.True(new Harness().Build(lastChecked: Now.AddDays(-7)).ShouldAutoCheck(Now));
+        Assert.True(new Harness().Build(lastChecked: Now.AddDays(-1)).ShouldAutoCheck(Now));
     }
 
     [Fact]

@@ -161,6 +161,19 @@ public partial class App : Application
             var swapped = installer.Apply(
                 arguments.ApplyUpdateForProcessId!.Value, target, TimeSpan.FromSeconds(30));
 
+            // A failed swap has nowhere to report to: the window the user was looking at belonged
+            // to the process that has already exited. Leaving a breadcrumb beside settings.json is
+            // what stops "the update did nothing" being a silent, unexplained no-op - the next
+            // launch reads it and says so.
+            if (!swapped)
+            {
+                UpdateInstaller.RecordFailure(
+                    SettingsRepository.DefaultDirectory,
+                    "The new version couldn't replace the old one - something still had the app's "
+                        + "folder open. Nothing changed, and your backups are untouched.",
+                    DateTimeOffset.Now);
+            }
+
             // Relaunch either way: on success the new install, on failure the old one that was put
             // back. The one thing this must never do is leave the user with nothing running.
             UpdateInstaller.Relaunch(
@@ -274,6 +287,12 @@ public partial class App : Application
             RefreshTray();
             RefreshShellFacts();
             shell.RefreshAutostart();
+
+            // Daily, while the app is running. The tick is every 15 seconds and this is a date
+            // comparison until the day is up, so the cost of asking here is nothing - and it is
+            // the only thing that makes the interval real for an app designed to sit in the tray
+            // for weeks without being restarted.
+            _ = CheckForUpdateInBackground();
         };
         timer.Start();
 
@@ -284,6 +303,119 @@ public partial class App : Application
 
         if (!arguments.StartInTray) ShowMainWindow();
 
+        RefreshTray();
+
+        // A swap that failed last time. Read once - it is news exactly once - and said on the
+        // strip, which is the surface already carrying facts about this app's state.
+        if (UpdateInstaller.TakeFailure(SettingsRepository.DefaultDirectory) is { } failed)
+        {
+            updateFailureNotice = failed;
+            RefreshShellFacts();
+            Notify(TrayNotifications.UpdateFailed(failed));
+        }
+
+        // The check that makes "on its own, on by default" true. It used to run from the Settings
+        // dialog's Loaded handler, which meant a user who never opened Settings was never told a
+        // fix existed - a cadence attached to a surface almost nobody visits. Daily now rather
+        // than the design's weekly; [[ADR-018]] carries why.
+        _ = CheckForUpdateInBackground();
+    }
+
+    /// <summary>
+    /// The automatic update check - at startup and daily thereafter, off the UI thread.
+    ///
+    /// <para>
+    /// Fire-and-forget on purpose: startup must not wait on a network call, and a failure here is
+    /// not the user's problem. Every outcome that is not "there is a newer release" leaves
+    /// <see cref="updateAvailableVersion"/> null, so a feed that is down or a GitHub that is
+    /// rate-limiting is silence rather than a scary strip.
+    /// </para>
+    ///
+    /// <para>
+    /// The found version lives in memory only. This app is meant to sit in the tray for weeks, so
+    /// in the ordinary case it is found once and shown until it is installed. Restarting inside
+    /// the daily window does lose the notice until the next check is due - the alternative is a
+    /// new persisted settings field for a one-day gap, and a check-on-every-launch would be a
+    /// network call per launch. "Check now" in Settings is always there.
+    /// </para>
+    /// </summary>
+    private async Task CheckForUpdateInBackground()
+    {
+        if (updateCheckInFlight) return;
+        if (!settings.CheckForUpdates) return;
+
+        var source = ReleaseSource;
+        if (!source.IsConfigured) return;
+
+        var now = DateTimeOffset.Now;
+        if (settings.LastUpdateCheckUtc is { } last && now - last < UpdateViewModel.AutoCheckInterval)
+        {
+            return;
+        }
+
+        updateCheckInFlight = true;
+        try
+        {
+            await RunUpdateCheck(source, now).ConfigureAwait(true);
+        }
+        finally
+        {
+            updateCheckInFlight = false;
+        }
+    }
+
+    private async Task RunUpdateCheck(UpdateSource source, DateTimeOffset now)
+    {
+        try
+        {
+            var check = await new GitHubReleaseFeed(source, updateHttp)
+                .CheckAsync(ReleaseVersion.Current, CancellationToken.None)
+                .ConfigureAwait(true);
+
+            RecordUpdateCheck(check);
+        }
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or IOException)
+        {
+            // Offline, blocked, or slow. Nothing to say, and nothing to log at the user.
+        }
+        finally
+        {
+            // THE ATTEMPT is what backs off, not the success. BackupSettings says so about this
+            // very field - "when the last check ran, successful or not... otherwise a machine that
+            // is offline for a fortnight re-checks on every tick" - and recording it only on
+            // success made that sentence false: the tick is every 15 seconds, so an offline or
+            // rate-limited machine would have retried roughly 5,700 times a day. The failure that
+            // most needs backing off is exactly the one that used to skip it.
+            ApplySettings(settings with { LastUpdateCheckUtc = now });
+        }
+    }
+
+    /// <summary>
+    /// What an update check MEANS for the three surfaces, wherever the check came from - the timer,
+    /// startup, the Settings dialog's own auto-check, or "Check now".
+    ///
+    /// <para>
+    /// One funnel on purpose. Before this, a check run from the Settings dialog updated that
+    /// dialog and nothing else, so a user could press "Check now", be told an update existed, close
+    /// the dialog, and find the strip still silent. Three surfaces reading one field is only
+    /// coherent if one place writes it.
+    /// </para>
+    /// </summary>
+    private void RecordUpdateCheck(UpdateCheck check)
+    {
+        var found = check.Result == UpdateCheckResult.UpdateAvailable && check.Release is not null
+            ? ReleaseVersion.Display(check.Release.Version)
+            : null;
+
+        // Clearing matters as much as setting: a release withdrawn, or an update installed, must
+        // take the notice down rather than leave a version the user can no longer get.
+        if (found == updateAvailableVersion) return;
+
+        updateAvailableVersion = found;
+
+        // The strip and the tray both read the field; these are what make them notice. The balloon
+        // rides on RefreshTray, so it fires exactly once per version via TrayNotifications.
+        RefreshShellFacts();
         RefreshTray();
     }
 
@@ -491,6 +623,9 @@ public partial class App : Application
             // LastBackupHeader is deliberately absent: it is a readout, not an item.
             switch (item.Name)
             {
+                case "UpdateAvailableHeader":
+                    item.Click += (_, _) => { ShowMainWindow(); OpenSettings(); };
+                    break;
                 case "BackUpNow": item.Click += (_, _) => BackUpNow(); break;
                 case "OpenApp": item.Click += (_, _) => ShowMainWindow(); break;
                 case "OpenFolder": item.Click += (_, _) => OpenStoreFolder(); break;
@@ -846,7 +981,15 @@ public partial class App : Application
         var feed = new GitHubReleaseFeed(source, updateHttp);
 
         return new UpdateViewModel(
-            check: ct => feed.CheckAsync(ReleaseVersion.Current, ct),
+            // Wrapped rather than passed straight through, so a check the SETTINGS DIALOG runs -
+            // its own auto-check, or "Check now" - lights the strip and the tray as well as the
+            // dialog. Otherwise the user is told twice and believed once.
+            check: async ct =>
+            {
+                var result = await feed.CheckAsync(ReleaseVersion.Current, ct).ConfigureAwait(true);
+                RecordUpdateCheck(result);
+                return result;
+            },
             install: (release, progress, ct) => InstallUpdateAsync(release, progress, ct),
             persist: (checkForUpdates, checkedAt) => ApplySettings(
                 settings with { CheckForUpdates = checkForUpdates, LastUpdateCheckUtc = checkedAt }),
@@ -1319,6 +1462,11 @@ public partial class App : Application
                 OpenSettings();
             },
             TrayNotificationKind.WaveLinkReset => ShowMainWindow,
+            TrayNotificationKind.UpdateAvailable or TrayNotificationKind.UpdateFailed => () =>
+            {
+                ShowMainWindow();
+                OpenSettings();
+            },
             _ => null,
         };
 
@@ -1329,6 +1477,26 @@ public partial class App : Application
 
     /// <summary>What clicking the most recent notification does. Null when there is nothing to do.</summary>
     private Action? pendingNotificationAction;
+
+    /// <summary>
+    /// The version a check found and this build does not have, display-formatted, or null.
+    ///
+    /// ONE field feeding three surfaces - the status strip, the tray menu line, and the balloon -
+    /// rather than each asking the feed itself. The check is a network call on a timer; three
+    /// callers would mean three answers that can disagree, and a strip that says one thing while
+    /// the menu says another is worse than either alone.
+    /// </summary>
+    private string? updateAvailableVersion;
+
+    /// <summary>
+    /// Whether a check is in flight. The timer ticks every 15 seconds and a check is a network
+    /// call that can outlive several ticks - without this, a slow or hanging feed would stack a
+    /// new request on every tick until something gave out.
+    /// </summary>
+    private bool updateCheckInFlight;
+
+    /// <summary>Why the last update did not go in, said once on the next launch.</summary>
+    private string? updateFailureNotice;
 
     /// <summary>
     /// The second designed notification: Wave Link rejected a restored backup and reset the live
@@ -1409,6 +1577,18 @@ public partial class App : Application
         // refresh, which is every host tick, and fired at most once per episode - the decision and
         // the once-ness both live in TrayNotifications so they can be asserted from a table.
         Notify(notifications.NothingBackedUp(newest.TakenAt, DateTimeOffset.Now));
+
+        // The update line and the balloon read the SAME field the strip does, so the three can
+        // never disagree. TrayNotifications decides the once-ness; this just asks.
+        var update = Item("UpdateAvailableHeader");
+        update.Header = updateAvailableVersion is { Length: > 0 } available
+            ? $"UPDATE {available} AVAILABLE · INSTALL IN SETTINGS"
+            : "UPDATE AVAILABLE";
+        update.Visibility = updateAvailableVersion is { Length: > 0 }
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        Notify(notifications.UpdateAvailable(updateAvailableVersion));
 
         Item("LastBackupHeader").Header = Readout();
         Item("AutoBackup").IsChecked = host.AutoBackupEnabled;
@@ -1499,7 +1679,9 @@ public partial class App : Application
             StorePath: settings.StorePath,
             FreeBytes: fileSystem.GetAvailableFreeBytes(settings.StorePath),
             WaveLinkVersion: inspection.IsSuccess ? inspection.Value.Analysis.WaveLinkVersion : null,
-            LogsPath: inspection.IsSuccess ? inspection.Value.Location.LogsPath : null));
+            LogsPath: inspection.IsSuccess ? inspection.Value.Location.LogsPath : null,
+            UpdateAvailableVersion: updateAvailableVersion,
+            UpdateFailureNotice: updateFailureNotice));
     }
 
     /// <summary>
