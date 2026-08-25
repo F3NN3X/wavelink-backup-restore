@@ -21,9 +21,9 @@ heading here.
 
 ---
 
-## [Unreleased]
+## [0.7.5] - 2026-08-25
 
-**Wave Link Backup can now see the machine's audio devices, and two developer tools take the manual half out of the last two open questions.** `wlbackup diagnostics` reports how many capture and playback endpoints exist and what state each is in — the fact that separates "this input is gone" from "this input is fine", which nothing in a settings file can answer. Nothing user-facing changed in the app.
+**The debt list is empty of work, and the app can see the machine's audio devices.** `wlbackup diagnostics` now reports how many capture and playback endpoints exist and what state each is in — the fact that separates "this input is gone" from "this input is fine", which nothing in a settings file can answer. Dialogs no longer render see-through in a high-contrast scheme. And the two questions that could only be answered on a real rig were answered on one: Wave Link resolves a plug-in by identity rather than by path, and the last by-eye look is done.
 
 ### Added
 

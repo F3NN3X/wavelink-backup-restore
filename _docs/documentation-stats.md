@@ -20,7 +20,7 @@ Update this file **in the same commit** as the document it counts. See
 
 ## Tally
 
-*As of v0.7.4 plus unreleased work on `debt/close-remaining` (2026-08-25).*
+*As of v0.7.5 (2026-08-25).*
 
 | Artifact | Count |
 |---|---|
