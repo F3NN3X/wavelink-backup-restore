@@ -104,9 +104,13 @@ public sealed class GitHubReleaseFeed(UpdateSource source, HttpClient http) : IU
                 return UpdateCheck.Failed($"RELEASE {ReleaseVersion.Display(version)} HAS NO DOWNLOADS");
             }
 
-            string? downloadUrl = null;
-            long size = 0;
-            string? sha256 = null;
+            // Collected first, PAIRED second. This used to be a single pass that took any asset
+            // ending ".sha256" as the checksum, last one winning - which was right while a release
+            // carried one archive, and silently wrong from 0.7.2, when §8.5 split the CLI into its
+            // own artifact. A release then has two archives and two checksums, so the app's zip was
+            // being verified against the CLI's digest and every update failed its checksum. The
+            // download and its digest have to be matched BY NAME, not by shape.
+            var found = new List<(string Name, string Url, long Size)>();
 
             foreach (var asset in assets.EnumerateArray())
             {
@@ -114,24 +118,29 @@ public sealed class GitHubReleaseFeed(UpdateSource source, HttpClient http) : IU
                 if (String(asset, "name") is not { } name) continue;
                 if (String(asset, "browser_download_url") is not { } url) continue;
 
-                if (name.EndsWith(source.AssetSuffix, StringComparison.OrdinalIgnoreCase))
-                {
-                    downloadUrl = url;
-                    size = Number(asset, "size");
-                }
-                else if (name.EndsWith(".sha256", StringComparison.OrdinalIgnoreCase))
-                {
-                    // The checksum's own URL; the file is fetched when the download starts, not
-                    // now — a check should cost one request, not two.
-                    sha256 = url;
-                }
+                found.Add((name, url, Number(asset, "size")));
             }
 
-            if (downloadUrl is null)
+            var download = found.FirstOrDefault(
+                a => a.Name.EndsWith(source.AssetSuffix, StringComparison.OrdinalIgnoreCase));
+
+            if (download.Url is null)
             {
                 return UpdateCheck.Failed(
                     $"RELEASE {ReleaseVersion.Display(version)} HAS NO {source.AssetSuffix.ToUpperInvariant()}");
             }
+
+            var downloadUrl = download.Url;
+            var size = download.Size;
+
+            // "<the archive we are downloading>.sha256", and nothing else. A checksum belonging to
+            // some other asset is worse than none: it turns every update into a failure that reads
+            // like a corrupted download. The checksum's own URL only - the file is fetched when
+            // the download starts, so a check still costs one request.
+            var sha256 = found
+                .FirstOrDefault(a => a.Name.Equals(
+                    download.Name + ".sha256", StringComparison.OrdinalIgnoreCase))
+                .Url;
 
             return UpdateCheck.Available(new UpdateRelease(
                 version,
